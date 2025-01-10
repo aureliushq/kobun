@@ -176,3 +176,7 @@ dist
 
 # Turbo
 .turbo
+
+# build/dist directories
+**/build/
+**/dist/
