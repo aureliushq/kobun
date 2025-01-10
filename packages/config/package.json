@@ -1,0 +1,6 @@
+{
+	"name": "@rescribe/config",
+	"type": "module",
+	"private": true,
+	"files": ["tsconfig.json"]
+}

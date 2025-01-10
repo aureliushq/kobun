@@ -1,0 +1,11 @@
+{
+	"name": "@rescribe/core",
+	"module": "src/index.ts",
+	"type": "module",
+	"devDependencies": {
+		"@rescribe/config": "workspace:*"
+	},
+	"peerDependencies": {
+		"typescript": "^5.0.0"
+	}
+}

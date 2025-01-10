@@ -1,0 +1,4 @@
+{
+	"display": "@rescribe/core",
+	"extends": "@rescribe/config/tsconfig.json"
+}

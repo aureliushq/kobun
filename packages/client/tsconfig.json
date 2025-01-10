@@ -1,0 +1,4 @@
+{
+	"display": "@rescribe/client",
+	"extends": "@rescribe/config/tsconfig.json"
+}
