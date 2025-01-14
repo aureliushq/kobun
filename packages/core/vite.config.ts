@@ -7,12 +7,6 @@ import * as packageJson from './package.json'
 
 // https://vitejs.dev/config/
 export default defineConfig({
-	plugins: [
-		react(),
-		dts({
-			insertTypesEntry: true,
-		}),
-	],
 	build: {
 		lib: {
 			// Entry point for your library
@@ -39,5 +33,16 @@ export default defineConfig({
 		sourcemap: true,
 		// Ensure clean build directory
 		emptyOutDir: true,
+	},
+	plugins: [
+		react(),
+		dts({
+			insertTypesEntry: true,
+		}),
+	],
+	resolve: {
+		alias: {
+			'@': resolve(__dirname, './src'),
+		},
 	},
 })
