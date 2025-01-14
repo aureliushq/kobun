@@ -178,5 +178,10 @@ dist
 .turbo
 
 # build/dist directories
-**/build/
 **/dist/
+
+**/node_modules/
+
+# React Router
+**/.react-router/
+**/build/
