@@ -18,6 +18,6 @@
 		"turbo": "2.3.3"
 	},
 	"packageManager": "^bun@1.0.0",
-	"workspaces": ["docs", "packages/*"],
-	"trustedDependencies": ["@biomejs/biome", "esbuild", "workerd"]
+	"workspaces": ["demo", "packages/*"],
+	"trustedDependencies": ["@biomejs/biome", "esbuild"]
 }
