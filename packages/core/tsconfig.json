@@ -1,4 +1,11 @@
 {
 	"display": "@rescribe/core",
-	"extends": "@rescribe/config/tsconfig.json"
+	"extends": "@rescribe/tsconfig/tsconfig.json",
+	"compilerOptions": {
+		"outDir": "dist",
+		"baseUrl": ".",
+		"paths": {
+			"@/*": ["src/*"]
+		}
+	}
 }

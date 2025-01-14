@@ -9,6 +9,9 @@
 		"lint": {
 			"dependsOn": ["^lint"]
 		},
+		"check-exports": {
+			"dependsOn": ["^check-exports"]
+		},
 		"check-types": {
 			"dependsOn": ["^check-types"]
 		},

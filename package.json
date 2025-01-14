@@ -7,8 +7,9 @@
 	"author": "",
 	"scripts": {
 		"build": "turbo run build",
-		"build:docs": "turbo run build --filter rescribe-docs",
-		"deploy:docs": "turbo run deploy --filter rescribe-docs",
+		"build:demo": "turbo run build --filter rescribe-demo",
+		"check-exports": "turbo run check-exports",
+		"deploy:demo": "turbo run deploy --filter rescribe-demo",
 		"dev": "turbo run dev --parallel",
 		"format": "biome format --write .",
 		"lint": "biome lint --write ."

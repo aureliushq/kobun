@@ -1,9 +1,23 @@
 {
 	"name": "@rescribe/core",
-	"module": "src/index.ts",
 	"type": "module",
+	"main": "dist/index.js",
+	"module": "dist/index.mjs",
+	"exports": {
+		"./package.json": "./package.json",
+		".": {
+			"import": "./dist/index.js",
+			"default": "./dist/index.cjs"
+		}
+	},
+	"scripts": {
+		"build": "tsup",
+		"check-exports": "attw --pack ."
+	},
 	"devDependencies": {
-		"@rescribe/config": "workspace:*"
+		"@arethetypeswrong/cli": "0.17.3",
+		"@rescribe/tsconfig": "workspace:*",
+		"tsup": "8.3.5"
 	},
 	"peerDependencies": {
 		"typescript": "^5.0.0"

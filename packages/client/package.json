@@ -3,7 +3,7 @@
 	"module": "src/index.ts",
 	"type": "module",
 	"devDependencies": {
-		"@rescribe/config": "workspace:*"
+		"@rescribe/tsconfig": "workspace:*"
 	},
 	"peerDependencies": {
 		"typescript": "^5.0.0"

@@ -1,4 +1,4 @@
-# @rescribe/config
+# @rescribe/tsconfig
 
 To install dependencies:
 
