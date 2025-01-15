@@ -2,5 +2,5 @@
 	"name": "@rescribe/tsconfig",
 	"type": "module",
 	"private": true,
-	"files": ["tsconfig.json"]
+	"files": ["base.json", "core.json", "tsconfig.json"]
 }

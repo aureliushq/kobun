@@ -1,0 +1,25 @@
+{
+	"$schema": "https://json.schemastore.org/tsconfig",
+	"display": "@rescribejs/core",
+	"extends": "./base.json",
+	"compilerOptions": {
+		"declaration": true,
+		"downlevelIteration": true,
+		"esModuleInterop": true,
+		"forceConsistentCasingInFileNames": true,
+		"isolatedModules": true,
+		"lib": ["dom", "dom.iterable", "esnext"],
+		"jsx": "react-jsx",
+		"module": "esnext",
+		"moduleResolution": "node",
+		"noEmit": true,
+		"noUnusedLocals": false,
+		"resolveJsonModule": true,
+		"skipLibCheck": true,
+		"strict": true,
+		"target": "esnext",
+		"types": ["node"]
+	},
+	"include": ["**/*"],
+	"exclude": ["**/dist/**/*", "**/node_modules/**/*"]
+}
