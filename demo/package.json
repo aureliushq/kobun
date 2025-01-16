@@ -1,5 +1,5 @@
 {
-	"name": "demo",
+	"name": "@rescribe/demo",
 	"private": true,
 	"type": "module",
 	"scripts": {
