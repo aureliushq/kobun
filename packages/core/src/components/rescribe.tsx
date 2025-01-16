@@ -5,7 +5,7 @@ type RescribeProps = RescribeContextData
 const Rescribe = ({ config }: RescribeProps) => {
 	return (
 		<RescribeProvider config={config}>
-			<div>Rescribe</div>
+			<div>Hello, User!</div>
 		</RescribeProvider>
 	)
 }
