@@ -1,7 +1,7 @@
 import { createContext, type ReactNode } from 'react'
 import type { Config } from './types'
 
-type RescribeContextData = {
+export type RescribeContextData = {
 	config: Config
 }
 
