@@ -5,7 +5,7 @@ type CollectionFormat = 'md' | 'mdx'
 type Glob = '*' | '**'
 type ContentPath = `${string}/${Glob}` | `${string}/${Glob}/${string}`
 
-export const FieldTypes = z.enum([
+const FieldTypes = z.enum([
 	'boolean',
 	'date',
 	'document',
@@ -16,42 +16,41 @@ export const FieldTypes = z.enum([
 	'text',
 	'url',
 ])
-export type FieldType = z.infer<typeof FieldTypes>
 
-export type BasicField = {
+type BasicField = {
 	label: string
 	description?: string
 }
 
-export type BooleanField = BasicField & {
+type BooleanField = BasicField & {
 	defaultChecked?: boolean
 } & {
 	type?: typeof FieldTypes.enum.boolean
 }
 
-export type DateField = BasicField & {
+type DateField = BasicField & {
 	type?: typeof FieldTypes.enum.date
 }
 
-export type DocumentField = BasicField & {
+type DocumentField = BasicField & {
 	type?: typeof FieldTypes.enum.document
 }
 
-export type TextField = BasicField & {
+type TextField = BasicField & {
 	multiline?: boolean
 } & {
 	type?: typeof FieldTypes.enum.text
 }
 
-export type SlugField = BasicField & {
+type SlugField = BasicField & {
 	type?: typeof FieldTypes.enum.slug
 }
 
-export type UrlField = BasicField & {
+type UrlField = BasicField & {
 	type?: typeof FieldTypes.enum.url
 }
 
-export type Field =
+type Field =
 	| BooleanField
 	| DateField
 	| DocumentField
@@ -60,11 +59,11 @@ export type Field =
 	| UrlField
 
 type SpecialSchemaKeys = 'content' | 'slug' | 'title'
-type SchemaKey = SpecialSchemaKeys | string
-type Schema<T extends SchemaKey> = Record<T, Field>
+export type SchemaKey = SpecialSchemaKeys | string
+export type Schema<T extends SchemaKey> = Record<T, Field>
 
-export const collectionSlug = z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)
-export type CollectionSlug = z.infer<typeof collectionSlug>
+const collectionSlug = z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)
+type CollectionSlug = z.infer<typeof collectionSlug>
 
 export type Collection = {
 	format?: CollectionFormat

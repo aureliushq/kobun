@@ -1,3 +1,10 @@
 export * from './config'
 export * as fields from './fields'
-// export type {} from './types'
+export { RescribeProvider } from './providers'
+export type {
+	Collection,
+	Collections,
+	Config,
+	Schema,
+	SchemaKey,
+} from './types'
