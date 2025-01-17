@@ -18,6 +18,7 @@ const rescribeConfig = config({
 					label: 'Content',
 				}),
 				published: fields.boolean({
+					component: 'checkbox',
 					label: 'Publish Page',
 					description:
 						'If the page should be published. Page will be saved as a draft by default.',

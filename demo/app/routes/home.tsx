@@ -1,5 +1,6 @@
 import { Rescribe } from '@rescribe/core'
 import rescribeConfig from '~/rescribe.config'
+import '@rescribe/core/rescribe.css'
 
 export function meta() {
 	return [
