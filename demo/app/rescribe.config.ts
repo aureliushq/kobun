@@ -3,10 +3,12 @@ import { collection, config, fields } from '@rescribe/core'
 const rescribeConfig = config({
 	collections: {
 		docs: collection({
-			format: 'mdx',
 			label: 'Docs',
 			slug: 'docs',
-			path: 'content/docs/**/*',
+			paths: {
+				assets: 'docs/**/*',
+				content: 'docs/**/*',
+			},
 			schema: {
 				title: fields.text({
 					label: 'Title',
@@ -30,6 +32,12 @@ const rescribeConfig = config({
 				}),
 			},
 		}),
+	},
+	storage: {
+		mode: 'local',
+		assets: 'assets',
+		content: 'content',
+		format: 'mdx',
 	},
 })
 
