@@ -5,23 +5,30 @@
 	"files": ["dist"],
 	"main": "./dist/index.cjs",
 	"module": "./dist/index.js",
+	"style": "./dist/index.css",
 	"types": "./dist/index.d.ts",
 	"exports": {
-		".": "./dist/index.js"
+		".": "./dist/index.js",
+		"./rescribe.css": "./dist/index.css"
 	},
 	"scripts": {
-		"dev": "tsup --watch",
-		"build": "tsup"
+		"build": "pnpm run build:css && pnpm run build:lib",
+		"build:css": "tailwindcss -m -i ./src//index.css -o dist/index.css",
+		"build:lib": "tsup",
+		"dev": "concurrently \"pnpm run dev:css\" \"pnpm run dev:lib\"",
+		"dev:css": "tailwindcss -w -i ./src/index.css -o dist/index.css",
+		"dev:lib": "tsup --watch --dts"
 	},
 	"peerDependencies": {
-		"react": "^18.3.1",
-		"react-dom": "^18.3.1"
+		"react": "^19.0.0",
+		"react-dom": "^19.0.0"
 	},
 	"devDependencies": {
 		"@types/node": "22.10.6",
-		"@types/react": "^18.3.18",
-		"@types/react-dom": "^18.3.5",
+		"@types/react": "^19.0.1",
+		"@types/react-dom": "^19.0.1",
 		"autoprefixer": "10.4.20",
+		"concurrently": "^9.1.2",
 		"postcss": "8.5.1",
 		"tailwindcss": "3.4.17",
 		"tsup": "^8.3.5",
