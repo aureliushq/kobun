@@ -86,17 +86,22 @@ export function select({ description, label, options }: SelectField) {
 	}
 }
 
-export type SlugField = BasicField
-export function slug({ description, label }: SlugField) {
+export type SlugField = {
+	name: Omit<TextField, 'multiline' | 'type'>
+	slug: Omit<TextField, 'multiline' | 'type'>
+}
+export function slug({ name, slug }: SlugField) {
 	return {
-		description,
-		label,
+		name,
+		slug,
 		type: FieldTypes.SLUG,
 	}
 }
 
 export type TextField = BasicField & {
 	multiline?: boolean
+	placeholder?: string
+	type?: HTMLInputElement['type']
 }
 export function text({ description, label, multiline = false }: TextField) {
 	return {
@@ -107,7 +112,10 @@ export function text({ description, label, multiline = false }: TextField) {
 	}
 }
 
-export type UrlField = BasicField
+export type UrlField = BasicField & {
+	placeholder?: string
+	type?: HTMLInputElement['type']
+}
 export function url({ description, label }: UrlField) {
 	return {
 		description,
