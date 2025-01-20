@@ -14,7 +14,7 @@ pnpm add @rescribe/core @rescribe/server
 
 ## Features
 
-- Made for Remix
+- Made for Remix and React Router v7
 - CMS in your codebase
 - Organize content in collections
 - Customizable editor fields for each collection
@@ -29,13 +29,13 @@ pnpm add @rescribe/core @rescribe/server
 ## Roadmap
 
 - [ ] Functioning CMS
-- [ ] Blog and Docs templates
 - [ ] Light/dark mode toggle
 - [ ] Syntax Highlighting
-- [ ] Components - Accordion, Bleed, Card, Card Group, Callouts, Tabs,
+- [ ] Blog and Docs templates
 - [ ] i18n
-- [ ] Zero-config full-text search
 - [ ] Versioning
+- [ ] Components - Accordion, Bleed, Card, Card Group, Callouts, Tabs,
+- [ ] Zero-config full-text search
 
 ## License
 
