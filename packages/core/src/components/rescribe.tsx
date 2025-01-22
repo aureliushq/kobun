@@ -1,77 +1,44 @@
 import { type RescribeContextData, RescribeProvider } from '@/providers'
-import BooleanField from './fields/boolean'
-import DateField from './fields/date'
-import SelectField from './fields/select'
-import SlugField from './fields/slug'
-import TextField from './fields/text'
-import UrlField from './fields/url'
 import { DashboardLayout } from './layouts'
+import ComponentReference from './reference'
+import { useLoaderData, useLocation } from 'react-router'
+import invariant from 'tiny-invariant'
+import { useMemo } from 'react'
+import { parseAdminPathname } from '@/lib/utils'
 
 type RescribeProps = RescribeContextData
 
 const Rescribe = ({ config }: RescribeProps) => {
-	return (
-		<RescribeProvider config={config}>
-			<DashboardLayout>
-				<BooleanField
-					component='checkbox'
-					config={{ id: 'accept-terms-checkbox' }}
-					defaultChecked={true}
-					description='You agree to our Terms of Service and Privacy Policy.'
-					label='Accept terms and conditions'
-				/>
-				<BooleanField
-					component='switch'
-					config={{ id: 'accept-terms-switch' }}
-					defaultChecked={true}
-					description='You agree to our Terms of Service and Privacy Policy.'
-					label='Accept terms and conditions'
-				/>
-				<DateField
-					description='Set the date when the article was published.'
-					label='Published At'
-				/>
-				<SelectField
-					description='Set if the series is ongoing or completed.'
-					label='Status'
-					options={[
-						{ label: 'Ongoing', value: 'ongoing' },
-						{ label: 'Completed', value: 'completed' },
-					]}
-					placeholder='Select Status'
-				/>
-				<TextField
-					description='Your work email'
-					label='Email'
-					placeholder='anakin@not-a-jedi-master.com'
-					type='email'
-				/>
-				<TextField
-					description='Let us know if we can do better'
-					label='Feedback'
-					placeholder='Type your feedback message here'
-					multiline={true}
-				/>
-				<UrlField
-					description='The title of the post'
-					label='Website'
-					placeholder='https://not-a-jedi-master.com'
-				/>
-				<SlugField
-					name={{
-						description: 'The title of the post',
-						label: 'Title',
-						placeholder: 'Post Title',
-					}}
-					slug={{
-						description: 'File/folder name for this post',
-						label: 'Slug',
-						placeholder: 'post-title',
-					}}
-				/>
-			</DashboardLayout>
-		</RescribeProvider>
+	invariant(
+		config,
+		'`config` is required for the Rescribe component. Check the docs to see how to write the configuration.',
 	)
+
+	const data = useLoaderData()
+	const location = useLocation()
+	const params = useMemo(() => {
+		return parseAdminPathname({ pathname: location.pathname })
+	}, [location.pathname])
+
+	console.log(data)
+	console.log(params)
+
+	let component = null
+	if (params?.root) {
+		component = (
+			<DashboardLayout>
+				<ComponentReference />
+			</DashboardLayout>
+		)
+	} else {
+		component = (
+			<div>
+				Not Found. Check the URL and make sure there are no typos.
+			</div>
+		)
+	}
+
+	return <RescribeProvider config={config}>{component}</RescribeProvider>
 }
 
 export default Rescribe
