@@ -12,10 +12,12 @@
 		"deploy:demo": "turbo run deploy --filter rescribe-demo",
 		"dev": "turbo run dev --parallel",
 		"format": "biome format --write .",
-		"lint": "biome lint --write ."
+		"lint": "biome lint --write .",
+		"nuke": "turbo run nuke && rimraf node_modules .turbo"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "1.9.4",
+		"rimraf": "^6.0.1",
 		"turbo": "2.3.3"
 	},
 	"engines": {
@@ -27,6 +29,7 @@
 	"trustedDependencies": ["@biomejs/biome", "esbuild"],
 	"resolutions": {
 		"react": "19.0.0",
-		"react-dom": "19.0.0"
+		"react-dom": "19.0.0",
+		"react-router": "7.1.1"
 	}
 }
