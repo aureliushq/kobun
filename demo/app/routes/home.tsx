@@ -9,6 +9,12 @@ export function meta() {
 	]
 }
 
-export default function Home() {
+export const loader = async () => {
+	return { message: 'Hello from the server!' }
+}
+
+const CMS = () => {
 	return <Rescribe config={rescribeConfig} />
 }
+
+export default CMS
