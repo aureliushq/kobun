@@ -13,7 +13,7 @@ const config: Options = {
 	bundle: true,
 	minify: true,
 	name: '@rescribejs/core',
-	external: ['react', 'react-dom', '@remix-run/react'],
+	external: ['react', 'react-dom', 'react-router', '@remix-run/react'],
 }
 
 export default defineConfig(config)
