@@ -2,10 +2,12 @@ import { createContext, type ReactNode } from 'react'
 import type { Config } from './types'
 
 export type RescribeContextData = {
-	config: Config
+	config: Config | null
 }
 
-const RescribeContext = createContext<RescribeContextData | null>(null)
+export const RescribeContext = createContext<RescribeContextData>({
+	config: null,
+})
 
 type RescribeProviderProps = RescribeContextData & {
 	children: ReactNode

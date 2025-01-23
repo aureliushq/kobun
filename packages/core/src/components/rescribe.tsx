@@ -1,5 +1,5 @@
 import { type RescribeContextData, RescribeProvider } from '@/providers'
-import { DashboardLayout } from './layouts'
+import { DashboardLayout } from './layouts/dashboard'
 import ComponentReference from './reference'
 import { useLoaderData, useLocation } from 'react-router'
 import invariant from 'tiny-invariant'
@@ -17,14 +17,23 @@ const Rescribe = ({ config }: RescribeProps) => {
 	const data = useLoaderData()
 	const location = useLocation()
 	const params = useMemo(() => {
-		return parseAdminPathname({ pathname: location.pathname })
-	}, [location.pathname])
+		return parseAdminPathname({
+			collections: config.collections,
+			pathname: location.pathname,
+		})
+	}, [config, location.pathname])
 
 	console.log(data)
 	console.log(params)
 
 	let component = null
-	if (params?.root) {
+	if (params?.collection && !params.action) {
+		component = (
+			<DashboardLayout>
+				<div>{params.collection}</div>
+			</DashboardLayout>
+		)
+	} else if (params?.root) {
 		component = (
 			<DashboardLayout>
 				<ComponentReference />

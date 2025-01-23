@@ -1,6 +1,8 @@
+import type { Collections } from '@/types'
 import { type ClassValue, clsx } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 import { BASE_PATH_REGEX } from './constants'
+import invariant from 'tiny-invariant'
 
 export const cn = (...inputs: ClassValue[]) => {
 	return twMerge(clsx(inputs))
@@ -8,22 +10,23 @@ export const cn = (...inputs: ClassValue[]) => {
 
 export const parseAdminPathname = ({
 	basePath = BASE_PATH_REGEX,
+	collections,
 	pathname,
 }: {
 	basePath?: string | RegExp
+	collections: Collections
 	pathname: string
 }) => {
 	const replaced = pathname.replace(basePath, '')
 	const parts =
 		replaced === '' ? [] : replaced.split('/').map(decodeURIComponent)
 
-	if (parts.length === 0) {
-		return { root: true }
-	}
-
+	if (parts.length === 0) return { root: true }
 	if (parts.length < 2 || parts[0] !== 'collections') return null
 
 	const collection = parts[1]
+	invariant(collections[collection], `Collection "${collection}" not found`)
+
 	if (parts.length === 2) {
 		return { collection }
 	}
