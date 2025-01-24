@@ -1,10 +1,35 @@
-import { type RescribeContextData, RescribeProvider } from '@/providers'
-import { DashboardLayout } from './layouts/dashboard'
-import ComponentReference from './reference'
-import { useLoaderData, useLocation } from 'react-router'
+import { useContext } from 'react'
+import { useLoaderData } from 'react-router'
 import invariant from 'tiny-invariant'
-import { useMemo } from 'react'
-import { parseAdminPathname } from '@/lib/utils'
+import { DashboardLayout } from '@/components/layouts/dashboard'
+import {
+	RescribeContext,
+	type RescribeContextData,
+	RescribeProvider,
+} from '@/providers'
+import ComponentReference from '@/components/reference'
+
+const Root = () => {
+	const { params } = useContext<RescribeContextData>(RescribeContext)
+
+	if (params?.collection && !params.action) {
+		return (
+			<DashboardLayout>
+				<div>{params.collection}</div>
+			</DashboardLayout>
+		)
+	}
+
+	if (params?.root) {
+		return (
+			<DashboardLayout>
+				<ComponentReference />
+			</DashboardLayout>
+		)
+	}
+
+	return <div>Not Found. Check the URL and make sure there are no typos.</div>
+}
 
 type RescribeProps = RescribeContextData
 
@@ -15,39 +40,12 @@ const Rescribe = ({ config }: RescribeProps) => {
 	)
 
 	const data = useLoaderData()
-	const location = useLocation()
-	const params = useMemo(() => {
-		return parseAdminPathname({
-			collections: config.collections,
-			pathname: location.pathname,
-		})
-	}, [config, location.pathname])
 
-	console.log(data)
-	console.log(params)
-
-	let component = null
-	if (params?.collection && !params.action) {
-		component = (
-			<DashboardLayout>
-				<div>{params.collection}</div>
-			</DashboardLayout>
-		)
-	} else if (params?.root) {
-		component = (
-			<DashboardLayout>
-				<ComponentReference />
-			</DashboardLayout>
-		)
-	} else {
-		component = (
-			<div>
-				Not Found. Check the URL and make sure there are no typos.
-			</div>
-		)
-	}
-
-	return <RescribeProvider config={config}>{component}</RescribeProvider>
+	return (
+		<RescribeProvider config={config}>
+			<Root />
+		</RescribeProvider>
+	)
 }
 
 export default Rescribe
