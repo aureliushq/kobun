@@ -2,12 +2,12 @@ import { collection, config, fields } from '@rescribe/core'
 
 const rescribeConfig = config({
 	collections: {
-		articles: collection({
-			label: 'Articles',
-			slug: 'articles',
+		posts: collection({
+			label: 'Posts',
+			slug: 'posts',
 			paths: {
-				assets: 'articles/**/*',
-				content: 'articles/**/*',
+				assets: 'posts/**/*',
+				content: 'posts/**/*',
 			},
 			schema: {
 				title: fields.text({
