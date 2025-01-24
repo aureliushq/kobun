@@ -5,6 +5,7 @@ export const BASE_PATH_REGEX = /^\/rescribe\/?/
 export const PATHS = {
 	BASE: BASE_PATH,
 	COLLECTIONS: `${BASE_PATH}/collections`,
+	SETTINGS: `${BASE_PATH}/settings`,
 }
 
 // TODO: move to server package
