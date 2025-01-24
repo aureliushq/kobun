@@ -1,70 +1,37 @@
 import {
-	Calendar,
+	BookOpenIcon,
 	ExternalLinkIcon,
-	Home,
-	House,
 	HouseIcon,
-	Inbox,
 	PanelsTopLeftIcon,
 	PlusIcon,
-	Search,
-	Settings,
+	SettingsIcon,
 } from 'lucide-react'
+import { useContext } from 'react'
+import { Link, useLocation } from 'react-router'
+import invariant from 'tiny-invariant'
 
+import Logo from '@/components/layouts/blocks/logo'
 import {
 	Sidebar,
 	SidebarContent,
 	SidebarGroup,
-	SidebarGroupAction,
 	SidebarGroupContent,
 	SidebarGroupLabel,
 	SidebarHeader,
 	SidebarMenu,
+	SidebarMenuAction,
 	SidebarMenuButton,
 	SidebarMenuItem,
 } from '@/components/ui/sidebar'
 import { PATHS } from '@/lib/constants'
+import { cn } from '@/lib/utils'
 import { RescribeContext, type RescribeContextData } from '@/providers'
-import { Fragment, useContext } from 'react'
-import { Link, useLocation } from 'react-router'
-import invariant from 'tiny-invariant'
-import Logo from './logo'
-
-// Menu items.
-const items = [
-	{
-		title: 'Home',
-		url: '#',
-		icon: Home,
-	},
-	{
-		title: 'Inbox',
-		url: '#',
-		icon: Inbox,
-	},
-	{
-		title: 'Calendar',
-		url: '#',
-		icon: Calendar,
-	},
-	{
-		title: 'Search',
-		url: '#',
-		icon: Search,
-	},
-	{
-		title: 'Settings',
-		url: '#',
-		icon: Settings,
-	},
-]
 
 const DashboardSidebar = () => {
 	const { config } = useContext<RescribeContextData>(RescribeContext)
 	invariant(config, '`config` is required.')
 
 	const location = useLocation()
-	console.log(location.pathname)
 
 	return (
 		<Sidebar>
@@ -90,6 +57,8 @@ const DashboardSidebar = () => {
 										<span>Dashboard</span>
 									</Link>
 								</SidebarMenuButton>
+							</SidebarMenuItem>
+							<SidebarMenuItem>
 								<SidebarMenuButton asChild>
 									<a
 										className='group/view'
@@ -108,34 +77,60 @@ const DashboardSidebar = () => {
 						</SidebarMenu>
 					</SidebarGroupContent>
 				</SidebarGroup>
-				{/* TODO: each collection should be a collapsible submenu */}
-				{Object.keys(config.collections).map((key) => {
-					const collection = config.collections[key]
-					const link = `${PATHS.COLLECTIONS}/${collection.slug}`
-					const addTitle = `Add ${collection.label}`
+				<SidebarGroup>
+					<SidebarGroupLabel>Collections</SidebarGroupLabel>
+					{Object.keys(config.collections).map((key, index) => {
+						const collection = config.collections[key]
+						const link = `${PATHS.COLLECTIONS}/${collection.slug}`
+						const addTitle = `Add ${collection.label}`
 
-					return (
-						<SidebarGroup key={collection.slug}>
-							<SidebarGroupLabel>
-								{collection.label}
-							</SidebarGroupLabel>
-							<SidebarGroupAction asChild title={addTitle}>
-								<Link to={`${link}/new`}>
-									<PlusIcon />{' '}
-									<span className='sr-only'>{addTitle}</span>
-								</Link>
-							</SidebarGroupAction>
-							<SidebarGroupContent>
+						return (
+							<section
+								className={cn(
+									Object.keys(config.collections).length -
+										1 !==
+										index && 'mb-4',
+								)}
+								key={collection.slug}
+							>
 								<SidebarMenu>
 									<SidebarMenuItem>
 										<SidebarMenuButton
 											asChild
 											isActive={
-												location.pathname === link
+												location.pathname === link &&
+												location.search === ''
 											}
 										>
 											<Link to={link}>
-												{`All ${collection.label}`}
+												{`${collection.label}`}
+											</Link>
+										</SidebarMenuButton>
+										<SidebarMenuAction
+											asChild
+											title={addTitle}
+										>
+											<Link to={`${link}/new`}>
+												<PlusIcon />{' '}
+												<span className='sr-only'>
+													{addTitle}
+												</span>
+											</Link>
+										</SidebarMenuAction>
+									</SidebarMenuItem>
+									<SidebarMenuItem>
+										<SidebarMenuButton
+											asChild
+											isActive={
+												location.pathname === link &&
+												location.search ===
+													'?status=published'
+											}
+										>
+											<Link
+												to={`${link}?status=published`}
+											>
+												Published
 											</Link>
 										</SidebarMenuButton>
 									</SidebarMenuItem>
@@ -143,27 +138,52 @@ const DashboardSidebar = () => {
 										<SidebarMenuButton
 											asChild
 											isActive={
-												location.pathname === link
+												location.pathname === link &&
+												location.search ===
+													'?status=draft'
 											}
 										>
-											<Link to={link}>Published</Link>
-										</SidebarMenuButton>
-									</SidebarMenuItem>
-									<SidebarMenuItem>
-										<SidebarMenuButton
-											asChild
-											isActive={
-												location.pathname === link
-											}
-										>
-											<Link to={link}>Drafts</Link>
+											<Link to={`${link}?status=draft`}>
+												Drafts
+											</Link>
 										</SidebarMenuButton>
 									</SidebarMenuItem>
 								</SidebarMenu>
-							</SidebarGroupContent>
-						</SidebarGroup>
-					)
-				})}
+							</section>
+						)
+					})}
+				</SidebarGroup>
+				<SidebarGroup>
+					<SidebarMenu>
+						<SidebarMenuItem>
+							<SidebarMenuButton asChild>
+								<a
+									className='group/docs'
+									href='https://rescribe.site/docs'
+									rel='noreferrer'
+									target='_blank'
+								>
+									<BookOpenIcon />
+									<span className='flex-grow'>
+										Documentation
+									</span>
+									<ExternalLinkIcon className='hidden transition-all duration-100 group-hover/docs:inline' />
+								</a>
+							</SidebarMenuButton>
+						</SidebarMenuItem>
+						<SidebarMenuItem>
+							<SidebarMenuButton
+								asChild
+								isActive={location.pathname === PATHS.SETTINGS}
+							>
+								<Link to={PATHS.SETTINGS}>
+									<SettingsIcon />
+									<span>Settings</span>
+								</Link>
+							</SidebarMenuButton>
+						</SidebarMenuItem>
+					</SidebarMenu>
+				</SidebarGroup>
 			</SidebarContent>
 		</Sidebar>
 	)
