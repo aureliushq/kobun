@@ -1,13 +1,15 @@
 import { useContext } from 'react'
 import { useLoaderData } from 'react-router'
 import invariant from 'tiny-invariant'
+
+import Collection from '@/components/layouts/collection'
 import { DashboardLayout } from '@/components/layouts/dashboard'
+import ComponentReference from '@/components/reference'
 import {
 	RescribeContext,
 	type RescribeContextData,
 	RescribeProvider,
 } from '@/providers'
-import ComponentReference from '@/components/reference'
 
 const Root = () => {
 	const { params } = useContext<RescribeContextData>(RescribeContext)
@@ -15,7 +17,7 @@ const Root = () => {
 	if (params?.collection && !params.action) {
 		return (
 			<DashboardLayout>
-				<div>{params.collection}</div>
+				<Collection />
 			</DashboardLayout>
 		)
 	}

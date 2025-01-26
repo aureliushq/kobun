@@ -18,7 +18,7 @@ const Header = () => {
 	const { config, params } = useContext<RescribeContextData>(RescribeContext)
 
 	return (
-		<header className='w-full h-24 px-8 flex items-center justify-between border-b border-border'>
+		<header className='w-full h-16 px-4 flex items-center justify-between border-b border-border'>
 			<Breadcrumb>
 				<BreadcrumbList>
 					<BreadcrumbItem>
@@ -29,11 +29,9 @@ const Header = () => {
 								</BreadcrumbLink>
 							</BreadcrumbPage>
 						) : (
-							<BreadcrumbItem>
-								<BreadcrumbLink asChild>
-									<Link to={PATHS.BASE}>Home</Link>
-								</BreadcrumbLink>
-							</BreadcrumbItem>
+							<BreadcrumbLink asChild>
+								<Link to={PATHS.BASE}>Home</Link>
+							</BreadcrumbLink>
 						)}
 					</BreadcrumbItem>
 					{params?.collection && !params.action && (
