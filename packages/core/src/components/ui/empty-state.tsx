@@ -56,7 +56,7 @@ export function EmptyState({
 				)}
 			</div>
 			<h2 className='text-foreground font-medium mt-6'>{title}</h2>
-			<p className='text-sm text-muted-foreground mt-1 mb-4 whitespace-pre-line'>
+			<p className='text-sm text-muted-foreground mt-1 mb-4 text-wrap whitespace-pre-line'>
 				{description}
 			</p>
 			{action}

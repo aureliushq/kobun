@@ -91,7 +91,7 @@ const Collection = ({
 			<EmptyState
 				className='w-full max-w-none flex flex-col gap-2'
 				title={`No ${labels.plural.toLowerCase()} yet`}
-				description={`Start building your collection by creating your first ${labels.singular.toLowerCase()}.`}
+				description={`It looks like there's nothing here yet! Get started by creating your first ${labels.singular.toLowerCase()}.`}
 				icons={[FileTextIcon, FileTextIcon, FileTextIcon]}
 				action={
 					<Link to={`${PATHS.COLLECTIONS}/${collection.slug}/new`}>
