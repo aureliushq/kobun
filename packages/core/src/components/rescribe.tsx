@@ -1,5 +1,6 @@
 import { useContext } from 'react'
 import { useLoaderData } from 'react-router'
+import pluralize from 'pluralize-esm'
 import invariant from 'tiny-invariant'
 
 import Collection from '@/components/layouts/collection'
@@ -12,12 +13,29 @@ import {
 } from '@/providers'
 
 const Root = () => {
-	const { params } = useContext<RescribeContextData>(RescribeContext)
+	const { config, params } = useContext<RescribeContextData>(RescribeContext)
 
 	if (params?.collection && !params.action) {
+		const collection = params?.collection
+		const labels = pluralize.isPlural(
+			config?.collections[collection].label as string,
+		)
+			? {
+					plural: config?.collections[collection].label as string,
+					singular: pluralize.singular(
+						config?.collections[collection].label as string,
+					) as string,
+				}
+			: {
+					plural: pluralize(
+						config?.collections[collection].label as string,
+					) as string,
+					singular: config?.collections[collection].label as string,
+				}
+
 		return (
 			<DashboardLayout>
-				<Collection />
+				<Collection labels={labels} />
 			</DashboardLayout>
 		)
 	}
