@@ -1,7 +1,7 @@
 import type { Collections, Config } from '@/types'
 import { type ClassValue, clsx } from 'clsx'
 import { twMerge } from 'tailwind-merge'
-import { BASE_PATH_REGEX } from './constants'
+import { BASE_PATH } from './constants'
 import invariant from 'tiny-invariant'
 import pluralize from 'pluralize-esm'
 import type { Labels } from '@/components/rescribe'
@@ -30,7 +30,7 @@ export const generateLabelsForCollection = (
 }
 
 export const parseAdminPathname = ({
-	basePath = BASE_PATH_REGEX,
+	basePath = BASE_PATH,
 	collections,
 	pathname,
 }: {
@@ -40,7 +40,12 @@ export const parseAdminPathname = ({
 }) => {
 	const replaced = pathname.replace(basePath, '')
 	const parts =
-		replaced === '' ? [] : replaced.split('/').map(decodeURIComponent)
+		replaced === ''
+			? []
+			: replaced
+					.split('/')
+					.map(decodeURIComponent)
+					.filter((item) => item !== '')
 
 	if (parts.length === 0) return { root: true }
 

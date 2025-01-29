@@ -27,7 +27,8 @@ const RescribeProvider = ({ config, children }: RescribeProviderProps) => {
 	const location = useLocation()
 	const params = useMemo(() => {
 		return parseAdminPathname({
-			collections: config?.collections,
+			basePath: config.basePath,
+			collections: config.collections,
 			pathname: location.pathname,
 		})
 	}, [config, location.pathname])

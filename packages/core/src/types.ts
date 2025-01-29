@@ -71,6 +71,7 @@ export type Storage = z.infer<typeof STORAGE>
 
 // Configuration
 export type Config = {
+	basePath?: string
 	collections: Collections
 	storage: Storage
 }

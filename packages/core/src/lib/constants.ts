@@ -1,12 +1,12 @@
 import { z } from 'zod'
 
-const BASE_PATH = '/rescribe'
-export const BASE_PATH_REGEX = /^\/rescribe\/?/
+// const BASE_PATH = '/rescribe'
+export const BASE_PATH = '/'
 export const PATHS = {
 	BASE: BASE_PATH,
-	COLLECTIONS: `${BASE_PATH}/collections`,
-	EDITOR: `${BASE_PATH}/editor/collections`,
-	SETTINGS: `${BASE_PATH}/settings`,
+	COLLECTIONS: 'collections',
+	EDITOR: 'editor/collections',
+	SETTINGS: 'settings',
 }
 
 // TODO: move to server package

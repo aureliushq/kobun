@@ -10,7 +10,6 @@ import {
 	BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb'
 import { Button } from '@/components/ui/button'
-import { PATHS } from '@/lib/constants'
 import { RescribeContext, type RescribeContextData } from '@/providers'
 import {
 	Sheet,
@@ -21,9 +20,13 @@ import {
 	SheetTrigger,
 } from '@/components/ui/sheet'
 import type { Labels } from '@/components/rescribe'
+import invariant from 'tiny-invariant'
 
 const EditorHeader = ({ labels }: { labels: Labels | undefined }) => {
 	const { config, params } = useContext<RescribeContextData>(RescribeContext)
+	invariant(config, '`config` is required.')
+
+	const basePath = config.basePath ?? ''
 
 	return (
 		<header className='w-full h-16 px-4 flex items-center justify-between'>
@@ -31,7 +34,7 @@ const EditorHeader = ({ labels }: { labels: Labels | undefined }) => {
 				<BreadcrumbList>
 					<BreadcrumbItem>
 						<BreadcrumbLink asChild>
-							<Link to={PATHS.BASE}>Home</Link>
+							<Link to={basePath}>Home</Link>
 						</BreadcrumbLink>
 					</BreadcrumbItem>
 					{(params?.action === 'create' ||

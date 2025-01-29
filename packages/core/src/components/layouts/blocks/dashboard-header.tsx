@@ -11,13 +11,14 @@ import {
 } from '@/components/ui/breadcrumb'
 import { Button } from '@/components/ui/button'
 import { Toggle } from '@/components/ui/toggle'
-import { PATHS } from '@/lib/constants'
 import { RescribeContext, type RescribeContextData } from '@/providers'
+import invariant from 'tiny-invariant'
 
 const DashboardHeader = () => {
 	const { config, params } = useContext<RescribeContextData>(RescribeContext)
+	invariant(config, '`config` is required.')
 
-	console.log(params)
+	const basePath = config.basePath ?? ''
 
 	return (
 		<header className='w-full h-16 px-4 flex items-center justify-between border-b border-border'>
@@ -27,12 +28,12 @@ const DashboardHeader = () => {
 						{params?.root ? (
 							<BreadcrumbPage>
 								<BreadcrumbLink asChild>
-									<Link to={PATHS.BASE}>Home</Link>
+									<Link to={basePath}>Home</Link>
 								</BreadcrumbLink>
 							</BreadcrumbPage>
 						) : (
 							<BreadcrumbLink asChild>
-								<Link to={PATHS.BASE}>Home</Link>
+								<Link to={basePath}>Home</Link>
 							</BreadcrumbLink>
 						)}
 					</BreadcrumbItem>

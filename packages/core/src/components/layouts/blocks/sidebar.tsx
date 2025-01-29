@@ -32,13 +32,14 @@ const DashboardSidebar = () => {
 	invariant(config, '`config` is required.')
 
 	const location = useLocation()
+	const basePath = config.basePath ?? ''
 
 	return (
 		<Sidebar>
 			<SidebarHeader>
 				<Link
 					className='w-full h-12 flex items-center justify-start'
-					to={PATHS.BASE}
+					to={basePath}
 				>
 					<LogoDark />
 				</Link>
@@ -50,9 +51,12 @@ const DashboardSidebar = () => {
 							<SidebarMenuItem>
 								<SidebarMenuButton
 									asChild
-									isActive={location.pathname === PATHS.BASE}
+									isActive={
+										location.pathname === basePath ||
+										location.pathname === PATHS.BASE
+									}
 								>
-									<Link to={PATHS.BASE}>
+									<Link to={basePath}>
 										<HouseIcon />
 										<span>Dashboard</span>
 									</Link>
@@ -81,7 +85,7 @@ const DashboardSidebar = () => {
 					<SidebarGroupLabel>Collections</SidebarGroupLabel>
 					{Object.keys(config.collections).map((key, index) => {
 						const collection = config.collections[key]
-						const link = `${PATHS.COLLECTIONS}/${collection.slug}`
+						const link = `${basePath}/${PATHS.COLLECTIONS}/${collection.slug}`
 						const addTitle = `Add ${collection.label}`
 
 						return (
@@ -111,7 +115,7 @@ const DashboardSidebar = () => {
 											title={addTitle}
 										>
 											<Link
-												to={`${PATHS.EDITOR}/${collection.slug}`}
+												to={`${basePath}/${PATHS.EDITOR}/${collection.slug}`}
 											>
 												<PlusIcon />{' '}
 												<span className='sr-only'>
@@ -176,9 +180,12 @@ const DashboardSidebar = () => {
 						<SidebarMenuItem>
 							<SidebarMenuButton
 								asChild
-								isActive={location.pathname === PATHS.SETTINGS}
+								isActive={
+									location.pathname ===
+									`${basePath}/${PATHS.SETTINGS}`
+								}
 							>
-								<Link to={PATHS.SETTINGS}>
+								<Link to={`${basePath}/${PATHS.SETTINGS}`}>
 									<SettingsIcon />
 									<span>Settings</span>
 								</Link>
