@@ -11,7 +11,6 @@ import type { Route } from './+types/root'
 import stylesheet from './app.css?url'
 
 export const links: Route.LinksFunction = () => [
-	{ rel: 'preconnect', href: 'https://fonts.googleapis.com' },
 	{
 		rel: 'preconnect',
 		href: 'https://fonts.bunny.net',
@@ -19,7 +18,7 @@ export const links: Route.LinksFunction = () => [
 	},
 	{
 		rel: 'stylesheet',
-		href: 'https://fonts.bunny.net/css?family=inter:400,500,600,700" rel="stylesheet',
+		href: 'https://fonts.bunny.net/css?family=inter:400,500,600,700',
 	},
 	{ rel: 'stylesheet', href: stylesheet },
 ]
