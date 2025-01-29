@@ -9,14 +9,14 @@ import { Input } from '@/components/ui/input'
 import { PATHS } from '@/lib/constants'
 import { RescribeContext, type RescribeContextData } from '@/providers'
 import type { Collection as CollectionType } from '@/types'
+import type { Labels } from '@/components/rescribe'
 
 const CollectionHeader = ({
 	collection,
 	labels,
 }: {
 	collection: CollectionType
-
-	labels: { plural: string; singular: string }
+	labels: Labels | undefined
 }) => {
 	const id = useId()
 	const inputRef = useRef<HTMLInputElement>(null)
@@ -39,7 +39,7 @@ const CollectionHeader = ({
 							id={id}
 							ref={inputRef}
 							className='h-9 pe-9'
-							placeholder={`Search ${labels.plural.toLowerCase()}...`}
+							placeholder={`Search ${labels?.plural.toLowerCase()}...`}
 							type='text'
 							value={inputValue}
 							onChange={(e) => setInputValue(e.target.value)}
@@ -60,8 +60,8 @@ const CollectionHeader = ({
 						)}
 					</div>
 				</div>
-				<Link to={`${PATHS.COLLECTIONS}/${collection.slug}/new`}>
-					<Button size='sm'>{`New ${labels.singular}`}</Button>
+				<Link to={`${PATHS.EDITOR}/${collection.slug}`}>
+					<Button size='sm'>{`New ${labels?.singular}`}</Button>
 				</Link>
 			</div>
 		</section>
@@ -71,7 +71,7 @@ const CollectionHeader = ({
 const Collection = ({
 	labels,
 }: {
-	labels: { plural: string; singular: string }
+	labels: Labels | undefined
 }) => {
 	const { config, params } = useContext<RescribeContextData>(RescribeContext)
 	invariant(
@@ -90,15 +90,15 @@ const Collection = ({
 			<CollectionHeader collection={collection} labels={labels} />
 			<EmptyState
 				className='w-full max-w-none flex flex-col gap-2'
-				title={`No ${labels.plural.toLowerCase()} yet`}
-				description={`It looks like there's nothing here yet! Get started by creating your first ${labels.singular.toLowerCase()}.`}
+				title={`No ${labels?.plural.toLowerCase()} yet`}
+				description={`It looks like there's nothing here yet! Get started by creating your first ${labels?.singular.toLowerCase()}.`}
 				icons={[FileTextIcon, FileTextIcon, FileTextIcon]}
 				action={
-					<Link to={`${PATHS.COLLECTIONS}/${collection.slug}/new`}>
+					<Link to={`${PATHS.EDITOR}/${collection.slug}`}>
 						<Button
 							className=''
 							size='sm'
-						>{`Write a new ${labels.singular.toLowerCase()}`}</Button>
+						>{`Write a new ${labels?.singular.toLowerCase()}`}</Button>
 					</Link>
 				}
 			/>
