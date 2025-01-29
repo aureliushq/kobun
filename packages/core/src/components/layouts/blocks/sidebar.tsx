@@ -110,7 +110,9 @@ const DashboardSidebar = () => {
 											asChild
 											title={addTitle}
 										>
-											<Link to={`${link}/new`}>
+											<Link
+												to={`${PATHS.EDITOR}/${collection.slug}`}
+											>
 												<PlusIcon />{' '}
 												<span className='sr-only'>
 													{addTitle}

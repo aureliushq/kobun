@@ -1,43 +1,47 @@
 import { useContext } from 'react'
 import { useLoaderData } from 'react-router'
-import pluralize from 'pluralize-esm'
 import invariant from 'tiny-invariant'
 
-import Collection from '@/components/layouts/collection'
-import { DashboardLayout } from '@/components/layouts/dashboard'
+import Collection from '@/components/layouts/blocks/collection'
+import DashboardLayout from '@/components/layouts/dashboard'
+import EditorLayout from '@/components/layouts/editor'
 import ComponentReference from '@/components/reference'
 import {
 	RescribeContext,
 	type RescribeContextData,
 	RescribeProvider,
 } from '@/providers'
+import { generateLabelsForCollection } from '@/lib/utils'
+import type { Config } from '@/types'
+
+export type Labels = {
+	plural: string
+	singular: string
+}
 
 const Root = () => {
 	const { config, params } = useContext<RescribeContextData>(RescribeContext)
 
-	if (params?.collection && !params.action) {
-		const collection = params?.collection
-		const labels = pluralize.isPlural(
-			config?.collections[collection].label as string,
-		)
-			? {
-					plural: config?.collections[collection].label as string,
-					singular: pluralize.singular(
-						config?.collections[collection].label as string,
-					) as string,
-				}
-			: {
-					plural: pluralize(
-						config?.collections[collection].label as string,
-					) as string,
-					singular: config?.collections[collection].label as string,
-				}
+	let labels: Labels | undefined
+	if (params?.section === 'collections' || params?.section === 'editor') {
+		const collection = params?.collection as string
+		labels = generateLabelsForCollection(config as Config, collection)
+	}
 
+	if (params?.section === 'collections' && params.action === 'list') {
 		return (
 			<DashboardLayout>
 				<Collection labels={labels} />
 			</DashboardLayout>
 		)
+	}
+
+	if (params?.section === 'editor') {
+		return <EditorLayout labels={labels}>Editor</EditorLayout>
+	}
+
+	if (params?.section === 'settings') {
+		return <DashboardLayout>Settings</DashboardLayout>
 	}
 
 	if (params?.root) {
