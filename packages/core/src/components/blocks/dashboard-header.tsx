@@ -1,6 +1,8 @@
+import { GithubIcon, SunIcon } from 'lucide-react'
 import { useContext } from 'react'
 import { Link } from 'react-router'
-import { GithubIcon, SunIcon } from 'lucide-react'
+import invariant from 'tiny-invariant'
+
 import {
 	Breadcrumb,
 	BreadcrumbItem,
@@ -12,7 +14,6 @@ import {
 import { Button } from '@/components/ui/button'
 import { Toggle } from '@/components/ui/toggle'
 import { RescribeContext, type RescribeContextData } from '@/providers'
-import invariant from 'tiny-invariant'
 
 const DashboardHeader = () => {
 	const { config, params } = useContext<RescribeContextData>(RescribeContext)

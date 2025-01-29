@@ -10,7 +10,7 @@ import { useContext } from 'react'
 import { Link, useLocation } from 'react-router'
 import invariant from 'tiny-invariant'
 
-import { LogoDark } from '@/components/layouts/blocks/logo'
+import { LogoDark } from '@/components/blocks/logo'
 import {
 	Sidebar,
 	SidebarContent,

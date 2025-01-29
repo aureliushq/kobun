@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react'
 
-import EditorHeader from '@/components/layouts/blocks/editor-header'
-import { ScrollArea } from '@/components/ui/scroll-area'
+import EditorHeader from '@/components/blocks/editor-header'
 import type { Labels } from '@/components/rescribe'
+import { ScrollArea } from '@/components/ui/scroll-area'
 
 const EditorLayout = ({
 	children,

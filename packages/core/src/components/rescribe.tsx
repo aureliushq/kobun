@@ -2,16 +2,16 @@ import { useContext } from 'react'
 import { useLoaderData } from 'react-router'
 import invariant from 'tiny-invariant'
 
-import Collection from '@/components/layouts/blocks/collection'
+import Collection from '@/components/blocks/collection'
 import DashboardLayout from '@/components/layouts/dashboard'
 import EditorLayout from '@/components/layouts/editor'
 import ComponentReference from '@/components/reference'
+import { generateLabelsForCollection } from '@/lib/utils'
 import {
 	RescribeContext,
 	type RescribeContextData,
 	RescribeProvider,
 } from '@/providers'
-import { generateLabelsForCollection } from '@/lib/utils'
 import type { Config } from '@/types'
 
 export type Labels = {

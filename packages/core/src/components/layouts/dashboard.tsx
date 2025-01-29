@@ -1,8 +1,9 @@
 import type { ReactNode } from 'react'
-import DashboardSidebar from '@/components/layouts/blocks/sidebar'
-import { SidebarProvider } from '@/components/ui/sidebar'
-import DashboardHeader from '@/components/layouts/blocks/dashboard-header'
+
+import DashboardHeader from '@/components/blocks/dashboard-header'
+import DashboardSidebar from '@/components/blocks/sidebar'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { SidebarProvider } from '@/components/ui/sidebar'
 
 const DashboardLayout = ({
 	children,

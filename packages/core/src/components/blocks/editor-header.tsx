@@ -1,6 +1,9 @@
+import { PanelRightIcon } from 'lucide-react'
 import { useContext } from 'react'
 import { Link } from 'react-router'
-import { PanelRightIcon } from 'lucide-react'
+import invariant from 'tiny-invariant'
+
+import type { Labels } from '@/components/rescribe'
 import {
 	Breadcrumb,
 	BreadcrumbItem,
@@ -10,7 +13,6 @@ import {
 	BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb'
 import { Button } from '@/components/ui/button'
-import { RescribeContext, type RescribeContextData } from '@/providers'
 import {
 	Sheet,
 	SheetClose,
@@ -19,8 +21,7 @@ import {
 	SheetTitle,
 	SheetTrigger,
 } from '@/components/ui/sheet'
-import type { Labels } from '@/components/rescribe'
-import invariant from 'tiny-invariant'
+import { RescribeContext, type RescribeContextData } from '@/providers'
 
 const EditorHeader = ({ labels }: { labels: Labels | undefined }) => {
 	const { config, params } = useContext<RescribeContextData>(RescribeContext)
