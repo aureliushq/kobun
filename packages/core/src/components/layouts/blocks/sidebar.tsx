@@ -10,7 +10,7 @@ import { useContext } from 'react'
 import { Link, useLocation } from 'react-router'
 import invariant from 'tiny-invariant'
 
-import Logo from '@/components/layouts/blocks/logo'
+import { LogoDark } from '@/components/layouts/blocks/logo'
 import {
 	Sidebar,
 	SidebarContent,
@@ -40,7 +40,7 @@ const DashboardSidebar = () => {
 					className='w-full h-12 flex items-center justify-start'
 					to={PATHS.BASE}
 				>
-					<Logo />
+					<LogoDark />
 				</Link>
 			</SidebarHeader>
 			<SidebarContent>

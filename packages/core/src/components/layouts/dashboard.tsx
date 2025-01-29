@@ -8,7 +8,7 @@ const DashboardLayout = ({
 	children,
 }: { children?: ReactNode | ReactNode[] }) => {
 	return (
-		<SidebarProvider>
+		<SidebarProvider className='dark'>
 			<DashboardSidebar />
 			<main className='w-screen h-screen flex flex-col gap-4'>
 				<Header />
