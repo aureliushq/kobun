@@ -14,8 +14,10 @@ import { Toggle } from '@/components/ui/toggle'
 import { PATHS } from '@/lib/constants'
 import { RescribeContext, type RescribeContextData } from '@/providers'
 
-const Header = () => {
+const DashboardHeader = () => {
 	const { config, params } = useContext<RescribeContextData>(RescribeContext)
+
+	console.log(params)
 
 	return (
 		<header className='w-full h-16 px-4 flex items-center justify-between border-b border-border'>
@@ -34,21 +36,23 @@ const Header = () => {
 							</BreadcrumbLink>
 						)}
 					</BreadcrumbItem>
-					{params?.collection && !params.action && (
-						<>
-							<BreadcrumbSeparator />
-							<BreadcrumbItem>Collections</BreadcrumbItem>
-							<BreadcrumbSeparator />
-							<BreadcrumbItem>
-								<BreadcrumbPage>
-									{
-										config?.collections[params.collection]
-											.label
-									}
-								</BreadcrumbPage>
-							</BreadcrumbItem>
-						</>
-					)}
+					{params?.section === 'collections' &&
+						params.action === 'list' && (
+							<>
+								<BreadcrumbSeparator />
+								<BreadcrumbItem>Collections</BreadcrumbItem>
+								<BreadcrumbSeparator />
+								<BreadcrumbItem>
+									<BreadcrumbPage>
+										{
+											config?.collections[
+												params?.collection
+											].label
+										}
+									</BreadcrumbPage>
+								</BreadcrumbItem>
+							</>
+						)}
 				</BreadcrumbList>
 			</Breadcrumb>
 			<section className='flex items-center gap-2'>
@@ -70,4 +74,4 @@ const Header = () => {
 	)
 }
 
-export default Header
+export default DashboardHeader
