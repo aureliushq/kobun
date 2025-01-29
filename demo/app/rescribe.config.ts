@@ -1,6 +1,7 @@
 import { collection, config, fields } from '@rescribe/core'
 
 const rescribeConfig = config({
+	// basePath: '/rescribe',
 	collections: {
 		posts: collection({
 			label: 'Posts',
