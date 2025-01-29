@@ -53,6 +53,14 @@ const DashboardHeader = () => {
 								</BreadcrumbItem>
 							</>
 						)}
+					{params?.section === 'settings' && (
+						<>
+							<BreadcrumbSeparator />
+							<BreadcrumbItem>
+								<BreadcrumbPage>Settings</BreadcrumbPage>
+							</BreadcrumbItem>
+						</>
+					)}
 				</BreadcrumbList>
 			</Breadcrumb>
 			<section className='flex items-center gap-2'>
