@@ -3,6 +3,7 @@ import { useLoaderData } from 'react-router'
 import invariant from 'tiny-invariant'
 
 import Collection from '@/components/blocks/collection'
+import Editor from '@/components/editor'
 import DashboardLayout from '@/components/layouts/dashboard'
 import EditorLayout from '@/components/layouts/editor'
 import ComponentReference from '@/components/reference'
@@ -13,6 +14,7 @@ import {
 	RescribeProvider,
 } from '@/providers'
 import type { Config } from '@/types'
+import { TooltipProvider } from './ui/tooltip'
 
 export type Labels = {
 	plural: string
@@ -37,7 +39,13 @@ const Root = () => {
 	}
 
 	if (params?.section === 'editor') {
-		return <EditorLayout labels={labels}>Editor</EditorLayout>
+		return (
+			<EditorLayout labels={labels}>
+				<TooltipProvider>
+					<Editor />
+				</TooltipProvider>
+			</EditorLayout>
+		)
 	}
 
 	if (params?.section === 'settings') {
