@@ -13,7 +13,7 @@ const DashboardLayout = ({
 			<DashboardSidebar />
 			<main className='w-screen h-screen flex flex-col gap-4'>
 				<DashboardHeader />
-				<ScrollArea className='w-full h-full p-8'>
+				<ScrollArea className='w-full h-full p-8 z-10'>
 					<section className='w-full flex justify-center'>
 						<div className='w-full max-w-5xl flex flex-col gap-4'>
 							{children}

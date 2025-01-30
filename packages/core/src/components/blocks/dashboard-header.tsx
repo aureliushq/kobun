@@ -14,6 +14,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Toggle } from '@/components/ui/toggle'
 import { RescribeContext, type RescribeContextData } from '@/providers'
+import { SIDEBAR_WIDTH } from '../ui/sidebar'
 
 const DashboardHeader = () => {
 	const { config, params } = useContext<RescribeContextData>(RescribeContext)
@@ -22,7 +23,9 @@ const DashboardHeader = () => {
 	const basePath = config.basePath ?? ''
 
 	return (
-		<header className='w-full h-16 px-4 flex items-center justify-between border-b border-border'>
+		<header
+			className={`sticky w-[calc(100vw-${SIDEBAR_WIDTH})] h-16 px-4 flex items-center justify-between z-20`}
+		>
 			<Breadcrumb>
 				<BreadcrumbList>
 					<BreadcrumbItem>

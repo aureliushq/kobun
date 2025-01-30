@@ -30,7 +30,7 @@ const EditorHeader = ({ labels }: { labels: Labels | undefined }) => {
 	const basePath = config.basePath ?? ''
 
 	return (
-		<header className='w-full h-16 px-4 flex items-center justify-between'>
+		<header className='sticky w-full h-16 px-4 flex items-center justify-between z-20'>
 			<Breadcrumb>
 				<BreadcrumbList>
 					<BreadcrumbItem>
