@@ -9,11 +9,11 @@ const EditorLayout = ({
 	labels,
 }: { children?: ReactNode | ReactNode[]; labels: Labels | undefined }) => {
 	return (
-		<main className='w-screen h-screen flex flex-col gap-4'>
+		<main className='rs-w-screen rs-h-screen rs-flex rs-flex-col rs-gap-4'>
 			<EditorHeader labels={labels} />
-			<ScrollArea className='w-full h-full p-8 z-10'>
-				<section className='w-full flex justify-center'>
-					<div className='w-full max-w-5xl flex flex-col gap-4'>
+			<ScrollArea className='rs-w-full rs-h-full rs-p-8 rs-z-10'>
+				<section className='rs-w-full rs-flex rs-justify-center'>
+					<div className='rs-w-full rs-max-w-5xl rs-flex rs-flex-col rs-gap-4'>
 						{children}
 					</div>
 				</section>
