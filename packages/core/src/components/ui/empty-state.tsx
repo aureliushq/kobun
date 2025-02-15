@@ -21,42 +21,48 @@ export function EmptyState({
 	return (
 		<div
 			className={cn(
-				'bg-background border-border hover:border-border/80 text-center',
-				'border-2 border-dashed rounded-xl p-14 w-full max-w-[620px]',
-				'group hover:bg-muted/50 transition duration-500 hover:duration-200',
+				'rs-bg-background rs-border-border hover:rs-border-border/80 rs-text-center',
+				'rs-border-2 rs-border-dashed rs-rounded-xl rs-p-14 rs-w-full rs-max-w-[620px]',
+				'rs-group hover:rs-bg-muted/50 rs-transition rs-duration-500 hover:rs-duration-200',
 				className,
 			)}
 		>
-			<div className='flex justify-center isolate'>
+			<div className='rs-flex rs-justify-center rs-isolate'>
 				{icons.length === 3 ? (
 					<>
-						<div className='bg-background size-12 grid place-items-center rounded-xl relative left-2.5 top-1.5 -rotate-6 shadow-lg ring-1 ring-border group-hover:-translate-x-5 group-hover:-rotate-12 group-hover:-translate-y-0.5 transition duration-500 group-hover:duration-200'>
+						<div className='rs-bg-background rs-size-12 rs-grid rs-place-items-center rs-rounded-xl rs-relative rs-left-2.5 rs-top-1.5 -rs-rotate-6 rs-shadow-lg rs-ring-1 rs-ring-border group-hover:-rs-translate-x-5 group-hover:-rs-rotate-12 group-hover:-rs-translate-y-0.5 rs-transition rs-duration-500 group-hover:rs-duration-200'>
 							{React.createElement(icons[0], {
-								className: 'w-6 h-6 text-muted-foreground',
+								className:
+									'rs-w-6 rs-h-6 rs-text-muted-foreground',
 							})}
 						</div>
-						<div className='bg-background size-12 grid place-items-center rounded-xl relative z-10 shadow-lg ring-1 ring-border group-hover:-translate-y-0.5 transition duration-500 group-hover:duration-200'>
+						<div className='rs-bg-background rs-size-12 rs-grid rs-place-items-center rs-rounded-xl rs-relative rs-z-10 rs-shadow-lg rs-ring-1 rs-ring-border group-hover:-rs-translate-y-0.5 rs-transition rs-duration-500 group-hover:rs-duration-200'>
 							{React.createElement(icons[1], {
-								className: 'w-6 h-6 text-muted-foreground',
+								className:
+									'rs-w-6 rs-h-6 rs-text-muted-foreground',
 							})}
 						</div>
-						<div className='bg-background size-12 grid place-items-center rounded-xl relative right-2.5 top-1.5 rotate-6 shadow-lg ring-1 ring-border group-hover:translate-x-5 group-hover:rotate-12 group-hover:-translate-y-0.5 transition duration-500 group-hover:duration-200'>
+						<div className='rs-bg-background rs-size-12 rs-grid rs-place-items-center rs-rounded-xl rs-relative rs-right-2.5 rs-top-1.5 rs-rotate-6 rs-shadow-lg rs-ring-1 rs-ring-border group-hover:rs-translate-x-5 group-hover:rs-rotate-12 group-hover:-rs-translate-y-0.5 rs-transition rs-duration-500 group-hover:rs-duration-200'>
 							{React.createElement(icons[2], {
-								className: 'w-6 h-6 text-muted-foreground',
+								className:
+									'rs-w-6 rs-h-6 rs-text-muted-foreground',
 							})}
 						</div>
 					</>
 				) : (
-					<div className='bg-background size-12 grid place-items-center rounded-xl shadow-lg ring-1 ring-border group-hover:-translate-y-0.5 transition duration-500 group-hover:duration-200'>
+					<div className='rs-bg-background rs-size-12 rs-grid rs-place-items-center rs-rounded-xl rs-shadow-lg rs-ring-1 rs-ring-border group-hover:-rs-translate-y-0.5 rs-transition rs-duration-500 group-hover:rs-duration-200'>
 						{icons[0] &&
 							React.createElement(icons[0], {
-								className: 'w-6 h-6 text-muted-foreground',
+								className:
+									'rs-w-6 rs-h-6 rs-text-muted-foreground',
 							})}
 					</div>
 				)}
 			</div>
-			<h2 className='text-foreground font-medium mt-6'>{title}</h2>
-			<p className='text-sm text-muted-foreground mt-1 mb-4 text-wrap whitespace-pre-line'>
+			<h2 className='rs-text-foreground rs-font-medium rs-mt-6'>
+				{title}
+			</h2>
+			<p className='rs-text-sm rs-text-muted-foreground rs-mt-1 rs-mb-4 rs-text-wrap rs-whitespace-pre-line'>
 				{description}
 			</p>
 			{action}

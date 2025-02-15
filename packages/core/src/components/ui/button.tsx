@@ -5,26 +5,26 @@ import { cva, type VariantProps } from 'class-variance-authority'
 import { cn } from '@/lib/utils'
 
 const buttonVariants = cva(
-	'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0',
+	'rs-inline-flex rs-items-center rs-justify-center rs-gap-2 rs-whitespace-nowrap rs-rounded-md rs-text-sm rs-font-medium rs-ring-offset-background rs-transition-colors focus-visible:rs-outline-none focus-visible:rs-ring-2 focus-visible:rs-ring-ring focus-visible:rs-ring-offset-2 disabled:rs-pointer-events-none disabled:rs-opacity-50 [&_svg]:rs-pointer-events-none [&_svg]:rs-size-4 [&_svg]:rs-shrink-0',
 	{
 		variants: {
 			variant: {
 				default:
-					'bg-primary text-primary-foreground hover:bg-primary/90',
+					'rs-bg-primary rs-text-primary-foreground hover:rs-bg-primary/90',
 				destructive:
-					'bg-destructive text-destructive-foreground hover:bg-destructive/90',
+					'rs-bg-destructive rs-text-destructive-foreground hover:rs-bg-destructive/90',
 				outline:
-					'border border-input bg-background hover:bg-accent hover:text-accent-foreground',
+					'rs-border rs-border-input rs-bg-background hover:rs-bg-accent hover:rs-text-accent-foreground',
 				secondary:
-					'bg-secondary text-secondary-foreground hover:bg-secondary/80',
-				ghost: 'hover:bg-accent hover:text-accent-foreground',
-				link: 'text-primary underline-offset-4 hover:underline',
+					'rs-bg-secondary rs-text-secondary-foreground hover:rs-bg-secondary/80',
+				ghost: 'hover:rs-bg-accent hover:rs-text-accent-foreground',
+				link: 'rs-text-primary rs-underline-offset-4 hover:rs-underline',
 			},
 			size: {
-				default: 'h-10 px-4 py-2',
-				sm: 'h-9 rounded-md px-3',
-				lg: 'h-11 rounded-md px-8',
-				icon: 'h-10 w-10',
+				default: 'rs-h-10 rs-px-4 rs-py-2',
+				sm: 'rs-h-9 rs-rounded-md rs-px-3',
+				lg: 'rs-h-11 rs-rounded-md rs-px-8',
+				icon: 'rs-h-10 rs-w-10',
 			},
 		},
 		defaultVariants: {

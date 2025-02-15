@@ -10,7 +10,7 @@ const Toolbar = React.forwardRef<
 	<ToolbarPrimitive.Root
 		ref={ref}
 		className={cn(
-			'flex items-center space-x-1 rounded-md border bg-background p-1',
+			'rs-flex rs-items-center rs-space-x-1 rs-rounded-md rs-border rs-bg-background rs-p-1',
 			className,
 		)}
 		{...props}
@@ -25,8 +25,8 @@ const ToolbarButton = React.forwardRef<
 	<ToolbarPrimitive.Button
 		ref={ref}
 		className={cn(
-			'inline-flex items-center justify-center rounded-sm px-2.5 py-1.5 text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50',
-			'hover:bg-muted hover:text-muted-foreground',
+			'rs-inline-flex rs-items-center rs-justify-center rs-rounded-sm rs-px-2.5 rs-py-1.5 rs-text-sm rs-font-medium rs-ring-offset-background rs-transition-colors focus-visible:rs-outline-none focus-visible:rs-ring-2 focus-visible:rs-ring-ring focus-visible:rs-ring-offset-2 disabled:rs-pointer-events-none disabled:rs-opacity-50',
+			'hover:rs-bg-muted hover:rs-text-muted-foreground',
 			className,
 		)}
 		{...props}
@@ -40,7 +40,7 @@ const ToolbarSeparator = React.forwardRef<
 >(({ className, ...props }, ref) => (
 	<ToolbarPrimitive.Separator
 		ref={ref}
-		className={cn('mx-1 h-5 w-[1px] bg-border', className)}
+		className={cn('rs-mx-1 rs-h-5 rs-w-[1px] rs-bg-border', className)}
 		{...props}
 	/>
 ))
@@ -53,8 +53,8 @@ const ToolbarLink = React.forwardRef<
 	<ToolbarPrimitive.Link
 		ref={ref}
 		className={cn(
-			'inline-flex items-center justify-center rounded-sm px-2.5 py-1.5 text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50',
-			'hover:bg-muted hover:text-muted-foreground',
+			'rs-inline-flex rs-items-center rs-justify-center rs-rounded-sm rs-px-2.5 rs-py-1.5 rs-text-sm rs-font-medium rs-ring-offset-background rs-transition-colors focus-visible:rs-outline-none focus-visible:rs-ring-2 focus-visible:rs-ring-ring focus-visible:rs-ring-offset-2 disabled:rs-pointer-events-none disabled:rs-opacity-50',
+			'hover:rs-bg-muted hover:rs-text-muted-foreground',
 			className,
 		)}
 		{...props}

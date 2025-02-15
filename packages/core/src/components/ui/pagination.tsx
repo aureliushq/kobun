@@ -2,13 +2,15 @@ import * as React from 'react'
 import { ChevronLeft, ChevronRight, MoreHorizontal } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
-import { ButtonProps, buttonVariants } from '@/components/ui/button'
+import { type ButtonProps, buttonVariants } from '@/components/ui/button'
 
 const Pagination = ({ className, ...props }: React.ComponentProps<'nav'>) => (
 	<nav
-		role='navigation'
 		aria-label='pagination'
-		className={cn('mx-auto flex w-full justify-center', className)}
+		className={cn(
+			'rs-mx-auto rs-flex rs-w-full rs-justify-center',
+			className,
+		)}
 		{...props}
 	/>
 )
@@ -20,7 +22,10 @@ const PaginationContent = React.forwardRef<
 >(({ className, ...props }, ref) => (
 	<ul
 		ref={ref}
-		className={cn('flex flex-row items-center gap-1', className)}
+		className={cn(
+			'rs-flex rs-flex-row rs-items-center rs-gap-1',
+			className,
+		)}
 		{...props}
 	/>
 ))
@@ -66,10 +71,10 @@ const PaginationPrevious = ({
 	<PaginationLink
 		aria-label='Go to previous page'
 		size='default'
-		className={cn('gap-1 pl-2.5', className)}
+		className={cn('rs-gap-1 rs-pl-2.5', className)}
 		{...props}
 	>
-		<ChevronLeft className='h-4 w-4' />
+		<ChevronLeft className='rs-h-4 rs-w-4' />
 		<span>Previous</span>
 	</PaginationLink>
 )
@@ -82,11 +87,11 @@ const PaginationNext = ({
 	<PaginationLink
 		aria-label='Go to next page'
 		size='default'
-		className={cn('gap-1 pr-2.5', className)}
+		className={cn('rs-gap-1 rs-pr-2.5', className)}
 		{...props}
 	>
 		<span>Next</span>
-		<ChevronRight className='h-4 w-4' />
+		<ChevronRight className='rs-h-4 rs-w-4' />
 	</PaginationLink>
 )
 PaginationNext.displayName = 'PaginationNext'
@@ -97,11 +102,14 @@ const PaginationEllipsis = ({
 }: React.ComponentProps<'span'>) => (
 	<span
 		aria-hidden
-		className={cn('flex h-9 w-9 items-center justify-center', className)}
+		className={cn(
+			'rs-flex rs-h-9 rs-w-9 rs-items-center rs-justify-center',
+			className,
+		)}
 		{...props}
 	>
-		<MoreHorizontal className='h-4 w-4' />
-		<span className='sr-only'>More pages</span>
+		<MoreHorizontal className='rs-h-4 rs-w-4' />
+		<span className='rs-sr-only'>More pages</span>
 	</span>
 )
 PaginationEllipsis.displayName = 'PaginationEllipsis'

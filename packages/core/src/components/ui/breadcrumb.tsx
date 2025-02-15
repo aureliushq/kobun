@@ -19,7 +19,7 @@ const BreadcrumbList = React.forwardRef<
 	<ol
 		ref={ref}
 		className={cn(
-			'flex flex-wrap items-center gap-1.5 break-words text-sm text-muted-foreground sm:gap-2.5',
+			'rs-flex rs-flex-wrap rs-items-center rs-gap-1.5 rs-break-words rs-text-sm rs-text-muted-foreground sm:rs-gap-2.5',
 			className,
 		)}
 		{...props}
@@ -33,7 +33,7 @@ const BreadcrumbItem = React.forwardRef<
 >(({ className, ...props }, ref) => (
 	<li
 		ref={ref}
-		className={cn('inline-flex items-center gap-1.5', className)}
+		className={cn('rs-inline-flex rs-items-center rs-gap-1.5', className)}
 		{...props}
 	/>
 ))
@@ -50,7 +50,10 @@ const BreadcrumbLink = React.forwardRef<
 	return (
 		<Comp
 			ref={ref}
-			className={cn('transition-colors hover:text-foreground', className)}
+			className={cn(
+				'rs-transition-colors hover:rs-text-foreground',
+				className,
+			)}
 			{...props}
 		/>
 	)
@@ -61,12 +64,13 @@ const BreadcrumbPage = React.forwardRef<
 	HTMLSpanElement,
 	React.ComponentPropsWithoutRef<'span'>
 >(({ className, ...props }, ref) => (
+	// biome-ignore lint/a11y/useFocusableInteractive: <explanation>
 	<span
 		ref={ref}
 		role='link'
 		aria-disabled='true'
 		aria-current='page'
-		className={cn('font-normal text-foreground', className)}
+		className={cn('rs-font-normal rs-text-foreground', className)}
 		{...props}
 	/>
 ))
@@ -80,7 +84,7 @@ const BreadcrumbSeparator = ({
 	<li
 		role='presentation'
 		aria-hidden='true'
-		className={cn('[&>svg]:w-3.5 [&>svg]:h-3.5', className)}
+		className={cn('[&>svg]:rs-w-3.5 [&>svg]:rs-h-3.5', className)}
 		{...props}
 	>
 		{children ?? <ChevronRight />}
@@ -95,11 +99,14 @@ const BreadcrumbEllipsis = ({
 	<span
 		role='presentation'
 		aria-hidden='true'
-		className={cn('flex h-9 w-9 items-center justify-center', className)}
+		className={cn(
+			'rs-flex rs-h-9 rs-w-9 rs-items-center rs-justify-center',
+			className,
+		)}
 		{...props}
 	>
-		<MoreHorizontal className='h-4 w-4' />
-		<span className='sr-only'>More</span>
+		<MoreHorizontal className='rs-h-4 rs-w-4' />
+		<span className='rs-sr-only'>More</span>
 	</span>
 )
 BreadcrumbEllipsis.displayName = 'BreadcrumbElipssis'

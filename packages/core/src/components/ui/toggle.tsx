@@ -7,18 +7,18 @@ import { cva, type VariantProps } from 'class-variance-authority'
 import { cn } from '@/lib/utils'
 
 const toggleVariants = cva(
-	'inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors hover:bg-muted hover:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=on]:bg-accent data-[state=on]:text-accent-foreground [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 gap-2',
+	'rs-inline-flex rs-items-center rs-justify-center rs-rounded-md rs-text-sm rs-font-medium rs-ring-offset-background rs-transition-colors hover:rs-bg-muted hover:rs-text-muted-foreground focus-visible:rs-outline-none focus-visible:rs-ring-2 focus-visible:rs-ring-ring focus-visible:rs-ring-offset-2 disabled:rs-pointer-events-none disabled:rs-opacity-50 data-[state=on]:rs-bg-accent data-[state=on]:rs-text-accent-foreground [&_svg]:rs-pointer-events-none [&_svg]:rs-size-4 [&_svg]:rs-shrink-0 rs-gap-2',
 	{
 		variants: {
 			variant: {
-				default: 'bg-transparent',
+				default: 'rs-bg-transparent',
 				outline:
-					'border border-input bg-transparent hover:bg-accent hover:text-accent-foreground',
+					'rs-border rs-border-input rs-bg-transparent hover:rs-bg-accent hover:rs-text-accent-foreground',
 			},
 			size: {
-				default: 'h-10 px-3 min-w-10',
-				sm: 'h-9 px-2.5 min-w-9',
-				lg: 'h-11 px-5 min-w-11',
+				default: 'rs-h-10 rs-px-3 rs-min-w-10',
+				sm: 'rs-h-9 rs-px-2.5 rs-min-w-9',
+				lg: 'rs-h-11 rs-px-5 rs-min-w-11',
 			},
 		},
 		defaultVariants: {

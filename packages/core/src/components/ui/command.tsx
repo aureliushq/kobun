@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { type DialogProps } from '@radix-ui/react-dialog'
+import type { DialogProps } from '@radix-ui/react-dialog'
 import { Command as CommandPrimitive } from 'cmdk'
 import { Search } from 'lucide-react'
 
@@ -13,7 +13,7 @@ const Command = React.forwardRef<
 	<CommandPrimitive
 		ref={ref}
 		className={cn(
-			'flex h-full w-full flex-col overflow-hidden rounded-md bg-popover text-popover-foreground',
+			'rs-flex rs-h-full rs-w-full rs-flex-col rs-overflow-hidden rs-rounded-md rs-bg-popover rs-text-popover-foreground',
 			className,
 		)}
 		{...props}
@@ -24,8 +24,8 @@ Command.displayName = CommandPrimitive.displayName
 const CommandDialog = ({ children, ...props }: DialogProps) => {
 	return (
 		<Dialog {...props}>
-			<DialogContent className='overflow-hidden p-0 shadow-lg'>
-				<Command className='[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group]:not([hidden])_~[cmdk-group]]:pt-0 [&_[cmdk-group]]:px-2 [&_[cmdk-input-wrapper]_svg]:h-5 [&_[cmdk-input-wrapper]_svg]:w-5 [&_[cmdk-input]]:h-12 [&_[cmdk-item]]:px-2 [&_[cmdk-item]]:py-3 [&_[cmdk-item]_svg]:h-5 [&_[cmdk-item]_svg]:w-5'>
+			<DialogContent className='rs-overflow-hidden rs-p-0 rs-shadow-lg'>
+				<Command className='[&_[cmdk-group-heading]]:rs-px-2 [&_[cmdk-group-heading]]:rs-font-medium [&_[cmdk-group-heading]]:rs-text-muted-foreground [&_[cmdk-group]:not([hidden])_~[cmdk-group]]:rs-pt-0 [&_[cmdk-group]]:rs-px-2 [&_[cmdk-input-wrapper]_svg]:rs-h-5 [&_[cmdk-input-wrapper]_svg]:rs-w-5 [&_[cmdk-input]]:rs-h-12 [&_[cmdk-item]]:rs-px-2 [&_[cmdk-item]]:rs-py-3 [&_[cmdk-item]_svg]:rs-h-5 [&_[cmdk-item]_svg]:rs-w-5'>
 					{children}
 				</Command>
 			</DialogContent>
@@ -37,12 +37,15 @@ const CommandInput = React.forwardRef<
 	React.ElementRef<typeof CommandPrimitive.Input>,
 	React.ComponentPropsWithoutRef<typeof CommandPrimitive.Input>
 >(({ className, ...props }, ref) => (
-	<div className='flex items-center border-b px-3' cmdk-input-wrapper=''>
-		<Search className='mr-2 h-4 w-4 shrink-0 opacity-50' />
+	<div
+		className='rs-flex rs-items-center rs-border-b rs-px-3'
+		cmdk-input-wrapper=''
+	>
+		<Search className='rs-mr-2 rs-h-4 rs-w-4 rs-shrink-0 rs-opacity-50' />
 		<CommandPrimitive.Input
 			ref={ref}
 			className={cn(
-				'flex h-11 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50',
+				'rs-flex rs-h-11 rs-w-full rs-rounded-md rs-bg-transparent rs-py-3 rs-text-sm rs-outline-none placeholder:rs-text-muted-foreground disabled:rs-cursor-not-allowed disabled:rs-opacity-50',
 				className,
 			)}
 			{...props}
@@ -59,7 +62,7 @@ const CommandList = React.forwardRef<
 	<CommandPrimitive.List
 		ref={ref}
 		className={cn(
-			'max-h-[300px] overflow-y-auto overflow-x-hidden',
+			'rs-max-h-[300px] rs-overflow-y-auto rs-overflow-x-hidden',
 			className,
 		)}
 		{...props}
@@ -74,7 +77,7 @@ const CommandEmpty = React.forwardRef<
 >((props, ref) => (
 	<CommandPrimitive.Empty
 		ref={ref}
-		className='py-6 text-center text-sm'
+		className='rs-py-6 rs-text-center rs-text-sm'
 		{...props}
 	/>
 ))
@@ -88,7 +91,7 @@ const CommandGroup = React.forwardRef<
 	<CommandPrimitive.Group
 		ref={ref}
 		className={cn(
-			'overflow-hidden p-1 text-foreground [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground',
+			'rs-overflow-hidden rs-p-1 rs-text-foreground [&_[cmdk-group-heading]]:rs-px-2 [&_[cmdk-group-heading]]:rs-py-1.5 [&_[cmdk-group-heading]]:rs-text-xs [&_[cmdk-group-heading]]:rs-font-medium [&_[cmdk-group-heading]]:rs-text-muted-foreground',
 			className,
 		)}
 		{...props}
@@ -103,7 +106,7 @@ const CommandSeparator = React.forwardRef<
 >(({ className, ...props }, ref) => (
 	<CommandPrimitive.Separator
 		ref={ref}
-		className={cn('-mx-1 h-px bg-border', className)}
+		className={cn('-rs-mx-1 rs-h-px rs-bg-border', className)}
 		{...props}
 	/>
 ))
@@ -116,7 +119,7 @@ const CommandItem = React.forwardRef<
 	<CommandPrimitive.Item
 		ref={ref}
 		className={cn(
-			"relative flex cursor-default gap-2 select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none data-[disabled=true]:pointer-events-none data-[selected='true']:bg-accent data-[selected=true]:text-accent-foreground data-[disabled=true]:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+			"rs-relative rs-flex rs-cursor-default rs-gap-2 rs-select-none rs-items-center rs-rounded-sm rs-px-2 rs-py-1.5 rs-text-sm rs-outline-none data-[disabled=true]:rs-pointer-events-none data-[selected='true']:rs-bg-accent data-[selected=true]:rs-text-accent-foreground data-[disabled=true]:rs-opacity-50 [&_svg]:rs-pointer-events-none [&_svg]:rs-size-4 [&_svg]:rs-shrink-0",
 			className,
 		)}
 		{...props}
@@ -132,7 +135,7 @@ const CommandShortcut = ({
 	return (
 		<span
 			className={cn(
-				'ml-auto text-xs tracking-widest text-muted-foreground',
+				'rs-ml-auto rs-text-xs rs-tracking-widest rs-text-muted-foreground',
 				className,
 			)}
 			{...props}
