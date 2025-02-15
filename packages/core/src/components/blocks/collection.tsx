@@ -30,15 +30,15 @@ const CollectionHeader = ({
 	}
 
 	return (
-		<section className='w-full h-12 flex items-center justify-between'>
-			<h3 className='text-xl font-semibold'>{collection.label}</h3>
-			<div className='flex items-center gap-2'>
-				<div className='space-y-2 min-w-[300px]'>
-					<div className='relative'>
+		<section className='rs-w-full rs-h-12 rs-flex rs-items-center rs-justify-between'>
+			<h3 className='rs-text-xl rs-font-semibold'>{collection.label}</h3>
+			<div className='rs-flex rs-items-center rs-gap-2'>
+				<div className='rs-space-y-2 rs-min-w-[300px]'>
+					<div className='rs-relative'>
 						<Input
 							id={id}
 							ref={inputRef}
-							className='h-9 pe-9'
+							className='rs-h-9 rs-pe-9'
 							placeholder={`Search ${labels?.plural.toLowerCase()}...`}
 							type='text'
 							value={inputValue}
@@ -47,7 +47,7 @@ const CollectionHeader = ({
 						{inputValue && (
 							<button
 								aria-label='Clear input'
-								className='absolute inset-y-0 end-0 flex h-full w-9 items-center justify-center rounded-e-lg text-muted-foreground/80 outline-offset-2 transition-colors hover:text-foreground focus:z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring/70 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50'
+								className='rs-absolute rs-inset-y-0 rs-end-0 rs-flex rs-h-full rs-w-9 rs-items-center rs-justify-center rs-rounded-e-lg rs-text-muted-foreground/80 rs-outline-offset-2 rs-transition-colors hover:rs-text-foreground focus:rs-z-10 focus-visible:rs-outline focus-visible:rs-outline-2 focus-visible:rs-outline-ring/70 disabled:rs-pointer-events-none disabled:rs-cursor-not-allowed disabled:rs-opacity-50'
 								onClick={handleClearInput}
 								type='button'
 							>
@@ -89,7 +89,7 @@ const Collection = ({
 		<>
 			<CollectionHeader collection={collection} labels={labels} />
 			<EmptyState
-				className='w-full max-w-none flex flex-col gap-2'
+				className='rs-w-full rs-max-w-none rs-flex rs-flex-col rs-gap-2'
 				title={`No ${labels?.plural.toLowerCase()} yet`}
 				description={`It looks like there's nothing here yet! Get started by creating your first ${labels?.singular.toLowerCase()}.`}
 				icons={[FileTextIcon, FileTextIcon, FileTextIcon]}

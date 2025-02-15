@@ -24,7 +24,7 @@ const DashboardHeader = () => {
 
 	return (
 		<header
-			className={`sticky w-[calc(100vw-${SIDEBAR_WIDTH})] h-16 px-4 flex items-center justify-between z-20`}
+			className={`rs-sticky rs-w-[calc(100vw-${SIDEBAR_WIDTH})] rs-h-16 rs-px-4 rs-flex rs-items-center rs-justify-between rs-z-20`}
 		>
 			<Breadcrumb>
 				<BreadcrumbList>
@@ -68,7 +68,7 @@ const DashboardHeader = () => {
 					)}
 				</BreadcrumbList>
 			</Breadcrumb>
-			<section className='flex items-center gap-2'>
+			<section className='rs-flex rs-items-center rs-gap-2'>
 				<a
 					href='https://github.com/aureliushq/rescribe'
 					rel='noreferrer'

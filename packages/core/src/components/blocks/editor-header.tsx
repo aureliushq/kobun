@@ -30,7 +30,7 @@ const EditorHeader = ({ labels }: { labels: Labels | undefined }) => {
 	const basePath = config.basePath ?? ''
 
 	return (
-		<header className='sticky w-full h-16 px-4 flex items-center justify-between z-20'>
+		<header className='rs-sticky rs-w-full rs-h-16 rs-px-4 rs-flex rs-items-center rs-justify-between rs-z-20'>
 			<Breadcrumb>
 				<BreadcrumbList>
 					<BreadcrumbItem>
@@ -56,7 +56,7 @@ const EditorHeader = ({ labels }: { labels: Labels | undefined }) => {
 					)}
 				</BreadcrumbList>
 			</Breadcrumb>
-			<section className='flex items-center gap-2'>
+			<section className='rs-flex rs-items-center rs-gap-2'>
 				{params?.action === 'edit' && (
 					<Button size='sm' variant='ghost'>
 						Publish
@@ -69,10 +69,10 @@ const EditorHeader = ({ labels }: { labels: Labels | undefined }) => {
 						</Button>
 					</SheetTrigger>
 					<SheetContent
-						className='[&>button]:hidden p-0'
+						className='[&>button]:rs-hidden rs-p-0'
 						side='right'
 					>
-						<SheetHeader className='h-16 px-4 flex flex-row items-center justify-between space-y-0'>
+						<SheetHeader className='rs-h-16 rs-px-4 rs-flex rs-flex-row rs-items-center rs-justify-between rs-space-y-0'>
 							<SheetTitle>{`${labels?.singular} Settings`}</SheetTitle>
 							<SheetClose asChild>
 								<Button size='icon' variant='ghost'>

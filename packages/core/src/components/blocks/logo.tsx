@@ -5,7 +5,7 @@ const Logo = () => {
 			viewBox='0 0 1080 299.999988'
 			preserveAspectRatio='xMidYMid meet'
 			version='1.0'
-			className='w-auto h-7'
+			className='rs-w-auto rs-h-7'
 		>
 			<title>Logo</title>
 			<defs>
@@ -106,7 +106,7 @@ const LogoDark = () => {
 			viewBox='0 0 1080 299.999988'
 			preserveAspectRatio='xMidYMid meet'
 			version='1.0'
-			className='w-auto h-7'
+			className='rs-w-auto rs-h-7'
 		>
 			<title>Logo for dark mode</title>
 			<defs>

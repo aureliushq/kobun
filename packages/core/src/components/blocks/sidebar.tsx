@@ -38,7 +38,7 @@ const DashboardSidebar = () => {
 		<Sidebar>
 			<SidebarHeader>
 				<Link
-					className='w-full h-12 flex items-center justify-start'
+					className='rs-w-full rs-h-12 rs-flex rs-items-center rs-justify-start'
 					to={basePath}
 				>
 					<LogoDark />
@@ -65,16 +65,16 @@ const DashboardSidebar = () => {
 							<SidebarMenuItem>
 								<SidebarMenuButton asChild>
 									<a
-										className='group/view'
+										className='rs-group/view'
 										href='http://localhost:5173/docs'
 										rel='noreferrer'
 										target='_blank'
 									>
 										<PanelsTopLeftIcon />
-										<span className='flex-grow'>
+										<span className='rs-flex-grow'>
 											View Site
 										</span>
-										<ExternalLinkIcon className='hidden transition-all duration-100 group-hover/view:inline' />
+										<ExternalLinkIcon className='rs-hidden rs-transition-all rs-duration-100 group-hover/view:rs-inline' />
 									</a>
 								</SidebarMenuButton>
 							</SidebarMenuItem>
@@ -118,7 +118,7 @@ const DashboardSidebar = () => {
 												to={`${basePath}/${PATHS.EDITOR}/${collection.slug}`}
 											>
 												<PlusIcon />{' '}
-												<span className='sr-only'>
+												<span className='rs-sr-only'>
 													{addTitle}
 												</span>
 											</Link>
@@ -164,16 +164,16 @@ const DashboardSidebar = () => {
 						<SidebarMenuItem>
 							<SidebarMenuButton asChild>
 								<a
-									className='group/docs'
+									className='rs-group/docs'
 									href='https://rescribe.site/docs'
 									rel='noreferrer'
 									target='_blank'
 								>
 									<BookOpenIcon />
-									<span className='flex-grow'>
+									<span className='rs-flex-grow'>
 										Documentation
 									</span>
-									<ExternalLinkIcon className='hidden transition-all duration-100 group-hover/docs:inline' />
+									<ExternalLinkIcon className='rs-hidden rs-transition-all rs-duration-100 group-hover/docs:rs-inline' />
 								</a>
 							</SidebarMenuButton>
 						</SidebarMenuItem>
