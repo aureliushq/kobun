@@ -18,17 +18,17 @@ const SelectField = ({
 	placeholder = 'Select',
 }: Props) => {
 	return (
-		<div className='flex items-center justify-between flex-wrap gap-2'>
-			<div className='grid gap-1.5 leading-none'>
+		<div className='rs-flex rs-items-center rs-justify-between rs-flex-wrap rs-gap-2'>
+			<div className='rs-grid rs-gap-1.5 rs-leading-none'>
 				<Label>{label}</Label>
 				{description && (
-					<p className='text-sm text-muted-foreground'>
+					<p className='rs-text-sm rs-text-muted-foreground'>
 						{description}
 					</p>
 				)}
 			</div>
 			<Select>
-				<SelectTrigger className='w-[180px]'>
+				<SelectTrigger className='rs-w-[180px]'>
 					<SelectValue placeholder={placeholder} />
 				</SelectTrigger>
 				<SelectContent>

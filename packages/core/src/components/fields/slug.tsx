@@ -19,16 +19,16 @@ const SlugField = ({ name, slug }: Props) => {
 				placeholder={name.placeholder}
 				type='text'
 			/>
-			<div className='w-full flex flex-col items-start gap-2'>
-				<div className='grid gap-1.5 leading-none'>
+			<div className='rs-w-full rs-flex rs-flex-col rs-items-start rs-gap-2'>
+				<div className='rs-grid rs-gap-1.5 rs-leading-none'>
 					<Label>{slug.label}</Label>
 					{slug.description && (
-						<p className='text-sm text-muted-foreground'>
+						<p className='rs-text-sm rs-text-muted-foreground'>
 							{slug.description}
 						</p>
 					)}
 				</div>
-				<div className='w-full flex items-center gap-2'>
+				<div className='rs-w-full rs-flex rs-items-center rs-gap-2'>
 					<Input placeholder={slug.placeholder} type='text' />
 					<Button>
 						<RefreshCcw />

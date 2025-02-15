@@ -8,11 +8,11 @@ type Props = UrlFieldType
 // TODO: validation
 const UrlField = ({ description, label, placeholder }: Props) => {
 	return (
-		<div className='w-full flex flex-col items-start gap-2'>
-			<div className='grid gap-1.5 leading-none'>
+		<div className='rs-w-full rs-flex rs-flex-col rs-items-start rs-gap-2'>
+			<div className='rs-grid rs-gap-1.5 rs-leading-none'>
 				<Label>{label}</Label>
 				{description && (
-					<p className='text-sm text-muted-foreground'>
+					<p className='rs-text-sm rs-text-muted-foreground'>
 						{description}
 					</p>
 				)}

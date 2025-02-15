@@ -20,11 +20,11 @@ const DateField = ({ description, label }: Props) => {
 	const [date, setDate] = React.useState<Date>()
 
 	return (
-		<div className='flex items-center justify-between flex-wrap gap-2'>
-			<div className='grid gap-1.5 leading-none'>
+		<div className='rs-flex rs-items-center rs-justify-between rs-flex-wrap rs-gap-2'>
+			<div className='rs-grid rs-gap-1.5 rs-leading-none'>
 				<Label>{label}</Label>
 				{description && (
-					<p className='text-sm text-muted-foreground'>
+					<p className='rs-text-sm rs-text-muted-foreground'>
 						{description}
 					</p>
 				)}
@@ -34,15 +34,15 @@ const DateField = ({ description, label }: Props) => {
 					<Button
 						variant={'outline'}
 						className={cn(
-							'w-[280px] justify-start text-left font-normal',
-							!date && 'text-muted-foreground',
+							'rs-w-[280px] rs-justify-start rs-text-left rs-font-normal',
+							!date && 'rs-text-muted-foreground',
 						)}
 					>
 						<CalendarIcon />
 						{date ? format(date, 'PPP') : <span>Pick a date</span>}
 					</Button>
 				</PopoverTrigger>
-				<PopoverContent className='w-auto p-0'>
+				<PopoverContent className='rs-w-auto rs-p-0'>
 					<Calendar
 						mode='single'
 						selected={date}

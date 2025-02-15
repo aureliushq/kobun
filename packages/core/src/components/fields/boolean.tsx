@@ -18,12 +18,12 @@ const BooleanField = ({
 	switch (component) {
 		case 'checkbox': {
 			return (
-				<div className='items-top flex space-x-2'>
+				<div className='rs-items-top rs-flex rs-space-x-2'>
 					<Checkbox defaultChecked={defaultChecked} id={config?.id} />
-					<div className='grid gap-1.5 leading-none'>
+					<div className='rs-grid rs-gap-1.5 rs-leading-none'>
 						<Label htmlFor={config?.id}>{label}</Label>
 						{description && (
-							<p className='text-sm text-muted-foreground'>
+							<p className='rs-text-sm rs-text-muted-foreground'>
 								{description}
 							</p>
 						)}
@@ -33,17 +33,17 @@ const BooleanField = ({
 		}
 		case 'switch': {
 			return (
-				<div className='flex items-start justify-between gap-2'>
-					<div className='grid gap-1.5 leading-none order-2 md:order-1'>
+				<div className='rs-flex rs-items-start rs-justify-between rs-gap-2'>
+					<div className='rs-grid rs-gap-1.5 rs-leading-none rs-order-2 md:rs-order-1'>
 						<Label htmlFor={config?.id}>{label}</Label>
 						{description && (
-							<p className='text-sm text-muted-foreground'>
+							<p className='rs-text-sm rs-text-muted-foreground'>
 								{description}
 							</p>
 						)}
 					</div>
 					<Switch
-						className='order-1 md:order-2'
+						className='rs-order-1 md:rs-order-2'
 						defaultChecked={defaultChecked}
 						id={config?.id}
 					/>
