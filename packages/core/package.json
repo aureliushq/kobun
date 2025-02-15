@@ -2,7 +2,9 @@
 	"name": "@rescribe/core",
 	"version": "0.1.0",
 	"type": "module",
-	"files": ["dist"],
+	"files": [
+		"dist"
+	],
 	"main": "./dist/index.cjs",
 	"module": "./dist/index.js",
 	"style": "./dist/index.css",
@@ -38,6 +40,8 @@
 		"typescript": "~5.6.2"
 	},
 	"dependencies": {
+		"@conform-to/react": "^1.2.2",
+		"@conform-to/zod": "^1.2.2",
 		"@radix-ui/react-alert-dialog": "^1.1.4",
 		"@radix-ui/react-avatar": "^1.1.2",
 		"@radix-ui/react-checkbox": "^1.1.3",
