@@ -177,9 +177,9 @@ const EditorToolbar = ({ editor }: { editor: Editor | null }) => {
 
 	return (
 		<>
-			<Toolbar className='flex items-center divide-x divide-border h-9 p-0 space-x-0'>
+			<Toolbar className='rs-flex rs-items-center rs-divide-x rs-divide-border rs-h-9 rs-p-0 rs-space-x-0'>
 				<ToggleGroup
-					className='h-full gap-0 divide-x divide-border rounded-tl-md rounded-bl-md rounded-none overflow-hidden'
+					className='rs-h-full rs-gap-0 rs-divide-x rs-divide-border rs-rounded-tl-md rs-rounded-bl-md rs-rounded-none rs-overflow-hidden'
 					onValueChange={handleEditorMarksChange}
 					type='multiple'
 					value={activeMarks}
@@ -187,7 +187,7 @@ const EditorToolbar = ({ editor }: { editor: Editor | null }) => {
 					<Tooltip>
 						<TooltipTrigger asChild>
 							<ToggleGroupItem
-								className='h-9 w-9 rounded-tl-md rounded-bl-md rounded-tr-none rounded-br-none'
+								className='rs-h-9 rs-w-9 rs-rounded-tl-md rs-rounded-bl-md rs-rounded-tr-none rs-rounded-br-none'
 								data-state={
 									editor?.isActive(EditorMarks.BOLD)
 										? 'on'
@@ -195,7 +195,7 @@ const EditorToolbar = ({ editor }: { editor: Editor | null }) => {
 								}
 								value={EditorMarks.BOLD}
 							>
-								<BoldIcon className='w-4 h-4' />
+								<BoldIcon className='rs-w-4 rs-h-4' />
 							</ToggleGroupItem>
 						</TooltipTrigger>
 						<TooltipContent>
@@ -205,7 +205,7 @@ const EditorToolbar = ({ editor }: { editor: Editor | null }) => {
 					<Tooltip>
 						<TooltipTrigger asChild>
 							<ToggleGroupItem
-								className='h-9 w-9 rounded-none'
+								className='rs-h-9 rs-w-9 rs-rounded-none'
 								data-state={
 									editor?.isActive(EditorMarks.ITALIC)
 										? 'on'
@@ -213,7 +213,7 @@ const EditorToolbar = ({ editor }: { editor: Editor | null }) => {
 								}
 								value={EditorMarks.ITALIC}
 							>
-								<ItalicIcon className='w-4 h-4' />
+								<ItalicIcon className='rs-w-4 rs-h-4' />
 							</ToggleGroupItem>
 						</TooltipTrigger>
 						<TooltipContent>
@@ -223,7 +223,7 @@ const EditorToolbar = ({ editor }: { editor: Editor | null }) => {
 					<Tooltip>
 						<TooltipTrigger asChild>
 							<ToggleGroupItem
-								className='h-9 w-9 rounded-none'
+								className='rs-h-9 rs-w-9 rs-rounded-none'
 								data-state={
 									editor?.isActive(EditorMarks.UNDERLINE)
 										? 'on'
@@ -231,7 +231,7 @@ const EditorToolbar = ({ editor }: { editor: Editor | null }) => {
 								}
 								value={EditorMarks.UNDERLINE}
 							>
-								<UnderlineIcon className='w-4 h-4' />
+								<UnderlineIcon className='rs-w-4 rs-h-4' />
 							</ToggleGroupItem>
 						</TooltipTrigger>
 						<TooltipContent>
@@ -243,7 +243,7 @@ const EditorToolbar = ({ editor }: { editor: Editor | null }) => {
 					onValueChange={handleEditorHeadingMarkChange}
 					value={activeHeadingMark}
 				>
-					<SelectTrigger className='w-[180px] h-9 rounded-none -ml-px'>
+					<SelectTrigger className='rs-w-[180px] rs-h-9 rs-rounded-none -rs-ml-px'>
 						<SelectValue placeholder='Headings' />
 					</SelectTrigger>
 					<SelectContent>
@@ -258,7 +258,7 @@ const EditorToolbar = ({ editor }: { editor: Editor | null }) => {
 					</SelectContent>
 				</Select>
 				<ToggleGroup
-					className='h-full gap-0 divide-x divide-border rounded-none overflow-hidden -ml-px'
+					className='rs-h-full rs-gap-0 rs-divide-x rs-divide-border rs-rounded-none rs-overflow-hidden -rs-ml-px'
 					onValueChange={handleEditorMarksChange}
 					type='multiple'
 					value={activeMarks}
@@ -266,7 +266,7 @@ const EditorToolbar = ({ editor }: { editor: Editor | null }) => {
 					<Tooltip>
 						<TooltipTrigger asChild>
 							<ToggleGroupItem
-								className='h-9 w-9 rounded-none'
+								className='rs-h-9 rs-w-9 rs-rounded-none'
 								data-state={
 									editor?.isActive(EditorMarks.HIGHLIGHT)
 										? 'on'
@@ -274,7 +274,7 @@ const EditorToolbar = ({ editor }: { editor: Editor | null }) => {
 								}
 								value={EditorMarks.HIGHLIGHT}
 							>
-								<HighlighterIcon className='w-4 h-4' />
+								<HighlighterIcon className='rs-w-4 rs-h-4' />
 							</ToggleGroupItem>
 						</TooltipTrigger>
 						<TooltipContent>
@@ -284,7 +284,7 @@ const EditorToolbar = ({ editor }: { editor: Editor | null }) => {
 					<Tooltip>
 						<TooltipTrigger asChild>
 							<ToggleGroupItem
-								className='h-9 w-9 rounded-none'
+								className='rs-h-9 rs-w-9 rs-rounded-none'
 								data-state={
 									editor?.isActive(EditorMarks.LINK)
 										? 'on'
@@ -292,7 +292,7 @@ const EditorToolbar = ({ editor }: { editor: Editor | null }) => {
 								}
 								value={EditorMarks.LINK}
 							>
-								<LinkIcon className='w-4 h-4' />
+								<LinkIcon className='rs-w-4 rs-h-4' />
 							</ToggleGroupItem>
 						</TooltipTrigger>
 						<TooltipContent>
@@ -302,7 +302,7 @@ const EditorToolbar = ({ editor }: { editor: Editor | null }) => {
 				</ToggleGroup>
 
 				<ToggleGroup
-					className='h-full gap-0 divide-x divide-border rounded-tr-md rounded-br-md rounded-none overflow-hidden -ml-px'
+					className='rs-h-full rs-gap-0 rs-divide-x rs-divide-border rs-rounded-tr-md rs-rounded-br-md rs-rounded-none rs-overflow-hidden -rs-ml-px'
 					onValueChange={handleEditorNodesChange}
 					type='multiple'
 					value={activeNodes}
@@ -310,7 +310,7 @@ const EditorToolbar = ({ editor }: { editor: Editor | null }) => {
 					<Tooltip>
 						<TooltipTrigger asChild>
 							<ToggleGroupItem
-								className='h-9 w-9 rounded-none'
+								className='rs-h-9 rs-w-9 rs-rounded-none'
 								data-state={
 									editor?.isActive(EditorNodes.CODE)
 										? 'on'
@@ -318,7 +318,7 @@ const EditorToolbar = ({ editor }: { editor: Editor | null }) => {
 								}
 								value={EditorNodes.CODE}
 							>
-								<CodeIcon className='w-4 h-4' />
+								<CodeIcon className='rs-w-4 rs-h-4' />
 							</ToggleGroupItem>
 						</TooltipTrigger>
 						<TooltipContent>
@@ -328,7 +328,7 @@ const EditorToolbar = ({ editor }: { editor: Editor | null }) => {
 					<Tooltip>
 						<TooltipTrigger asChild>
 							<ToggleGroupItem
-								className='h-9 w-9 rounded-none'
+								className='rs-h-9 rs-w-9 rs-rounded-none'
 								data-state={
 									editor?.isActive(EditorNodes.QUOTE)
 										? 'on'
@@ -336,7 +336,7 @@ const EditorToolbar = ({ editor }: { editor: Editor | null }) => {
 								}
 								value={EditorNodes.QUOTE}
 							>
-								<QuoteIcon className='w-4 h-4' />
+								<QuoteIcon className='rs-w-4 rs-h-4' />
 							</ToggleGroupItem>
 						</TooltipTrigger>
 						<TooltipContent>

@@ -140,12 +140,12 @@ const Editor = () => {
 			<BubbleMenuWrapper editor={editor}>
 				<EditorToolbar editor={editor} />
 			</BubbleMenuWrapper>
-			<section className='flex h-full w-full flex-grow flex-col items-center justify-start z-9'>
-				<div className='flex h-full w-full flex-col items-center justify-start gap-6 px-4 pb-24 md:pb-16 lg:px-0'>
-					<div className='w-full max-w-2xl'>
+			<section className='rs-flex rs-h-full rs-w-full rs-flex-grow rs-flex-col rs-items-center rs-justify-start rs-z-9'>
+				<div className='rs-flex rs-h-full rs-w-full rs-flex-col rs-items-center rs-justify-start rs-gap-6 rs-px-4 rs-pb-24 md:rs-pb-16 lg:rs-px-0'>
+					<div className='rs-w-full rs-max-w-2xl'>
 						<Textarea
 							autoFocus
-							className={`w-full min-h-[48px] border-0 p-0 focus-visible:ring-0 focus-visible:ring-offset-0 flex items-center resize-none overflow-y-hidden bg-transparent text-xl font-semibold leading-snug text-foreground focus:outline-none lg:text-3xl lg:leading-snug ${settings?.titleFont}`}
+							className={`rs-w-full rs-min-h-[48px] rs-border-0 rs-p-0 focus-visible:rs-ring-0 focus-visible:rs-ring-offset-0 rs-flex rs-items-center rs-resize-none rs-overflow-y-hidden rs-bg-transparent rs-text-xl rs-font-semibold rs-leading-snug rs-text-foreground focus:rs-outline-none lg:rs-text-3xl lg:rs-leading-snug rs-${settings?.titleFont}`}
 							// onBlur={onTitleBlur}
 							onChange={handleTitleChange}
 							placeholder='Untitled'
@@ -155,7 +155,7 @@ const Editor = () => {
 						/>
 					</div>
 					<div
-						className={`editor-wrapper prose dark:prose-invert flex h-auto min-h-max w-full items-start justify-center pb-12 ${settings?.bodyFont}`}
+						className={`rs-editor-wrapper rs-prose dark:rs-prose-invert rs-flex rs-h-auto rs-min-h-max rs-w-full rs-items-start rs-justify-center rs-pb-12 rs-${settings?.bodyFont}`}
 					>
 						<EditorContent editor={editor} />
 					</div>

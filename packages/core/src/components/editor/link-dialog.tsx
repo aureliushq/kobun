@@ -41,15 +41,15 @@ const LinkDialog = ({
 
 	return (
 		<Dialog onOpenChange={onOpenChange} open={open}>
-			<DialogContent className='sm:max-w-[480px]'>
+			<DialogContent className='sm:rs-max-w-[480px]'>
 				<DialogHeader>
 					<DialogTitle>Insert Link</DialogTitle>
 				</DialogHeader>
 				<Form
-					className='w-full flex items-center gap-2'
+					className='rs-w-full rs-flex rs-items-center rs-gap-2'
 					onSubmit={handleLinkSubmit}
 				>
-					<div className='w-full'>
+					<div className='rs-w-full'>
 						<Input
 							defaultValue={defaultValue}
 							id='link'
@@ -61,14 +61,14 @@ const LinkDialog = ({
 						<>
 							<Input name='intent' type='hidden' value='unset' />
 							<Button size='icon' type='submit'>
-								<UnlinkIcon className='w-4 h-4' />
+								<UnlinkIcon className='rs-w-4 rs-h-4' />
 							</Button>
 						</>
 					) : (
 						<>
 							<Input name='intent' type='hidden' value='set' />
 							<Button size='icon' type='submit'>
-								<LinkIcon className='w-4 h-4' />
+								<LinkIcon className='rs-w-4 rs-h-4' />
 							</Button>
 						</>
 					)}
