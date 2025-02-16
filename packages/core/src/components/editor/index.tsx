@@ -43,8 +43,8 @@ const Editor = () => {
 	const wordCount = editorData.current.wordCount
 
 	const settings = {
-		bodyFont: 'font-sans',
-		titleFont: 'font-sans',
+		bodyFont: 'rs-font-sans',
+		titleFont: 'rs-font-sans',
 	}
 
 	const editor = useEditor({
@@ -155,7 +155,7 @@ const Editor = () => {
 						/>
 					</div>
 					<div
-						className={`rs-editor-wrapper rs-prose dark:rs-prose-invert rs-flex rs-h-auto rs-min-h-max rs-w-full rs-items-start rs-justify-center rs-pb-12 rs-${settings?.bodyFont}`}
+						className={`editor-wrapper rs-prose dark:rs-prose-invert rs-flex rs-h-auto rs-min-h-max rs-w-full rs-items-start rs-justify-center rs-pb-12 ${settings?.bodyFont}`}
 					>
 						<EditorContent editor={editor} />
 					</div>
