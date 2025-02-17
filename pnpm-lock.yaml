@@ -23,7 +23,7 @@ importers:
         specifier: 2.3.3
         version: 2.3.3
 
-  demo:
+  demo/rr7:
     dependencies:
       '@radix-ui/react-slot':
         specifier: ^1.1.1
@@ -36,7 +36,7 @@ importers:
         version: 7.1.3(react-router@7.1.1(react-dom@19.0.0(react@19.0.0))(react@19.0.0))(typescript@5.7.3)
       '@rescribe/core':
         specifier: workspace:*
-        version: link:../packages/core
+        version: link:../../packages/core
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
