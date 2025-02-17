@@ -1,0 +1,251 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+	:root {
+		--background: 0 0% 100%;
+		--foreground: 240 10% 3.9%;
+		--card: 0 0% 100%;
+		--card-foreground: 240 10% 3.9%;
+		--popover: 0 0% 100%;
+		--popover-foreground: 240 10% 3.9%;
+		--primary: 240 5.9% 10%;
+		--primary-foreground: 0 0% 98%;
+		--secondary: 240 4.8% 95.9%;
+		--secondary-foreground: 240 5.9% 10%;
+		--muted: 240 4.8% 95.9%;
+		--muted-foreground: 240 3.8% 46.1%;
+		--accent: 240 4.8% 95.9%;
+		--accent-foreground: 240 5.9% 10%;
+		--destructive: 0 84.2% 60.2%;
+		--destructive-foreground: 0 0% 98%;
+		--border: 240 5.9% 90%;
+		--input: 240 5.9% 90%;
+		--ring: 240 10% 3.9%;
+		--chart-1: 12 76% 61%;
+		--chart-2: 173 58% 39%;
+		--chart-3: 197 37% 24%;
+		--chart-4: 43 74% 66%;
+		--chart-5: 27 87% 67%;
+		--radius: 0.5rem;
+		--sidebar-background: 0 0% 98%;
+		--sidebar-foreground: 240 5.3% 26.1%;
+		--sidebar-primary: 240 5.9% 10%;
+		--sidebar-primary-foreground: 0 0% 98%;
+		--sidebar-accent: 240 4.8% 95.9%;
+		--sidebar-accent-foreground: 240 5.9% 10%;
+		--sidebar-border: 220 13% 91%;
+		--sidebar-ring: 217.2 91.2% 59.8%;
+	}
+	.dark {
+		--background: 240 10% 3.9%;
+		--foreground: 0 0% 98%;
+		--card: 240 10% 3.9%;
+		--card-foreground: 0 0% 98%;
+		--popover: 240 10% 3.9%;
+		--popover-foreground: 0 0% 98%;
+		--primary: 0 0% 98%;
+		--primary-foreground: 240 5.9% 10%;
+		--secondary: 240 3.7% 15.9%;
+		--secondary-foreground: 0 0% 98%;
+		--muted: 240 3.7% 15.9%;
+		--muted-foreground: 240 5% 64.9%;
+		--accent: 240 3.7% 15.9%;
+		--accent-foreground: 0 0% 98%;
+		--destructive: 0 62.8% 30.6%;
+		--destructive-foreground: 0 0% 98%;
+		--border: 240 3.7% 15.9%;
+		--input: 240 3.7% 15.9%;
+		--ring: 240 4.9% 83.9%;
+		--chart-1: 220 70% 50%;
+		--chart-2: 160 60% 45%;
+		--chart-3: 30 80% 55%;
+		--chart-4: 280 65% 60%;
+		--chart-5: 340 75% 55%;
+		--sidebar-background: 240 5.9% 10%;
+		--sidebar-foreground: 240 4.8% 95.9%;
+		--sidebar-primary: 224.3 76.3% 48%;
+		--sidebar-primary-foreground: 0 0% 100%;
+		--sidebar-accent: 240 3.7% 15.9%;
+		--sidebar-accent-foreground: 240 4.8% 95.9%;
+		--sidebar-border: 240 3.7% 15.9%;
+		--sidebar-ring: 217.2 91.2% 59.8%;
+	}
+}
+
+@layer base {
+	* {
+		@apply rs-border-border;
+	}
+	body {
+		@apply rs-bg-background rs-text-foreground;
+	}
+}
+
+.editor-wrapper {
+	@apply rs-max-w-2xl;
+}
+
+.editor-wrapper > div {
+	@apply rs-flex rs-w-full rs-max-w-2xl rs-items-start rs-justify-center;
+}
+
+.editor-wrapper .tippy-box {
+	@apply !rs-max-w-none;
+}
+
+.ProseMirror {
+	@apply rs-min-h-[640px] rs-w-full rs-max-w-2xl rs-border-none rs-text-base rs-font-normal rs-leading-relaxed rs-text-foreground rs-outline-none;
+}
+
+.ProseMirror.ProseMirror-focused {
+	border: none !important;
+}
+
+.ProseMirror,
+.ProseMirror.ProseMirror-focused {
+	/*border: none transparent !important;*/
+	outline: none !important;
+	padding: 0 !important;
+}
+
+.ProseMirror > p {
+	@apply rs-mt-0 rs-w-full;
+}
+
+.ProseMirror > p.rs-is-editor-empty {
+	@apply rs-mt-0;
+}
+
+.ProseMirror p.rs-is-editor-empty:first-child::before {
+	content: attr(data-placeholder);
+	float: left;
+	color: #adb5bd;
+	pointer-events: none;
+	height: 0;
+}
+
+.viewer ul,
+.viewer li,
+.ProseMirror ul,
+.ProseMirror ol {
+	@apply !rs-max-w-3xl !rs-px-4 !rs-py-0;
+}
+
+.viewer ul,
+.ProseMirror ul {
+	@apply !rs-list-disc;
+}
+
+.viewer ol,
+.ProseMirror ol {
+	@apply !rs-list-decimal;
+}
+
+.ProseMirror ul[data-type="taskList"] {
+	@apply rs-list-none;
+}
+
+.ProseMirror ul[data-type="taskList"] > li {
+	@apply rs-flex;
+}
+
+.ProseMirror ul[data-type="taskList"] > li > label {
+	@apply rs-mr-2 rs-flex-[0_0_auto] rs-select-none;
+}
+
+.ProseMirror ul[data-type="taskList"] > li > div {
+	@apply rs-flex-auto;
+}
+
+/*.ProseMirror h1,*/
+/*.ProseMirror h2,*/
+/*.ProseMirror h3 {*/
+/*    @apply max-w-3xl;*/
+/*    font-weight: bold;*/
+/*    line-height: 1.rs-1;*/
+/*}*/
+
+/*.ProseMirror h1 {*/
+/*    @apply max-w-3xl;*/
+/*    font-size: 4em;*/
+/*    margin: 0.rs-67em 0;*/
+/*}*/
+
+.viewer h2,
+.ProseMirror h2 {
+	@apply !rs-px-0 !rs-py-3 !rs-mt-[1.rs-5rem] !rs-mb-[0.rs-75rem];
+	/*    @apply max-w-3xl;*/
+	/*    font-size: 2.rs-3rem;*/
+}
+
+.viewer h3,
+.ProseMirror h3 {
+	@apply !rs-mt-[1rem] !rs-mb-[0.rs-875rem];
+	/*    font-size: 2rem;*/
+}
+
+.viewer pre,
+.ProseMirror pre {
+	@apply !rs-max-w-3xl !rs-rounded-lg !rs-py-3 !rs-px-4 !rs-mb-[1.rs-25em];
+	font-family: "JetBrainsMono", monospace !important;
+}
+
+.viewer pre code,
+.ProseMirror pre code {
+	@apply !rs-max-w-3xl !rs-bg-none !rs-p-0 !rs-text-[0.rs-9rem];
+}
+
+.viewer p code,
+.ProseMirror p code {
+	@apply !rs-rounded-lg !rs-px-1 !rs-py-0.5 !rs-font-normal;
+	font-family: "JetBrainsMono", monospace !important;
+}
+
+.viewer blockquote,
+.ProseMirror blockquote {
+	@apply !rs-max-w-3xl !rs-border-l-2 !rs-border-primary !rs-bg-accent/30 !rs-px-4 !rs-py-1;
+}
+
+.viewer a,
+.ProseMirror a {
+	@apply !rs-max-w-3xl !rs-text-primary;
+}
+
+.viewer figure,
+.ProseMirror figure {
+	@apply !rs-max-w-3xl;
+}
+
+.ProseMirror img.ProseMirror-selectednode {
+	outline: 3px solid #2cb67d !important;
+}
+
+.viewer img.rs-super-image-small,
+.ProseMirror img.rs-super-image-small {
+	max-width: 100%;
+	margin-right: auto;
+	margin-left: auto;
+}
+
+.viewer img.rs-super-image-medium,
+.ProseMirror img.rs-super-image-medium {
+	max-width: 50vw;
+	margin: auto calc(50% - 50vw);
+	transform: translateX(calc(50vw - 50%));
+}
+
+.viewer img.rs-super-image-large,
+.ProseMirror img.rs-super-image-large {
+	padding: 0 16px;
+	width: 65vw;
+	max-width: 100vw;
+	margin: auto calc(50% - 100vw);
+	transform: translateX(calc(100vw - 50%));
+}
+
+.viewer hr,
+.ProseMirror hr {
+	@apply !rs-my-8;
+}
