@@ -11,7 +11,4 @@ export default defineConfig({
 		},
 	},
 	plugins: [reactRouter(), tsconfigPaths()],
-	server: {
-		port: 5174,
-	},
 })

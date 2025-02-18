@@ -1,4 +1,4 @@
-import { collection, config, fields } from '@rescribe/core'
+import { collection, config, fields } from '@rescribe/rr7'
 
 const rescribeConfig = config({
 	// basePath: '/rescribe',

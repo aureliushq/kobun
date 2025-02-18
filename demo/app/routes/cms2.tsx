@@ -1,6 +1,6 @@
-import { Rescribe } from '@rescribe/core'
+import { Rescribe } from '@rescribe/rr7'
 import rescribeConfig from '~/rescribe.config'
-import '@rescribe/core/rescribe.css'
+import '@rescribe/rr7/rescribe.css'
 
 export function meta() {
 	return [
