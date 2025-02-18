@@ -1,5 +1,5 @@
 {
-	"name": "@rescribe/core",
+	"name": "@rescribe/rr7",
 	"version": "0.1.0",
 	"type": "module",
 	"files": ["dist"],
