@@ -93,7 +93,7 @@ const DashboardSidebar = () => {
 								className={cn(
 									Object.keys(config.collections).length -
 										1 !==
-										index && 'mb-4',
+										index && 'rs-mb-4',
 								)}
 								key={collection.slug}
 							>
