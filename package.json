@@ -7,9 +7,9 @@
 	"author": "",
 	"scripts": {
 		"build": "turbo run build",
-		"build:demo": "turbo run build --filter rescribe-demo",
+		"build:demo": "turbo run build --filter @rescribe/demo",
 		"check-exports": "turbo run check-exports",
-		"deploy:demo": "turbo run deploy --filter rescribe-demo",
+		"deploy:demo": "turbo run deploy --filter @rescribe/demo",
 		"dev": "turbo run dev --parallel",
 		"format": "biome format --write .",
 		"lint": "biome lint --write .",
@@ -17,14 +17,13 @@
 	},
 	"devDependencies": {
 		"@biomejs/biome": "1.9.4",
-		"rimraf": "^6.0.1",
-		"turbo": "2.3.3"
+		"rimraf": "6.0.1",
+		"turbo": "2.4.2"
 	},
 	"engines": {
-		"node": ">=20.0.0",
-		"pnpm": ">=9.0.0"
+		"node": ">=20.0.0"
 	},
-	"packageManager": "pnpm@9.15.4",
+	"packageManager": "bun@1.2.0",
 	"workspaces": ["demo", "packages/*"],
 	"trustedDependencies": ["@biomejs/biome", "esbuild"],
 	"resolutions": {
