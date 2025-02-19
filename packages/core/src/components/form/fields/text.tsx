@@ -1,7 +1,7 @@
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import type { TextField as TextFieldType } from '@/fields'
+import type { TextField as TextFieldType } from '@/components/form/fields'
 
 type Props = TextFieldType
 
@@ -12,10 +12,11 @@ const TextField = ({
 	multiline = false,
 	placeholder,
 	type = 'text',
+	...rest
 }: Props) => {
 	if (multiline) {
 		return (
-			<div className='rs-w-full rs-flex rs-flex-col rs-items-start rs-gap-2'>
+			<div className='rs-w-full rs-flex rs-flex-col rs-items-start rs-gap-2 rs-px-2'>
 				<div className='rs-grid rs-gap-1.5 rs-leading-none'>
 					<Label>{label}</Label>
 					{description && (
@@ -24,13 +25,13 @@ const TextField = ({
 						</p>
 					)}
 				</div>
-				<Textarea placeholder={placeholder} />
+				<Textarea placeholder={placeholder} {...rest} />
 			</div>
 		)
 	}
 
 	return (
-		<div className='rs-w-full rs-flex rs-flex-col rs-items-start rs-gap-2'>
+		<div className='rs-w-full rs-flex rs-flex-col rs-items-start rs-gap-2 rs-px-2'>
 			<div className='rs-grid rs-gap-1.5 rs-leading-none'>
 				<Label>{label}</Label>
 				{description && (
@@ -39,7 +40,7 @@ const TextField = ({
 					</p>
 				)}
 			</div>
-			<Input placeholder={placeholder} type={type} />
+			<Input placeholder={placeholder} type={type} {...rest} />
 		</div>
 	)
 }

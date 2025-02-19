@@ -1,3 +1,5 @@
+import type { SchemaKey } from '@/types'
+
 export enum FieldTypes {
 	BOOLEAN = 'boolean',
 	DATE = 'date',
@@ -87,13 +89,14 @@ export function select({ description, label, options }: SelectField) {
 }
 
 export type SlugField = {
-	name: Omit<TextField, 'multiline' | 'type'>
-	slug: Omit<TextField, 'multiline' | 'type'>
-}
-export function slug({ name, slug }: SlugField) {
+	title?: { key: SchemaKey }
+} & Omit<TextField, 'multiline' | 'type'>
+
+export function slug({ description, label, title }: SlugField) {
 	return {
-		name,
-		slug,
+		description,
+		label,
+		title,
 		type: FieldTypes.SLUG,
 	}
 }
@@ -103,10 +106,16 @@ export type TextField = BasicField & {
 	placeholder?: string
 	type?: HTMLInputElement['type']
 }
-export function text({ description, label, multiline = false }: TextField) {
+export function text({
+	description,
+	label,
+	multiline = false,
+	type,
+}: TextField) {
 	return {
 		description,
 		label,
+		fieldType: type,
 		multiline,
 		type: FieldTypes.TEXT,
 	}

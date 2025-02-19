@@ -10,7 +10,7 @@ import {
 	PopoverContent,
 	PopoverTrigger,
 } from '@/components/ui/popover'
-import type { DateField as DateFieldType } from '@/fields'
+import type { DateField as DateFieldType } from '@/components/form/fields'
 import { cn } from '@/lib/utils'
 
 type Props = DateFieldType
