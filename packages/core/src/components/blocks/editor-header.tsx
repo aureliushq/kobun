@@ -19,8 +19,14 @@ const EditorHeader = ({
 }: { setOpenCollectionSettings: Dispatch<SetStateAction<boolean>> }) => {
 	const { config, params } = useContext<RescribeContextData>(RescribeContext)
 	invariant(config, '`config` is required.')
+	invariant(params?.collection, 'Invalid collection key in url')
+	invariant(
+		config?.collections[params.collection],
+		'Collection not found in config',
+	)
 
 	const basePath = config.basePath ?? ''
+	const collection = config.collections[params.collection]
 
 	return (
 		<header className='rs-sticky rs-w-full rs-h-16 rs-px-4 rs-flex rs-items-center rs-justify-between rs-z-20'>
@@ -50,7 +56,7 @@ const EditorHeader = ({
 				</BreadcrumbList>
 			</Breadcrumb>
 			<section className='rs-flex rs-items-center rs-gap-2'>
-				{params?.action === 'edit' && (
+				{collection?.features?.publish && (
 					<Button size='sm' variant='ghost'>
 						Publish
 					</Button>
