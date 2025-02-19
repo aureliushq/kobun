@@ -4,8 +4,10 @@ const rescribeConfig = config({
 	// basePath: '/rescribe',
 	collections: {
 		posts: collection({
+			features: {
+				publish: true,
+			},
 			label: 'Posts',
-			slug: 'posts',
 			paths: {
 				assets: 'posts/**/*',
 				content: 'posts/**/*',
@@ -17,25 +19,24 @@ const rescribeConfig = config({
 				content: fields.document({
 					label: 'Content',
 				}),
-				description: fields.text({
-					label: 'Excerpt',
-					multiline: true,
-				}),
 				slug: fields.slug({
 					label: 'Slug',
 					title: {
 						key: 'title',
 					},
 				}),
-				published: fields.boolean({
-					component: 'switch',
-					label: 'Publish Page',
+				description: fields.text({
+					label: 'Excerpt',
+					multiline: true,
 				}),
 			},
+			slug: 'posts',
 		}),
 		docs: collection({
+			features: {
+				publish: true,
+			},
 			label: 'Docs',
-			slug: 'docs',
 			paths: {
 				assets: 'docs/**/*',
 				content: 'docs/**/*',
@@ -43,25 +44,18 @@ const rescribeConfig = config({
 			schema: {
 				title: fields.text({
 					label: 'Title',
-					description: 'Page Title',
 				}),
 				content: fields.document({
 					label: 'Content',
 				}),
-				published: fields.boolean({
-					component: 'checkbox',
-					label: 'Publish Page',
-					description:
-						'If the page should be published. Page will be saved as a draft by default.',
-				}),
 				slug: fields.slug({
 					label: 'Slug',
-					description: 'Slug of the post',
 					title: {
 						key: 'title',
 					},
 				}),
 			},
+			slug: 'docs',
 		}),
 	},
 	storage: {

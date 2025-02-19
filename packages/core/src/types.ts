@@ -17,6 +17,17 @@ type Path = `${string}/${Glob}` | `${string}/${Glob}/${string}`
 type AssetPath = Path
 type ContentPath = Path
 
+export type Features = {
+	featured?: {
+		limit: number
+	}
+	publish?: boolean
+	timestamps?: {
+		createdAt?: boolean
+		updatedAt?: boolean
+	}
+}
+
 // Collection
 export type Field =
 	| BooleanField
@@ -31,6 +42,7 @@ export type SchemaKey = BuiltinSchemaKeys | SpecialSchemaKeys | string
 export type Schema<T extends SchemaKey> = Record<T, Field>
 type CollectionSlug = z.infer<typeof COLLECTION_SLUG_REGEX>
 export type Collection = {
+	features?: Features
 	label: string
 	paths: {
 		assets?: AssetPath | string
