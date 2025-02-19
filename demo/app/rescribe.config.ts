@@ -1,4 +1,4 @@
-import { collection, config, fields } from '@rescribe/rr7'
+import { collection, config, fields } from '@rescribe/core'
 
 const rescribeConfig = config({
 	// basePath: '/rescribe',
@@ -13,30 +13,23 @@ const rescribeConfig = config({
 			schema: {
 				title: fields.text({
 					label: 'Title',
-					description: 'Page Title',
 				}),
 				content: fields.document({
 					label: 'Content',
 				}),
-				published: fields.boolean({
-					component: 'checkbox',
-					label: 'Publish Page',
-					description:
-						'If the page should be published. Page will be saved as a draft by default.',
-				}),
-				publishedAt: fields.date({
-					label: 'Publish Date',
-					description: 'Set the publish date of the page',
+				description: fields.text({
+					label: 'Excerpt',
+					multiline: true,
 				}),
 				slug: fields.slug({
-					name: {
-						label: 'Post Title',
-						description: 'Title of the post',
+					label: 'Slug',
+					title: {
+						key: 'title',
 					},
-					slug: {
-						label: 'Slug',
-						description: 'Slug of the post',
-					},
+				}),
+				published: fields.boolean({
+					component: 'switch',
+					label: 'Publish Page',
 				}),
 			},
 		}),
@@ -61,18 +54,11 @@ const rescribeConfig = config({
 					description:
 						'If the page should be published. Page will be saved as a draft by default.',
 				}),
-				publishedAt: fields.date({
-					label: 'Publish Date',
-					description: 'Set the publish date of the page',
-				}),
 				slug: fields.slug({
-					name: {
-						label: 'Post Title',
-						description: 'Title of the post',
-					},
-					slug: {
-						label: 'Slug',
-						description: 'Slug of the post',
+					label: 'Slug',
+					description: 'Slug of the post',
+					title: {
+						key: 'title',
 					},
 				}),
 			},
