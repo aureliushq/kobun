@@ -1,9 +1,8 @@
 import { PanelRightIcon } from 'lucide-react'
-import { useContext } from 'react'
+import { type Dispatch, type SetStateAction, useContext } from 'react'
 import { Link } from 'react-router'
 import invariant from 'tiny-invariant'
 
-import type { Labels } from '@/components/rescribe'
 import {
 	Breadcrumb,
 	BreadcrumbItem,
@@ -13,17 +12,11 @@ import {
 	BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb'
 import { Button } from '@/components/ui/button'
-import {
-	Sheet,
-	SheetClose,
-	SheetContent,
-	SheetHeader,
-	SheetTitle,
-	SheetTrigger,
-} from '@/components/ui/sheet'
 import { RescribeContext, type RescribeContextData } from '@/providers'
 
-const EditorHeader = ({ labels }: { labels: Labels | undefined }) => {
+const EditorHeader = ({
+	setOpenCollectionSettings,
+}: { setOpenCollectionSettings: Dispatch<SetStateAction<boolean>> }) => {
 	const { config, params } = useContext<RescribeContextData>(RescribeContext)
 	invariant(config, '`config` is required.')
 
@@ -62,26 +55,13 @@ const EditorHeader = ({ labels }: { labels: Labels | undefined }) => {
 						Publish
 					</Button>
 				)}
-				<Sheet>
-					<SheetTrigger asChild>
-						<Button size='icon' variant='ghost'>
-							<PanelRightIcon />
-						</Button>
-					</SheetTrigger>
-					<SheetContent
-						className='[&>button]:rs-hidden rs-p-0'
-						side='right'
-					>
-						<SheetHeader className='rs-h-16 rs-px-4 rs-flex rs-flex-row rs-items-center rs-justify-between rs-space-y-0'>
-							<SheetTitle>{`${labels?.singular} Settings`}</SheetTitle>
-							<SheetClose asChild>
-								<Button size='icon' variant='ghost'>
-									<PanelRightIcon />
-								</Button>
-							</SheetClose>
-						</SheetHeader>
-					</SheetContent>
-				</Sheet>
+				<Button
+					onClick={() => setOpenCollectionSettings(true)}
+					size='icon'
+					variant='ghost'
+				>
+					<PanelRightIcon />
+				</Button>
 			</section>
 		</header>
 	)

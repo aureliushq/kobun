@@ -1,5 +1,3 @@
-import { z } from 'zod'
-import type { COLLECTION_SLUG_REGEX } from './lib/constants'
 import type {
 	BooleanField,
 	DateField,
@@ -7,7 +5,9 @@ import type {
 	SlugField,
 	TextField,
 	UrlField,
-} from './fields'
+} from '@/components/form/fields'
+import type { COLLECTION_SLUG_REGEX } from '@/lib/constants'
+import { z } from 'zod'
 
 const CONTENT_FORMAT = z.enum(['md', 'mdx'])
 export type ContentFormat = z.infer<typeof CONTENT_FORMAT>
@@ -18,15 +18,16 @@ type AssetPath = Path
 type ContentPath = Path
 
 // Collection
-type Field =
+export type Field =
 	| BooleanField
 	| DateField
 	| DocumentField
 	| SlugField
 	| TextField
 	| UrlField
+type BuiltinSchemaKeys = 'createdAt' | 'publishedAt' | 'updatedAt'
 type SpecialSchemaKeys = 'content' | 'slug' | 'title'
-export type SchemaKey = SpecialSchemaKeys | string
+export type SchemaKey = BuiltinSchemaKeys | SpecialSchemaKeys | string
 export type Schema<T extends SchemaKey> = Record<T, Field>
 type CollectionSlug = z.infer<typeof COLLECTION_SLUG_REGEX>
 export type Collection = {

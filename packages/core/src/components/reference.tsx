@@ -1,9 +1,9 @@
-import BooleanField from './fields/boolean'
-import DateField from './fields/date'
-import SelectField from './fields/select'
-import SlugField from './fields/slug'
-import TextField from './fields/text'
-import UrlField from './fields/url'
+import BooleanField from './form/fields/boolean'
+import DateField from './form/fields/date'
+import SelectField from './form/fields/select'
+import SlugField from './form/fields/slug'
+import TextField from './form/fields/text'
+import UrlField from './form/fields/url'
 
 const ComponentReference = () => {
 	return (
@@ -53,16 +53,9 @@ const ComponentReference = () => {
 				placeholder='https://not-a-jedi-master.com'
 			/>
 			<SlugField
-				name={{
-					description: 'The title of the post',
-					label: 'Title',
-					placeholder: 'Post Title',
-				}}
-				slug={{
-					description: 'File/folder name for this post',
-					label: 'Slug',
-					placeholder: 'post-title',
-				}}
+				description='File/folder name for this post'
+				label='Slug'
+				placeholder='post-title'
 			/>
 		</>
 	)

@@ -114,11 +114,11 @@
 	@apply rs-mt-0 rs-w-full;
 }
 
-.ProseMirror > p.rs-is-editor-empty {
+.ProseMirror > p.is-editor-empty {
 	@apply rs-mt-0;
 }
 
-.ProseMirror p.rs-is-editor-empty:first-child::before {
+.ProseMirror p.is-editor-empty:first-child::before {
 	content: attr(data-placeholder);
 	float: left;
 	color: #adb5bd;
