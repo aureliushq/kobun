@@ -1,16 +1,15 @@
+import { LinkIcon, UnlinkIcon } from 'lucide-react'
 import type { FormEvent } from 'react'
-
 import { Form } from 'react-router'
 
-import { LinkIcon, UnlinkIcon } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { Button } from '~/components/ui/button'
 import {
 	Dialog,
 	DialogContent,
 	DialogHeader,
 	DialogTitle,
-} from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
+} from '~/components/ui/dialog'
+import { Input } from '~/components/ui/input'
 
 type LinkDialogProps = {
 	defaultValue?: string

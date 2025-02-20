@@ -10,9 +10,9 @@ import {
 	BreadcrumbList,
 	BreadcrumbPage,
 	BreadcrumbSeparator,
-} from '@/components/ui/breadcrumb'
-import { Button } from '@/components/ui/button'
-import { RescribeContext, type RescribeContextData } from '@/providers'
+} from '~/components/ui/breadcrumb'
+import { Button } from '~/components/ui/button'
+import { RescribeContext, type RescribeContextData } from '~/providers'
 
 const EditorHeader = ({
 	isContentFieldAvailable,

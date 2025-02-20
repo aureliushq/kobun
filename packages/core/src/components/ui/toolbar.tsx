@@ -1,7 +1,7 @@
+import * as ToolbarPrimitive from '@radix-ui/react-toolbar'
 import * as React from 'react'
 
-import * as ToolbarPrimitive from '@radix-ui/react-toolbar'
-import { cn } from '@/lib/utils'
+import { cn } from '~/lib/utils'
 
 const Toolbar = React.forwardRef<
 	React.ElementRef<typeof ToolbarPrimitive.Root>,

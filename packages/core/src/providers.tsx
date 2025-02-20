@@ -1,8 +1,9 @@
 import { type ReactNode, createContext, useMemo } from 'react'
 import { useLocation } from 'react-router'
 import invariant from 'tiny-invariant'
-import { parseAdminPathname } from '@/lib/utils'
-import type { Config } from '@/types'
+
+import { parseAdminPathname } from '~/lib/utils'
+import type { Config } from '~/types'
 
 export type RescribeContextData = {
 	config: Config | null

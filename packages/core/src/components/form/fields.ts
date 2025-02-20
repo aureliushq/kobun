@@ -1,4 +1,4 @@
-import type { SchemaKey } from '@/types'
+import type { SchemaKey } from '~/types'
 
 export enum FieldTypes {
 	BOOLEAN = 'boolean',

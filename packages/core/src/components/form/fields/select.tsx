@@ -1,12 +1,12 @@
+import type { SelectField as SelectFieldType } from '~/components/form/fields'
+import { Label } from '~/components/ui/label'
 import {
 	Select,
 	SelectContent,
 	SelectItem,
 	SelectTrigger,
 	SelectValue,
-} from '@/components/ui/select'
-import { Label } from '@/components/ui/label'
-import type { SelectField as SelectFieldType } from '@/components/form/fields'
+} from '~/components/ui/select'
 
 type Props = SelectFieldType
 

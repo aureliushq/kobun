@@ -1,13 +1,13 @@
+import { useForm } from '@conform-to/react'
 import { useContext, useState } from 'react'
 import { Form as RRForm, useActionData } from 'react-router'
-import { useForm } from '@conform-to/react'
-
-import EditorHeader from '@/components/blocks/editor-header'
-import { ScrollArea } from '@/components/ui/scroll-area'
-import Form from '../form'
-import type { Labels } from '../rescribe'
-import { type RescribeContextData, RescribeContext } from '@/providers'
 import invariant from 'tiny-invariant'
+
+import EditorHeader from '~/components/blocks/editor-header'
+import Form from '~/components/form'
+import type { Labels } from '~/components/rescribe'
+import { ScrollArea } from '~/components/ui/scroll-area'
+import { RescribeContext, type RescribeContextData } from '~/providers'
 
 const EditorLayout = ({
 	labels,

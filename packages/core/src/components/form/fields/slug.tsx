@@ -1,8 +1,9 @@
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import type { SlugField as SlugFieldType } from '@/components/form/fields'
 import { RefreshCcw } from 'lucide-react'
+
+import type { SlugField as SlugFieldType } from '~/components/form/fields'
+import { Button } from '~/components/ui/button'
+import { Input } from '~/components/ui/input'
+import { Label } from '~/components/ui/label'
 
 type Props = SlugFieldType
 

@@ -10,7 +10,7 @@ import { useContext } from 'react'
 import { Link, useLocation } from 'react-router'
 import invariant from 'tiny-invariant'
 
-import { LogoDark } from '@/components/blocks/logo'
+import { LogoDark } from '~/components/blocks/logo'
 import {
 	Sidebar,
 	SidebarContent,
@@ -22,10 +22,10 @@ import {
 	SidebarMenuAction,
 	SidebarMenuButton,
 	SidebarMenuItem,
-} from '@/components/ui/sidebar'
-import { PATHS } from '@/lib/constants'
-import { cn } from '@/lib/utils'
-import { RescribeContext, type RescribeContextData } from '@/providers'
+} from '~/components/ui/sidebar'
+import { PATHS } from '~/lib/constants'
+import { cn } from '~/lib/utils'
+import { RescribeContext, type RescribeContextData } from '~/providers'
 
 const DashboardSidebar = () => {
 	const { config } = useContext<RescribeContextData>(RescribeContext)

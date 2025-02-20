@@ -1,19 +1,18 @@
 import { useContext } from 'react'
 import { useLoaderData } from 'react-router'
 import invariant from 'tiny-invariant'
-
-import Collection from '@/components/blocks/collection'
-import DashboardLayout from '@/components/layouts/dashboard'
-import EditorLayout from '@/components/layouts/editor'
-import ComponentReference from '@/components/reference'
-import { generateLabelsForCollection } from '@/lib/utils'
+import Collection from '~/components/blocks/collection'
+import DashboardLayout from '~/components/layouts/dashboard'
+import EditorLayout from '~/components/layouts/editor'
+import ComponentReference from '~/components/reference'
+import { TooltipProvider } from '~/components/ui/tooltip'
+import { generateLabelsForCollection } from '~/lib/utils'
 import {
 	RescribeContext,
 	type RescribeContextData,
 	RescribeProvider,
-} from '@/providers'
-import type { Config } from '@/types'
-import { TooltipProvider } from './ui/tooltip'
+} from '~/providers'
+import type { Config } from '~/types'
 
 export type Labels = {
 	plural: string

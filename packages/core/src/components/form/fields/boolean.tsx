@@ -1,7 +1,7 @@
-import { Checkbox } from '@/components/ui/checkbox'
-import { Label } from '@/components/ui/label'
-import { Switch } from '@/components/ui/switch'
-import type { BooleanField as BooleanFieldType } from '@/components/form/fields'
+import type { BooleanField as BooleanFieldType } from '~/components/form/fields'
+import { Checkbox } from '~/components/ui/checkbox'
+import { Label } from '~/components/ui/label'
+import { Switch } from '~/components/ui/switch'
 
 type BooleanProps = BooleanFieldType & {
 	config?: Partial<HTMLInputElement>

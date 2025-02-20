@@ -3,6 +3,7 @@ import {
 	EditorContent,
 	type Editor as TiptapEditor,
 } from '@tiptap/react'
+
 import EditorToolbar from './toolbar'
 
 const Editor = ({

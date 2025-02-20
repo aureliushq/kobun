@@ -1,21 +1,21 @@
-import InputRenderer from '@/components/form/input-renderer'
-import type { Labels } from '@/components/rescribe'
-import { Button } from '@/components/ui/button'
-import { ScrollArea } from '@/components/ui/scroll-area'
-import { Separator } from '@/components/ui/separator'
+import type { FieldMetadata } from '@conform-to/react'
+import { PanelRightIcon } from 'lucide-react'
+import { type Dispatch, type SetStateAction, useContext } from 'react'
+import invariant from 'tiny-invariant'
+
+import InputRenderer from '~/components/form/input-renderer'
+import type { Labels } from '~/components/rescribe'
+import { Button } from '~/components/ui/button'
+import { ScrollArea } from '~/components/ui/scroll-area'
 import {
 	Sheet,
 	SheetClose,
 	SheetContent,
 	SheetHeader,
 	SheetTitle,
-} from '@/components/ui/sheet'
-import { RescribeContext, type RescribeContextData } from '@/providers'
-import type { SchemaKey } from '@/types'
-import type { FieldMetadata } from '@conform-to/react'
-import { PanelRightIcon } from 'lucide-react'
-import { type Dispatch, type SetStateAction, useContext } from 'react'
-import invariant from 'tiny-invariant'
+} from '~/components/ui/sheet'
+import { RescribeContext, type RescribeContextData } from '~/providers'
+import type { SchemaKey } from '~/types'
 
 const Form = ({
 	fields,

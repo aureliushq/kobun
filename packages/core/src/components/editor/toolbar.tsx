@@ -1,5 +1,3 @@
-import { useCallback, useEffect, useState } from 'react'
-
 import type { Editor } from '@tiptap/react'
 import {
 	BoldIcon,
@@ -10,21 +8,23 @@ import {
 	QuoteIcon,
 	UnderlineIcon,
 } from 'lucide-react'
-import LinkDialog from '@/components/editor/link-dialog'
+import { useCallback, useEffect, useState } from 'react'
+
+import LinkDialog from '~/components/editor/link-dialog'
 import {
 	Select,
 	SelectContent,
 	SelectItem,
 	SelectTrigger,
 	SelectValue,
-} from '@/components/ui/select'
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
-import { Toolbar } from '@/components/ui/toolbar'
+} from '~/components/ui/select'
+import { ToggleGroup, ToggleGroupItem } from '~/components/ui/toggle-group'
+import { Toolbar } from '~/components/ui/toolbar'
 import {
 	Tooltip,
 	TooltipContent,
 	TooltipTrigger,
-} from '@/components/ui/tooltip'
+} from '~/components/ui/tooltip'
 
 enum EditorHeadings {
 	NORMAL = 'normal',

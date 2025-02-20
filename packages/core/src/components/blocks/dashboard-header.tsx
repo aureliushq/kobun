@@ -10,11 +10,11 @@ import {
 	BreadcrumbList,
 	BreadcrumbPage,
 	BreadcrumbSeparator,
-} from '@/components/ui/breadcrumb'
-import { Button } from '@/components/ui/button'
-import { Toggle } from '@/components/ui/toggle'
-import { RescribeContext, type RescribeContextData } from '@/providers'
-import { SIDEBAR_WIDTH } from '../ui/sidebar'
+} from '~/components/ui/breadcrumb'
+import { Button } from '~/components/ui/button'
+import { SIDEBAR_WIDTH } from '~/components/ui/sidebar'
+import { Toggle } from '~/components/ui/toggle'
+import { RescribeContext, type RescribeContextData } from '~/providers'
 
 const DashboardHeader = () => {
 	const { config, params } = useContext<RescribeContextData>(RescribeContext)

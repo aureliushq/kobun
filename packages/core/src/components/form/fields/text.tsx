@@ -1,7 +1,7 @@
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
-import type { TextField as TextFieldType } from '@/components/form/fields'
+import type { TextField as TextFieldType } from '~/components/form/fields'
+import { Input } from '~/components/ui/input'
+import { Label } from '~/components/ui/label'
+import { Textarea } from '~/components/ui/textarea'
 
 type Props = TextFieldType
 

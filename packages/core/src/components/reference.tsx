@@ -1,9 +1,9 @@
-import BooleanField from './form/fields/boolean'
-import DateField from './form/fields/date'
-import SelectField from './form/fields/select'
-import SlugField from './form/fields/slug'
-import TextField from './form/fields/text'
-import UrlField from './form/fields/url'
+import BooleanField from '~/components/form/fields/boolean'
+import DateField from '~/components/form/fields/date'
+import SelectField from '~/components/form/fields/select'
+import SlugField from '~/components/form/fields/slug'
+import TextField from '~/components/form/fields/text'
+import UrlField from '~/components/form/fields/url'
 
 const ComponentReference = () => {
 	return (

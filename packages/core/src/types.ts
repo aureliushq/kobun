@@ -1,3 +1,5 @@
+import { z } from 'zod'
+
 import type {
 	BooleanField,
 	DateField,
@@ -5,9 +7,8 @@ import type {
 	SlugField,
 	TextField,
 	UrlField,
-} from '@/components/form/fields'
-import type { COLLECTION_SLUG_REGEX } from '@/lib/constants'
-import { z } from 'zod'
+} from '~/components/form/fields'
+import type { COLLECTION_SLUG_REGEX } from '~/lib/constants'
 
 const CONTENT_FORMAT = z.enum(['md', 'mdx'])
 export type ContentFormat = z.infer<typeof CONTENT_FORMAT>

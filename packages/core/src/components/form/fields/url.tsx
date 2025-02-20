@@ -1,6 +1,6 @@
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import type { UrlField as UrlFieldType } from '@/components/form/fields'
+import type { UrlField as UrlFieldType } from '~/components/form/fields'
+import { Input } from '~/components/ui/input'
+import { Label } from '~/components/ui/label'
 
 type Props = UrlFieldType
 

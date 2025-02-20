@@ -3,13 +3,13 @@ import { useContext, useId, useRef, useState } from 'react'
 import { Link } from 'react-router'
 import invariant from 'tiny-invariant'
 
-import type { Labels } from '@/components/rescribe'
-import { Button } from '@/components/ui/button'
-import { EmptyState } from '@/components/ui/empty-state'
-import { Input } from '@/components/ui/input'
-import { PATHS } from '@/lib/constants'
-import { RescribeContext, type RescribeContextData } from '@/providers'
-import type { Collection as CollectionType } from '@/types'
+import type { Labels } from '~/components/rescribe'
+import { Button } from '~/components/ui/button'
+import { EmptyState } from '~/components/ui/empty-state'
+import { Input } from '~/components/ui/input'
+import { PATHS } from '~/lib/constants'
+import { RescribeContext, type RescribeContextData } from '~/providers'
+import type { Collection as CollectionType } from '~/types'
 
 const CollectionHeader = ({
 	basePath,
