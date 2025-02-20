@@ -1,8 +1,33 @@
 import { collection, config, fields } from '@rescribe/core'
 
 const rescribeConfig = config({
-	// basePath: '/rescribe',
+	basePath: '/rescribe',
 	collections: {
+		docs: collection({
+			features: {
+				publish: true,
+			},
+			label: 'Docs',
+			paths: {
+				assets: 'docs/**/*',
+				content: 'docs/**/*',
+			},
+			schema: {
+				title: fields.text({
+					label: 'Title',
+				}),
+				content: fields.document({
+					label: 'Content',
+				}),
+				slug: fields.slug({
+					label: 'Slug',
+					title: {
+						key: 'title',
+					},
+				}),
+			},
+			slug: 'docs',
+		}),
 		posts: collection({
 			features: {
 				publish: true,
@@ -32,21 +57,22 @@ const rescribeConfig = config({
 			},
 			slug: 'posts',
 		}),
-		docs: collection({
+		series: collection({
 			features: {
 				publish: true,
 			},
-			label: 'Docs',
+			label: 'Series',
 			paths: {
-				assets: 'docs/**/*',
-				content: 'docs/**/*',
+				assets: 'series/**/*',
+				content: 'series/**/*',
 			},
 			schema: {
 				title: fields.text({
 					label: 'Title',
 				}),
-				content: fields.document({
-					label: 'Content',
+				description: fields.text({
+					label: 'Description',
+					multiline: true,
 				}),
 				slug: fields.slug({
 					label: 'Slug',
@@ -55,7 +81,7 @@ const rescribeConfig = config({
 					},
 				}),
 			},
-			slug: 'docs',
+			slug: 'series',
 		}),
 	},
 	storage: {

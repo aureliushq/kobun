@@ -1,6 +1,7 @@
 import { Rescribe } from '@rescribe/core'
 import rescribeConfig from '~/rescribe.config'
 import '@rescribe/core/rescribe.css'
+import type { Route } from './+types/cms'
 
 export function meta() {
 	return [
@@ -10,6 +11,11 @@ export function meta() {
 }
 
 export const loader = async () => {
+	return { message: 'Hello from the server!' }
+}
+
+export const action = async ({ request }: Route.ActionArgs) => {
+	const formData = await request.formData()
 	return { message: 'Hello from the server!' }
 }
 
