@@ -1,6 +1,8 @@
+import type { Config } from '@rescribe/common'
 import { useContext } from 'react'
 import { useLoaderData } from 'react-router'
 import invariant from 'tiny-invariant'
+
 import Collection from '~/components/blocks/collection'
 import DashboardLayout from '~/components/layouts/dashboard'
 import EditorLayout from '~/components/layouts/editor'
@@ -12,7 +14,6 @@ import {
 	type RescribeContextData,
 	RescribeProvider,
 } from '~/providers'
-import type { Config } from '~/types'
 
 export type Labels = {
 	plural: string

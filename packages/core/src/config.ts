@@ -1,5 +1,8 @@
-import { COLLECTION_SLUG_REGEX } from '~/lib/constants'
-import type { Collection, Config } from '~/types'
+import {
+	COLLECTION_SLUG_REGEX,
+	type Collection,
+	type Config,
+} from '@rescribe/common'
 
 export function config(config: Config) {
 	return config

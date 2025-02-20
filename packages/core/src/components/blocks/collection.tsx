@@ -1,3 +1,4 @@
+import type { Collection as CollectionType } from '@rescribe/common'
 import { CircleX, FileTextIcon } from 'lucide-react'
 import { useContext, useId, useRef, useState } from 'react'
 import { Link } from 'react-router'
@@ -9,7 +10,6 @@ import { EmptyState } from '~/components/ui/empty-state'
 import { Input } from '~/components/ui/input'
 import { PATHS } from '~/lib/constants'
 import { RescribeContext, type RescribeContextData } from '~/providers'
-import type { Collection as CollectionType } from '~/types'
 
 const CollectionHeader = ({
 	basePath,

@@ -1,4 +1,5 @@
 import type { FieldMetadata } from '@conform-to/react'
+import type { SchemaKey } from '@rescribe/common'
 import { PanelRightIcon } from 'lucide-react'
 import { type Dispatch, type SetStateAction, useContext } from 'react'
 import invariant from 'tiny-invariant'
@@ -15,7 +16,6 @@ import {
 	SheetTitle,
 } from '~/components/ui/sheet'
 import { RescribeContext, type RescribeContextData } from '~/providers'
-import type { SchemaKey } from '~/types'
 
 const Form = ({
 	fields,

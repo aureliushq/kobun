@@ -1,4 +1,5 @@
-import type { SelectField as SelectFieldType } from '~/components/form/fields'
+import type { SelectField as SelectFieldType } from '@rescribe/common'
+
 import { Label } from '~/components/ui/label'
 import {
 	Select,

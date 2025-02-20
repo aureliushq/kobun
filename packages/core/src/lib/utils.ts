@@ -1,10 +1,11 @@
+import type { Collections, Config } from '@rescribe/common'
 import { type ClassValue, clsx } from 'clsx'
 import pluralize from 'pluralize-esm'
 import { extendTailwindMerge } from 'tailwind-merge'
 import invariant from 'tiny-invariant'
+
 import type { Labels } from '~/components/rescribe'
 import { BASE_PATH } from '~/lib/constants'
-import type { Collections, Config } from '~/types'
 
 export const cn = (...inputs: ClassValue[]) => {
 	const twMerge = extendTailwindMerge({

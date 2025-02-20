@@ -1,6 +1,6 @@
-import { RefreshCcw } from 'lucide-react'
+import type { SlugField as SlugFieldType } from '@rescribe/common'
+import { RefreshCcwIcon } from 'lucide-react'
 
-import type { SlugField as SlugFieldType } from '~/components/form/fields'
 import { Button } from '~/components/ui/button'
 import { Input } from '~/components/ui/input'
 import { Label } from '~/components/ui/label'
@@ -28,7 +28,7 @@ const SlugField = ({ description, label, placeholder, title }: Props) => {
 					size='icon'
 					variant='outline'
 				>
-					<RefreshCcw />
+					<RefreshCcwIcon />
 				</Button>
 			</div>
 		</div>

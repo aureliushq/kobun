@@ -1,27 +1,14 @@
-import type { SchemaKey } from '~/types'
+import {
+	type DateField,
+	type DocumentField,
+	type SelectField,
+	type SlugField,
+	type TextField,
+	type UrlField,
+	type BooleanField,
+	FieldTypes,
+} from '@rescribe/common'
 
-export enum FieldTypes {
-	BOOLEAN = 'boolean',
-	DATE = 'date',
-	DOCUMENT = 'document',
-	IMAGE = 'image',
-	MULTISELECT = 'multiselect',
-	PUBLISH = 'publish',
-	SELECT = 'select',
-	SLUG = 'slug',
-	TEXT = 'text',
-	URL = 'url',
-}
-
-type BasicField = {
-	label: string
-	description?: string
-}
-
-export type BooleanField = BasicField & {
-	component?: 'checkbox' | 'switch'
-	defaultChecked?: boolean
-}
 export function boolean({
 	component = 'checkbox',
 	defaultChecked = false,
@@ -37,7 +24,6 @@ export function boolean({
 	}
 }
 
-export type DateField = BasicField
 export function date({ description, label }: DateField) {
 	return {
 		description,
@@ -46,7 +32,6 @@ export function date({ description, label }: DateField) {
 	}
 }
 
-export type DocumentField = BasicField
 export function document({ description, label }: DocumentField) {
 	return {
 		description,
@@ -55,30 +40,6 @@ export function document({ description, label }: DocumentField) {
 	}
 }
 
-// export type PublishField = BooleanField
-// export function publish({
-// 	component = 'checkbox',
-// 	defaultChecked = false,
-// 	description,
-// 	label,
-// }: BooleanField) {
-// 	return {
-// 		component,
-// 		description,
-// 		defaultChecked,
-// 		label,
-// 		type: FieldTypes.PUBLISH,
-// 	}
-// }
-
-type SelectOptions = {
-	value: string
-	label: string
-}
-export type SelectField = BasicField & {
-	options: SelectOptions[]
-	placeholder?: string
-}
 export function select({ description, label, options }: SelectField) {
 	return {
 		description,
@@ -87,10 +48,6 @@ export function select({ description, label, options }: SelectField) {
 		type: FieldTypes.SELECT,
 	}
 }
-
-export type SlugField = {
-	title?: { key: SchemaKey }
-} & Omit<TextField, 'multiline' | 'type'>
 
 export function slug({ description, label, title }: SlugField) {
 	return {
@@ -101,11 +58,6 @@ export function slug({ description, label, title }: SlugField) {
 	}
 }
 
-export type TextField = BasicField & {
-	multiline?: boolean
-	placeholder?: string
-	type?: HTMLInputElement['type']
-}
 export function text({
 	description,
 	label,
@@ -121,10 +73,6 @@ export function text({
 	}
 }
 
-export type UrlField = BasicField & {
-	placeholder?: string
-	type?: HTMLInputElement['type']
-}
 export function url({ description, label }: UrlField) {
 	return {
 		description,

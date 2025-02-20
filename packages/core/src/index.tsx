@@ -8,4 +8,4 @@ export type {
 	Config,
 	Schema,
 	SchemaKey,
-} from '~/types'
+} from '@rescribe/common'

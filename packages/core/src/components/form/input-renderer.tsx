@@ -1,4 +1,12 @@
 import type { FieldMetadata } from '@conform-to/react'
+import {
+	type BooleanField as BooleanFieldType,
+	type Field,
+	FieldTypes,
+	type SchemaKey,
+	type SlugField as SlugFieldType,
+	type TextField as TextFieldType,
+} from '@rescribe/common'
 import { BubbleMenu } from '@tiptap/extension-bubble-menu'
 import { CharacterCount } from '@tiptap/extension-character-count'
 import { CodeBlockLowlight } from '@tiptap/extension-code-block-lowlight'
@@ -16,17 +24,10 @@ import { common, createLowlight } from 'lowlight'
 import { useEffect, useRef } from 'react'
 
 import Editor from '~/components/editor'
-import {
-	type BooleanField as BooleanFieldType,
-	FieldTypes,
-	type SlugField as SlugFieldType,
-	type TextField as TextFieldType,
-} from '~/components/form/fields'
 import BooleanField from '~/components/form/fields/boolean'
 import SlugField from '~/components/form/fields/slug'
 import TextField from '~/components/form/fields/text'
 import { Textarea } from '~/components/ui/textarea'
-import type { Field, SchemaKey } from '~/types'
 
 const lowlight = createLowlight(common)
 

@@ -1,4 +1,5 @@
-import type { UrlField as UrlFieldType } from '~/components/form/fields'
+import type { UrlField as UrlFieldType } from '@rescribe/common'
+
 import { Input } from '~/components/ui/input'
 import { Label } from '~/components/ui/label'
 
