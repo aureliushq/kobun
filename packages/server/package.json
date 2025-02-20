@@ -1,11 +1,27 @@
 {
 	"name": "@rescribe/server",
-	"module": "src/index.ts",
+	"version": "0.5.0",
 	"type": "module",
-	"devDependencies": {
-		"@rescribe/tsconfig": "workspace:*"
+	"files": ["dist"],
+	"main": "./dist/index.cjs",
+	"module": "./dist/index.js",
+	"style": "./dist/index.css",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": "./dist/index.js"
 	},
-	"peerDependencies": {
-		"typescript": "^5.0.0"
+	"scripts": {
+		"build": "tsup",
+		"dev": "tsup --watch --dts",
+		"nuke": "rimraf dist node_modules .turbo"
+	},
+	"peerDependencies": {},
+	"devDependencies": {
+		"@rescribe/tsconfig": "workspace:*",
+		"tsup": "8.3.5",
+		"typescript": "5.6.2"
+	},
+	"dependencies": {
+		"@conform-to/zod": "^1.2.2"
 	}
 }
