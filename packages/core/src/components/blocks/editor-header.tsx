@@ -15,8 +15,12 @@ import { Button } from '@/components/ui/button'
 import { RescribeContext, type RescribeContextData } from '@/providers'
 
 const EditorHeader = ({
+	isContentFieldAvailable,
 	setOpenCollectionSettings,
-}: { setOpenCollectionSettings: Dispatch<SetStateAction<boolean>> }) => {
+}: {
+	isContentFieldAvailable: boolean
+	setOpenCollectionSettings: Dispatch<SetStateAction<boolean>>
+}) => {
 	const { config, params } = useContext<RescribeContextData>(RescribeContext)
 	invariant(config, '`config` is required.')
 	invariant(params?.collection, 'Invalid collection key in url')
@@ -56,18 +60,49 @@ const EditorHeader = ({
 				</BreadcrumbList>
 			</Breadcrumb>
 			<section className='rs-flex rs-items-center rs-gap-2'>
+				{params.action === 'create' && (
+					<Button
+						name='intent'
+						size='sm'
+						type='submit'
+						value='create'
+						variant='ghost'
+					>
+						Create
+					</Button>
+				)}
+				{params.action === 'edit' && (
+					<Button
+						name='intent'
+						size='sm'
+						type='submit'
+						value='edit'
+						variant='ghost'
+					>
+						Save
+					</Button>
+				)}
 				{collection?.features?.publish && (
-					<Button size='sm' variant='ghost'>
+					<Button
+						className='rs-text-green-500'
+						name='intent'
+						size='sm'
+						type='submit'
+						value='publish'
+						variant='ghost'
+					>
 						Publish
 					</Button>
 				)}
-				<Button
-					onClick={() => setOpenCollectionSettings(true)}
-					size='icon'
-					variant='ghost'
-				>
-					<PanelRightIcon />
-				</Button>
+				{isContentFieldAvailable && (
+					<Button
+						onClick={() => setOpenCollectionSettings(true)}
+						size='icon'
+						variant='ghost'
+					>
+						<PanelRightIcon />
+					</Button>
+				)}
 			</section>
 		</header>
 	)

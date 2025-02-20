@@ -1,9 +1,8 @@
-import { useContext, useState } from 'react'
+import { useContext } from 'react'
 import { useLoaderData } from 'react-router'
 import invariant from 'tiny-invariant'
 
 import Collection from '@/components/blocks/collection'
-import Form from '@/components/form'
 import DashboardLayout from '@/components/layouts/dashboard'
 import EditorLayout from '@/components/layouts/editor'
 import ComponentReference from '@/components/reference'
@@ -23,7 +22,6 @@ export type Labels = {
 
 const Root = () => {
 	const { config, params } = useContext<RescribeContextData>(RescribeContext)
-	const [openCollectionSettings, setOpenCollectionSettings] = useState(false)
 
 	let labels: Labels | undefined
 	if (params?.section === 'collections' || params?.section === 'editor') {
@@ -41,15 +39,9 @@ const Root = () => {
 
 	if (params?.section === 'editor') {
 		return (
-			<EditorLayout setOpenCollectionSettings={setOpenCollectionSettings}>
-				<TooltipProvider>
-					<Form
-						labels={labels}
-						openCollectionSettings={openCollectionSettings}
-						setOpenCollectionSettings={setOpenCollectionSettings}
-					/>
-				</TooltipProvider>
-			</EditorLayout>
+			<TooltipProvider>
+				<EditorLayout labels={labels} />
+			</TooltipProvider>
 		)
 	}
 

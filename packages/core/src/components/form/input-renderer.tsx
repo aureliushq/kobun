@@ -185,7 +185,7 @@ const InputRenderer = ({
 
 			if (fieldKey === 'title') {
 				return (
-					<div className='rs-w-full rs-max-w-2xl'>
+					<div className='rs-px-2'>
 						<Textarea
 							autoFocus
 							className={`rs-w-full rs-min-h-[48px] rs-border-0 rs-p-0 focus-visible:rs-ring-0 focus-visible:rs-ring-offset-0 rs-flex rs-items-center rs-resize-none rs-overflow-y-hidden rs-bg-transparent rs-text-xl rs-font-semibold rs-leading-snug rs-text-foreground focus:rs-outline-none lg:rs-text-3xl lg:rs-leading-snug rs-${settings?.titleFont}`}

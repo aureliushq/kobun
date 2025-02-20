@@ -12,28 +12,28 @@ import {
 } from '@/components/ui/sheet'
 import { RescribeContext, type RescribeContextData } from '@/providers'
 import type { SchemaKey } from '@/types'
-import { useForm } from '@conform-to/react'
+import type { FieldMetadata } from '@conform-to/react'
 import { PanelRightIcon } from 'lucide-react'
 import { type Dispatch, type SetStateAction, useContext } from 'react'
-import { Form as RRForm, useActionData } from 'react-router'
 import invariant from 'tiny-invariant'
 
 const Form = ({
+	fields,
+	isContentFieldAvailable,
 	labels,
 	openCollectionSettings,
 	setOpenCollectionSettings,
 }: {
+	fields: Required<{
+		// biome-ignore lint/suspicious/noExplicitAny: <explanation>
+		[x: string]: FieldMetadata<any, Record<string, any>, string[]>
+	}>
+	isContentFieldAvailable: boolean
 	labels: Labels | undefined
 	openCollectionSettings: boolean
 	setOpenCollectionSettings: Dispatch<SetStateAction<boolean>>
 }) => {
-	const lastResult = useActionData()
 	const { config, params } = useContext<RescribeContextData>(RescribeContext)
-	const [form, fields] = useForm({
-		lastResult,
-		// constraint: getZodConstraint()
-	})
-
 	invariant(params?.collection, 'Invalid collection key in url')
 	invariant(
 		config?.collections[params.collection],
@@ -41,7 +41,7 @@ const Form = ({
 	)
 
 	const collection = config.collections[params.collection]
-	const contentFields = Object.keys(collection.schema).filter(
+	const primaryFields = Object.keys(collection.schema).filter(
 		(key: SchemaKey) => key === 'title' || key === 'content',
 	)
 	const otherFields = Object.keys(collection.schema)
@@ -53,12 +53,9 @@ const Form = ({
 				key !== 'updatedAt',
 		)
 
-	console.log(contentFields)
-	console.log(otherFields)
-
-	const ContentInputs =
-		contentFields.length > 0
-			? contentFields.map((key) => {
+	const PrimaryInputs =
+		primaryFields.length > 0
+			? primaryFields.map((key) => {
 					const fieldData = collection.schema[key]
 					const fieldMetadata = fields[key]
 					return (
@@ -95,37 +92,41 @@ const Form = ({
 			: null
 
 	return (
-		<RRForm id={form.id} method='post'>
+		<>
 			<section className='rs-flex rs-h-full rs-w-full rs-flex-grow rs-flex-col rs-items-center rs-justify-start rs-z-9'>
 				<div className='rs-flex rs-h-full rs-w-full rs-flex-col rs-items-center rs-justify-start rs-gap-6 rs-px-4 rs-pb-24 md:rs-pb-16 lg:rs-px-0'>
-					{ContentInputs}
+					<div className='rs-w-full rs-max-w-2xl rs-flex rs-flex-col rs-px-2 rs-gap-6'>
+						{PrimaryInputs}
+						{!isContentFieldAvailable && OtherInputs}
+					</div>
 				</div>
 			</section>
-			<Sheet
-				onOpenChange={setOpenCollectionSettings}
-				open={openCollectionSettings}
-			>
-				<SheetContent
-					className='[&>button]:rs-hidden rs-p-0'
-					side='right'
+			{isContentFieldAvailable && (
+				<Sheet
+					onOpenChange={setOpenCollectionSettings}
+					open={openCollectionSettings}
 				>
-					<SheetHeader className='rs-h-16 rs-px-4 rs-flex rs-flex-row rs-items-center rs-justify-between rs-space-y-0'>
-						<SheetTitle>{`${labels?.singular} Settings`}</SheetTitle>
-						<SheetClose asChild>
-							<Button size='icon' variant='ghost'>
-								<PanelRightIcon />
-							</Button>
-						</SheetClose>
-					</SheetHeader>
-					<Separator />
-					<ScrollArea className='rs-w-full rs-h-full'>
-						<div className='rs-flex rs-flex-col rs-gap-8 rs-px-2 rs-py-8'>
-							{OtherInputs}
-						</div>
-					</ScrollArea>
-				</SheetContent>
-			</Sheet>
-		</RRForm>
+					<SheetContent
+						className='[&>button]:rs-hidden rs-p-0'
+						side='right'
+					>
+						<SheetHeader className='rs-h-16 rs-px-4 rs-flex rs-flex-row rs-items-center rs-justify-between rs-space-y-0'>
+							<SheetTitle>{`${labels?.singular} Settings`}</SheetTitle>
+							<SheetClose asChild>
+								<Button size='icon' variant='ghost'>
+									<PanelRightIcon />
+								</Button>
+							</SheetClose>
+						</SheetHeader>
+						<ScrollArea className='rs-w-full rs-h-full'>
+							<div className='rs-flex rs-flex-col rs-gap-8 rs-px-2 rs-py-8'>
+								{OtherInputs}
+							</div>
+						</ScrollArea>
+					</SheetContent>
+				</Sheet>
+			)}
+		</>
 	)
 }
 
