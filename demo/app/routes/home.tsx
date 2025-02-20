@@ -24,7 +24,7 @@ const Home = () => {
 
 				<div className='flex gap-4'>
 					<Link to='/rescribe' rel='noopener noreferrer'>
-						<Button size='sm'>Rescribe</Button>
+						<Button size='sm'>Go to Rescribe</Button>
 					</Link>
 					<Link
 						to='https://rescribe.site/docs'
