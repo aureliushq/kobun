@@ -5,7 +5,7 @@ const config: Options = {
 	replaceNodeEnv: true,
 	splitting: true,
 	clean: false,
-	format: ['cjs', 'esm'],
+	format: ['esm'],
 	skipNodeModulesBundle: true,
 	dts: true,
 	entry: ['src/index.tsx'],
@@ -13,7 +13,7 @@ const config: Options = {
 	bundle: true,
 	minify: true,
 	name: '@rescribejs/core',
-	external: ['react', 'react-dom', 'react-router', '@remix-run/react'],
+	external: ['react', 'react-dom', 'react-router'],
 }
 
 export default defineConfig(config)
