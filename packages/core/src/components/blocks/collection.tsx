@@ -12,9 +12,11 @@ import { RescribeContext, type RescribeContextData } from '@/providers'
 import type { Collection as CollectionType } from '@/types'
 
 const CollectionHeader = ({
+	basePath,
 	collection,
 	labels,
 }: {
+	basePath: string
 	collection: CollectionType
 	labels: Labels | undefined
 }) => {
@@ -60,7 +62,7 @@ const CollectionHeader = ({
 						)}
 					</div>
 				</div>
-				<Link to={`${PATHS.EDITOR}/${collection.slug}`}>
+				<Link to={`${basePath}/${PATHS.EDITOR}/${collection.slug}`}>
 					<Button size='sm'>{`New ${labels?.singular}`}</Button>
 				</Link>
 			</div>
@@ -83,18 +85,23 @@ const Collection = ({
 		'Cannot read collection details. Check your URL.',
 	)
 
+	const basePath = config.basePath ?? ''
 	const collection = config.collections[params.collection]
 
 	return (
 		<>
-			<CollectionHeader collection={collection} labels={labels} />
+			<CollectionHeader
+				basePath={basePath}
+				collection={collection}
+				labels={labels}
+			/>
 			<EmptyState
 				className='rs-w-full rs-max-w-none rs-flex rs-flex-col rs-gap-2'
 				title={`No ${labels?.plural.toLowerCase()} yet`}
 				description={`It looks like there's nothing here yet! Get started by creating your first ${labels?.singular.toLowerCase()}.`}
 				icons={[FileTextIcon, FileTextIcon, FileTextIcon]}
 				action={
-					<Link to={`${PATHS.EDITOR}/${collection.slug}`}>
+					<Link to={`${basePath}/${PATHS.EDITOR}/${collection.slug}`}>
 						<Button
 							className=''
 							size='sm'
