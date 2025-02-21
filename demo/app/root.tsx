@@ -21,6 +21,42 @@ export const links: Route.LinksFunction = () => [
 		href: 'https://fonts.bunny.net/css?family=inter:400,500,600,700',
 	},
 	{ rel: 'stylesheet', href: stylesheet },
+	{
+		rel: 'icon',
+		type: 'image/png',
+		href: '/site/favicon-96x96.png',
+		sizes: '96x96',
+	},
+	{
+		rel: 'icon',
+		type: 'image/svg+xml',
+		href: '/site/favicon.svg',
+	},
+	{
+		rel: 'shortcut icon',
+		href: '/site/favicon.ico',
+	},
+	{
+		rel: 'apple-touch-icon',
+		sizes: '180x180',
+		href: '/site/apple-touch-icon.png',
+	},
+	{
+		rel: 'manifest',
+		href: '/site/site.webmanifest',
+	},
+]
+
+export const meta: Route.MetaFunction = () => [
+	{ title: 'Rescribe Demo' },
+	{
+		name: 'description',
+		content: 'Effortlessly build content sites with React Router v7',
+	},
+	{
+		name: 'apple-mobile-web-app-title',
+		content: 'Rescribe',
+	},
 ]
 
 export function Layout({ children }: { children: React.ReactNode }) {

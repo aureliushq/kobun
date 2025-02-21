@@ -3,12 +3,13 @@ import rescribeConfig from '~/rescribe.config'
 import '@rescribe/core/rescribe.css'
 import type { Route } from './+types/cms'
 
-export function meta() {
-	return [
-		{ title: 'New React Router App' },
-		{ name: 'description', content: 'Welcome to React Router!' },
-	]
-}
+export const meta: Route.MetaFunction = () => [
+	{ title: 'Rescribe Demo' },
+	{
+		name: 'description',
+		content: 'Effortlessly build content sites with React Router v7',
+	},
+]
 
 export const loader = async () => {
 	return { message: 'Hello from the server!' }

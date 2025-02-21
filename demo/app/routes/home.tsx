@@ -1,5 +1,15 @@
+import { ExternalLinkIcon } from 'lucide-react'
 import { Link } from 'react-router'
 import { Button } from '~/components/ui/button'
+import type { Route } from './+types/home'
+
+export const meta: Route.MetaFunction = () => [
+	{ title: 'Rescribe Demo' },
+	{
+		name: 'description',
+		content: 'Effortlessly build content sites with React Router v7',
+	},
+]
 
 const Home = () => {
 	return (
@@ -40,33 +50,18 @@ const Home = () => {
 			<footer className='flex gap-6 row-start-3'>
 				<a
 					className='flex items-center gap-2'
-					href='https://remix.run/docs/en/main'
+					href='https://reactrouter.com/docs'
 					target='_blank'
 					rel='noopener noreferrer'
 				>
 					<img
 						aria-hidden
-						src='/remix_logo_dark.png'
-						alt='Globe icon'
-						width={16}
-						height={16}
-					/>
-					Remix Documentation →
-				</a>
-				<a
-					className='flex items-center gap-2'
-					href='https://reactrouter.com/'
-					target='_blank'
-					rel='noopener noreferrer'
-				>
-					<img
-						aria-hidden
+						className='w-5'
 						src='/rr_logo_dark.png'
 						alt='Globe icon'
-						width={16}
-						height={16}
 					/>
-					React Router v7 Documentation →
+					React Router Docs
+					<ExternalLinkIcon className='w-4 h-4' />
 				</a>
 			</footer>
 		</div>
