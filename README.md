@@ -28,6 +28,14 @@ pnpm add @rescribe/core @rescribe/server
 - Versioning (Coming Soon)
 - Zero-config full text search (Coming Soon)
 
+## Contributing
+
+Contributions are always welcome!
+
+See the [contribution guide](CONTRIBUTING.md) for ways to get started.
+
+Please adhere to this project's [code of conduct](CODE_OF_CONDUCT.md).
+
 ## License
 
 [MIT](https://choosealicense.com/licenses/mit/)
