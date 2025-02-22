@@ -15,7 +15,9 @@
 		"dev": "tsup --watch --dts",
 		"nuke": "rimraf dist node_modules .turbo"
 	},
-	"peerDependencies": {},
+	"peerDependencies": {
+		"react-router": "^7.0.0"
+	},
 	"devDependencies": {
 		"@rescribe/common": "workspace:*",
 		"@rescribe/tsconfig": "workspace:*",
@@ -24,6 +26,8 @@
 	},
 	"dependencies": {
 		"@conform-to/zod": "1.2.2",
+		"fast-glob": "3.3.3",
+		"gray-matter": "^4.0.3",
 		"tiny-invariant": "1.3.3",
 		"zod": "3.24.1"
 	}
