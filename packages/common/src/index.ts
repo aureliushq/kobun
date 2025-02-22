@@ -11,7 +11,7 @@ export type {
 	TextField,
 	UrlField,
 	Field,
-	Schema,
+	ConfigSchema,
 	SchemaKey,
 	Collection,
 	Collections,

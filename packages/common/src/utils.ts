@@ -1,6 +1,67 @@
 import invariant from 'tiny-invariant'
+import { z } from 'zod'
 import { BASE_PATH } from '~/constants'
-import type { Collections } from '~/types'
+import {
+	type Collections,
+	type ConfigSchema,
+	type Field,
+	FieldTypes,
+	type SchemaKey,
+} from '~/types'
+
+export const createZodSchema = <T extends ConfigSchema<SchemaKey>>(
+	schema: T,
+) => {
+	const getFieldSchema = (field: Field): z.ZodType => {
+		switch (field.type) {
+			case FieldTypes.BOOLEAN:
+				return z.boolean()
+			case FieldTypes.DATE:
+				return z.date()
+			case FieldTypes.DOCUMENT:
+			case FieldTypes.IMAGE:
+			case FieldTypes.TEXT:
+			case FieldTypes.SLUG:
+			case FieldTypes.URL:
+				return z.string()
+			case FieldTypes.SELECT:
+				return z.object({ label: z.string(), value: z.string() })
+			case FieldTypes.MULTISELECT:
+				return z.array(
+					z.object({ label: z.string(), value: z.string() }),
+				)
+		}
+	}
+
+	// Create schema for user-defined fields
+	const FIELD_SCHEMAS = Object.entries(schema).reduce<
+		Record<string, z.ZodType>
+	>(
+		(acc, [key, field]) => ({
+			// biome-ignore lint/performance/noAccumulatingSpread: <explanation>
+			...acc,
+			[key]: getFieldSchema(field),
+		}),
+		{},
+	)
+
+	// Add built-in fields
+	const BUILT_IN_SCHEMA = z.object({
+		createdAt: z.date(),
+		updatedAt: z.date(),
+	})
+
+	const EXTENDED_SCHEMA = z.object(FIELD_SCHEMAS).merge(BUILT_IN_SCHEMA)
+
+	// Add publish status fields
+	return z.discriminatedUnion('status', [
+		EXTENDED_SCHEMA.extend({ status: z.literal('draft') }),
+		EXTENDED_SCHEMA.extend({
+			status: z.literal('published'),
+			publishedAt: z.date(),
+		}),
+	])
+}
 
 export const parseAdminPathname = ({
 	basePath = BASE_PATH,

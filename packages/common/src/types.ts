@@ -22,13 +22,16 @@ export type Features = {
 }
 
 // Collection
+type BuiltinSchemaKeys = 'createdAt' | 'updatedAt'
+type SpecialSchemaKeys = 'content' | 'slug' | 'title'
+export type SchemaKey = SpecialSchemaKeys | string
+
 export enum FieldTypes {
 	BOOLEAN = 'boolean',
 	DATE = 'date',
 	DOCUMENT = 'document',
 	IMAGE = 'image',
 	MULTISELECT = 'multiselect',
-	PUBLISH = 'publish',
 	SELECT = 'select',
 	SLUG = 'slug',
 	TEXT = 'text',
@@ -43,49 +46,88 @@ type BasicField = {
 export type BooleanField = BasicField & {
 	component?: 'checkbox' | 'switch'
 	defaultChecked?: boolean
+	type: FieldTypes.BOOLEAN
 }
 
-export type DateField = BasicField
+export type DateField = BasicField & {
+	type: FieldTypes.DATE
+}
 
-export type DocumentField = BasicField
+export type DocumentField = BasicField & {
+	type: FieldTypes.DOCUMENT
+}
 
-type SelectOptions = {
+export type ImageField = BasicField & {
+	type: FieldTypes.IMAGE
+}
+
+type SelectOption = {
 	value: string
 	label: string
 }
 
-export type SelectField = BasicField & {
-	options: SelectOptions[]
+export type MultiSelectField = BasicField & {
+	options: SelectOption[]
 	placeholder?: string
+	type: FieldTypes.MULTISELECT
 }
 
-export type SlugField = {
+export type SelectField = BasicField & {
+	options: SelectOption[]
+	placeholder?: string
+	type: FieldTypes.SELECT
+}
+
+export type SlugField = BasicField & {
 	title?: { key: SchemaKey }
-} & Omit<TextField, 'multiline' | 'type'>
+	type: FieldTypes.SLUG
+}
 
 export type TextField = BasicField & {
+	htmlType?: HTMLInputElement['type']
 	multiline?: boolean
 	placeholder?: string
-	type?: HTMLInputElement['type']
+	type: FieldTypes.TEXT
 }
 
 export type UrlField = BasicField & {
+	htmlType?: HTMLInputElement['type']
 	placeholder?: string
-	type?: HTMLInputElement['type']
+	type: FieldTypes.URL
 }
 
 export type Field =
 	| BooleanField
 	| DateField
 	| DocumentField
+	| ImageField
+	| MultiSelectField
+	| SelectField
 	| SlugField
 	| TextField
 	| UrlField
 
-type BuiltinSchemaKeys = 'createdAt' | 'publishedAt' | 'updatedAt'
-type SpecialSchemaKeys = 'content' | 'slug' | 'title'
-export type SchemaKey = BuiltinSchemaKeys | SpecialSchemaKeys | string
-export type Schema<T extends SchemaKey> = Record<T, Field>
+type FieldTypeToValue = {
+	[FieldTypes.BOOLEAN]: boolean
+	[FieldTypes.DATE]: Date
+	[FieldTypes.DOCUMENT]: string
+	[FieldTypes.IMAGE]: string
+	[FieldTypes.MULTISELECT]: SelectOption[]
+	[FieldTypes.SELECT]: SelectOption
+	[FieldTypes.SLUG]: string
+	[FieldTypes.TEXT]: string
+	[FieldTypes.URL]: string
+}
+
+type InferFieldValue<F extends Field> = FieldTypeToValue[F['type']]
+
+export type ConfigSchema<T extends SchemaKey> = Record<T, Field>
+
+type InferSchemaType<T extends ConfigSchema<SchemaKey>> = {
+	[K in keyof T]: InferFieldValue<T[K]>
+} & {
+	[K in BuiltinSchemaKeys]: Date
+} & ({ status: 'draft' } | { publishedAt: Date; status: 'published' })
 
 type CollectionSlug = z.infer<typeof COLLECTION_SLUG_REGEX>
 
@@ -96,7 +138,7 @@ export type Collection = {
 		assets?: AssetPath | string
 		content: ContentPath | string
 	}
-	schema: Schema<SchemaKey>
+	schema: ConfigSchema<SchemaKey>
 	slug: CollectionSlug
 }
 
