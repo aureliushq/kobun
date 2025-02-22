@@ -68,8 +68,6 @@ const Rescribe = ({ config }: RescribeProps) => {
 		'`config` is required for the Rescribe component. Check the docs to see how to write the configuration.',
 	)
 
-	const data = useLoaderData()
-
 	return (
 		<RescribeProvider config={config}>
 			<Root />

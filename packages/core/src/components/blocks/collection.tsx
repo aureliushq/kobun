@@ -1,13 +1,22 @@
 import type { Collection as CollectionType } from '@rescribe/common'
 import { CircleX, FileTextIcon } from 'lucide-react'
 import { useContext, useId, useRef, useState } from 'react'
-import { Link } from 'react-router'
+import { Link, useLoaderData } from 'react-router'
 import invariant from 'tiny-invariant'
 
 import type { Labels } from '~/components/rescribe'
 import { Button } from '~/components/ui/button'
 import { EmptyState } from '~/components/ui/empty-state'
 import { Input } from '~/components/ui/input'
+import {
+	Table,
+	TableBody,
+	TableCaption,
+	TableCell,
+	TableHead,
+	TableHeader,
+	TableRow,
+} from '~/components/ui/table'
 import { PATHS } from '~/lib/constants'
 import { RescribeContext, type RescribeContextData } from '~/providers'
 
@@ -84,6 +93,7 @@ const Collection = ({
 		params?.collection,
 		'Cannot read collection details. Check your URL.',
 	)
+	const collectionItems = useLoaderData()
 
 	const basePath = config.basePath ?? ''
 	const collection = config.collections[params.collection]
@@ -95,20 +105,50 @@ const Collection = ({
 				collection={collection}
 				labels={labels}
 			/>
-			<EmptyState
-				className='rs-w-full rs-max-w-none rs-flex rs-flex-col rs-gap-2'
-				title={`No ${labels?.plural.toLowerCase()} yet`}
-				description={`It looks like there's nothing here yet! Get started by creating your first ${labels?.singular.toLowerCase()}.`}
-				icons={[FileTextIcon, FileTextIcon, FileTextIcon]}
-				action={
-					<Link to={`${basePath}/${PATHS.EDITOR}/${collection.slug}`}>
-						<Button
-							className=''
-							size='sm'
-						>{`Write a new ${labels?.singular.toLowerCase()}`}</Button>
-					</Link>
-				}
-			/>
+			{Array.isArray(collectionItems) && collectionItems.length > 0 ? (
+				<Table>
+					<TableCaption>A list of your recent invoices.</TableCaption>
+					<TableHeader>
+						<TableRow>
+							<TableHead>Title</TableHead>
+							<TableHead />
+							<TableHead>Created At</TableHead>
+						</TableRow>
+					</TableHeader>
+					<TableBody>
+						{collectionItems.map((item) => (
+							<TableRow key={item.slug}>
+								<TableCell className='rs-font-medium'>
+									{item.title}
+								</TableCell>
+								<TableCell>
+									{item.published ? 'Published' : 'Draft'}
+								</TableCell>
+								<TableCell>
+									{new Date(item.createdAt).toISOString()}
+								</TableCell>
+							</TableRow>
+						))}
+					</TableBody>
+				</Table>
+			) : (
+				<EmptyState
+					className='rs-w-full rs-max-w-none rs-flex rs-flex-col rs-gap-2'
+					title={`No ${labels?.plural.toLowerCase()} yet`}
+					description={`It looks like there's nothing here yet! Get started by creating your first ${labels?.singular.toLowerCase()}.`}
+					icons={[FileTextIcon, FileTextIcon, FileTextIcon]}
+					action={
+						<Link
+							to={`${basePath}/${PATHS.EDITOR}/${collection.slug}`}
+						>
+							<Button
+								className=''
+								size='sm'
+							>{`Write a new ${labels?.singular.toLowerCase()}`}</Button>
+						</Link>
+					}
+				/>
+			)}
 		</>
 	)
 }

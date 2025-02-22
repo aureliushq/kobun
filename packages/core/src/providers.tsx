@@ -1,9 +1,7 @@
-import type { Config } from '@rescribe/common'
+import { type Config, parseAdminPathname } from '@rescribe/common'
 import { type ReactNode, createContext, useMemo } from 'react'
 import { useLocation } from 'react-router'
 import invariant from 'tiny-invariant'
-
-import { parseAdminPathname } from '~/lib/utils'
 
 export type RescribeContextData = {
 	config: Config | null
