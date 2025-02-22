@@ -18,3 +18,4 @@ export type {
 	Storage,
 	Config,
 } from '~/types'
+export * from '~/utils'
