@@ -1,82 +1,61 @@
 import {
+	FieldTypes,
+	type BooleanField,
 	type DateField,
 	type DocumentField,
 	type SelectField,
 	type SlugField,
 	type TextField,
 	type UrlField,
-	type BooleanField,
-	FieldTypes,
 } from '@rescribe/common'
 
-export function boolean({
-	component = 'checkbox',
-	defaultChecked = false,
-	description,
-	label,
-}: BooleanField) {
-	return {
-		component,
-		description,
-		defaultChecked,
-		label,
+export const fields = {
+	boolean: (config: Omit<BooleanField, 'type'>): BooleanField => ({
+		...config,
+		component: 'checkbox',
+		defaultChecked: false,
 		type: FieldTypes.BOOLEAN,
-	}
-}
+	}),
 
-export function date({ description, label }: DateField) {
-	return {
-		description,
-		label,
+	date: (config: Omit<DateField, 'type'>): DateField => ({
+		...config,
 		type: FieldTypes.DATE,
-	}
-}
+	}),
 
-export function document({ description, label }: DocumentField) {
-	return {
-		description,
-		label,
+	document: (config: Omit<DocumentField, 'type'>): DocumentField => ({
+		...config,
 		type: FieldTypes.DOCUMENT,
-	}
-}
+	}),
 
-export function select({ description, label, options }: SelectField) {
-	return {
-		description,
-		label,
-		options,
+	// image: (config: Omit<ImageField, "type">): ImageField => ({
+	//   ...config,
+	//   type: FieldTypes.IMAGE,
+	// }),
+
+	// multiselect: (config: Omit<MultiSelectField, "type">): MultiSelectField => ({
+	//   ...config,
+	//   type: FieldTypes.MULTISELECT,
+	// }),
+
+	select: (config: Omit<SelectField, 'type'>): SelectField => ({
+		...config,
 		type: FieldTypes.SELECT,
-	}
-}
+	}),
 
-export function slug({ description, label, title }: SlugField) {
-	return {
-		description,
-		label,
-		title,
+	slug: (config: Omit<SlugField, 'type'>): SlugField => ({
+		...config,
 		type: FieldTypes.SLUG,
-	}
-}
+	}),
 
-export function text({
-	description,
-	label,
-	multiline = false,
-	type,
-}: TextField) {
-	return {
-		description,
-		label,
-		fieldType: type,
-		multiline,
+	text: (config: Omit<TextField, 'type'>): TextField => ({
+		...config,
+		htmlType: 'text',
+		multiline: false,
 		type: FieldTypes.TEXT,
-	}
-}
+	}),
 
-export function url({ description, label }: UrlField) {
-	return {
-		description,
-		label,
+	url: (config: Omit<UrlField, 'type'>): UrlField => ({
+		...config,
 		type: FieldTypes.URL,
-	}
+	}),
 }

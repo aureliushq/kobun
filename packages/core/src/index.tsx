@@ -1,4 +1,4 @@
-export * as fields from '~/components/form/fields'
+export * from '~/components/form/fields'
 export { default as Rescribe } from '~/components/rescribe'
 export * from '~/config'
 export { RescribeProvider } from '~/providers'
@@ -6,6 +6,6 @@ export type {
 	Collection,
 	Collections,
 	Config,
-	Schema,
+	ConfigSchema,
 	SchemaKey,
 } from '@rescribe/common'

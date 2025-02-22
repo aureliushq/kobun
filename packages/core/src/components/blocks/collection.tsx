@@ -93,10 +93,10 @@ const Collection = ({
 		params?.collection,
 		'Cannot read collection details. Check your URL.',
 	)
-	const collectionItems = useLoaderData()
-
 	const basePath = config.basePath ?? ''
 	const collection = config.collections[params.collection]
+
+	const collectionItems = useLoaderData()
 
 	return (
 		<>
