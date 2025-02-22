@@ -3,6 +3,35 @@ import { collection, config, fields } from '@rescribe/core'
 const rescribeConfig = config({
 	basePath: '/rescribe',
 	collections: {
+		articles: collection({
+			features: {
+				publish: true,
+			},
+			label: 'Articles',
+			paths: {
+				assets: 'articles/**/*',
+				content: 'articles/**/*',
+			},
+			schema: {
+				title: fields.text({
+					label: 'Title',
+				}),
+				content: fields.document({
+					label: 'Content',
+				}),
+				slug: fields.slug({
+					label: 'Slug',
+					title: {
+						key: 'title',
+					},
+				}),
+				excerpt: fields.text({
+					label: 'Excerpt',
+					multiline: true,
+				}),
+			},
+			slug: 'articles',
+		}),
 		docs: collection({
 			features: {
 				publish: true,
@@ -27,35 +56,6 @@ const rescribeConfig = config({
 				}),
 			},
 			slug: 'docs',
-		}),
-		posts: collection({
-			features: {
-				publish: true,
-			},
-			label: 'Posts',
-			paths: {
-				assets: 'posts/**/*',
-				content: 'posts/**/*',
-			},
-			schema: {
-				title: fields.text({
-					label: 'Title',
-				}),
-				content: fields.document({
-					label: 'Content',
-				}),
-				slug: fields.slug({
-					label: 'Slug',
-					title: {
-						key: 'title',
-					},
-				}),
-				description: fields.text({
-					label: 'Excerpt',
-					multiline: true,
-				}),
-			},
-			slug: 'posts',
 		}),
 		series: collection({
 			features: {
