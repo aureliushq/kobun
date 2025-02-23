@@ -6,6 +6,7 @@ export type {
 	BooleanField,
 	DateField,
 	DocumentField,
+	SelectOption,
 	SelectField,
 	SlugField,
 	TextField,

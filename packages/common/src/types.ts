@@ -61,7 +61,7 @@ export type ImageField = BasicField & {
 	type: FieldTypes.IMAGE
 }
 
-type SelectOption = {
+export type SelectOption = {
 	value: string
 	label: string
 }

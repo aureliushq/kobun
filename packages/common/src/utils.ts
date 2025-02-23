@@ -1,17 +1,26 @@
 import invariant from 'tiny-invariant'
 import { z } from 'zod'
-import { BASE_PATH } from '~/constants'
+import { BASE_PATH, DEFAULT_FEATURES } from '~/constants'
 import {
 	type Collections,
 	type ConfigSchema,
+	type Features,
 	type Field,
 	FieldTypes,
 	type SchemaKey,
 } from '~/types'
 
-export const createZodSchema = <T extends ConfigSchema<SchemaKey>>(
-	schema: T,
-) => {
+export const createZodSchema = <T extends ConfigSchema<SchemaKey>>({
+	features = DEFAULT_FEATURES,
+	schema,
+	options,
+}: {
+	features?: Features
+	schema: T
+	options?: {
+		omit?: (keyof T)[]
+	}
+}): z.ZodType => {
 	const getFieldSchema = (field: Field): z.ZodType => {
 		switch (field.type) {
 			case FieldTypes.BOOLEAN:
@@ -36,31 +45,50 @@ export const createZodSchema = <T extends ConfigSchema<SchemaKey>>(
 	// Create schema for user-defined fields
 	const FIELD_SCHEMAS = Object.entries(schema).reduce<
 		Record<string, z.ZodType>
-	>(
-		(acc, [key, field]) => ({
+	>((acc, [key, field]) => {
+		if (options?.omit?.includes(key as keyof T)) {
+			return acc
+		}
+		return {
 			// biome-ignore lint/performance/noAccumulatingSpread: <explanation>
 			...acc,
 			[key]: getFieldSchema(field),
-		}),
-		{},
-	)
+		}
+	}, {})
 
 	// Add built-in fields
-	const BUILT_IN_SCHEMA = z.object({
-		createdAt: z.date(),
-		updatedAt: z.date(),
+	let BUILT_IN_SCHEMA = z.object({
+		id: z.string(),
 	})
+
+	const allFeatures = { ...DEFAULT_FEATURES, ...features }
+	if (allFeatures?.timestamps?.createdAt) {
+		BUILT_IN_SCHEMA = BUILT_IN_SCHEMA.merge(
+			z.object({ createdAt: z.date() }),
+		)
+	}
+	if (allFeatures?.timestamps?.updatedAt) {
+		BUILT_IN_SCHEMA = BUILT_IN_SCHEMA.merge(
+			z.object({ updatedAt: z.date() }),
+		)
+	}
 
 	const EXTENDED_SCHEMA = z.object(FIELD_SCHEMAS).merge(BUILT_IN_SCHEMA)
 
-	// Add publish status fields
-	return z.discriminatedUnion('status', [
-		EXTENDED_SCHEMA.extend({ status: z.literal('draft') }),
-		EXTENDED_SCHEMA.extend({
-			status: z.literal('published'),
-			publishedAt: z.date(),
-		}),
-	])
+	if (allFeatures?.publish) {
+		// Add publish status fields
+		return z.discriminatedUnion('status', [
+			EXTENDED_SCHEMA.merge(z.object({ status: z.literal('draft') })),
+			EXTENDED_SCHEMA.merge(
+				z.object({
+					status: z.literal('published'),
+					publishedAt: z.date(),
+				}),
+			),
+		])
+	}
+
+	return EXTENDED_SCHEMA
 }
 
 export const parseAdminPathname = ({
