@@ -15,7 +15,7 @@ const DashboardLayout = ({
 				<DashboardHeader />
 				<ScrollArea className='rs-w-full rs-h-full rs-p-8 rs-z-10'>
 					<section className='rs-w-full rs-flex rs-justify-center'>
-						<div className='rs-w-full rs-max-w-5xl rs-flex rs-flex-col rs-gap-4'>
+						<div className='rs-w-full rs-max-w-6xl rs-flex rs-flex-col rs-gap-4'>
 							{children}
 						</div>
 					</section>

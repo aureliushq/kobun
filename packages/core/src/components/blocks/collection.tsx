@@ -124,7 +124,9 @@ const CollectionHeader = <TData extends RowData>({
 						</Button>
 					</DropdownMenuTrigger>
 					<DropdownMenuContent align='end' className='w-[150px]'>
-						<DropdownMenuLabel>Toggle columns</DropdownMenuLabel>
+						<DropdownMenuLabel>
+							Display properties
+						</DropdownMenuLabel>
 						<DropdownMenuSeparator />
 						{table
 							.getAllColumns()

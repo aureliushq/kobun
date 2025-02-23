@@ -1,6 +1,5 @@
 import type { Config } from '@rescribe/common'
 import { useContext } from 'react'
-import { useLoaderData } from 'react-router'
 import invariant from 'tiny-invariant'
 
 import Collection from '~/components/blocks/collection'
