@@ -25,10 +25,12 @@ export const cn = (...inputs: ClassValue[]) => {
 }
 
 export const createColumnDefs = <T extends z.ZodType>({
+	basePath,
 	collectionSlug,
 	options,
 	schema,
 }: {
+	basePath: string
 	collectionSlug: string
 	options?: {
 		omit?: string[]
@@ -190,7 +192,7 @@ export const createColumnDefs = <T extends z.ZodType>({
 				<div className='rs-flex rs-justify-end rs-gap-2'>
 					<Link
 						prefetch='intent'
-						to={`/${PATHS.EDITOR}/${collectionSlug}/${row.original.id}`}
+						to={`${basePath}/${PATHS.EDITOR}/${collectionSlug}/${row.original.id}`}
 					>
 						<Tooltip>
 							<TooltipTrigger asChild>

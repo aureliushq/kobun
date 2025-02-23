@@ -178,6 +178,7 @@ const Collection = ({
 		schema: collection.schema,
 	})
 	const columns = createColumnDefs({
+		basePath,
 		collectionSlug: collection.slug,
 		options: {
 			only: ['title', 'createdAt', 'updatedAt', 'status', 'publishedAt'],
