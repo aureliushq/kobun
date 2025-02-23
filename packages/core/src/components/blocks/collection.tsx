@@ -1,34 +1,58 @@
-import type { Collection as CollectionType } from '@rescribe/common'
-import { CircleX, FileTextIcon } from 'lucide-react'
+import {
+	type Collection as CollectionType,
+	createZodSchema,
+} from '@rescribe/common'
+import {
+	type Table as ReactTable,
+	type RowData,
+	flexRender,
+	getCoreRowModel,
+	getFilteredRowModel,
+	useReactTable,
+} from '@tanstack/react-table'
+import { CircleX, FileTextIcon, Settings2 } from 'lucide-react'
 import { useContext, useId, useRef, useState } from 'react'
 import { Link, useLoaderData } from 'react-router'
 import invariant from 'tiny-invariant'
+import type z from 'zod'
 
 import type { Labels } from '~/components/rescribe'
 import { Button } from '~/components/ui/button'
+import {
+	DropdownMenu,
+	DropdownMenuCheckboxItem,
+	DropdownMenuContent,
+	DropdownMenuLabel,
+	DropdownMenuSeparator,
+	DropdownMenuTrigger,
+} from '~/components/ui/dropdown-menu'
 import { EmptyState } from '~/components/ui/empty-state'
 import { Input } from '~/components/ui/input'
 import {
 	Table,
 	TableBody,
-	TableCaption,
 	TableCell,
 	TableHead,
 	TableHeader,
 	TableRow,
 } from '~/components/ui/table'
 import { PATHS } from '~/lib/constants'
+import { createColumnDefs } from '~/lib/utils'
 import { RescribeContext, type RescribeContextData } from '~/providers'
 
-const CollectionHeader = ({
-	basePath,
-	collection,
-	labels,
-}: {
+interface CollectionHeaderProps<TData> {
 	basePath: string
 	collection: CollectionType
 	labels: Labels | undefined
-}) => {
+	table: ReactTable<TData>
+}
+
+const CollectionHeader = <TData extends RowData>({
+	basePath,
+	collection,
+	labels,
+	table,
+}: CollectionHeaderProps<TData>) => {
 	const id = useId()
 	const inputRef = useRef<HTMLInputElement>(null)
 	const [inputValue, setInputValue] = useState('')
@@ -41,19 +65,36 @@ const CollectionHeader = ({
 	}
 
 	return (
-		<section className='rs-w-full rs-h-12 rs-flex rs-items-center rs-justify-between'>
-			<h3 className='rs-text-xl rs-font-semibold'>{collection.label}</h3>
-			<div className='rs-flex rs-items-center rs-gap-2'>
+		<section className='rs-w-full rs-flex rs-flex-col rs-gap-2'>
+			<div className='rs-w-full rs-h-12 rs-flex rs-items-center rs-justify-between'>
+				<h3 className='rs-text-xl rs-font-semibold'>
+					{collection.label}
+				</h3>
+				<div className='rs-flex rs-items-center rs-gap-2'>
+					<Link to={`${basePath}/${PATHS.EDITOR}/${collection.slug}`}>
+						<Button size='sm'>{`New ${labels?.singular}`}</Button>
+					</Link>
+				</div>
+			</div>
+			<div className='rs-w-full rs-h-12 rs-flex rs-items-center rs-justify-between'>
 				<div className='rs-space-y-2 rs-min-w-[300px]'>
 					<div className='rs-relative'>
 						<Input
-							id={id}
-							ref={inputRef}
 							className='rs-h-9 rs-pe-9'
+							id={id}
+							onChange={(event) =>
+								table
+									.getColumn('title')
+									?.setFilterValue(event.target.value)
+							}
 							placeholder={`Search ${labels?.plural.toLowerCase()}...`}
+							ref={inputRef}
 							type='text'
-							value={inputValue}
-							onChange={(e) => setInputValue(e.target.value)}
+							value={
+								(table
+									.getColumn('title')
+									?.getFilterValue() as string) || ''
+							}
 						/>
 						{inputValue && (
 							<button
@@ -71,9 +112,42 @@ const CollectionHeader = ({
 						)}
 					</div>
 				</div>
-				<Link to={`${basePath}/${PATHS.EDITOR}/${collection.slug}`}>
-					<Button size='sm'>{`New ${labels?.singular}`}</Button>
-				</Link>
+				<DropdownMenu>
+					<DropdownMenuTrigger asChild>
+						<Button
+							variant='outline'
+							size='sm'
+							className='ml-auto hidden h-8 lg:flex'
+						>
+							<Settings2 />
+							Display
+						</Button>
+					</DropdownMenuTrigger>
+					<DropdownMenuContent align='end' className='w-[150px]'>
+						<DropdownMenuLabel>Toggle columns</DropdownMenuLabel>
+						<DropdownMenuSeparator />
+						{table
+							.getAllColumns()
+							.filter(
+								(column) =>
+									typeof column.accessorFn !== 'undefined' &&
+									column.getCanHide(),
+							)
+							.filter((column) => column.id !== 'actions')
+							.map((column) => (
+								<DropdownMenuCheckboxItem
+									key={column.id}
+									className='capitalize'
+									checked={column.getIsVisible()}
+									onCheckedChange={(value) =>
+										column.toggleVisibility(!!value)
+									}
+								>
+									{column.columnDef.header as string}
+								</DropdownMenuCheckboxItem>
+							))}
+					</DropdownMenuContent>
+				</DropdownMenu>
 			</div>
 		</section>
 	)
@@ -96,7 +170,36 @@ const Collection = ({
 	const basePath = config.basePath ?? ''
 	const collection = config.collections[params.collection]
 
-	const collectionItems = useLoaderData()
+	const COLLECTION_ZOD_SCHEMA = createZodSchema({
+		features: collection.features,
+		options: {
+			omit: ['content', 'slug', 'updatedAt'],
+		},
+		schema: collection.schema,
+	})
+	const columns = createColumnDefs({
+		collectionSlug: collection.slug,
+		options: {
+			only: ['title', 'createdAt', 'updatedAt', 'status', 'publishedAt'],
+		},
+		schema: COLLECTION_ZOD_SCHEMA,
+	}) as Array<z.infer<typeof COLLECTION_ZOD_SCHEMA>>
+
+	const data = useLoaderData()
+
+	const table = useReactTable({
+		columns,
+		data,
+		initialState: {
+			columnOrder: ['title', 'status', 'createdAt'],
+			columnVisibility: {
+				publishedAt: false,
+				updatedAt: false,
+			},
+		},
+		getCoreRowModel: getCoreRowModel(),
+		getFilteredRowModel: getFilteredRowModel(),
+	})
 
 	return (
 		<>
@@ -104,33 +207,46 @@ const Collection = ({
 				basePath={basePath}
 				collection={collection}
 				labels={labels}
+				table={table}
 			/>
-			{Array.isArray(collectionItems) && collectionItems.length > 0 ? (
-				<Table>
-					<TableCaption>A list of your recent invoices.</TableCaption>
-					<TableHeader>
-						<TableRow>
-							<TableHead>Title</TableHead>
-							<TableHead />
-							<TableHead>Created At</TableHead>
-						</TableRow>
-					</TableHeader>
-					<TableBody>
-						{collectionItems.map((item) => (
-							<TableRow key={item.slug}>
-								<TableCell className='rs-font-medium'>
-									{item.title}
-								</TableCell>
-								<TableCell>
-									{item.published ? 'Published' : 'Draft'}
-								</TableCell>
-								<TableCell>
-									{new Date(item.createdAt).toISOString()}
-								</TableCell>
-							</TableRow>
-						))}
-					</TableBody>
-				</Table>
+			{Array.isArray(data) && data.length > 0 ? (
+				<div className='rs-rounded-lg rs-border rs-border-gray'>
+					<Table>
+						<TableHeader>
+							{table.getHeaderGroups().map((headerGroup) => (
+								<TableRow key={headerGroup.id}>
+									{headerGroup.headers.map((header) => (
+										<TableHead key={header.id}>
+											{header.isPlaceholder
+												? null
+												: flexRender(
+														header.column.columnDef
+															.header,
+														header.getContext(),
+													)}
+										</TableHead>
+									))}
+								</TableRow>
+							))}
+						</TableHeader>
+						{table.getRowModel().rows?.length > 0 && (
+							<TableBody>
+								{table.getRowModel().rows.map((row) => (
+									<TableRow className='rs-h-16' key={row.id}>
+										{row.getVisibleCells().map((cell) => (
+											<TableCell key={cell.id}>
+												{flexRender(
+													cell.column.columnDef.cell,
+													cell.getContext(),
+												)}
+											</TableCell>
+										))}
+									</TableRow>
+								))}
+							</TableBody>
+						)}
+					</Table>
+				</div>
 			) : (
 				<EmptyState
 					className='rs-w-full rs-max-w-none rs-flex rs-flex-col rs-gap-2'
