@@ -2,6 +2,7 @@ import invariant from 'tiny-invariant'
 import { z } from 'zod'
 import { BASE_PATH, DEFAULT_FEATURES } from '~/constants'
 import {
+	type AdminPaths,
 	type Collections,
 	type ConfigSchema,
 	type Features,
@@ -99,7 +100,7 @@ export const parseAdminPathname = ({
 	basePath?: string | RegExp
 	collections: Collections
 	pathname: string
-}) => {
+}): AdminPaths | null => {
 	const replaced = pathname.replace(basePath, '')
 	const parts =
 		replaced === ''
@@ -109,33 +110,33 @@ export const parseAdminPathname = ({
 					.map(decodeURIComponent)
 					.filter((item) => item !== '')
 
-	if (parts.length === 0) return { root: true }
+	if (parts.length === 0) return { section: 'root' }
 
 	// Handle root-level routes
 	if (parts.length === 1) {
 		const slug = parts[0]
 		// Explicitly type the array to handle the includes check
-		const validSections = ['settings', 'editor'] as const
+		const validSections = ['settings'] as const
 		if (validSections.includes(slug as (typeof validSections)[number])) {
-			return { section: slug }
+			return { section: slug as (typeof validSections)[number] }
 		}
 		return null
 	}
 
 	// Handle /collections/<collection> route (list view)
 	if (parts.length === 2 && parts[0] === 'collections') {
-		const collection = parts[1]
-		invariant(collection, `Invalid value for collection: "${collection}"`)
-		if (!(collection in collections)) {
+		const collectionSlug = parts[1]
+		invariant(
+			collectionSlug,
+			`Invalid value for collection: "${collectionSlug}"`,
+		)
+		if (!(collectionSlug in collections)) {
 			return null
 		}
-		const slug = collections[collection]?.slug
 		// TODO: parse url search params and return here
 		return {
-			action: 'list' as const,
-			collection,
 			section: 'collections',
-			slug,
+			collectionSlug,
 		}
 	}
 
@@ -145,17 +146,19 @@ export const parseAdminPathname = ({
 		parts[0] === 'editor' &&
 		parts[1] === 'collections'
 	) {
-		const collection = parts[2]
-		invariant(collection, `Invalid value for collection: "${collection}"`)
-		if (!(collection in collections)) {
+		const collectionSlug = parts[2]
+		invariant(
+			collectionSlug,
+			`Invalid value for collection: "${collectionSlug}"`,
+		)
+		if (!(collectionSlug in collections)) {
 			return null
 		}
-		const slug = collections[collection]?.slug
+		// const slug = collections[collection]?.slug as string
 		return {
-			action: 'create' as const,
-			collection,
-			section: 'editor',
-			slug,
+			section: 'editor-create',
+			collectionSlug,
+			// slug,
 		}
 	}
 
@@ -165,13 +168,16 @@ export const parseAdminPathname = ({
 		parts[0] === 'editor' &&
 		parts[1] === 'collections'
 	) {
-		const collection = parts[2]
-		invariant(collection, `Invalid value for collection: "${collection}"`)
-		if (!(collection in collections)) {
+		const collectionSlug = parts[2]
+		invariant(
+			collectionSlug,
+			`Invalid value for collection: "${collectionSlug}"`,
+		)
+		if (!(collectionSlug in collections)) {
 			return null
 		}
-		const slug = parts.slice(3).join('/')
-		return { section: 'editor', collection, action: 'edit' as const, slug }
+		const id = parts[3] as string
+		return { section: 'editor-edit', collectionSlug, id }
 	}
 
 	return null

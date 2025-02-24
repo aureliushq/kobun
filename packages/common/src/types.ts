@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-import type { COLLECTION_SLUG_REGEX } from '~/constants'
+// import type { COLLECTION_SLUG_REGEX } from '~/constants'
 
 const CONTENT_FORMAT = z.enum(['md', 'mdx'])
 export type ContentFormat = z.infer<typeof CONTENT_FORMAT>
@@ -22,7 +22,6 @@ export type Features = {
 }
 
 // Collection
-type BuiltinSchemaKeys = 'createdAt' | 'updatedAt'
 type SpecialSchemaKeys = 'content' | 'slug' | 'title'
 export type SchemaKey = SpecialSchemaKeys | string
 
@@ -78,6 +77,7 @@ export type SelectField = BasicField & {
 	type: FieldTypes.SELECT
 }
 
+// TODO: allow using variables for constructing slugs
 export type SlugField = BasicField & {
 	title?: { key: SchemaKey }
 	type: FieldTypes.SLUG
@@ -107,29 +107,9 @@ export type Field =
 	| TextField
 	| UrlField
 
-type FieldTypeToValue = {
-	[FieldTypes.BOOLEAN]: boolean
-	[FieldTypes.DATE]: Date
-	[FieldTypes.DOCUMENT]: string
-	[FieldTypes.IMAGE]: string
-	[FieldTypes.MULTISELECT]: SelectOption[]
-	[FieldTypes.SELECT]: SelectOption
-	[FieldTypes.SLUG]: string
-	[FieldTypes.TEXT]: string
-	[FieldTypes.URL]: string
-}
-
-type InferFieldValue<F extends Field> = FieldTypeToValue[F['type']]
-
 export type ConfigSchema<T extends SchemaKey> = Record<T, Field>
 
-type InferSchemaType<T extends ConfigSchema<SchemaKey>> = {
-	[K in keyof T]: InferFieldValue<T[K]>
-} & {
-	[K in BuiltinSchemaKeys]: Date
-} & ({ status: 'draft' } | { publishedAt: Date; status: 'published' })
-
-type CollectionSlug = z.infer<typeof COLLECTION_SLUG_REGEX>
+// type CollectionSlug = z.infer<typeof COLLECTION_SLUG_REGEX>
 
 export type Collection = {
 	features?: Features
@@ -139,7 +119,7 @@ export type Collection = {
 		content: ContentPath | string
 	}
 	schema: ConfigSchema<SchemaKey>
-	slug: CollectionSlug
+	// slug: CollectionSlug
 }
 
 export interface Collections {
@@ -185,3 +165,22 @@ export type Config = {
 	collections: Collections
 	storage: Storage
 }
+
+const ADMIN_PATHS = z.discriminatedUnion('section', [
+	z.object({ section: z.literal('root') }),
+	z.object({ section: z.literal('settings') }),
+	z.object({
+		section: z.literal('collections'),
+		collectionSlug: z.string(),
+	}),
+	z.object({
+		section: z.literal('editor-create'),
+		collectionSlug: z.string(),
+	}),
+	z.object({
+		section: z.literal('editor-edit'),
+		collectionSlug: z.string(),
+		id: z.string(),
+	}),
+])
+export type AdminPaths = z.infer<typeof ADMIN_PATHS>
