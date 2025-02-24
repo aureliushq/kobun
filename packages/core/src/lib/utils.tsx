@@ -148,6 +148,7 @@ export const createColumnDefs = <T extends z.ZodType>({
 								const date = getValue() as Date
 								return format(new Date(date), 'PP')
 							},
+							sortingFn: 'datetime',
 						} as ColumnDef<z.infer<T>>
 					}
 
@@ -159,6 +160,7 @@ export const createColumnDefs = <T extends z.ZodType>({
 								const date = getValue() as Date
 								return format(new Date(date), 'PP')
 							},
+							sortingFn: 'datetime',
 						} as ColumnDef<z.infer<T>>
 					}
 
@@ -183,6 +185,7 @@ export const createColumnDefs = <T extends z.ZodType>({
 					const date = getValue() as Date | undefined
 					return date ? format(new Date(date), 'PP') : '-'
 				},
+				sortingFn: 'datetime',
 			} as ColumnDef<z.infer<T>>)
 		}
 

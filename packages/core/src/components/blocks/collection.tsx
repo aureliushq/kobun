@@ -3,11 +3,14 @@ import {
 	createZodSchema,
 } from '@rescribe/common'
 import {
+	type ColumnFiltersState,
 	type Table as ReactTable,
 	type RowData,
+	type SortingState,
 	flexRender,
 	getCoreRowModel,
 	getFilteredRowModel,
+	getSortedRowModel,
 	useReactTable,
 } from '@tanstack/react-table'
 import { CircleX, FileTextIcon, Settings2 } from 'lucide-react'
@@ -23,6 +26,8 @@ import {
 	DropdownMenuCheckboxItem,
 	DropdownMenuContent,
 	DropdownMenuLabel,
+	DropdownMenuRadioGroup,
+	DropdownMenuRadioItem,
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from '~/components/ui/dropdown-menu'
@@ -58,11 +63,51 @@ const CollectionHeader = <TData extends RowData>({
 	const id = useId()
 	const inputRef = useRef<HTMLInputElement>(null)
 	const [inputValue, setInputValue] = useState('')
+	const [orderValue, setOrderValue] = useState('newest-first')
 
 	const handleClearInput = () => {
 		setInputValue('')
+		table.getColumn('title')?.setFilterValue('')
 		if (inputRef.current) {
 			inputRef.current.focus()
+		}
+	}
+
+	const handleOrdering = (value: string) => {
+		setOrderValue(value)
+		switch (value) {
+			case 'newest-first': {
+				const column = table.getColumn('createdAt')
+				column?.toggleSorting(true)
+				break
+			}
+			case 'oldest-first': {
+				const column = table.getColumn('createdAt')
+				column?.toggleSorting(false)
+				break
+			}
+			// case 'recently-published': {
+			// 	const createdAtColumn = table.getColumn('createdAt')
+			// 	const publishedAtColumn = table.getColumn('publishedAt')
+			// 	const updatedAtColumn = table.getColumn('updatedAt')
+			// 	createdAtColumn?.clearSorting()
+			// 	publishedAtColumn?.toggleSorting(true)
+			// 	publishedAtColumn?.setFilterValue({
+			// 		id: 'publishedAt',
+			// 		value: (value: Date | null) => {
+			// 			console.log(value)
+			// 			return value !== null && value !== undefined
+			// 		},
+			// 	})
+			// 	updatedAtColumn?.clearSorting()
+			// 	break
+			// }
+			case 'recently-updated': {
+				const createdAtColumn = table.getColumn('createdAt')
+				const updatedAtColumn = table.getColumn('updatedAt')
+				createdAtColumn?.clearSorting()
+				updatedAtColumn?.toggleSorting(true)
+			}
 		}
 	}
 
@@ -73,22 +118,16 @@ const CollectionHeader = <TData extends RowData>({
 					{collection.label}
 				</h3>
 				<div className='rs-flex rs-items-center rs-gap-2'>
-					<Link to={`${basePath}/${PATHS.EDITOR}/${collectionSlug}`}>
-						<Button size='sm'>{`New ${labels?.singular}`}</Button>
-					</Link>
-				</div>
-			</div>
-			<div className='rs-w-full rs-h-12 rs-flex rs-items-center rs-justify-between'>
-				<div className='rs-space-y-2 rs-min-w-[300px]'>
 					<div className='rs-relative'>
 						<Input
 							className='rs-h-9 rs-pe-9'
 							id={id}
-							onChange={(event) =>
+							onChange={(event) => {
 								table
 									.getColumn('title')
 									?.setFilterValue(event.target.value)
-							}
+								setInputValue(event.target.value)
+							}}
 							placeholder={`Search ${labels?.plural.toLowerCase()}...`}
 							ref={inputRef}
 							type='text'
@@ -113,45 +152,72 @@ const CollectionHeader = <TData extends RowData>({
 							</button>
 						)}
 					</div>
-				</div>
-				<DropdownMenu>
-					<DropdownMenuTrigger asChild>
-						<Button
-							variant='outline'
-							size='sm'
-							className='ml-auto hidden h-8 lg:flex'
+					<DropdownMenu>
+						<DropdownMenuTrigger asChild>
+							<Button
+								variant='outline'
+								size='sm'
+								className='ml-auto hidden h-8 lg:flex'
+							>
+								<Settings2 />
+								Display
+							</Button>
+						</DropdownMenuTrigger>
+						<DropdownMenuContent
+							align='end'
+							className='rs-w-[320px]'
 						>
-							<Settings2 />
-							Display
-						</Button>
-					</DropdownMenuTrigger>
-					<DropdownMenuContent align='end' className='w-[150px]'>
-						<DropdownMenuLabel>
-							Display properties
-						</DropdownMenuLabel>
-						<DropdownMenuSeparator />
-						{table
-							.getAllColumns()
-							.filter(
-								(column) =>
-									typeof column.accessorFn !== 'undefined' &&
-									column.getCanHide(),
-							)
-							.filter((column) => column.id !== 'actions')
-							.map((column) => (
-								<DropdownMenuCheckboxItem
-									key={column.id}
-									className='capitalize'
-									checked={column.getIsVisible()}
-									onCheckedChange={(value) =>
-										column.toggleVisibility(!!value)
-									}
-								>
-									{column.columnDef.header as string}
-								</DropdownMenuCheckboxItem>
-							))}
-					</DropdownMenuContent>
-				</DropdownMenu>
+							<DropdownMenuLabel>Ordering</DropdownMenuLabel>
+							<DropdownMenuSeparator />
+							<DropdownMenuRadioGroup
+								onValueChange={handleOrdering}
+								value={orderValue}
+							>
+								<DropdownMenuRadioItem value='newest-first'>
+									Newest first
+								</DropdownMenuRadioItem>
+								<DropdownMenuRadioItem value='oldest-first'>
+									Oldest first
+								</DropdownMenuRadioItem>
+								{/* TODO: check if publish feature is enabled */}
+								{/* <DropdownMenuRadioItem value='recently-published'> */}
+								{/* 	Recently published */}
+								{/* </DropdownMenuRadioItem> */}
+								<DropdownMenuRadioItem value='recently-updated'>
+									Recently updated
+								</DropdownMenuRadioItem>
+							</DropdownMenuRadioGroup>
+							<DropdownMenuSeparator />
+							<DropdownMenuLabel>
+								Column visibility
+							</DropdownMenuLabel>
+							<DropdownMenuSeparator />
+							{table
+								.getAllColumns()
+								.filter(
+									(column) =>
+										typeof column.accessorFn !==
+											'undefined' && column.getCanHide(),
+								)
+								.filter((column) => column.id !== 'actions')
+								.map((column) => (
+									<DropdownMenuCheckboxItem
+										key={column.id}
+										className='capitalize'
+										checked={column.getIsVisible()}
+										onCheckedChange={(value) =>
+											column.toggleVisibility(!!value)
+										}
+									>
+										{column.columnDef.header as string}
+									</DropdownMenuCheckboxItem>
+								))}
+						</DropdownMenuContent>
+					</DropdownMenu>
+					<Link to={`${basePath}/${PATHS.EDITOR}/${collectionSlug}`}>
+						<Button size='sm'>{`New ${labels?.singular}`}</Button>
+					</Link>
+				</div>
 			</div>
 		</section>
 	)
@@ -164,7 +230,7 @@ const Collection = ({
 	collectionSlug: string
 	labels: Labels | undefined
 }) => {
-	const { config, params } = useContext<RescribeContextData>(RescribeContext)
+	const { config } = useContext<RescribeContextData>(RescribeContext)
 	invariant(
 		config,
 		'`config` is required for the Rescribe component. Check the docs to see how to write the configuration.',
@@ -190,6 +256,14 @@ const Collection = ({
 
 	const data = useLoaderData()
 
+	const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
+	const [sorting, setSorting] = useState<SortingState>([
+		{
+			id: 'createdAt',
+			desc: true,
+		},
+	])
+
 	const table = useReactTable({
 		columns,
 		data,
@@ -202,6 +276,13 @@ const Collection = ({
 		},
 		getCoreRowModel: getCoreRowModel(),
 		getFilteredRowModel: getFilteredRowModel(),
+		getSortedRowModel: getSortedRowModel(),
+		onColumnFiltersChange: setColumnFilters,
+		onSortingChange: setSorting,
+		state: {
+			columnFilters,
+			sorting,
+		},
 	})
 
 	return (
