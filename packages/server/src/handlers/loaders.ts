@@ -1,8 +1,9 @@
-import { parseAdminPathname } from '@rescribe/common'
+import { createZodSchema, parseAdminPathname } from '@rescribe/common'
 import fg from 'fast-glob'
 import invariant from 'tiny-invariant'
 import {
 	getLocalCollectionContentPath,
+	readItemInLocalCollection,
 	readItemsInLocalCollection,
 } from '~/lib/utils'
 import type { LoaderHandlerArgs } from '~/types'
@@ -22,7 +23,7 @@ export const handleLoader = async ({ config, request }: LoaderHandlerArgs) => {
 	switch (mode) {
 		case 'local': {
 			const format = config.storage.format
-			if (params.root) {
+			if (params.section === 'root') {
 				// TODO: return data required for dashboard
 				// recent drafts in different collections
 				const everything = await Promise.all(
@@ -44,14 +45,35 @@ export const handleLoader = async ({ config, request }: LoaderHandlerArgs) => {
 
 				return { everything }
 			}
-			if (params.section === 'collections' && params.action === 'list') {
-				const slug = params.collection
-				invariant(
-					collections[slug],
-					`Collection ${slug} not found in config`,
-				)
-				const collection = collections[slug]
+			if (params.section === 'settings') {
+				return {}
+			}
+			const collectionSlug = params.collectionSlug
+			invariant(
+				collections[collectionSlug],
+				`Collection ${collectionSlug} not found in config`,
+			)
+			const collection = collections[collectionSlug]
+			const schema = createZodSchema({
+				schema: collection.schema,
+				options: { omit: ['content'] },
+			})
+			if (params.section === 'collections') {
 				return readItemsInLocalCollection({ collection, format })
+			}
+
+			if (params.section === 'editor-create') {
+				return {}
+			}
+
+			const id = params.id
+			if (params.section === 'editor-edit') {
+				return readItemInLocalCollection({
+					collection,
+					format,
+					id,
+					schema,
+				})
 			}
 		}
 	}
