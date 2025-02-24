@@ -23,37 +23,46 @@ const Root = () => {
 	const { config, params } = useContext<RescribeContextData>(RescribeContext)
 
 	let labels: Labels | undefined
-	if (params?.section === 'collections' || params?.section === 'editor') {
-		const collection = params?.collection as string
-		labels = generateLabelsForCollection(config as Config, collection)
+	if (
+		params?.section === 'collections' ||
+		params?.section === 'editor-create' ||
+		params?.section === 'editor-edit'
+	) {
+		const collectionSlug = params.collectionSlug
+		labels = generateLabelsForCollection(config as Config, collectionSlug)
 	}
 
-	if (params?.section === 'collections' && params.action === 'list') {
+	if (params?.section === 'collections') {
+		const collectionSlug = params.collectionSlug
 		return (
 			<DashboardLayout>
-				<Collection labels={labels} />
+				<Collection collectionSlug={collectionSlug} labels={labels} />
 			</DashboardLayout>
 		)
 	}
 
-	if (params?.section === 'editor') {
+	if (
+		params?.section === 'editor-create' ||
+		params?.section === 'editor-edit'
+	) {
+		const collectionSlug = params.collectionSlug
 		return (
 			<TooltipProvider>
-				<EditorLayout labels={labels} />
+				<EditorLayout collectionSlug={collectionSlug} labels={labels} />
 			</TooltipProvider>
 		)
 	}
 
-	if (params?.section === 'settings') {
-		return <DashboardLayout>Settings</DashboardLayout>
-	}
-
-	if (params?.root) {
+	if (params?.section === 'root') {
 		return (
 			<DashboardLayout>
 				<ComponentReference />
 			</DashboardLayout>
 		)
+	}
+
+	if (params?.section === 'settings') {
+		return <DashboardLayout>Settings</DashboardLayout>
 	}
 
 	return <div>Not Found. Check the URL and make sure there are no typos.</div>

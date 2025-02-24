@@ -15,22 +15,23 @@ import { Button } from '~/components/ui/button'
 import { RescribeContext, type RescribeContextData } from '~/providers'
 
 const EditorHeader = ({
+	collectionSlug,
 	isContentFieldAvailable,
 	setOpenCollectionSettings,
 }: {
+	collectionSlug: string
 	isContentFieldAvailable: boolean
 	setOpenCollectionSettings: Dispatch<SetStateAction<boolean>>
 }) => {
 	const { config, params } = useContext<RescribeContextData>(RescribeContext)
 	invariant(config, '`config` is required.')
-	invariant(params?.collection, 'Invalid collection key in url')
 	invariant(
-		config?.collections[params.collection],
+		config?.collections[collectionSlug],
 		'Collection not found in config',
 	)
 
 	const basePath = config.basePath ?? ''
-	const collection = config.collections[params.collection]
+	const collection = config.collections[collectionSlug]
 
 	return (
 		<header className='rs-sticky rs-w-full rs-h-16 rs-px-4 rs-flex rs-items-center rs-justify-between rs-z-20'>
@@ -41,26 +42,18 @@ const EditorHeader = ({
 							<Link to={basePath}>Home</Link>
 						</BreadcrumbLink>
 					</BreadcrumbItem>
-					{(params?.action === 'create' ||
-						params?.action === 'edit') && (
-						<>
-							<BreadcrumbSeparator />
-							<BreadcrumbItem>Collections</BreadcrumbItem>
-							<BreadcrumbSeparator />
-							<BreadcrumbItem>
-								<BreadcrumbPage>
-									{
-										config?.collections[params?.collection]
-											.label
-									}
-								</BreadcrumbPage>
-							</BreadcrumbItem>
-						</>
-					)}
+					<BreadcrumbSeparator />
+					<BreadcrumbItem>Collections</BreadcrumbItem>
+					<BreadcrumbSeparator />
+					<BreadcrumbItem>
+						<BreadcrumbPage>
+							{config?.collections[collectionSlug].label}
+						</BreadcrumbPage>
+					</BreadcrumbItem>
 				</BreadcrumbList>
 			</Breadcrumb>
 			<section className='rs-flex rs-items-center rs-gap-2'>
-				{params.action === 'create' && (
+				{params?.section === 'editor-create' && (
 					<Button
 						name='intent'
 						size='sm'
@@ -71,7 +64,7 @@ const EditorHeader = ({
 						Create
 					</Button>
 				)}
-				{params.action === 'edit' && (
+				{params?.section === 'editor-edit' && (
 					<Button
 						name='intent'
 						size='sm'

@@ -18,12 +18,14 @@ import {
 import { RescribeContext, type RescribeContextData } from '~/providers'
 
 const Form = ({
+	collectionSlug,
 	fields,
 	isContentFieldAvailable,
 	labels,
 	openCollectionSettings,
 	setOpenCollectionSettings,
 }: {
+	collectionSlug: string
 	fields: Required<{
 		// biome-ignore lint/suspicious/noExplicitAny: <explanation>
 		[x: string]: FieldMetadata<any, Record<string, any>, string[]>
@@ -33,14 +35,13 @@ const Form = ({
 	openCollectionSettings: boolean
 	setOpenCollectionSettings: Dispatch<SetStateAction<boolean>>
 }) => {
-	const { config, params } = useContext<RescribeContextData>(RescribeContext)
-	invariant(params?.collection, 'Invalid collection key in url')
+	const { config } = useContext<RescribeContextData>(RescribeContext)
 	invariant(
-		config?.collections[params.collection],
+		config?.collections[collectionSlug],
 		'Collection not found in config',
 	)
 
-	const collection = config.collections[params.collection]
+	const collection = config.collections[collectionSlug]
 	const primaryFields = Object.keys(collection.schema).filter(
 		(key: SchemaKey) => key === 'title' || key === 'content',
 	)

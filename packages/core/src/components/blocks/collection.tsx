@@ -43,6 +43,7 @@ import { RescribeContext, type RescribeContextData } from '~/providers'
 interface CollectionHeaderProps<TData> {
 	basePath: string
 	collection: CollectionType
+	collectionSlug: string
 	labels: Labels | undefined
 	table: ReactTable<TData>
 }
@@ -50,6 +51,7 @@ interface CollectionHeaderProps<TData> {
 const CollectionHeader = <TData extends RowData>({
 	basePath,
 	collection,
+	collectionSlug,
 	labels,
 	table,
 }: CollectionHeaderProps<TData>) => {
@@ -71,7 +73,7 @@ const CollectionHeader = <TData extends RowData>({
 					{collection.label}
 				</h3>
 				<div className='rs-flex rs-items-center rs-gap-2'>
-					<Link to={`${basePath}/${PATHS.EDITOR}/${collection.slug}`}>
+					<Link to={`${basePath}/${PATHS.EDITOR}/${collectionSlug}`}>
 						<Button size='sm'>{`New ${labels?.singular}`}</Button>
 					</Link>
 				</div>
@@ -156,8 +158,10 @@ const CollectionHeader = <TData extends RowData>({
 }
 
 const Collection = ({
+	collectionSlug,
 	labels,
 }: {
+	collectionSlug: string
 	labels: Labels | undefined
 }) => {
 	const { config, params } = useContext<RescribeContextData>(RescribeContext)
@@ -165,12 +169,8 @@ const Collection = ({
 		config,
 		'`config` is required for the Rescribe component. Check the docs to see how to write the configuration.',
 	)
-	invariant(
-		params?.collection,
-		'Cannot read collection details. Check your URL.',
-	)
 	const basePath = config.basePath ?? ''
-	const collection = config.collections[params.collection]
+	const collection = config.collections[collectionSlug]
 
 	const COLLECTION_ZOD_SCHEMA = createZodSchema({
 		features: collection.features,
@@ -181,7 +181,7 @@ const Collection = ({
 	})
 	const columns = createColumnDefs({
 		basePath,
-		collectionSlug: collection.slug,
+		collectionSlug,
 		options: {
 			only: ['title', 'createdAt', 'updatedAt', 'status', 'publishedAt'],
 		},
@@ -209,6 +209,7 @@ const Collection = ({
 			<CollectionHeader
 				basePath={basePath}
 				collection={collection}
+				collectionSlug={collectionSlug}
 				labels={labels}
 				table={table}
 			/>
@@ -258,7 +259,7 @@ const Collection = ({
 					icons={[FileTextIcon, FileTextIcon, FileTextIcon]}
 					action={
 						<Link
-							to={`${basePath}/${PATHS.EDITOR}/${collection.slug}`}
+							to={`${basePath}/${PATHS.EDITOR}/${collectionSlug}`}
 						>
 							<Button
 								className=''

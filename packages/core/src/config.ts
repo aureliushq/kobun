@@ -1,7 +1,7 @@
-import {
-	COLLECTION_SLUG_REGEX,
-	type Collection,
-	type Config,
+import type {
+	// COLLECTION_SLUG_REGEX,
+	Collection,
+	Config,
 } from '@rescribe/common'
 
 export function config(config: Config) {
@@ -11,6 +11,6 @@ export function config(config: Config) {
 export function collection(collection: Collection) {
 	return {
 		...collection,
-		slug: COLLECTION_SLUG_REGEX.parse(collection.slug),
+		// slug: COLLECTION_SLUG_REGEX.parse(collection.slug),
 	} as Collection
 }
