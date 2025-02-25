@@ -79,6 +79,7 @@ export type SelectField = BasicField & {
 
 // TODO: allow using variables for constructing slugs
 export type SlugField = BasicField & {
+	placeholder?: string
 	title?: { key: SchemaKey }
 	type: FieldTypes.SLUG
 }

@@ -27,7 +27,7 @@ export const createZodSchema = <T extends ConfigSchema<SchemaKey>>({
 			case FieldTypes.BOOLEAN:
 				return z.boolean()
 			case FieldTypes.DATE:
-				return z.date()
+				return z.coerce.date()
 			case FieldTypes.DOCUMENT:
 			case FieldTypes.IMAGE:
 			case FieldTypes.TEXT:
@@ -65,12 +65,12 @@ export const createZodSchema = <T extends ConfigSchema<SchemaKey>>({
 	const allFeatures = { ...DEFAULT_FEATURES, ...features }
 	if (allFeatures?.timestamps?.createdAt) {
 		BUILT_IN_SCHEMA = BUILT_IN_SCHEMA.merge(
-			z.object({ createdAt: z.date() }),
+			z.object({ createdAt: z.coerce.date() }),
 		)
 	}
 	if (allFeatures?.timestamps?.updatedAt) {
 		BUILT_IN_SCHEMA = BUILT_IN_SCHEMA.merge(
-			z.object({ updatedAt: z.date() }),
+			z.object({ updatedAt: z.coerce.date() }),
 		)
 	}
 
@@ -83,7 +83,7 @@ export const createZodSchema = <T extends ConfigSchema<SchemaKey>>({
 			EXTENDED_SCHEMA.merge(
 				z.object({
 					status: z.literal('published'),
-					publishedAt: z.date(),
+					publishedAt: z.coerce.date(),
 				}),
 			),
 		])
