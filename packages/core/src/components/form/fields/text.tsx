@@ -4,17 +4,20 @@ import { Input } from '~/components/ui/input'
 import { Label } from '~/components/ui/label'
 import { Textarea } from '~/components/ui/textarea'
 
-type Props = TextFieldType
+type TextProps = Omit<TextFieldType, 'type'> & {
+	config?: Partial<HTMLInputElement>
+}
 
 // TODO: controlled operation
 const TextField = ({
+	config,
 	description,
+	htmlType = 'text',
 	label,
 	multiline = false,
 	placeholder,
-	type = 'text',
 	...rest
-}: Props) => {
+}: TextProps) => {
 	if (multiline) {
 		return (
 			<div className='rs-w-full rs-flex rs-flex-col rs-items-start rs-gap-2 rs-px-2'>
@@ -26,7 +29,11 @@ const TextField = ({
 						</p>
 					)}
 				</div>
-				<Textarea placeholder={placeholder} {...rest} />
+				<Textarea
+					defaultValue={config?.defaultValue}
+					placeholder={placeholder}
+					{...rest}
+				/>
 			</div>
 		)
 	}
@@ -41,7 +48,12 @@ const TextField = ({
 					</p>
 				)}
 			</div>
-			<Input placeholder={placeholder} type={type} {...rest} />
+			<Input
+				defaultValue={config?.defaultValue}
+				placeholder={placeholder}
+				type={htmlType}
+				{...rest}
+			/>
 		</div>
 	)
 }

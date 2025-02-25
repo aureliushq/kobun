@@ -12,8 +12,6 @@ import {
 export const fields = {
 	boolean: (config: Omit<BooleanField, 'type'>): BooleanField => ({
 		...config,
-		component: 'checkbox',
-		defaultChecked: false,
 		type: FieldTypes.BOOLEAN,
 	}),
 
@@ -49,8 +47,6 @@ export const fields = {
 
 	text: (config: Omit<TextField, 'type'>): TextField => ({
 		...config,
-		htmlType: 'text',
-		multiline: false,
 		type: FieldTypes.TEXT,
 	}),
 

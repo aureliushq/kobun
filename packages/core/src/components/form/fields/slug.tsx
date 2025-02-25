@@ -5,12 +5,20 @@ import { Button } from '~/components/ui/button'
 import { Input } from '~/components/ui/input'
 import { Label } from '~/components/ui/label'
 
-type Props = SlugFieldType
+type SlugProps = Omit<SlugFieldType, 'type'> & {
+	config?: Partial<HTMLInputElement>
+}
 
 // TODO: controlled operation
 // TODO: slug generation
 // TODO: parsing and validation
-const SlugField = ({ description, label, placeholder, title }: Props) => {
+const SlugField = ({
+	config,
+	description,
+	label,
+	placeholder,
+	title,
+}: SlugProps) => {
 	return (
 		<div className='rs-w-full rs-px-2 rs-flex rs-flex-col rs-items-start rs-gap-2'>
 			<div className='rs-grid rs-gap-1.5 rs-leading-none'>
@@ -22,7 +30,11 @@ const SlugField = ({ description, label, placeholder, title }: Props) => {
 				)}
 			</div>
 			<div className='rs-w-full rs-flex rs-items-center rs-gap-2'>
-				<Input placeholder={placeholder} type='text' />
+				<Input
+					defaultValue={config?.defaultValue}
+					placeholder={placeholder}
+					type='text'
+				/>
 				<Button
 					className='rs-flex-shrink-0'
 					size='icon'

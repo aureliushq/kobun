@@ -13,10 +13,10 @@ import {
 } from '~/components/ui/popover'
 import { cn } from '~/lib/utils'
 
-type Props = DateFieldType
+type DateProps = Omit<DateFieldType, 'type'>
 
 // TODO: controlled operation
-const DateField = ({ description, label }: Props) => {
+const DateField = ({ description, label }: DateProps) => {
 	const [date, setDate] = React.useState<Date>()
 
 	return (

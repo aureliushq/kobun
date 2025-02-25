@@ -9,7 +9,7 @@ import {
 	SelectValue,
 } from '~/components/ui/select'
 
-type Props = SelectFieldType
+type SelectProps = Omit<SelectFieldType, 'type'>
 
 // TODO: controlled operation
 const SelectField = ({
@@ -17,7 +17,7 @@ const SelectField = ({
 	label,
 	options,
 	placeholder = 'Select',
-}: Props) => {
+}: SelectProps) => {
 	return (
 		<div className='rs-flex rs-items-center rs-justify-between rs-flex-wrap rs-gap-2'>
 			<div className='rs-grid rs-gap-1.5 rs-leading-none'>

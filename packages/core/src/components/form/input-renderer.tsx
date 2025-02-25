@@ -22,6 +22,7 @@ import { type Editor as TiptapEditor, useEditor } from '@tiptap/react'
 import { StarterKit } from '@tiptap/starter-kit'
 import { common, createLowlight } from 'lowlight'
 import { useEffect, useRef } from 'react'
+import { Markdown } from 'tiptap-markdown'
 
 import Editor from '~/components/editor'
 import BooleanField from '~/components/form/fields/boolean'
@@ -52,12 +53,14 @@ const InputRenderer = ({
 	fieldMetadata: FieldMetadata
 }) => {
 	const editorData = useRef<EditorData>({
-		content: '',
+		content: (fieldMetadata.initialValue as string) || '',
 		title: '',
 		wordCount: 0,
 	})
 	const content = editorData.current.content
 	const wordCount = editorData.current.wordCount
+
+	const titleRef = useRef<HTMLTextAreaElement>(null)
 
 	const settings = {
 		bodyFont: 'rs-font-sans',
@@ -108,24 +111,27 @@ const InputRenderer = ({
 			Heading.configure({
 				levels: [2, 3, 4],
 			}),
+			Markdown,
 		],
 		onCreate({ editor }) {
 			const html = editor.isEmpty ? '' : editor.getHTML()
 			const wordCount = editor.storage.characterCount.words()
-			// handleContentChange(html)
+			handleContentChange(html)
 			// handleWordCountChange(wordCount)
 		},
 		onUpdate({ editor }) {
 			const html = editor.isEmpty ? '' : editor.getHTML()
 			const wordCount = editor.storage.characterCount.words()
-			// handleContentChange(html)
+			handleContentChange(html)
 			// handleWordCountChange(wordCount)
 		},
 		// fix for hydration issues
 		immediatelyRender: false,
 	})
 
-	const titleRef = useRef<HTMLTextAreaElement>(null)
+	const handleContentChange = (html: string) => {
+		editorData.current.content = html
+	}
 
 	// biome-ignore lint: correctness/useExhaustiveDependencies
 	useEffect(() => {
@@ -156,8 +162,10 @@ const InputRenderer = ({
 			return (
 				<BooleanField
 					component={data.component}
-					config={{ id: 'accept-terms-checkbox' }}
-					defaultChecked={true}
+					config={{
+						defaultChecked: fieldMetadata.initialValue as boolean,
+						id: 'accept-terms-checkbox',
+					}}
 					description={data.description}
 					label={data.label}
 				/>
@@ -176,6 +184,9 @@ const InputRenderer = ({
 
 			return (
 				<SlugField
+					config={{
+						defaultValue: fieldMetadata.initialValue as string,
+					}}
 					description={data.description}
 					label={data.label}
 					placeholder={data.placeholder}
@@ -191,6 +202,7 @@ const InputRenderer = ({
 						<Textarea
 							autoFocus
 							className={`rs-w-full rs-min-h-[48px] rs-border-0 rs-p-0 focus-visible:rs-ring-0 focus-visible:rs-ring-offset-0 rs-flex rs-items-center rs-resize-none rs-overflow-y-hidden rs-bg-transparent rs-text-xl rs-font-semibold rs-leading-snug rs-text-foreground focus:rs-outline-none lg:rs-text-3xl lg:rs-leading-snug rs-${settings?.titleFont}`}
+							defaultValue={fieldMetadata.initialValue as string}
 							name={fieldMetadata.name}
 							placeholder='Untitled'
 							ref={titleRef}
@@ -202,10 +214,13 @@ const InputRenderer = ({
 
 			return (
 				<TextField
+					config={{
+						defaultValue: fieldMetadata.initialValue as string,
+					}}
 					description={data.description}
+					htmlType={data.type}
 					label={data.label}
 					multiline={data.multiline}
-					type={data.type}
 					{...fieldMetadata}
 				/>
 			)

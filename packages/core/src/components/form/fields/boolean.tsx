@@ -4,7 +4,7 @@ import { Checkbox } from '~/components/ui/checkbox'
 import { Label } from '~/components/ui/label'
 import { Switch } from '~/components/ui/switch'
 
-type BooleanProps = BooleanFieldType & {
+type BooleanProps = Omit<BooleanFieldType, 'type'> & {
 	config?: Partial<HTMLInputElement>
 }
 
@@ -12,7 +12,6 @@ type BooleanProps = BooleanFieldType & {
 const BooleanField = ({
 	component,
 	config,
-	defaultChecked,
 	description,
 	label,
 }: BooleanProps) => {
@@ -20,7 +19,10 @@ const BooleanField = ({
 		case 'checkbox': {
 			return (
 				<div className='rs-items-top rs-flex rs-space-x-2 rs-px-2'>
-					<Checkbox defaultChecked={defaultChecked} id={config?.id} />
+					<Checkbox
+						defaultChecked={config?.defaultChecked}
+						id={config?.id}
+					/>
 					<div className='rs-grid rs-gap-1.5 rs-leading-none'>
 						<Label htmlFor={config?.id}>{label}</Label>
 						{description && (
@@ -45,7 +47,7 @@ const BooleanField = ({
 					</div>
 					<Switch
 						className='rs-order-1 md:rs-order-2'
-						defaultChecked={defaultChecked}
+						defaultChecked={config?.defaultChecked}
 						id={config?.id}
 					/>
 				</div>
