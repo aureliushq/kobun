@@ -16,7 +16,7 @@ const Editor = ({
 				<EditorToolbar editor={editor} />
 			</BubbleMenuWrapper>
 			<div
-				className={`editor-wrapper rs-prose dark:rs-prose-invert rs-flex rs-h-auto rs-min-h-max rs-w-full rs-items-start rs-justify-center rs-pb-12 ${bodyFont}`}
+				className={`editor-wrapper rs-prose dark:rs-prose-invert rs-flex rs-h-auto rs-min-h-max rs-w-full rs-items-start rs-justify-center rs-pb-12 rs-px-2 ${bodyFont}`}
 			>
 				<EditorContent editor={editor} />
 			</div>

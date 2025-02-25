@@ -24,12 +24,13 @@ const EditorLayout = ({
 	)
 	const collection = config.collections[collectionSlug]
 
+	const defaultValue = useLoaderData()
+
 	const [form, fields] = useForm({
+		defaultValue,
 		lastResult,
 		// constraint: getZodConstraint()
 	})
-
-	const data = useLoaderData()
 
 	const [openCollectionSettings, setOpenCollectionSettings] = useState(false)
 
@@ -42,6 +43,7 @@ const EditorLayout = ({
 			<RRForm id={form.id} method='post' onSubmit={form.onSubmit}>
 				<EditorHeader
 					collectionSlug={collectionSlug}
+					defaultValue={defaultValue}
 					isContentFieldAvailable={isContentFieldAvailable}
 					setOpenCollectionSettings={setOpenCollectionSettings}
 				/>
