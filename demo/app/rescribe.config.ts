@@ -30,7 +30,6 @@ const rescribeConfig = config({
 					multiline: true,
 				}),
 			},
-			slug: 'articles',
 		}),
 		docs: collection({
 			features: {
@@ -55,7 +54,6 @@ const rescribeConfig = config({
 					},
 				}),
 			},
-			slug: 'docs',
 		}),
 		series: collection({
 			features: {
@@ -81,7 +79,6 @@ const rescribeConfig = config({
 					},
 				}),
 			},
-			slug: 'series',
 		}),
 	},
 	storage: {
