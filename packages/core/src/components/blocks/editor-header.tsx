@@ -12,14 +12,17 @@ import {
 	BreadcrumbSeparator,
 } from '~/components/ui/breadcrumb'
 import { Button } from '~/components/ui/button'
+import { PATHS } from '~/lib/constants'
 import { RescribeContext, type RescribeContextData } from '~/providers'
 
 const EditorHeader = ({
 	collectionSlug,
+	defaultValue,
 	isContentFieldAvailable,
 	setOpenCollectionSettings,
 }: {
 	collectionSlug: string
+	defaultValue?: { [x: string]: unknown }
 	isContentFieldAvailable: boolean
 	setOpenCollectionSettings: Dispatch<SetStateAction<boolean>>
 }) => {
@@ -46,10 +49,26 @@ const EditorHeader = ({
 					<BreadcrumbItem>Collections</BreadcrumbItem>
 					<BreadcrumbSeparator />
 					<BreadcrumbItem>
-						<BreadcrumbPage>
-							{config?.collections[collectionSlug].label}
-						</BreadcrumbPage>
+						<BreadcrumbLink asChild>
+							<Link
+								to={`${basePath}/${PATHS.COLLECTIONS}/${collectionSlug}`}
+							>
+								{config?.collections[collectionSlug].label}
+							</Link>
+						</BreadcrumbLink>
 					</BreadcrumbItem>
+					{params?.section === 'editor-edit' &&
+						defaultValue?.title !== '' &&
+						defaultValue?.title !== undefined && (
+							<>
+								<BreadcrumbSeparator />
+								<BreadcrumbItem>
+									<BreadcrumbPage>
+										{defaultValue?.title as string}
+									</BreadcrumbPage>
+								</BreadcrumbItem>
+							</>
+						)}
 				</BreadcrumbList>
 			</Breadcrumb>
 			<section className='rs-flex rs-items-center rs-gap-2'>

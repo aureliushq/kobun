@@ -29,7 +29,7 @@ const DashboardHeader = () => {
 			<Breadcrumb>
 				<BreadcrumbList>
 					<BreadcrumbItem>
-						{params?.root ? (
+						{params?.section === 'root' ? (
 							<BreadcrumbPage>
 								<BreadcrumbLink asChild>
 									<Link to={basePath}>Home</Link>
@@ -41,23 +41,22 @@ const DashboardHeader = () => {
 							</BreadcrumbLink>
 						)}
 					</BreadcrumbItem>
-					{params?.section === 'collections' &&
-						params.action === 'list' && (
-							<>
-								<BreadcrumbSeparator />
-								<BreadcrumbItem>Collections</BreadcrumbItem>
-								<BreadcrumbSeparator />
-								<BreadcrumbItem>
-									<BreadcrumbPage>
-										{
-											config?.collections[
-												params?.collection
-											].label
-										}
-									</BreadcrumbPage>
-								</BreadcrumbItem>
-							</>
-						)}
+					{params?.section === 'collections' && (
+						<>
+							<BreadcrumbSeparator />
+							<BreadcrumbItem>Collections</BreadcrumbItem>
+							<BreadcrumbSeparator />
+							<BreadcrumbItem>
+								<BreadcrumbPage>
+									{
+										config?.collections[
+											params?.collectionSlug
+										].label
+									}
+								</BreadcrumbPage>
+							</BreadcrumbItem>
+						</>
+					)}
 					{params?.section === 'settings' && (
 						<>
 							<BreadcrumbSeparator />

@@ -85,7 +85,7 @@ const DashboardSidebar = () => {
 					<SidebarGroupLabel>Collections</SidebarGroupLabel>
 					{Object.keys(config.collections).map((key, index) => {
 						const collection = config.collections[key]
-						const link = `${basePath}/${PATHS.COLLECTIONS}/${collection.slug}`
+						const link = `${basePath}/${PATHS.COLLECTIONS}/${key}`
 						const addTitle = `Add ${collection.label}`
 
 						return (
@@ -95,7 +95,7 @@ const DashboardSidebar = () => {
 										1 !==
 										index && 'rs-mb-4',
 								)}
-								key={collection.slug}
+								key={key}
 							>
 								<SidebarMenu>
 									<SidebarMenuItem>
@@ -115,7 +115,7 @@ const DashboardSidebar = () => {
 											title={addTitle}
 										>
 											<Link
-												to={`${basePath}/${PATHS.EDITOR}/${collection.slug}`}
+												to={`${basePath}/${PATHS.EDITOR}/${key}`}
 											>
 												<PlusIcon />{' '}
 												<span className='rs-sr-only'>
