@@ -45,6 +45,7 @@ type BasicField = {
 export type BooleanField = BasicField & {
 	component?: 'checkbox' | 'switch'
 	defaultChecked?: boolean
+	name?: HTMLInputElement['name']
 	type: FieldTypes.BOOLEAN
 }
 
@@ -66,12 +67,14 @@ export type SelectOption = {
 }
 
 export type MultiSelectField = BasicField & {
+	name?: HTMLInputElement['name']
 	options: SelectOption[]
 	placeholder?: string
 	type: FieldTypes.MULTISELECT
 }
 
 export type SelectField = BasicField & {
+	name?: HTMLInputElement['name']
 	options: SelectOption[]
 	placeholder?: string
 	type: FieldTypes.SELECT
@@ -79,6 +82,7 @@ export type SelectField = BasicField & {
 
 // TODO: allow using variables for constructing slugs
 export type SlugField = BasicField & {
+	name?: HTMLInputElement['name']
 	placeholder?: string
 	title?: { key: SchemaKey }
 	type: FieldTypes.SLUG
@@ -87,6 +91,7 @@ export type SlugField = BasicField & {
 export type TextField = BasicField & {
 	htmlType?: HTMLInputElement['type']
 	multiline?: boolean
+	name?: HTMLInputElement['name']
 	placeholder?: string
 	type: FieldTypes.TEXT
 }
