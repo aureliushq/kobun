@@ -14,6 +14,7 @@ const BooleanField = ({
 	config,
 	description,
 	label,
+	...rest
 }: BooleanProps) => {
 	switch (component) {
 		case 'checkbox': {
@@ -22,6 +23,7 @@ const BooleanField = ({
 					<Checkbox
 						defaultChecked={config?.defaultChecked}
 						id={config?.id}
+						{...rest}
 					/>
 					<div className='rs-grid rs-gap-1.5 rs-leading-none'>
 						<Label htmlFor={config?.id}>{label}</Label>
@@ -49,6 +51,7 @@ const BooleanField = ({
 						className='rs-order-1 md:rs-order-2'
 						defaultChecked={config?.defaultChecked}
 						id={config?.id}
+						{...rest}
 					/>
 				</div>
 			)

@@ -19,11 +19,13 @@ const EditorHeader = ({
 	collectionSlug,
 	defaultValue,
 	isContentFieldAvailable,
+	openCollectionSettings,
 	setOpenCollectionSettings,
 }: {
 	collectionSlug: string
 	defaultValue?: { [x: string]: unknown }
 	isContentFieldAvailable: boolean
+	openCollectionSettings: boolean
 	setOpenCollectionSettings: Dispatch<SetStateAction<boolean>>
 }) => {
 	const { config, params } = useContext<RescribeContextData>(RescribeContext)
@@ -106,7 +108,7 @@ const EditorHeader = ({
 						Publish
 					</Button>
 				)}
-				{isContentFieldAvailable && (
+				{isContentFieldAvailable && !openCollectionSettings && (
 					<Button
 						onClick={() => setOpenCollectionSettings(true)}
 						size='icon'

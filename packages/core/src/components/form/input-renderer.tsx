@@ -1,4 +1,8 @@
-import type { FieldMetadata } from '@conform-to/react'
+import {
+	getTextareaProps,
+	useInputControl,
+	type FieldMetadata,
+} from '@conform-to/react'
 import {
 	type BooleanField as BooleanFieldType,
 	type Field,
@@ -60,6 +64,7 @@ const InputRenderer = ({
 	const content = editorData.current.content
 	const wordCount = editorData.current.wordCount
 
+	const editorRef = useRef<HTMLTextAreaElement>(null)
 	const titleRef = useRef<HTMLTextAreaElement>(null)
 
 	const settings = {
@@ -108,29 +113,34 @@ const InputRenderer = ({
 			TextStyle,
 			FontFamily,
 			Underline,
-			Heading.configure({
-				levels: [2, 3, 4],
-			}),
+			Heading,
 			Markdown,
 		],
 		onCreate({ editor }) {
-			const html = editor.isEmpty ? '' : editor.getHTML()
+			const markdown = editor.isEmpty
+				? ''
+				: editor.storage.markdown.getMarkdown()
 			const wordCount = editor.storage.characterCount.words()
-			handleContentChange(html)
+			handleContentChange(markdown)
 			// handleWordCountChange(wordCount)
 		},
 		onUpdate({ editor }) {
-			const html = editor.isEmpty ? '' : editor.getHTML()
+			const markdown = editor.isEmpty
+				? ''
+				: editor.storage.markdown.getMarkdown()
 			const wordCount = editor.storage.characterCount.words()
-			handleContentChange(html)
+			handleContentChange(markdown)
 			// handleWordCountChange(wordCount)
 		},
 		// fix for hydration issues
 		immediatelyRender: false,
 	})
 
-	const handleContentChange = (html: string) => {
-		editorData.current.content = html
+	const handleContentChange = (markdown: string) => {
+		editorData.current.content = markdown
+		if (editorRef.current) {
+			editorRef.current.value = markdown
+		}
 	}
 
 	// biome-ignore lint: correctness/useExhaustiveDependencies
@@ -168,15 +178,23 @@ const InputRenderer = ({
 					}}
 					description={data.description}
 					label={data.label}
+					name={fieldMetadata.name}
 				/>
 			)
 		}
 		case FieldTypes.DOCUMENT: {
 			return (
-				<Editor
-					bodyFont={settings.bodyFont}
-					editor={editor as TiptapEditor}
-				/>
+				<>
+					<Editor
+						bodyFont={settings.bodyFont}
+						editor={editor as TiptapEditor}
+					/>
+					<textarea
+						className='rs-hidden'
+						{...getTextareaProps(fieldMetadata)}
+						ref={editorRef}
+					/>
+				</>
 			)
 		}
 		case FieldTypes.SLUG: {
@@ -189,6 +207,7 @@ const InputRenderer = ({
 					}}
 					description={data.description}
 					label={data.label}
+					name={fieldMetadata.name}
 					placeholder={data.placeholder}
 				/>
 			)
@@ -221,7 +240,7 @@ const InputRenderer = ({
 					htmlType={data.type}
 					label={data.label}
 					multiline={data.multiline}
-					{...fieldMetadata}
+					name={fieldMetadata.name}
 				/>
 			)
 		}

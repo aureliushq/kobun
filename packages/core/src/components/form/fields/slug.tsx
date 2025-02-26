@@ -18,6 +18,7 @@ const SlugField = ({
 	label,
 	placeholder,
 	title,
+	...rest
 }: SlugProps) => {
 	return (
 		<div className='rs-w-full rs-px-2 rs-flex rs-flex-col rs-items-start rs-gap-2'>
@@ -34,6 +35,7 @@ const SlugField = ({
 					defaultValue={config?.defaultValue}
 					placeholder={placeholder}
 					type='text'
+					{...rest}
 				/>
 				<Button
 					className='rs-flex-shrink-0'

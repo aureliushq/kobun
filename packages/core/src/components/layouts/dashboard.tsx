@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 
 import DashboardHeader from '~/components/blocks/dashboard-header'
-import DashboardSidebar from '~/components/blocks/sidebar'
+import DashboardSidebar from '~/components/blocks/dashboard-sidebar'
 import { ScrollArea } from '~/components/ui/scroll-area'
 import { SidebarProvider } from '~/components/ui/sidebar'
 
