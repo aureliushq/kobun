@@ -1,8 +1,13 @@
 import { parseWithZod } from '@conform-to/zod'
-import { createZodSchema, parseAdminPathname } from '@rescribe/common'
+import { createZodSchema, parseAdminPathname, PATHS } from '@rescribe/common'
 import { customAlphabet } from 'nanoid'
+import { redirect } from 'react-router'
 import invariant from 'tiny-invariant'
 import YAML from 'yaml'
+import {
+	readItemInLocalCollection,
+	writeItemToLocalCollection,
+} from '~/lib/utils'
 
 import type { ActionHandlerArgs } from '~/types'
 
@@ -46,29 +51,88 @@ export const handleActions = async ({ config, request }: ActionHandlerArgs) => {
 			if (params.section === 'editor-create') {
 				const submission = parseWithZod(formData, { schema })
 				const id = nanoid()
-				const createdAt = new Date().toISOString()
-				const updatedAt = new Date().toISOString()
-				const markdown = submission.payload.content
-				// biome-ignore lint/performance/noDelete: <explanation>
-				delete submission.payload.intent
-				// biome-ignore lint/performance/noDelete: <explanation>
-				delete submission.payload.content
-				const metadata = {
+				const { content = '', intent, ...payload } = submission.payload
+				const markdown = content as string
+				const slug = payload.slug as string
+				let metadata = {
 					id,
-					...submission.payload,
-					createdAt,
-					updatedAt,
+					...payload,
+					createdAt: new Date().toISOString(),
+					updatedAt: new Date().toISOString(),
+					status: 'draft',
+				}
+				if (intent === 'publish') {
+					metadata = Object.assign({}, metadata, {
+						publishedAt: new Date().toISOString(),
+						status: 'published',
+					})
 				}
 				const frontmatter = YAML.stringify(metadata).trimEnd()
 				const fileContent = markdown
 					? `---\n${frontmatter}\n---\n\n${markdown}\n`
 					: `---\n${frontmatter}\n---`
-				console.log(fileContent)
-				return {}
+				await writeItemToLocalCollection({
+					collection,
+					format,
+					fileContent,
+					slug,
+				})
+				const redirectUrl = `${basePath}/${PATHS.EDITOR}/${collectionSlug}/${id}`
+				return redirect(redirectUrl)
 			}
 
 			const id = params.id
 			if (params.section === 'editor-edit') {
+				const data = await readItemInLocalCollection({
+					collection,
+					format,
+					id,
+					schema: createZodSchema({
+						schema: collection.schema,
+						options: { omit: ['content'] },
+					}),
+				})
+				const { content: oldContent = '', ...oldMetadata } = data
+
+				const submission = parseWithZod(formData, { schema })
+				const { content = '', intent, ...payload } = submission.payload
+				const markdown = content as string
+				const slug = payload.slug as string
+				let metadata = {
+					...oldMetadata,
+					...payload,
+					updatedAt: new Date().toISOString(),
+					status: 'draft',
+				}
+				if (intent === 'publish') {
+					metadata = Object.assign({}, metadata, {
+						publishedAt: new Date().toISOString(),
+						status: 'published',
+					})
+				}
+				const frontmatter = YAML.stringify(metadata).trimEnd()
+				const fileContent = markdown
+					? `---\n${frontmatter}\n---\n\n${markdown}\n`
+					: `---\n${frontmatter}\n---`
+				await writeItemToLocalCollection({
+					collection,
+					format,
+					fileContent,
+					oldSlug:
+						oldMetadata.slug !== payload.slug
+							? oldMetadata.slug
+							: '',
+					slug,
+				})
+				return await readItemInLocalCollection({
+					collection,
+					format,
+					id,
+					schema: createZodSchema({
+						schema: collection.schema,
+						options: { omit: ['content'] },
+					}),
+				})
 			}
 		}
 	}

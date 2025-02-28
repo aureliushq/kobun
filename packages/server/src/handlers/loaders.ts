@@ -54,10 +54,6 @@ export const handleLoader = async ({ config, request }: LoaderHandlerArgs) => {
 				`Collection ${collectionSlug} not found in config`,
 			)
 			const collection = collections[collectionSlug]
-			const schema = createZodSchema({
-				schema: collection.schema,
-				options: { omit: ['content'] },
-			})
 			if (params.section === 'collections') {
 				return readItemsInLocalCollection({ collection, format })
 			}
@@ -67,6 +63,10 @@ export const handleLoader = async ({ config, request }: LoaderHandlerArgs) => {
 			}
 
 			const id = params.id
+			const schema = createZodSchema({
+				schema: collection.schema,
+				options: { omit: ['content'] },
+			})
 			if (params.section === 'editor-edit') {
 				return readItemInLocalCollection({
 					collection,
