@@ -1,4 +1,4 @@
-import type { Config } from '@rescribe/common'
+import { type Config, PATHS } from '@rescribe/common'
 import type { ColumnDef } from '@tanstack/react-table'
 import { type ClassValue, clsx } from 'clsx'
 import { format } from 'date-fns'
@@ -15,7 +15,6 @@ import {
 	TooltipContent,
 	TooltipTrigger,
 } from '~/components/ui/tooltip'
-import { PATHS } from './constants'
 
 export const cn = (...inputs: ClassValue[]) => {
 	const twMerge = extendTailwindMerge({

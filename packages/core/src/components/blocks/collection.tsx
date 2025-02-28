@@ -1,5 +1,6 @@
 import {
 	type Collection as CollectionType,
+	PATHS,
 	createZodSchema,
 } from '@rescribe/common'
 import {
@@ -41,7 +42,6 @@ import {
 	TableHeader,
 	TableRow,
 } from '~/components/ui/table'
-import { PATHS } from '~/lib/constants'
 import { createColumnDefs } from '~/lib/utils'
 import { RescribeContext, type RescribeContextData } from '~/providers'
 

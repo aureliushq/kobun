@@ -1,3 +1,4 @@
+import { PATHS } from '@rescribe/common'
 import {
 	BookOpenIcon,
 	ExternalLinkIcon,
@@ -23,7 +24,6 @@ import {
 	SidebarMenuButton,
 	SidebarMenuItem,
 } from '~/components/ui/sidebar'
-import { PATHS } from '~/lib/constants'
 import { cn } from '~/lib/utils'
 import { RescribeContext, type RescribeContextData } from '~/providers'
 

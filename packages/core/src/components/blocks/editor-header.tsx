@@ -1,3 +1,4 @@
+import { PATHS } from '@rescribe/common'
 import { PanelRightIcon } from 'lucide-react'
 import { type Dispatch, type SetStateAction, useContext } from 'react'
 import { Link } from 'react-router'
@@ -12,7 +13,6 @@ import {
 	BreadcrumbSeparator,
 } from '~/components/ui/breadcrumb'
 import { Button } from '~/components/ui/button'
-import { PATHS } from '~/lib/constants'
 import { RescribeContext, type RescribeContextData } from '~/providers'
 
 const EditorHeader = ({
