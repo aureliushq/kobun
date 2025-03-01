@@ -1,5 +1,5 @@
 {
-	"name": "@rescribe-templates/docs",
+	"name": "@rescribejs-templates/docs",
 	"module": "src/index.ts",
 	"type": "module",
 	"private": true,
