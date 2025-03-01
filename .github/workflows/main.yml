@@ -15,7 +15,6 @@ jobs:
       - uses: actions/setup-node@v3
         with:
           node-version: 22.x
-          cache: "bun"
 
       - run: bun install --frozen-lockfile
       - run: bun run lint && bun run build
