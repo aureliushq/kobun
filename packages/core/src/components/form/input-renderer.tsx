@@ -1,8 +1,4 @@
-import {
-	getTextareaProps,
-	useInputControl,
-	type FieldMetadata,
-} from '@conform-to/react'
+import { getTextareaProps, type FieldMetadata } from '@conform-to/react'
 import {
 	type BooleanField as BooleanFieldType,
 	type Field,
@@ -10,7 +6,7 @@ import {
 	type SchemaKey,
 	type SlugField as SlugFieldType,
 	type TextField as TextFieldType,
-} from '@rescribe/common'
+} from '@rescribejs/common'
 import { BubbleMenu } from '@tiptap/extension-bubble-menu'
 import { CharacterCount } from '@tiptap/extension-character-count'
 import { CodeBlockLowlight } from '@tiptap/extension-code-block-lowlight'

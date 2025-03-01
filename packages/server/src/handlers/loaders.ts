@@ -1,4 +1,4 @@
-import { createZodSchema, parseAdminPathname } from '@rescribe/common'
+import { createZodSchema, parseAdminPathname } from '@rescribejs/common'
 import fg from 'fast-glob'
 import invariant from 'tiny-invariant'
 import {

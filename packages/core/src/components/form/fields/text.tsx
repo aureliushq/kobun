@@ -1,4 +1,4 @@
-import type { TextField as TextFieldType } from '@rescribe/common'
+import type { TextField as TextFieldType } from '@rescribejs/common'
 
 import { Input } from '~/components/ui/input'
 import { Label } from '~/components/ui/label'

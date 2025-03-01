@@ -1,4 +1,4 @@
-import { PATHS } from '@rescribe/common'
+import { PATHS } from '@rescribejs/common'
 import {
 	BookOpenIcon,
 	ExternalLinkIcon,

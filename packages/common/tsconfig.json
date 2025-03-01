@@ -1,6 +1,6 @@
 {
-	"display": "@rescribe/server",
-	"extends": "@rescribe/tsconfig/tsconfig.json",
+	"display": "@rescribejs/common",
+	"extends": "@rescribejs/tsconfig/tsconfig.json",
 	"compilerOptions": {
 		"baseUrl": ".",
 		"paths": {

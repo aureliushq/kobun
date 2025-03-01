@@ -1,4 +1,4 @@
-import type { Config } from '@rescribe/common'
+import type { Config } from '@rescribejs/common'
 import type { ActionFunctionArgs, LoaderFunctionArgs } from 'react-router'
 
 export type ActionHandlerArgs = {

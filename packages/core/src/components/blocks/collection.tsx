@@ -2,7 +2,7 @@ import {
 	type Collection as CollectionType,
 	PATHS,
 	createZodSchema,
-} from '@rescribe/common'
+} from '@rescribejs/common'
 import {
 	type ColumnFiltersState,
 	type Table as ReactTable,

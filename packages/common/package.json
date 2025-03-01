@@ -17,7 +17,7 @@
 	},
 	"peerDependencies": {},
 	"devDependencies": {
-		"@rescribe/tsconfig": "workspace:*",
+		"@rescribejs/tsconfig": "workspace:*",
 		"tsup": "8.3.5",
 		"typescript": "5.6.2"
 	},

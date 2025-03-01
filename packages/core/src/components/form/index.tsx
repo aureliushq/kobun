@@ -1,5 +1,5 @@
 import type { FieldMetadata } from '@conform-to/react'
-import type { ConfigSchema, SchemaKey } from '@rescribe/common'
+import type { ConfigSchema, SchemaKey } from '@rescribejs/common'
 
 import InputRenderer from '~/components/form/input-renderer'
 

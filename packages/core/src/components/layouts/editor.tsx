@@ -1,5 +1,5 @@
 import { useForm } from '@conform-to/react'
-import type { SchemaKey } from '@rescribe/common'
+import type { SchemaKey } from '@rescribejs/common'
 import { useContext, useState } from 'react'
 import { Form as RRForm, useActionData, useLoaderData } from 'react-router'
 import invariant from 'tiny-invariant'

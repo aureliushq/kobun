@@ -1,4 +1,4 @@
-import { type Config, PATHS } from '@rescribe/common'
+import { type Config, PATHS } from '@rescribejs/common'
 import type { ColumnDef } from '@tanstack/react-table'
 import { type ClassValue, clsx } from 'clsx'
 import { format } from 'date-fns'

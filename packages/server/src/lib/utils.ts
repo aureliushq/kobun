@@ -1,5 +1,5 @@
 import fs from 'node:fs/promises'
-import { APP_BASE_PATH, type Collection } from '@rescribe/common'
+import { APP_BASE_PATH, type Collection } from '@rescribejs/common'
 import fg from 'fast-glob'
 import matter from 'gray-matter'
 import type z from 'zod'

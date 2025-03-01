@@ -1,4 +1,4 @@
-import { type Config, parseAdminPathname } from '@rescribe/common'
+import { type Config, parseAdminPathname } from '@rescribejs/common'
 import { type ReactNode, createContext, useMemo } from 'react'
 import { useLocation } from 'react-router'
 import invariant from 'tiny-invariant'

@@ -4,7 +4,7 @@
 	"type": "module",
 	"private": true,
 	"devDependencies": {
-		"@rescribe/tsconfig": "workspace:*"
+		"@rescribejs/tsconfig": "workspace:*"
 	},
 	"peerDependencies": {
 		"typescript": "^5.0.0"

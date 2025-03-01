@@ -1,5 +1,5 @@
 import { parseWithZod } from '@conform-to/zod'
-import { createZodSchema, parseAdminPathname, PATHS } from '@rescribe/common'
+import { createZodSchema, parseAdminPathname, PATHS } from '@rescribejs/common'
 import { customAlphabet } from 'nanoid'
 import { redirect } from 'react-router'
 import invariant from 'tiny-invariant'

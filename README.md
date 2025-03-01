@@ -9,7 +9,7 @@ For the full documentation, visit [rescribe.site](https://rescribe.site/)
 ## Installation
 
 ```bash
-bun add @rescribe/core @rescribe/server
+bun add @rescribejs/core @rescribejs/server
 ```
 
 ## Features

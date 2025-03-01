@@ -1,4 +1,4 @@
-import type { UrlField as UrlFieldType } from '@rescribe/common'
+import type { UrlField as UrlFieldType } from '@rescribejs/common'
 
 import { Input } from '~/components/ui/input'
 import { Label } from '~/components/ui/label'

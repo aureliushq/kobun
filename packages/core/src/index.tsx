@@ -8,4 +8,4 @@ export type {
 	Config,
 	ConfigSchema,
 	SchemaKey,
-} from '@rescribe/common'
+} from '@rescribejs/common'

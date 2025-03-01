@@ -1,4 +1,4 @@
-import type { SlugField as SlugFieldType } from '@rescribe/common'
+import type { SlugField as SlugFieldType } from '@rescribejs/common'
 import { RefreshCcwIcon } from 'lucide-react'
 
 import { Button } from '~/components/ui/button'

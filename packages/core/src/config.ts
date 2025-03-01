@@ -2,7 +2,7 @@ import type {
 	// COLLECTION_SLUG_REGEX,
 	Collection,
 	Config,
-} from '@rescribe/common'
+} from '@rescribejs/common'
 
 export function config(config: Config) {
 	return config

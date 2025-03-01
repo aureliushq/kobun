@@ -1,4 +1,4 @@
-import type { SelectField as SelectFieldType } from '@rescribe/common'
+import type { SelectField as SelectFieldType } from '@rescribejs/common'
 
 import { Label } from '~/components/ui/label'
 import {

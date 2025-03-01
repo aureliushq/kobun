@@ -1,7 +1,7 @@
-import { Rescribe } from '@rescribe/core'
-import { handleActions, handleLoader } from '@rescribe/server'
+import { Rescribe } from '@rescribejs/core'
+import { handleActions, handleLoader } from '@rescribejs/server'
 import rescribeConfig from '~/rescribe.config'
-import '@rescribe/core/rescribe.css'
+import '@rescribejs/core/rescribe.css'
 import type { Route } from './+types/cms'
 
 export const meta: Route.MetaFunction = () => [

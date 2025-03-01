@@ -1,4 +1,4 @@
-# @rescribe/client
+# @rescribejs/client
 
 To install dependencies:
 

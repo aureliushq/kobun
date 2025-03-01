@@ -7,9 +7,9 @@
 	"author": "",
 	"scripts": {
 		"build": "turbo run build",
-		"build:demo": "turbo run build --filter @rescribe/demo",
+		"build:demo": "turbo run build --filter @rescribejs/demo",
 		"check-exports": "turbo run check-exports",
-		"deploy:demo": "turbo run deploy --filter @rescribe/demo",
+		"deploy:demo": "turbo run deploy --filter @rescribejs/demo",
 		"dev": "turbo run dev --parallel",
 		"format": "biome format --write .",
 		"lint": "biome lint --write .",
@@ -25,7 +25,7 @@
 	"engines": {
 		"node": ">=20.0.0"
 	},
-	"packageManager": "bun@1.2.0",
+	"packageManager": "pnpm@9.15.4",
 	"workspaces": ["demo", "packages/*"],
 	"trustedDependencies": ["@biomejs/biome", "esbuild"],
 	"resolutions": {

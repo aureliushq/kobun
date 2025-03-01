@@ -7,7 +7,7 @@ import {
 	type SlugField,
 	type TextField,
 	type UrlField,
-} from '@rescribe/common'
+} from '@rescribejs/common'
 
 export const fields = {
 	boolean: (config: Omit<BooleanField, 'type'>): BooleanField => ({
