@@ -19,19 +19,19 @@ jobs:
         with:
           node-version: 22.x
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
+      - name: Setup Pnpm
+        uses: pnpm/action-setup@v2
         with:
-          version: "latest"
+          version: 9.15.4
 
       - name: Install Dependencies
-        run: bun install --frozen-lockfile
+        run: pnpm install --frozen-lockfile
 
       - name: Create Release Pull Request or Publish
         id: changesets
         uses: changesets/action@v1
         with:
-          publish: bun run release
+          publish: pnpm run release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
