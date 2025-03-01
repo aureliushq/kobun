@@ -1,0 +1,37 @@
+name: Publish
+on:
+  push:
+    branches:
+      - "main"
+
+concurrency: ${{ github.workflow }}-${{ github.ref }}
+
+jobs:
+  build:
+    name: Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Rescribe
+        uses: actions/checkout@v3
+
+      - name: Setup Node v22 LTS
+        uses: actions/setup-node@v3
+        with:
+          node-version: 22.x
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          version: "latest"
+
+      - name: Install Dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Create Release Pull Request or Publish
+        id: changesets
+        uses: changesets/action@v1
+        with:
+          publish: bun run release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
