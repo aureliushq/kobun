@@ -1,5 +1,5 @@
 {
-	"name": "@rescribejs/core",
+	"name": "@runica/core",
 	"version": "0.5.0",
 	"type": "module",
 	"files": ["dist"],
@@ -26,7 +26,7 @@
 		"react-router": "^7.0.0"
 	},
 	"devDependencies": {
-		"@rescribejs/tsconfig": "workspace:*",
+		"@runica/tsconfig": "workspace:*",
 		"@tailwindcss/typography": "0.5.16",
 		"@types/node": "22.10.6",
 		"@types/react": "19.0.1",
@@ -59,7 +59,7 @@
 		"@radix-ui/react-toggle-group": "1.1.1",
 		"@radix-ui/react-toolbar": "1.1.1",
 		"@radix-ui/react-tooltip": "1.1.6",
-		"@rescribejs/common": "workspace:*",
+		"@runica/common": "workspace:*",
 		"@tanstack/react-table": "8.20.6",
 		"@tiptap/core": "2.11.3",
 		"@tiptap/extension-bubble-menu": "2.11.3",

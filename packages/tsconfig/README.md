@@ -1,4 +1,4 @@
-# @rescribejs/tsconfig
+# @runica/tsconfig
 
 To install dependencies:
 

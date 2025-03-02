@@ -1,6 +1,6 @@
 {
-	"display": "@rescribejs/common",
-	"extends": "@rescribejs/tsconfig/tsconfig.json",
+	"display": "@runica/common",
+	"extends": "@runica/tsconfig/tsconfig.json",
 	"compilerOptions": {
 		"baseUrl": ".",
 		"paths": {

@@ -1,4 +1,4 @@
 {
-	"display": "@rescribejs/client",
-	"extends": "@rescribejs/tsconfig/tsconfig.json"
+	"display": "@runica/client",
+	"extends": "@runica/tsconfig/tsconfig.json"
 }

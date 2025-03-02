@@ -1,6 +1,6 @@
 {
 	"$schema": "https://json.schemastore.org/tsconfig",
-	"display": "@rescribejs/core",
+	"display": "@runica/core",
 	"extends": "./base.json",
 	"compilerOptions": {
 		"declaration": true,

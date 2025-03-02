@@ -1,4 +1,4 @@
-import { PATHS } from '@rescribejs/common'
+import { PATHS } from '@runica/common'
 import {
 	BookOpenIcon,
 	ExternalLinkIcon,

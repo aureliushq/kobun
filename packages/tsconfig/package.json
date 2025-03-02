@@ -1,5 +1,5 @@
 {
-	"name": "@rescribejs/tsconfig",
+	"name": "@runica/tsconfig",
 	"version": "0.5.0",
 	"type": "module",
 	"private": true,

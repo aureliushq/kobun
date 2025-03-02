@@ -6,7 +6,7 @@ import {
 	type SchemaKey,
 	type SlugField as SlugFieldType,
 	type TextField as TextFieldType,
-} from '@rescribejs/common'
+} from '@runica/common'
 import { BubbleMenu } from '@tiptap/extension-bubble-menu'
 import { CharacterCount } from '@tiptap/extension-character-count'
 import { CodeBlockLowlight } from '@tiptap/extension-code-block-lowlight'

@@ -12,7 +12,7 @@ const config: Options = {
 	outDir: 'dist',
 	bundle: true,
 	minify: true,
-	name: '@rescribejs/server',
+	name: '@runica/common',
 	external: [],
 }
 

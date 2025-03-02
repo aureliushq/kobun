@@ -1,4 +1,4 @@
-# @rescribejs/client
+# @runica/client
 
 To install dependencies:
 

@@ -1,6 +1,6 @@
 {
-	"display": "@rescribejs/core",
-	"extends": "@rescribejs/tsconfig/core.json",
+	"display": "@runica/core",
+	"extends": "@runica/tsconfig/core.json",
 	"compilerOptions": {
 		"baseUrl": ".",
 		"paths": {

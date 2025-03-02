@@ -1,4 +1,4 @@
-import { collection, config, fields } from '@rescribejs/core'
+import { collection, config, fields } from '@runica/core'
 
 const rescribeConfig = config({
 	basePath: '/rescribe',

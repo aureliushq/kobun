@@ -1,4 +1,4 @@
-import type { DateField as DateFieldType } from '@rescribejs/common'
+import type { DateField as DateFieldType } from '@runica/common'
 import { format } from 'date-fns'
 import { Calendar as CalendarIcon } from 'lucide-react'
 import * as React from 'react'

@@ -1,5 +1,5 @@
 {
-	"name": "@rescribejs-templates/docs",
+	"name": "@runica-templates/docs",
 	"module": "src/index.ts",
 	"type": "module",
 	"private": true,

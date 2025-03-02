@@ -8,4 +8,4 @@ export type {
 	Config,
 	ConfigSchema,
 	SchemaKey,
-} from '@rescribejs/common'
+} from '@runica/common'

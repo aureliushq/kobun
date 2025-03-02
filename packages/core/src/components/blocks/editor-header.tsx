@@ -1,4 +1,4 @@
-import { PATHS } from '@rescribejs/common'
+import { PATHS } from '@runica/common'
 import { PanelRightIcon } from 'lucide-react'
 import { type Dispatch, type SetStateAction, useContext } from 'react'
 import { Link } from 'react-router'

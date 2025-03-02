@@ -7,7 +7,7 @@ import {
 	type SlugField,
 	type TextField,
 	type UrlField,
-} from '@rescribejs/common'
+} from '@runica/common'
 
 export const fields = {
 	boolean: (config: Omit<BooleanField, 'type'>): BooleanField => ({

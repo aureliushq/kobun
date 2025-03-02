@@ -1,4 +1,4 @@
-import type { Config } from '@rescribejs/common'
+import type { Config } from '@runica/common'
 import { useContext } from 'react'
 import invariant from 'tiny-invariant'
 

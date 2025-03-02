@@ -1,4 +1,4 @@
-# @rescribe-templates/blog
+# @runica-templates/blog
 
 To install dependencies:
 

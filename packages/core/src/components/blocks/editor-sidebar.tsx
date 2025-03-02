@@ -1,5 +1,5 @@
 import type { FieldMetadata } from '@conform-to/react'
-import type { ConfigSchema, SchemaKey } from '@rescribejs/common'
+import type { ConfigSchema, SchemaKey } from '@runica/common'
 import type { Dispatch, SetStateAction } from 'react'
 
 import InputRenderer from '~/components/form/input-renderer'

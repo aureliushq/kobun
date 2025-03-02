@@ -1,4 +1,4 @@
-# @rescribe-templates/docs
+# @runica-templates/docs
 
 To install dependencies:
 

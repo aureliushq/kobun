@@ -1,10 +1,10 @@
 {
-	"name": "@rescribejs/client",
+	"name": "@runica/client",
 	"module": "src/index.ts",
 	"type": "module",
 	"private": true,
 	"devDependencies": {
-		"@rescribejs/tsconfig": "workspace:*"
+		"@runica/tsconfig": "workspace:*"
 	},
 	"peerDependencies": {
 		"typescript": "^5.0.0"

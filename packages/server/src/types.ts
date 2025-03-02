@@ -1,4 +1,4 @@
-import type { Config } from '@rescribejs/common'
+import type { Config } from '@runica/common'
 import type { ActionFunctionArgs, LoaderFunctionArgs } from 'react-router'
 
 export type ActionHandlerArgs = {

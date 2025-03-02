@@ -37,10 +37,10 @@ importers:
       '@react-router/serve':
         specifier: ^7.1.1
         version: 7.2.0(react-router@7.1.1(react-dom@19.0.0(react@19.0.0))(react@19.0.0))(typescript@5.8.2)
-      '@rescribejs/core':
+      '@runica/core':
         specifier: workspace:*
         version: link:../packages/core
-      '@rescribejs/server':
+      '@runica/server':
         specifier: workspace:*
         version: link:../packages/server
       class-variance-authority:
@@ -114,7 +114,7 @@ importers:
         specifier: ^5.0.0
         version: 5.8.2
     devDependencies:
-      '@rescribejs/tsconfig':
+      '@runica/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
 
@@ -127,7 +127,7 @@ importers:
         specifier: 3.24.1
         version: 3.24.1
     devDependencies:
-      '@rescribejs/tsconfig':
+      '@runica/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
       tsup:
@@ -199,7 +199,7 @@ importers:
       '@radix-ui/react-tooltip':
         specifier: 1.1.6
         version: 1.1.6(@types/react-dom@19.0.1)(@types/react@19.0.1)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
-      '@rescribejs/common':
+      '@runica/common':
         specifier: workspace:*
         version: link:../common
       '@tanstack/react-table':
@@ -311,7 +311,7 @@ importers:
         specifier: 3.24.1
         version: 3.24.1
     devDependencies:
-      '@rescribejs/tsconfig':
+      '@runica/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
       '@tailwindcss/typography':
@@ -356,7 +356,7 @@ importers:
       '@conform-to/zod':
         specifier: 1.2.2
         version: 1.2.2(zod@3.24.1)
-      '@rescribejs/common':
+      '@runica/common':
         specifier: workspace:*
         version: link:../common
       fast-glob:
@@ -381,7 +381,7 @@ importers:
         specifier: 3.24.1
         version: 3.24.1
     devDependencies:
-      '@rescribejs/tsconfig':
+      '@runica/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
       tsup:

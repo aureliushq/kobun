@@ -12,7 +12,7 @@ const config: Options = {
 	outDir: 'dist',
 	bundle: true,
 	minify: true,
-	name: '@rescribejs/core',
+	name: '@runica/core',
 	external: ['react', 'react-dom', 'react-router'],
 }
 
