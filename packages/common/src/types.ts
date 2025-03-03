@@ -50,14 +50,17 @@ export type BooleanField = BasicField & {
 }
 
 export type DateField = BasicField & {
+	name?: HTMLInputElement['name']
 	type: FieldTypes.DATE
 }
 
 export type DocumentField = BasicField & {
+	name?: HTMLInputElement['name']
 	type: FieldTypes.DOCUMENT
 }
 
 export type ImageField = BasicField & {
+	name?: HTMLInputElement['name']
 	type: FieldTypes.IMAGE
 }
 
@@ -98,6 +101,7 @@ export type TextField = BasicField & {
 
 export type UrlField = BasicField & {
 	htmlType?: HTMLInputElement['type']
+	name?: HTMLInputElement['name']
 	placeholder?: string
 	type: FieldTypes.URL
 }
