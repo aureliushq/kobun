@@ -1,23 +1,20 @@
 import type { SelectField as SelectFieldType } from '@kobun/common'
+import { useState } from 'react'
 
 import { Label } from '~/components/ui/label'
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from '~/components/ui/select'
+import { MultiSelect, type SelectOption } from '~/components/ui/multiselect'
 
 type SelectProps = Omit<SelectFieldType, 'type'>
 
 // TODO: controlled operation
-const SelectField = ({
+const MultiSelectField = ({
 	description,
 	label,
 	options,
 	placeholder = 'Select',
 }: SelectProps) => {
+	const [selected, setSelected] = useState<SelectOption[]>([])
+
 	return (
 		<div className='rs-flex rs-items-center rs-justify-between rs-flex-wrap rs-gap-2 rs-px-2'>
 			<div className='rs-grid rs-gap-1.5 rs-leading-none'>
@@ -28,20 +25,16 @@ const SelectField = ({
 					</p>
 				)}
 			</div>
-			<Select>
-				<SelectTrigger className='rs-w-[180px]'>
-					<SelectValue placeholder={placeholder} />
-				</SelectTrigger>
-				<SelectContent>
-					{options.map((item) => (
-						<SelectItem key={item.value} value={item.value}>
-							{item.label}
-						</SelectItem>
-					))}
-				</SelectContent>
-			</Select>
+			<MultiSelect
+				options={options}
+				value={selected}
+				onChange={setSelected}
+				placeholder={placeholder}
+				className='rs-w-auto rs-max-w-[180px] rs-flex-wrap'
+				emptyMessage='No options available'
+			/>
 		</div>
 	)
 }
 
-export default SelectField
+export default MultiSelectField
