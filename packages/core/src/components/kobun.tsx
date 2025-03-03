@@ -1,4 +1,4 @@
-import type { Config } from '@runica/common'
+import type { Config } from '@kobun/common'
 import { useContext } from 'react'
 import invariant from 'tiny-invariant'
 
@@ -9,9 +9,9 @@ import ComponentReference from '~/components/reference'
 import { TooltipProvider } from '~/components/ui/tooltip'
 import { generateLabelsForCollection } from '~/lib/utils'
 import {
-	RescribeContext,
-	type RescribeContextData,
-	RescribeProvider,
+	KobunContext,
+	type KobunContextData,
+	KobunProvider,
 } from '~/providers'
 
 export type Labels = {
@@ -20,7 +20,7 @@ export type Labels = {
 }
 
 const Root = () => {
-	const { config, params } = useContext<RescribeContextData>(RescribeContext)
+	const { config, params } = useContext<KobunContextData>(KobunContext)
 
 	let labels: Labels | undefined
 	if (
@@ -68,19 +68,19 @@ const Root = () => {
 	return <div>Not Found. Check the URL and make sure there are no typos.</div>
 }
 
-type RescribeProps = RescribeContextData
+type KobunProps = KobunContextData
 
-const Rescribe = ({ config }: RescribeProps) => {
+const Kobun = ({ config }: KobunProps) => {
 	invariant(
 		config,
-		'`config` is required for the Rescribe component. Check the docs to see how to write the configuration.',
+		'`config` is required for the Kobun component. Check the docs to see how to write the configuration.',
 	)
 
 	return (
-		<RescribeProvider config={config}>
+		<KobunProvider config={config}>
 			<Root />
-		</RescribeProvider>
+		</KobunProvider>
 	)
 }
 
-export default Rescribe
+export default Kobun

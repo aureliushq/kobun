@@ -1,4 +1,4 @@
-import { createZodSchema, parseAdminPathname } from '@runica/common'
+import { createZodSchema, parseAdminPathname } from '@kobun/common'
 import fg from 'fast-glob'
 import invariant from 'tiny-invariant'
 import {

@@ -1,7 +1,7 @@
-import { collection, config, fields } from '@runica/core'
+import { collection, config, fields } from '@kobun/core'
 
-const rescribeConfig = config({
-	basePath: '/rescribe',
+const kobunConfig = config({
+	basePath: '/kobun',
 	collections: {
 		articles: collection({
 			features: {
@@ -89,4 +89,4 @@ const rescribeConfig = config({
 	},
 })
 
-export default rescribeConfig
+export default kobunConfig

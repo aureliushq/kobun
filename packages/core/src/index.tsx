@@ -1,11 +1,11 @@
 export * from '~/components/form/fields'
-export { default as Rescribe } from '~/components/rescribe'
+export { default as Kobun } from '~/components/kobun'
 export * from '~/config'
-export { RescribeProvider } from '~/providers'
+export { KobunProvider } from '~/providers'
 export type {
 	Collection,
 	Collections,
 	Config,
 	ConfigSchema,
 	SchemaKey,
-} from '@runica/common'
+} from '@kobun/common'

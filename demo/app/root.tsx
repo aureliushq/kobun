@@ -48,14 +48,14 @@ export const links: Route.LinksFunction = () => [
 ]
 
 export const meta: Route.MetaFunction = () => [
-	{ title: 'Rescribe Demo' },
+	{ title: 'Kobun Demo' },
 	{
 		name: 'description',
 		content: 'Effortlessly build content sites with React Router v7',
 	},
 	{
 		name: 'apple-mobile-web-app-title',
-		content: 'Rescribe',
+		content: 'Kobun',
 	},
 ]
 

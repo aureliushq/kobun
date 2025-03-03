@@ -2,7 +2,7 @@ import {
 	type Collection as CollectionType,
 	PATHS,
 	createZodSchema,
-} from '@runica/common'
+} from '@kobun/common'
 import {
 	type ColumnFiltersState,
 	type Table as ReactTable,
@@ -20,7 +20,7 @@ import { Link, useLoaderData } from 'react-router'
 import invariant from 'tiny-invariant'
 import type z from 'zod'
 
-import type { Labels } from '~/components/rescribe'
+import type { Labels } from '~/components/kobun'
 import { Button } from '~/components/ui/button'
 import {
 	DropdownMenu,
@@ -43,7 +43,7 @@ import {
 	TableRow,
 } from '~/components/ui/table'
 import { createColumnDefs } from '~/lib/utils'
-import { RescribeContext, type RescribeContextData } from '~/providers'
+import { KobunContext, type KobunContextData } from '~/providers'
 
 interface CollectionHeaderProps<TData> {
 	basePath: string
@@ -230,10 +230,10 @@ const Collection = ({
 	collectionSlug: string
 	labels: Labels | undefined
 }) => {
-	const { config } = useContext<RescribeContextData>(RescribeContext)
+	const { config } = useContext<KobunContextData>(KobunContext)
 	invariant(
 		config,
-		'`config` is required for the Rescribe component. Check the docs to see how to write the configuration.',
+		'`config` is required for the Kobun component. Check the docs to see how to write the configuration.',
 	)
 	const basePath = config.basePath ?? ''
 	const collection = config.collections[collectionSlug]

@@ -1,5 +1,5 @@
 {
-	"name": "@runica-templates/docs",
+	"name": "@kobun-templates/docs",
 	"module": "src/index.ts",
 	"type": "module",
 	"private": true,

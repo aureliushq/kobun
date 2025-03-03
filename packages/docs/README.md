@@ -1,4 +1,4 @@
-# @runica-templates/docs
+# @kobun-templates/docs
 
 To install dependencies:
 

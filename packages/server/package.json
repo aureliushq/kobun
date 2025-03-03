@@ -1,5 +1,5 @@
 {
-	"name": "@runica/server",
+	"name": "@kobun/server",
 	"version": "0.5.0",
 	"type": "module",
 	"files": ["dist"],
@@ -19,13 +19,13 @@
 		"react-router": "^7.0.0"
 	},
 	"devDependencies": {
-		"@runica/tsconfig": "workspace:*",
+		"@kobun/tsconfig": "workspace:*",
 		"tsup": "8.3.5",
 		"typescript": "5.6.2"
 	},
 	"dependencies": {
 		"@conform-to/zod": "1.2.2",
-		"@runica/common": "workspace:*",
+		"@kobun/common": "workspace:*",
 		"fast-glob": "3.3.3",
 		"gray-matter": "^4.0.3",
 		"nanoid": "^5.1.2",

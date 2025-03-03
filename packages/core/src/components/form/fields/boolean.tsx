@@ -1,4 +1,4 @@
-import type { BooleanField as BooleanFieldType } from '@runica/common'
+import type { BooleanField as BooleanFieldType } from '@kobun/common'
 
 import { Checkbox } from '~/components/ui/checkbox'
 import { Label } from '~/components/ui/label'

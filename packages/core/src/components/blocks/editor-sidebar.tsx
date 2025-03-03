@@ -1,9 +1,9 @@
 import type { FieldMetadata } from '@conform-to/react'
-import type { ConfigSchema, SchemaKey } from '@runica/common'
+import type { ConfigSchema, SchemaKey } from '@kobun/common'
 import type { Dispatch, SetStateAction } from 'react'
 
 import InputRenderer from '~/components/form/input-renderer'
-import type { Labels } from '~/components/rescribe'
+import type { Labels } from '~/components/kobun'
 import {
 	Sidebar,
 	SidebarContent,

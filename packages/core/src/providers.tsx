@@ -1,23 +1,23 @@
-import { type Config, parseAdminPathname } from '@runica/common'
+import { type Config, parseAdminPathname } from '@kobun/common'
 import { type ReactNode, createContext, useMemo } from 'react'
 import { useLocation } from 'react-router'
 import invariant from 'tiny-invariant'
 
-export type RescribeContextData = {
+export type KobunContextData = {
 	config: Config | null
 	params?: ReturnType<typeof parseAdminPathname>
 }
 
-export const RescribeContext = createContext<RescribeContextData>({
+export const KobunContext = createContext<KobunContextData>({
 	config: null,
 	params: null,
 })
 
-type RescribeProviderProps = RescribeContextData & {
+type KobunProviderProps = KobunContextData & {
 	children: ReactNode
 }
 
-const RescribeProvider = ({ config, children }: RescribeProviderProps) => {
+const KobunProvider = ({ config, children }: KobunProviderProps) => {
 	invariant(
 		config?.collections,
 		'Cannot read collections from configuration. Is is valid?',
@@ -33,10 +33,10 @@ const RescribeProvider = ({ config, children }: RescribeProviderProps) => {
 	}, [config, location.pathname])
 
 	return (
-		<RescribeContext.Provider value={{ config, params }}>
+		<KobunContext.Provider value={{ config, params }}>
 			{children}
-		</RescribeContext.Provider>
+		</KobunContext.Provider>
 	)
 }
 
-export { RescribeProvider }
+export { KobunProvider }

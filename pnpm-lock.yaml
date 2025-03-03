@@ -28,6 +28,12 @@ importers:
 
   demo:
     dependencies:
+      '@kobun/core':
+        specifier: workspace:*
+        version: link:../packages/core
+      '@kobun/server':
+        specifier: workspace:*
+        version: link:../packages/server
       '@radix-ui/react-slot':
         specifier: ^1.1.1
         version: 1.1.1(@types/react@19.0.1)(react@19.0.0)
@@ -37,12 +43,6 @@ importers:
       '@react-router/serve':
         specifier: ^7.1.1
         version: 7.2.0(react-router@7.1.1(react-dom@19.0.0(react@19.0.0))(react@19.0.0))(typescript@5.8.2)
-      '@runica/core':
-        specifier: workspace:*
-        version: link:../packages/core
-      '@runica/server':
-        specifier: workspace:*
-        version: link:../packages/server
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -114,7 +114,7 @@ importers:
         specifier: ^5.0.0
         version: 5.8.2
     devDependencies:
-      '@runica/tsconfig':
+      '@kobun/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
 
@@ -127,7 +127,7 @@ importers:
         specifier: 3.24.1
         version: 3.24.1
     devDependencies:
-      '@runica/tsconfig':
+      '@kobun/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
       tsup:
@@ -145,6 +145,9 @@ importers:
       '@conform-to/zod':
         specifier: 1.2.2
         version: 1.2.2(zod@3.24.1)
+      '@kobun/common':
+        specifier: workspace:*
+        version: link:../common
       '@radix-ui/react-alert-dialog':
         specifier: 1.1.4
         version: 1.1.4(@types/react-dom@19.0.1)(@types/react@19.0.1)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
@@ -199,9 +202,6 @@ importers:
       '@radix-ui/react-tooltip':
         specifier: 1.1.6
         version: 1.1.6(@types/react-dom@19.0.1)(@types/react@19.0.1)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
-      '@runica/common':
-        specifier: workspace:*
-        version: link:../common
       '@tanstack/react-table':
         specifier: 8.20.6
         version: 8.20.6(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
@@ -311,7 +311,7 @@ importers:
         specifier: 3.24.1
         version: 3.24.1
     devDependencies:
-      '@runica/tsconfig':
+      '@kobun/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
       '@tailwindcss/typography':
@@ -356,7 +356,7 @@ importers:
       '@conform-to/zod':
         specifier: 1.2.2
         version: 1.2.2(zod@3.24.1)
-      '@runica/common':
+      '@kobun/common':
         specifier: workspace:*
         version: link:../common
       fast-glob:
@@ -381,7 +381,7 @@ importers:
         specifier: 3.24.1
         version: 3.24.1
     devDependencies:
-      '@runica/tsconfig':
+      '@kobun/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
       tsup:

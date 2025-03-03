@@ -1,5 +1,5 @@
 import type { FieldMetadata } from '@conform-to/react'
-import type { ConfigSchema, SchemaKey } from '@runica/common'
+import type { ConfigSchema, SchemaKey } from '@kobun/common'
 
 import InputRenderer from '~/components/form/input-renderer'
 

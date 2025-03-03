@@ -4,7 +4,7 @@ import { Button } from '~/components/ui/button'
 import type { Route } from './+types/home'
 
 export const meta: Route.MetaFunction = () => [
-	{ title: 'Rescribe Demo' },
+	{ title: 'Kobun Demo' },
 	{
 		name: 'description',
 		content: 'Effortlessly build content sites with React Router v7',
@@ -17,7 +17,7 @@ const Home = () => {
 			<main className='flex flex-col gap-8 row-start-2 px-4'>
 				<img
 					src='/logo-dark.png'
-					alt='Rescribe logo'
+					alt='Kobun logo'
 					width={180}
 					height={38}
 				/>
@@ -25,7 +25,7 @@ const Home = () => {
 					<li>
 						Get started by editing{' '}
 						<code className='px-1 py-2 rounded-[4px] font-semibold'>
-							rescribe.config.ts
+							kobun.config.ts
 						</code>
 						.
 					</li>
@@ -33,16 +33,16 @@ const Home = () => {
 				</ol>
 
 				<div className='flex gap-4'>
-					<Link to='/rescribe' rel='noopener noreferrer'>
-						<Button size='sm'>Go to Rescribe</Button>
+					<Link to='/kobun' rel='noopener noreferrer'>
+						<Button size='sm'>Go to Kobun</Button>
 					</Link>
 					<Link
-						to='https://rescribe.site/docs'
+						to='https://kobun.dev/docs'
 						target='_blank'
 						rel='noopener noreferrer'
 					>
 						<Button size='sm' variant='secondary'>
-							Rescribe Documentation
+							Kobun Documentation
 						</Button>
 					</Link>
 				</div>

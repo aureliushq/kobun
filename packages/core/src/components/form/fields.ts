@@ -7,7 +7,7 @@ import {
 	type SlugField,
 	type TextField,
 	type UrlField,
-} from '@runica/common'
+} from '@kobun/common'
 
 export const fields = {
 	boolean: (config: Omit<BooleanField, 'type'>): BooleanField => ({

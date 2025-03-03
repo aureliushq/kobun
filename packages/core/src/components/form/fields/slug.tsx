@@ -1,4 +1,4 @@
-import type { SlugField as SlugFieldType } from '@runica/common'
+import type { SlugField as SlugFieldType } from '@kobun/common'
 import { RefreshCcwIcon } from 'lucide-react'
 
 import { Button } from '~/components/ui/button'

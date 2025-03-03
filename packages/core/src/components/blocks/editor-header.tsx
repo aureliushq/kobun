@@ -1,4 +1,4 @@
-import { PATHS } from '@runica/common'
+import { PATHS } from '@kobun/common'
 import { PanelRightIcon } from 'lucide-react'
 import { type Dispatch, type SetStateAction, useContext } from 'react'
 import { Link } from 'react-router'
@@ -13,7 +13,7 @@ import {
 	BreadcrumbSeparator,
 } from '~/components/ui/breadcrumb'
 import { Button } from '~/components/ui/button'
-import { RescribeContext, type RescribeContextData } from '~/providers'
+import { KobunContext, type KobunContextData } from '~/providers'
 
 const EditorHeader = ({
 	collectionSlug,
@@ -28,7 +28,7 @@ const EditorHeader = ({
 	openCollectionSettings: boolean
 	setOpenCollectionSettings: Dispatch<SetStateAction<boolean>>
 }) => {
-	const { config, params } = useContext<RescribeContextData>(RescribeContext)
+	const { config, params } = useContext<KobunContextData>(KobunContext)
 	invariant(config, '`config` is required.')
 	invariant(
 		config?.collections[collectionSlug],

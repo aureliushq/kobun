@@ -1,4 +1,4 @@
-import type { DateField as DateFieldType } from '@runica/common'
+import type { DateField as DateFieldType } from '@kobun/common'
 import { format } from 'date-fns'
 import { Calendar as CalendarIcon } from 'lucide-react'
 import * as React from 'react'

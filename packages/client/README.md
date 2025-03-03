@@ -1,4 +1,4 @@
-# @runica/client
+# @kobun/client
 
 To install dependencies:
 

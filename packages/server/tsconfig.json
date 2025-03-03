@@ -1,6 +1,6 @@
 {
-	"display": "@runica/server",
-	"extends": "@runica/tsconfig/tsconfig.json",
+	"display": "@kobun/server",
+	"extends": "@kobun/tsconfig/tsconfig.json",
 	"compilerOptions": {
 		"baseUrl": ".",
 		"paths": {

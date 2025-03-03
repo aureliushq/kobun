@@ -1,14 +1,14 @@
 import { useForm } from '@conform-to/react'
-import type { SchemaKey } from '@runica/common'
+import type { SchemaKey } from '@kobun/common'
 import { useContext, useState } from 'react'
 import { Form as RRForm, useActionData, useLoaderData } from 'react-router'
 import invariant from 'tiny-invariant'
 
 import EditorHeader from '~/components/blocks/editor-header'
 import Form from '~/components/form'
-import type { Labels } from '~/components/rescribe'
+import type { Labels } from '~/components/kobun'
 import { ScrollArea } from '~/components/ui/scroll-area'
-import { RescribeContext, type RescribeContextData } from '~/providers'
+import { KobunContext, type KobunContextData } from '~/providers'
 import { SidebarProvider } from '~/components/ui/sidebar'
 import EditorSidebar from '~/components/blocks/editor-sidebar'
 
@@ -20,7 +20,7 @@ const EditorLayout = ({
 	labels: Labels | undefined
 }) => {
 	const lastResult = useActionData()
-	const { config } = useContext<RescribeContextData>(RescribeContext)
+	const { config } = useContext<KobunContextData>(KobunContext)
 	invariant(
 		config?.collections[collectionSlug],
 		'Collection not found in config',

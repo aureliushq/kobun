@@ -1,4 +1,4 @@
 {
-	"display": "@runica/client",
-	"extends": "@runica/tsconfig/tsconfig.json"
+	"display": "@kobun/client",
+	"extends": "@kobun/tsconfig/tsconfig.json"
 }

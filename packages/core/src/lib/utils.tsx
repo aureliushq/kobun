@@ -1,4 +1,4 @@
-import { type Config, PATHS } from '@runica/common'
+import { type Config, PATHS } from '@kobun/common'
 import type { ColumnDef } from '@tanstack/react-table'
 import { type ClassValue, clsx } from 'clsx'
 import { format } from 'date-fns'
@@ -8,7 +8,7 @@ import { Link } from 'react-router'
 import { extendTailwindMerge } from 'tailwind-merge'
 import z from 'zod'
 
-import type { Labels } from '~/components/rescribe'
+import type { Labels } from '~/components/kobun'
 import { Button } from '~/components/ui/button'
 import {
 	Tooltip,

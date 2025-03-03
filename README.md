@@ -1,15 +1,15 @@
-# Rescribe
+# Kobun
 
 Content manager for React Router v7 websites
 
 ## Documentation
 
-For the full documentation, visit [rescribe.site](https://rescribe.site/)
+For the full documentation, visit [kobun.dev](https://kobun.dev/)
 
 ## Installation
 
 ```bash
-bun add @rescribejs/core @rescribejs/server
+bun add @kobun/core @kobun/server
 ```
 
 ## Features

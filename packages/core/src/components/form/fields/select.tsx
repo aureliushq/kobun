@@ -1,4 +1,4 @@
-import type { SelectField as SelectFieldType } from '@runica/common'
+import type { SelectField as SelectFieldType } from '@kobun/common'
 
 import { Label } from '~/components/ui/label'
 import {

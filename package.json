@@ -1,5 +1,5 @@
 {
-	"name": "runica-monorepo",
+	"name": "kobun-monorepo",
 	"version": "0.1.0",
 	"private": true,
 	"description": "",
@@ -7,9 +7,9 @@
 	"author": "",
 	"scripts": {
 		"build": "turbo run build",
-		"build:demo": "turbo run build --filter @runica/demo",
+		"build:demo": "turbo run build --filter @kobun/demo",
 		"check-exports": "turbo run check-exports",
-		"deploy:demo": "turbo run deploy --filter @runica/demo",
+		"deploy:demo": "turbo run deploy --filter @kobun/demo",
 		"dev": "turbo run dev --parallel",
 		"format": "biome format --write .",
 		"lint": "biome lint --write .",

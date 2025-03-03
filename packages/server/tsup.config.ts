@@ -12,7 +12,7 @@ const config: Options = {
 	outDir: 'dist',
 	bundle: true,
 	minify: true,
-	name: '@runica/server',
+	name: '@kobun/server',
 	external: [],
 }
 

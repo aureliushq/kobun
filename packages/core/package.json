@@ -1,5 +1,5 @@
 {
-	"name": "@runica/core",
+	"name": "@kobun/core",
 	"version": "0.5.0",
 	"type": "module",
 	"files": ["dist"],
@@ -9,7 +9,7 @@
 	"types": "./dist/index.d.ts",
 	"exports": {
 		".": "./dist/index.js",
-		"./rescribe.css": "./dist/index.css"
+		"./kobun.css": "./dist/index.css"
 	},
 	"scripts": {
 		"build": "pnpm run build:css && pnpm run build:lib",
@@ -26,7 +26,7 @@
 		"react-router": "^7.0.0"
 	},
 	"devDependencies": {
-		"@runica/tsconfig": "workspace:*",
+		"@kobun/tsconfig": "workspace:*",
 		"@tailwindcss/typography": "0.5.16",
 		"@types/node": "22.10.6",
 		"@types/react": "19.0.1",
@@ -59,7 +59,7 @@
 		"@radix-ui/react-toggle-group": "1.1.1",
 		"@radix-ui/react-toolbar": "1.1.1",
 		"@radix-ui/react-tooltip": "1.1.6",
-		"@runica/common": "workspace:*",
+		"@kobun/common": "workspace:*",
 		"@tanstack/react-table": "8.20.6",
 		"@tiptap/core": "2.11.3",
 		"@tiptap/extension-bubble-menu": "2.11.3",

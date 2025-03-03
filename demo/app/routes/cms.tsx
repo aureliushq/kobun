@@ -1,11 +1,11 @@
-import { Rescribe } from '@runica/core'
-import { handleActions, handleLoader } from '@runica/server'
-import rescribeConfig from '~/rescribe.config'
-import '@runica/core/rescribe.css'
+import { Kobun } from '@kobun/core'
+import { handleActions, handleLoader } from '@kobun/server'
+import kobunConfig from '~/kobun.config'
+import '@kobun/core/kobun.css'
 import type { Route } from './+types/cms'
 
 export const meta: Route.MetaFunction = () => [
-	{ title: 'Rescribe Demo' },
+	{ title: 'Kobun Demo' },
 	{
 		name: 'description',
 		content: 'Effortlessly build content sites with React Router v7',
@@ -13,13 +13,13 @@ export const meta: Route.MetaFunction = () => [
 ]
 
 export const action = async (args: Route.ActionArgs) =>
-	handleActions({ ...args, config: rescribeConfig })
+	handleActions({ ...args, config: kobunConfig })
 
 export const loader = async (args: Route.LoaderArgs) =>
-	handleLoader({ ...args, config: rescribeConfig })
+	handleLoader({ ...args, config: kobunConfig })
 
 const CMS = () => {
-	return <Rescribe config={rescribeConfig} />
+	return <Kobun config={kobunConfig} />
 }
 
 export default CMS

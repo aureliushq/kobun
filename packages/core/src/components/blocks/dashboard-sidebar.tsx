@@ -1,4 +1,4 @@
-import { PATHS } from '@runica/common'
+import { PATHS } from '@kobun/common'
 import {
 	BookOpenIcon,
 	ExternalLinkIcon,
@@ -25,10 +25,10 @@ import {
 	SidebarMenuItem,
 } from '~/components/ui/sidebar'
 import { cn } from '~/lib/utils'
-import { RescribeContext, type RescribeContextData } from '~/providers'
+import { KobunContext, type KobunContextData } from '~/providers'
 
 const DashboardSidebar = () => {
-	const { config } = useContext<RescribeContextData>(RescribeContext)
+	const { config } = useContext<KobunContextData>(KobunContext)
 	invariant(config, '`config` is required.')
 
 	const location = useLocation()
@@ -165,7 +165,7 @@ const DashboardSidebar = () => {
 							<SidebarMenuButton asChild>
 								<a
 									className='rs-group/docs'
-									href='https://rescribe.site/docs'
+									href='https://kobun.dev/docs'
 									rel='noreferrer'
 									target='_blank'
 								>

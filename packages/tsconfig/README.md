@@ -1,4 +1,4 @@
-# @runica/tsconfig
+# @kobun/tsconfig
 
 To install dependencies:
 

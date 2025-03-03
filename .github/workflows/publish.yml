@@ -11,7 +11,7 @@ jobs:
     name: Release
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Rescribe
+      - name: Checkout Kobun
         uses: actions/checkout@v3
 
       - name: Setup Node v22 LTS

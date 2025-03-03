@@ -1,4 +1,4 @@
-import type { Config } from '@runica/common'
+import type { Config } from '@kobun/common'
 import type { ActionFunctionArgs, LoaderFunctionArgs } from 'react-router'
 
 export type ActionHandlerArgs = {

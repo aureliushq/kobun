@@ -12,7 +12,7 @@ const config: Options = {
 	outDir: 'dist',
 	bundle: true,
 	minify: true,
-	name: '@runica/core',
+	name: '@kobun/core',
 	external: ['react', 'react-dom', 'react-router'],
 }
 

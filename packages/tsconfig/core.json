@@ -1,6 +1,6 @@
 {
 	"$schema": "https://json.schemastore.org/tsconfig",
-	"display": "@runica/core",
+	"display": "@kobun/core",
 	"extends": "./base.json",
 	"compilerOptions": {
 		"declaration": true,

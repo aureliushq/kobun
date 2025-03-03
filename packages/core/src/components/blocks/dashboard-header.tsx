@@ -14,10 +14,10 @@ import {
 import { Button } from '~/components/ui/button'
 import { SIDEBAR_WIDTH } from '~/components/ui/sidebar'
 import { Toggle } from '~/components/ui/toggle'
-import { RescribeContext, type RescribeContextData } from '~/providers'
+import { KobunContext, type KobunContextData } from '~/providers'
 
 const DashboardHeader = () => {
-	const { config, params } = useContext<RescribeContextData>(RescribeContext)
+	const { config, params } = useContext<KobunContextData>(KobunContext)
 	invariant(config, '`config` is required.')
 
 	const basePath = config.basePath ?? ''
@@ -69,7 +69,7 @@ const DashboardHeader = () => {
 			</Breadcrumb>
 			<section className='rs-flex rs-items-center rs-gap-2'>
 				<a
-					href='https://github.com/aureliushq/rescribe'
+					href='https://github.com/aureliushq/kobun'
 					rel='noreferrer'
 					target='_blank'
 				>

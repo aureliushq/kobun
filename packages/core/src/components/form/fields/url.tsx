@@ -1,4 +1,4 @@
-import type { UrlField as UrlFieldType } from '@runica/common'
+import type { UrlField as UrlFieldType } from '@kobun/common'
 
 import { Input } from '~/components/ui/input'
 import { Label } from '~/components/ui/label'
