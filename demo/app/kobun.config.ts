@@ -1,5 +1,30 @@
 import { collection, config, fields } from '@kobun/core'
 
+const AUTHOR_OPTIONS = [{ label: 'James Holden', value: 'james-holden' }]
+
+const TAG_OPTIONS = [
+	{ label: 'side-projects', value: 'side-projects' },
+	{ label: 'workflow', value: 'workflow' },
+	{ label: 'productivity', value: 'productivity' },
+	{ label: 'learning', value: 'learning' },
+	{ label: 'local-first', value: 'local-first' },
+	{ label: 'opinion', value: 'opinion' },
+	{ label: 'typescript', value: 'typescript' },
+	{ label: 'remix', value: 'remix' },
+	{ label: 'react', value: 'react' },
+	{
+		label: 'golang',
+		value: 'golang',
+	},
+	{
+		label: 'rust',
+		value: 'rust',
+	},
+	{ label: 'books', value: 'books' },
+	{ label: 'journal', value: 'journal' },
+	{ label: 'open-source', value: 'open-source' },
+]
+
 const kobunConfig = config({
 	basePath: '/kobun',
 	collections: {
@@ -28,6 +53,14 @@ const kobunConfig = config({
 				excerpt: fields.text({
 					label: 'Excerpt',
 					multiline: true,
+				}),
+				author: fields.select({
+					label: 'Author',
+					options: AUTHOR_OPTIONS,
+				}),
+				tags: fields.multiselect({
+					label: 'Tags',
+					options: TAG_OPTIONS,
 				}),
 			},
 		}),
@@ -77,6 +110,14 @@ const kobunConfig = config({
 					title: {
 						key: 'title',
 					},
+				}),
+				author: fields.select({
+					label: 'Author',
+					options: AUTHOR_OPTIONS,
+				}),
+				tags: fields.multiselect({
+					label: 'Tags',
+					options: TAG_OPTIONS,
 				}),
 			},
 		}),
