@@ -5,6 +5,7 @@ import * as React from 'react'
 
 import { Button } from '~/components/ui/button'
 import { Calendar } from '~/components/ui/calendar'
+import { Input } from '~/components/ui/input'
 import { Label } from '~/components/ui/label'
 import {
 	Popover,
@@ -16,11 +17,11 @@ import { cn } from '~/lib/utils'
 type DateProps = Omit<DateFieldType, 'type'>
 
 // TODO: controlled operation
-const DateField = ({ description, label }: DateProps) => {
+const DateField = ({ description, label, ...rest }: DateProps) => {
 	const [date, setDate] = React.useState<Date>()
 
 	return (
-		<div className='rs-flex rs-items-center rs-justify-between rs-flex-wrap rs-gap-2'>
+		<div className='rs-flex rs-items-center rs-justify-between rs-flex-wrap rs-gap-2 rs-px-2'>
 			<div className='rs-grid rs-gap-1.5 rs-leading-none'>
 				<Label>{label}</Label>
 				{description && (
@@ -29,6 +30,11 @@ const DateField = ({ description, label }: DateProps) => {
 					</p>
 				)}
 			</div>
+			<Input
+				className='rs-hidden'
+				{...rest}
+				value={date?.toISOString()}
+			/>
 			<Popover>
 				<PopoverTrigger asChild>
 					<Button

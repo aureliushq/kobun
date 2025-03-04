@@ -20,6 +20,7 @@ export const createZodSchema = <T extends ConfigSchema<SchemaKey>>({
 	schema: T
 	options?: {
 		omit?: (keyof T)[]
+		type?: 'action' | 'loader'
 	}
 }): z.ZodType => {
 	const getFieldSchema = (field: Field): z.ZodType => {
@@ -35,11 +36,21 @@ export const createZodSchema = <T extends ConfigSchema<SchemaKey>>({
 			case FieldTypes.URL:
 				return z.string()
 			case FieldTypes.SELECT:
-				return z.object({ label: z.string(), value: z.string() })
+				return z.string()
 			case FieldTypes.MULTISELECT:
-				return z.array(
-					z.object({ label: z.string(), value: z.string() }),
-				)
+				if (options?.type === 'action') {
+					// this preprocessor is used to convert the string to an array of strings
+					// but it doesn't work so I'm manually transforming the string to an array of strings
+					// with the transformMultiselectFields function in @kobun/server
+					return z.preprocess((val) => {
+						if (typeof val === 'string') {
+							return val.split(',').map((item) => item.trim())
+						}
+						return val
+					}, z.array(z.string()))
+				}
+
+				return z.array(z.string()).transform((val) => val.join(','))
 		}
 	}
 

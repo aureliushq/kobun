@@ -1,11 +1,15 @@
-import { getTextareaProps, type FieldMetadata } from '@conform-to/react'
+import type { FieldMetadata } from '@conform-to/react'
 import {
 	type BooleanField as BooleanFieldType,
+	type DateField as DateFieldType,
 	type Field,
 	FieldTypes,
+	type MultiSelectField as MultiSelectFieldType,
 	type SchemaKey,
+	type SelectField as SelectFieldType,
 	type SlugField as SlugFieldType,
 	type TextField as TextFieldType,
+	type UrlField as UrlFieldType,
 } from '@kobun/common'
 import { BubbleMenu } from '@tiptap/extension-bubble-menu'
 import { CharacterCount } from '@tiptap/extension-character-count'
@@ -26,8 +30,12 @@ import { Markdown } from 'tiptap-markdown'
 
 import Editor from '~/components/editor'
 import BooleanField from '~/components/form/fields/boolean'
+import DateField from '~/components/form/fields/date'
+import MultiSelectField from '~/components/form/fields/multiselect'
+import SelectField from '~/components/form/fields/select'
 import SlugField from '~/components/form/fields/slug'
 import TextField from '~/components/form/fields/text'
+import UrlField from '~/components/form/fields/url'
 import { Textarea } from '~/components/ui/textarea'
 
 const lowlight = createLowlight(common)
@@ -178,6 +186,17 @@ const InputRenderer = ({
 				/>
 			)
 		}
+		case FieldTypes.DATE: {
+			const data = fieldData as DateFieldType
+
+			return (
+				<DateField
+					description={data.description}
+					label={data.label}
+					name={fieldMetadata.name}
+				/>
+			)
+		}
 		case FieldTypes.DOCUMENT: {
 			return (
 				<>
@@ -185,12 +204,48 @@ const InputRenderer = ({
 						bodyFont={settings.bodyFont}
 						editor={editor as TiptapEditor}
 					/>
-					<textarea
+					<Textarea
 						className='rs-hidden'
-						{...getTextareaProps(fieldMetadata)}
+						name={fieldMetadata.name}
 						ref={editorRef}
 					/>
 				</>
+			)
+		}
+		case FieldTypes.MULTISELECT: {
+			const data = fieldData as MultiSelectFieldType
+
+			return (
+				<MultiSelectField
+					defaultOptions={
+						data.defaultOptions ||
+						(fieldMetadata.value as string[]) ||
+						[]
+					}
+					description={data.description}
+					label={data.label}
+					name={fieldMetadata.name}
+					options={data.options}
+					placeholder={data.placeholder}
+				/>
+			)
+		}
+		case FieldTypes.SELECT: {
+			const data = fieldData as SelectFieldType
+
+			return (
+				<SelectField
+					defaultOption={
+						data.defaultOption ||
+						(fieldMetadata.value as string) ||
+						''
+					}
+					description={data.description}
+					label={data.label}
+					name={fieldMetadata.name}
+					options={data.options}
+					placeholder={data.placeholder}
+				/>
 			)
 		}
 		case FieldTypes.SLUG: {
@@ -237,6 +292,18 @@ const InputRenderer = ({
 					label={data.label}
 					multiline={data.multiline}
 					name={fieldMetadata.name}
+				/>
+			)
+		}
+		case FieldTypes.URL: {
+			const data = fieldData as UrlFieldType
+
+			return (
+				<UrlField
+					description={data.description}
+					label={data.label}
+					name={fieldMetadata.name}
+					placeholder={data.placeholder}
 				/>
 			)
 		}

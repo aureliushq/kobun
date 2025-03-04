@@ -1,5 +1,11 @@
 import fs from 'node:fs/promises'
-import { APP_BASE_PATH, type Collection } from '@kobun/common'
+import {
+	APP_BASE_PATH,
+	type FieldTypes,
+	type Collection,
+	type ConfigSchema,
+	type SchemaKey,
+} from '@kobun/common'
 import fg from 'fast-glob'
 import matter from 'gray-matter'
 import type z from 'zod'
@@ -98,4 +104,29 @@ export const writeItemToLocalCollection = async ({
 		}
 		await fs.writeFile(path, fileContent)
 	}
+}
+
+// Takes a payload and the collection schema, returns a transformed payload
+export const transformMultiselectFields = <T extends SchemaKey>(
+	payload: { [k: string]: unknown },
+	collectionSchema: ConfigSchema<T>,
+) => {
+	const transformed = { ...payload }
+
+	// biome-ignore lint/complexity/noForEach: <explanation>
+	Object.entries(collectionSchema).forEach(([key, field]) => {
+		// @ts-ignore
+		const fieldType = field.type as FieldTypes
+		if (
+			fieldType === 'multiselect' &&
+			typeof payload[key] === 'string' &&
+			payload[key]
+		) {
+			transformed[key] = payload[key]
+				.split(',')
+				.map((item) => item.trim())
+		}
+	})
+
+	return transformed
 }

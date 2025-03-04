@@ -65,7 +65,7 @@ export const handleLoader = async ({ config, request }: LoaderHandlerArgs) => {
 			const id = params.id
 			const schema = createZodSchema({
 				schema: collection.schema,
-				options: { omit: ['content'] },
+				options: { omit: ['content'], type: 'loader' },
 			})
 			if (params.section === 'editor-edit') {
 				return readItemInLocalCollection({

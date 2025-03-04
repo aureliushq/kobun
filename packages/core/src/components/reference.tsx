@@ -4,6 +4,7 @@ import SelectField from '~/components/form/fields/select'
 import SlugField from '~/components/form/fields/slug'
 import TextField from '~/components/form/fields/text'
 import UrlField from '~/components/form/fields/url'
+import MultiSelectField from './form/fields/multiselect'
 
 const ComponentReference = () => {
 	return (
@@ -26,6 +27,20 @@ const ComponentReference = () => {
 				description='Set the date when the article was published.'
 				label='Published At'
 			/>
+			<MultiSelectField
+				description='Select tags'
+				label='Tags'
+				options={[
+					{ label: 'Books', value: 'books' },
+					{ label: 'Go', value: 'go' },
+					{ label: 'JavaScript', value: 'javascript' },
+					{ label: 'Odin', value: 'odin' },
+					{ label: 'Opinion', value: 'opinion' },
+					{ label: 'Rust', value: 'rust' },
+					{ label: 'TypeScript', value: 'typescript' },
+				]}
+				placeholder='Select tags'
+			/>
 			<SelectField
 				description='Set if the series is ongoing or completed.'
 				label='Status'
@@ -39,7 +54,7 @@ const ComponentReference = () => {
 				description='Your work email'
 				label='Email'
 				placeholder='anakin@not-a-jedi-master.com'
-				type='email'
+				htmlType='email'
 			/>
 			<TextField
 				description='Let us know if we can do better'

@@ -4,8 +4,10 @@ import { customAlphabet } from 'nanoid'
 import { redirect } from 'react-router'
 import invariant from 'tiny-invariant'
 import YAML from 'yaml'
+import { z } from 'zod'
 import {
 	readItemInLocalCollection,
+	transformMultiselectFields,
 	writeItemToLocalCollection,
 } from '~/lib/utils'
 
@@ -47,8 +49,10 @@ export const handleActions = async ({ config, request }: ActionHandlerArgs) => {
 			const formData = await request.formData()
 			const schema = createZodSchema({
 				schema: collection.schema,
+				options: { type: 'action' },
 			})
 			if (params.section === 'editor-create') {
+				// TODO: check if parseWithZod is successful and only then create the file
 				const submission = parseWithZod(formData, { schema })
 				const id = nanoid()
 				const { content = '', intent, ...payload } = submission.payload
@@ -89,13 +93,18 @@ export const handleActions = async ({ config, request }: ActionHandlerArgs) => {
 					id,
 					schema: createZodSchema({
 						schema: collection.schema,
-						options: { omit: ['content'] },
+						options: { omit: ['content'], type: 'loader' },
 					}),
 				})
 				const { content: oldContent = '', ...oldMetadata } = data
 
 				const submission = parseWithZod(formData, { schema })
-				const { content = '', intent, ...payload } = submission.payload
+				// manually transform multiselect fields since parseWithZod is not doing it correctly
+				const transformedPayload = transformMultiselectFields(
+					submission.payload,
+					collection.schema,
+				)
+				const { content = '', intent, ...payload } = transformedPayload
 				const markdown = content as string
 				const slug = payload.slug as string
 				let metadata = {
@@ -130,7 +139,7 @@ export const handleActions = async ({ config, request }: ActionHandlerArgs) => {
 					id,
 					schema: createZodSchema({
 						schema: collection.schema,
-						options: { omit: ['content'] },
+						options: { omit: ['content'], type: 'loader' },
 					}),
 				})
 			}

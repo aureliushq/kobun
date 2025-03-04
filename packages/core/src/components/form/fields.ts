@@ -1,5 +1,6 @@
 import {
 	FieldTypes,
+	type MultiSelectField,
 	type BooleanField,
 	type DateField,
 	type DocumentField,
@@ -30,10 +31,12 @@ export const fields = {
 	//   type: FieldTypes.IMAGE,
 	// }),
 
-	// multiselect: (config: Omit<MultiSelectField, "type">): MultiSelectField => ({
-	//   ...config,
-	//   type: FieldTypes.MULTISELECT,
-	// }),
+	multiselect: (
+		config: Omit<MultiSelectField, 'type'>,
+	): MultiSelectField => ({
+		...config,
+		type: FieldTypes.MULTISELECT,
+	}),
 
 	select: (config: Omit<SelectField, 'type'>): SelectField => ({
 		...config,

@@ -6,6 +6,7 @@ export type {
 	BooleanField,
 	DateField,
 	DocumentField,
+	MultiSelectField,
 	SelectOption,
 	SelectField,
 	SlugField,
@@ -13,9 +14,9 @@ export type {
 	UrlField,
 	Field,
 	ConfigSchema,
-	SchemaKey,
 	Collection,
 	Collections,
+	SchemaKey,
 	Storage,
 	Config,
 } from '~/types'

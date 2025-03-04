@@ -50,14 +50,17 @@ export type BooleanField = BasicField & {
 }
 
 export type DateField = BasicField & {
+	name?: HTMLInputElement['name']
 	type: FieldTypes.DATE
 }
 
 export type DocumentField = BasicField & {
+	name?: HTMLInputElement['name']
 	type: FieldTypes.DOCUMENT
 }
 
 export type ImageField = BasicField & {
+	name?: HTMLInputElement['name']
 	type: FieldTypes.IMAGE
 }
 
@@ -67,6 +70,7 @@ export type SelectOption = {
 }
 
 export type MultiSelectField = BasicField & {
+	defaultOptions?: string[]
 	name?: HTMLInputElement['name']
 	options: SelectOption[]
 	placeholder?: string
@@ -74,6 +78,7 @@ export type MultiSelectField = BasicField & {
 }
 
 export type SelectField = BasicField & {
+	defaultOption?: string
 	name?: HTMLInputElement['name']
 	options: SelectOption[]
 	placeholder?: string
@@ -98,6 +103,7 @@ export type TextField = BasicField & {
 
 export type UrlField = BasicField & {
 	htmlType?: HTMLInputElement['type']
+	name?: HTMLInputElement['name']
 	placeholder?: string
 	type: FieldTypes.URL
 }
