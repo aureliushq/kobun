@@ -1,22 +1,31 @@
-import type { SelectField as SelectFieldType } from '@kobun/common'
+import type {
+	MultiSelectField as MultiSelectFieldType,
+	SelectOption,
+} from '@kobun/common'
 import { useState } from 'react'
 
+import { Input } from '~/components/ui/input'
 import { Label } from '~/components/ui/label'
-import { MultiSelect, type SelectOption } from '~/components/ui/multiselect'
+import { MultiSelect } from '~/components/ui/multiselect'
 
-type SelectProps = Omit<SelectFieldType, 'type'>
+type MultiSelectProps = Omit<MultiSelectFieldType, 'type'>
 
-// TODO: controlled operation
 const MultiSelectField = ({
 	description,
 	label,
 	options,
 	placeholder = 'Select',
-}: SelectProps) => {
-	const [selected, setSelected] = useState<SelectOption[]>([])
+	...rest
+}: MultiSelectProps) => {
+	const defaultOptions = options.filter((option) =>
+		rest.defaultOptions?.includes(option.value),
+	)
+	const [selected, setSelected] = useState<SelectOption[]>(
+		defaultOptions || [],
+	)
 
 	return (
-		<div className='rs-flex rs-items-center rs-justify-between rs-flex-wrap rs-gap-2 rs-px-2'>
+		<div className='rs-w-full rs-flex rs-flex-col rs-items-start rs-gap-2 rs-px-2'>
 			<div className='rs-grid rs-gap-1.5 rs-leading-none'>
 				<Label>{label}</Label>
 				{description && (
@@ -25,12 +34,17 @@ const MultiSelectField = ({
 					</p>
 				)}
 			</div>
+			<Input
+				className='rs-hidden'
+				{...rest}
+				value={selected.map((option) => option.value).join(',')}
+			/>
 			<MultiSelect
 				options={options}
 				value={selected}
 				onChange={setSelected}
 				placeholder={placeholder}
-				className='rs-w-auto rs-max-w-[180px] rs-flex-wrap'
+				className='rs-w-full rs-flex-wrap'
 				emptyMessage='No options available'
 			/>
 		</div>

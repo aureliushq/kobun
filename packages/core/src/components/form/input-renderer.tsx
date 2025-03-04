@@ -217,6 +217,11 @@ const InputRenderer = ({
 
 			return (
 				<MultiSelectField
+					defaultOptions={
+						data.defaultOptions ||
+						(fieldMetadata.value as string[]) ||
+						[]
+					}
 					description={data.description}
 					label={data.label}
 					name={fieldMetadata.name}
@@ -230,6 +235,11 @@ const InputRenderer = ({
 
 			return (
 				<SelectField
+					defaultOption={
+						data.defaultOption ||
+						(fieldMetadata.value as string) ||
+						''
+					}
 					description={data.description}
 					label={data.label}
 					name={fieldMetadata.name}

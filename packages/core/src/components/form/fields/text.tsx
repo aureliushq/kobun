@@ -8,7 +8,6 @@ type TextProps = Omit<TextFieldType, 'type'> & {
 	config?: Partial<HTMLInputElement>
 }
 
-// TODO: controlled operation
 const TextField = ({
 	config,
 	description,
