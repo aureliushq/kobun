@@ -70,6 +70,7 @@ export type SelectOption = {
 }
 
 export type MultiSelectField = BasicField & {
+	defaultOptions?: string[]
 	name?: HTMLInputElement['name']
 	options: SelectOption[]
 	placeholder?: string
@@ -77,6 +78,7 @@ export type MultiSelectField = BasicField & {
 }
 
 export type SelectField = BasicField & {
+	defaultOption?: string
 	name?: HTMLInputElement['name']
 	options: SelectOption[]
 	placeholder?: string
