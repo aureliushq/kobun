@@ -1,5 +1,13 @@
 # @kobun/server
 
+## 0.5.3
+
+### Patch Changes
+
+- 86c8511: Fix missing build files
+- Updated dependencies [86c8511]
+  - @kobun/common@0.5.3
+
 ## 0.5.2
 
 ### Patch Changes
