@@ -1,5 +1,11 @@
 # @kobun/common
 
+## 0.5.3
+
+### Patch Changes
+
+- 86c8511: Fix missing build files
+
 ## 0.5.2
 
 ### Patch Changes
