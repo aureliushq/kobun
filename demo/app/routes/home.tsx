@@ -14,12 +14,11 @@ export const meta: Route.MetaFunction = () => [
 const Home = () => {
 	return (
 		<div className='grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-20 gap-16'>
-			<main className='flex flex-col gap-8 row-start-2 px-4'>
+			<main className='flex flex-col items-start gap-8 row-start-2 px-4'>
 				<img
-					src='/logo-dark.png'
 					alt='Kobun logo'
-					width={180}
-					height={38}
+					className='w-auto h-16 object-contain'
+					src='/logo-dark.png'
 				/>
 				<ol>
 					<li>
