@@ -71,7 +71,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 				<Meta />
 				<Links />
 			</head>
-			<body className='dark rs-dark font-sans'>
+			<body className='font-sans'>
 				{children}
 				<ScrollRestoration />
 				<Scripts />

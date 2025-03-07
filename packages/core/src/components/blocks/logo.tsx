@@ -1,6 +1,6 @@
 import { cn } from '~/lib/utils'
 
-const Logo = ({ className }: { className: string }) => {
+const Logo = ({ className }: { className?: string }) => {
 	return (
 		<svg
 			xmlns='http://www.w3.org/2000/svg'
@@ -81,7 +81,7 @@ const Logo = ({ className }: { className: string }) => {
 	)
 }
 
-const LogoDark = ({ className }: { className: string }) => {
+const LogoDark = ({ className }: { className?: string }) => {
 	return (
 		<svg
 			xmlns='http://www.w3.org/2000/svg'

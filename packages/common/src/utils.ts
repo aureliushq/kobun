@@ -26,7 +26,7 @@ export const createZodSchema = <T extends ConfigSchema<SchemaKey>>({
 	const getFieldSchema = (field: Field): z.ZodType => {
 		switch (field.type) {
 			case FieldTypes.BOOLEAN:
-				return z.boolean()
+				return z.coerce.boolean()
 			case FieldTypes.DATE:
 				return z.coerce.date()
 			case FieldTypes.DOCUMENT:
@@ -107,10 +107,12 @@ export const parseAdminPathname = ({
 	basePath = BASE_PATH,
 	collections,
 	pathname,
+	search,
 }: {
 	basePath?: string | RegExp
 	collections: Collections
 	pathname: string
+	search?: string
 }): AdminPaths | null => {
 	const replaced = pathname.replace(basePath, '')
 	const parts =
@@ -144,7 +146,14 @@ export const parseAdminPathname = ({
 		if (!(collectionSlug in collections)) {
 			return null
 		}
-		// TODO: parse url search params and return here
+
+		if (search) {
+			return {
+				section: 'collections',
+				collectionSlug,
+				search: Object.fromEntries(new URLSearchParams(search)),
+			}
+		}
 		return {
 			section: 'collections',
 			collectionSlug,

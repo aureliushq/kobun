@@ -1,4 +1,5 @@
-import fs from 'node:fs/promises'
+// biome-ignore lint/style/useNodejsImportProtocol: <explanation>
+import { promises as fs } from 'fs'
 import {
 	APP_BASE_PATH,
 	type FieldTypes,
@@ -12,6 +13,7 @@ import type z from 'zod'
 
 type LocalCollectionContentPath = {
 	collection: Collection
+	filters?: Record<string, string>
 	format: 'md' | 'mdx'
 	slug?: string
 }
@@ -33,6 +35,7 @@ export const getLocalCollectionContentPath = ({
 
 export const readItemsInLocalCollection = async ({
 	collection,
+	filters,
 	format,
 }: Omit<LocalCollectionContentPath, 'slug'>) => {
 	const path = getLocalCollectionContentPath({ collection, format })
@@ -44,6 +47,13 @@ export const readItemsInLocalCollection = async ({
 			return metadata
 		}),
 	)
+	if (filters) {
+		return data.filter((item) => {
+			return Object.entries(filters).every(([key, value]) => {
+				return item[key] === value
+			})
+		})
+	}
 	return data
 }
 

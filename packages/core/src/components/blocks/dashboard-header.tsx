@@ -1,4 +1,4 @@
-import { GithubIcon, SunIcon } from 'lucide-react'
+import { GithubIcon, Moon, Sun } from 'lucide-react'
 import { useContext } from 'react'
 import { Link } from 'react-router'
 import invariant from 'tiny-invariant'
@@ -12,15 +12,21 @@ import {
 	BreadcrumbSeparator,
 } from '~/components/ui/breadcrumb'
 import { Button } from '~/components/ui/button'
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from '~/components/ui/dropdown-menu'
 import { SIDEBAR_WIDTH } from '~/components/ui/sidebar'
-import { Toggle } from '~/components/ui/toggle'
-import { KobunContext, type KobunContextData } from '~/providers'
+import { KobunContext, type KobunContextData, useTheme } from '~/providers'
 
 const DashboardHeader = () => {
 	const { config, params } = useContext<KobunContextData>(KobunContext)
 	invariant(config, '`config` is required.')
-
 	const basePath = config.basePath ?? ''
+
+	const { setTheme } = useTheme()
 
 	return (
 		<header
@@ -78,9 +84,26 @@ const DashboardHeader = () => {
 					</Button>
 				</a>
 				{/* TODO: make this functional */}
-				<Toggle>
-					<SunIcon />
-				</Toggle>
+				<DropdownMenu>
+					<DropdownMenuTrigger asChild>
+						<Button variant='ghost' size='icon'>
+							<Sun className='rs-h-[1.2rem] rs-w-[1.2rem] rs-rotate-0 rs-scale-100 rs-transition-all dark:-rs-rotate-90 dark:rs-scale-0' />
+							<Moon className='rs-absolute rs-h-[1.2rem] rs-w-[1.2rem] rs-rotate-90 rs-scale-0 rs-transition-all dark:rs-rotate-0 dark:rs-scale-100' />
+							<span className='rs-sr-only'>Toggle theme</span>
+						</Button>
+					</DropdownMenuTrigger>
+					<DropdownMenuContent align='end'>
+						<DropdownMenuItem onClick={() => setTheme('light')}>
+							Light
+						</DropdownMenuItem>
+						<DropdownMenuItem onClick={() => setTheme('dark')}>
+							Dark
+						</DropdownMenuItem>
+						<DropdownMenuItem onClick={() => setTheme('system')}>
+							System
+						</DropdownMenuItem>
+					</DropdownMenuContent>
+				</DropdownMenu>
 			</section>
 		</header>
 	)

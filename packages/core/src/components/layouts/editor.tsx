@@ -5,12 +5,12 @@ import { Form as RRForm, useActionData, useLoaderData } from 'react-router'
 import invariant from 'tiny-invariant'
 
 import EditorHeader from '~/components/blocks/editor-header'
+import EditorSidebar from '~/components/blocks/editor-sidebar'
 import Form from '~/components/form'
 import type { Labels } from '~/components/kobun'
 import { ScrollArea } from '~/components/ui/scroll-area'
-import { KobunContext, type KobunContextData } from '~/providers'
 import { SidebarProvider } from '~/components/ui/sidebar'
-import EditorSidebar from '~/components/blocks/editor-sidebar'
+import { KobunContext, type KobunContextData } from '~/providers'
 
 const EditorLayout = ({
 	collectionSlug,

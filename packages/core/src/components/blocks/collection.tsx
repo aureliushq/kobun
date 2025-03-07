@@ -269,6 +269,7 @@ const Collection = ({
 		data,
 		initialState: {
 			columnOrder: ['title', 'status', 'createdAt'],
+			// TODO: selected columns should persist to local storage
 			columnVisibility: {
 				publishedAt: false,
 				updatedAt: false,

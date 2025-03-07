@@ -184,6 +184,7 @@ const ADMIN_PATHS = z.discriminatedUnion('section', [
 	z.object({
 		section: z.literal('collections'),
 		collectionSlug: z.string(),
+		search: z.record(z.string(), z.string()).optional(),
 	}),
 	z.object({
 		section: z.literal('editor-create'),

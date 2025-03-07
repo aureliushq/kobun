@@ -12,6 +12,7 @@ import {
 	KobunContext,
 	type KobunContextData,
 	KobunProvider,
+	ThemeProvider,
 } from '~/providers'
 
 export type Labels = {
@@ -77,9 +78,11 @@ const Kobun = ({ config }: KobunProps) => {
 	)
 
 	return (
-		<KobunProvider config={config}>
-			<Root />
-		</KobunProvider>
+		<ThemeProvider defaultTheme='dark' storageKey='kobun-theme'>
+			<KobunProvider config={config}>
+				<Root />
+			</KobunProvider>
+		</ThemeProvider>
 	)
 }
 

@@ -9,9 +9,9 @@ const DashboardLayout = ({
 	children,
 }: { children?: ReactNode | ReactNode[] }) => {
 	return (
-		<SidebarProvider className='rs-dark'>
+		<SidebarProvider>
 			<DashboardSidebar />
-			<main className='rs-w-screen rs-h-screen rs-flex rs-flex-col rs-gap-4'>
+			<main className='rs-w-screen rs-h-screen rs-bg-background rs-flex rs-flex-col rs-gap-4'>
 				<DashboardHeader />
 				<ScrollArea className='rs-w-full rs-h-full rs-p-8 rs-z-10'>
 					<section className='rs-w-full rs-flex rs-justify-center'>
