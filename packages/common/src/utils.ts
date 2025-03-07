@@ -26,7 +26,7 @@ export const createZodSchema = <T extends ConfigSchema<SchemaKey>>({
 	const getFieldSchema = (field: Field): z.ZodType => {
 		switch (field.type) {
 			case FieldTypes.BOOLEAN:
-				return z.boolean()
+				return z.coerce.boolean()
 			case FieldTypes.DATE:
 				return z.coerce.date()
 			case FieldTypes.DOCUMENT:
