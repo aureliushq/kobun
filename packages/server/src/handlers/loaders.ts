@@ -15,6 +15,7 @@ export const handleLoader = async ({ config, request }: LoaderHandlerArgs) => {
 		basePath,
 		collections,
 		pathname: url.pathname,
+		search: url.search,
 	})
 
 	if (!params) return {}
@@ -55,7 +56,12 @@ export const handleLoader = async ({ config, request }: LoaderHandlerArgs) => {
 			)
 			const collection = collections[collectionSlug]
 			if (params.section === 'collections') {
-				return readItemsInLocalCollection({ collection, format })
+				const filters = params.search
+				return readItemsInLocalCollection({
+					collection,
+					filters,
+					format,
+				})
 			}
 
 			if (params.section === 'editor-create') {

@@ -4,7 +4,6 @@ import { customAlphabet } from 'nanoid'
 import { redirect } from 'react-router'
 import invariant from 'tiny-invariant'
 import YAML from 'yaml'
-import { z } from 'zod'
 import {
 	readItemInLocalCollection,
 	transformMultiselectFields,

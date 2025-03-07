@@ -36,8 +36,9 @@ const KobunProvider = ({ config, children }: KobunProviderProps) => {
 			basePath: config.basePath,
 			collections: config.collections,
 			pathname: location.pathname,
+			search: location.search,
 		})
-	}, [config, location.pathname])
+	}, [config, location.pathname, location.search])
 
 	return (
 		<KobunContext.Provider value={{ config, params }}>
