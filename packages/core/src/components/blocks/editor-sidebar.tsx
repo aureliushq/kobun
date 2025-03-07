@@ -59,6 +59,7 @@ const EditorSidebar = <T extends SchemaKey>({
 				<Button
 					onClick={() => setOpenCollectionSettings(false)}
 					size='icon'
+					type='button'
 					variant='ghost'
 				>
 					<PanelRightIcon />
