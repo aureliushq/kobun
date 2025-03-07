@@ -3,7 +3,6 @@ import {
 	BookOpenIcon,
 	ExternalLinkIcon,
 	HouseIcon,
-	PanelsTopLeftIcon,
 	PlusIcon,
 	SettingsIcon,
 } from 'lucide-react'
@@ -11,10 +10,11 @@ import { useContext } from 'react'
 import { Link, useLocation } from 'react-router'
 import invariant from 'tiny-invariant'
 
-import { LogoDark } from '~/components/blocks/logo'
+import { Logo, LogoDark } from '~/components/blocks/logo'
 import {
 	Sidebar,
 	SidebarContent,
+	SidebarFooter,
 	SidebarGroup,
 	SidebarGroupContent,
 	SidebarGroupLabel,
@@ -25,14 +25,16 @@ import {
 	SidebarMenuItem,
 } from '~/components/ui/sidebar'
 import { cn } from '~/lib/utils'
-import { KobunContext, type KobunContextData } from '~/providers'
+import { KobunContext, type KobunContextData, useTheme } from '~/providers'
 
 const DashboardSidebar = () => {
 	const { config } = useContext<KobunContextData>(KobunContext)
 	invariant(config, '`config` is required.')
+	const basePath = config.basePath ?? ''
 
 	const location = useLocation()
-	const basePath = config.basePath ?? ''
+
+	const { theme } = useTheme()
 
 	return (
 		<Sidebar>
@@ -41,7 +43,7 @@ const DashboardSidebar = () => {
 					className='rs-w-full rs-h-12 rs-flex rs-items-center rs-justify-start'
 					to={basePath}
 				>
-					<LogoDark />
+					{theme === 'dark' ? <LogoDark /> : <Logo />}
 				</Link>
 			</SidebarHeader>
 			<SidebarContent>
@@ -60,22 +62,6 @@ const DashboardSidebar = () => {
 										<HouseIcon />
 										<span>Dashboard</span>
 									</Link>
-								</SidebarMenuButton>
-							</SidebarMenuItem>
-							<SidebarMenuItem>
-								<SidebarMenuButton asChild>
-									<a
-										className='rs-group/view'
-										href='http://localhost:5173/docs'
-										rel='noreferrer'
-										target='_blank'
-									>
-										<PanelsTopLeftIcon />
-										<span className='rs-flex-grow'>
-											View Site
-										</span>
-										<ExternalLinkIcon className='rs-hidden rs-transition-all rs-duration-100 group-hover/view:rs-inline' />
-									</a>
 								</SidebarMenuButton>
 							</SidebarMenuItem>
 						</SidebarMenu>
@@ -124,41 +110,51 @@ const DashboardSidebar = () => {
 											</Link>
 										</SidebarMenuAction>
 									</SidebarMenuItem>
-									<SidebarMenuItem>
-										<SidebarMenuButton
-											asChild
-											isActive={
-												location.pathname === link &&
-												location.search ===
-													'?status=published'
-											}
-										>
-											<Link
-												to={`${link}?status=published`}
-											>
-												Published
-											</Link>
-										</SidebarMenuButton>
-									</SidebarMenuItem>
-									<SidebarMenuItem>
-										<SidebarMenuButton
-											asChild
-											isActive={
-												location.pathname === link &&
-												location.search ===
-													'?status=draft'
-											}
-										>
-											<Link to={`${link}?status=draft`}>
-												Drafts
-											</Link>
-										</SidebarMenuButton>
-									</SidebarMenuItem>
+									{collection.features?.publish && (
+										<>
+											<SidebarMenuItem>
+												<SidebarMenuButton
+													asChild
+													isActive={
+														location.pathname ===
+															link &&
+														location.search ===
+															'?status=published'
+													}
+												>
+													<Link
+														to={`${link}?status=published`}
+													>
+														Published
+													</Link>
+												</SidebarMenuButton>
+											</SidebarMenuItem>
+											<SidebarMenuItem>
+												<SidebarMenuButton
+													asChild
+													isActive={
+														location.pathname ===
+															link &&
+														location.search ===
+															'?status=draft'
+													}
+												>
+													<Link
+														to={`${link}?status=draft`}
+													>
+														Drafts
+													</Link>
+												</SidebarMenuButton>
+											</SidebarMenuItem>
+										</>
+									)}
 								</SidebarMenu>
 							</section>
 						)
 					})}
 				</SidebarGroup>
+			</SidebarContent>
+			<SidebarFooter>
 				<SidebarGroup>
 					<SidebarMenu>
 						<SidebarMenuItem>
@@ -193,7 +189,7 @@ const DashboardSidebar = () => {
 						</SidebarMenuItem>
 					</SidebarMenu>
 				</SidebarGroup>
-			</SidebarContent>
+			</SidebarFooter>
 		</Sidebar>
 	)
 }
