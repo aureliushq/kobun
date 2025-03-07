@@ -1,5 +1,13 @@
 # @kobun/core
 
+## 0.5.4
+
+### Patch Changes
+
+- e0163e7: Bug Fixes
+- Updated dependencies [e0163e7]
+  - @kobun/common@0.5.4
+
 ## 0.5.3
 
 ### Patch Changes
