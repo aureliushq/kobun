@@ -112,6 +112,7 @@ const EditorHeader = ({
 					<Button
 						onClick={() => setOpenCollectionSettings(true)}
 						size='icon'
+						type='button'
 						variant='ghost'
 					>
 						<PanelRightIcon />
