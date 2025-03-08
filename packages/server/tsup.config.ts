@@ -8,7 +8,7 @@ const config: Options = {
 	format: ['esm'],
 	skipNodeModulesBundle: true,
 	dts: true,
-	entry: ['src/index.ts'],
+	entry: ['src/cloudflare.ts', 'src/node.ts'],
 	outDir: 'dist',
 	bundle: true,
 	minify: true,

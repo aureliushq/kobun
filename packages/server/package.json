@@ -2,15 +2,16 @@
 	"name": "@kobun/server",
 	"version": "0.5.3",
 	"type": "module",
-	"files": [
-		"dist"
-	],
-	"main": "./dist/index.cjs",
-	"module": "./dist/index.js",
-	"style": "./dist/index.css",
-	"types": "./dist/index.d.ts",
+	"files": ["dist", "README.md", "package.json"],
 	"exports": {
-		".": "./dist/index.js"
+		"./cloudflare": {
+			"types": "./dist/cloudflare.d.ts",
+			"default": "./dist/cloudflare.js"
+		},
+		"./node": {
+			"types": "./dist/node.d.ts",
+			"default": "./dist/node.js"
+		}
 	},
 	"scripts": {
 		"build": "tsup",
