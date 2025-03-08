@@ -1,5 +1,5 @@
 import { Kobun } from '@kobun/core'
-import { handleActions, handleLoader } from '@kobun/server'
+import { handleActions, handleLoader } from '@kobun/server/node'
 import kobunConfig from '~/kobun.config'
 import '@kobun/core/kobun.css'
 import type { Route } from './+types/cms'
