@@ -5,7 +5,7 @@ import {
 	getLocalCollectionContentPath,
 	readItemInLocalCollection,
 	readItemsInLocalCollection,
-} from '~/lib/utils'
+} from '~/node/utils'
 import type { LoaderHandlerArgs } from '~/types'
 
 export const handleLoader = async ({ config, request }: LoaderHandlerArgs) => {
@@ -81,6 +81,13 @@ export const handleLoader = async ({ config, request }: LoaderHandlerArgs) => {
 					schema,
 				})
 			}
+			break
+		}
+		default: {
+			// TODO: add link to documentation
+			throw new Error(
+				`Unsupported or incompatible storage mode: ${mode}. Make sure you're using the correct loader for the storage mode you're using.`,
+			)
 		}
 	}
 

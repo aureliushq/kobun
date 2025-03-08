@@ -1,15 +1,15 @@
 import { parseWithZod } from '@conform-to/zod'
-import { createZodSchema, parseAdminPathname, PATHS } from '@kobun/common'
+import { PATHS, createZodSchema, parseAdminPathname } from '@kobun/common'
 import { customAlphabet } from 'nanoid'
 import { redirect } from 'react-router'
 import invariant from 'tiny-invariant'
 import YAML from 'yaml'
+
+import { transformMultiselectFields } from '~/lib/utils'
 import {
 	readItemInLocalCollection,
-	transformMultiselectFields,
 	writeItemToLocalCollection,
-} from '~/lib/utils'
-
+} from '~/node/utils'
 import type { ActionHandlerArgs } from '~/types'
 
 const nanoid = customAlphabet('0123456789abcdefghijklmnopqrstuvwxyz', 32)
@@ -142,6 +142,13 @@ export const handleActions = async ({ config, request }: ActionHandlerArgs) => {
 					}),
 				})
 			}
+			break
+		}
+		default: {
+			// TODO: add link to documentation
+			throw new Error(
+				`Unsupported or incompatible storage mode: ${mode}. Make sure you're using the correct action for the storage mode you're using.`,
+			)
 		}
 	}
 }
