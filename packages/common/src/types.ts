@@ -7,8 +7,8 @@ export type ContentFormat = z.infer<typeof CONTENT_FORMAT>
 
 type Glob = '*' | '**'
 type Path = `${string}/${Glob}` | `${string}/${Glob}/${string}`
-type AssetPath = Path
-type ContentPath = Path
+export type AssetPath = Path
+export type ContentPath = Path
 
 export type Features = {
 	featured?: {
