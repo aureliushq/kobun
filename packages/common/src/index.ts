@@ -1,7 +1,9 @@
 export * from '~/constants'
 export { FieldTypes } from '~/types'
 export type {
+	AssetPath,
 	ContentFormat,
+	ContentPath,
 	Features,
 	BooleanField,
 	DateField,

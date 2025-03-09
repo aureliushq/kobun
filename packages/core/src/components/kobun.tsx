@@ -5,7 +5,6 @@ import invariant from 'tiny-invariant'
 import Collection from '~/components/blocks/collection'
 import DashboardLayout from '~/components/layouts/dashboard'
 import EditorLayout from '~/components/layouts/editor'
-import ComponentReference from '~/components/reference'
 import { TooltipProvider } from '~/components/ui/tooltip'
 import { generateLabelsForCollection } from '~/lib/utils'
 import {
@@ -55,11 +54,7 @@ const Root = () => {
 	}
 
 	if (params?.section === 'root') {
-		return (
-			<DashboardLayout>
-				<ComponentReference />
-			</DashboardLayout>
-		)
+		return <DashboardLayout>Dashboard</DashboardLayout>
 	}
 
 	if (params?.section === 'settings') {

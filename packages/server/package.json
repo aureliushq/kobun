@@ -2,15 +2,16 @@
 	"name": "@kobun/server",
 	"version": "0.5.4",
 	"type": "module",
-	"files": [
-		"dist"
-	],
-	"main": "./dist/index.cjs",
-	"module": "./dist/index.js",
-	"style": "./dist/index.css",
-	"types": "./dist/index.d.ts",
+	"files": ["dist", "README.md", "package.json"],
 	"exports": {
-		".": "./dist/index.js"
+		"./cloudflare": {
+			"types": "./dist/cloudflare.d.ts",
+			"default": "./dist/cloudflare.js"
+		},
+		"./node": {
+			"types": "./dist/node.d.ts",
+			"default": "./dist/node.js"
+		}
 	},
 	"scripts": {
 		"build": "tsup",
@@ -28,6 +29,7 @@
 	"dependencies": {
 		"@conform-to/zod": "1.2.2",
 		"@kobun/common": "workspace:*",
+		"@mjackson/file-storage": "^0.6.1",
 		"fast-glob": "3.3.3",
 		"gray-matter": "^4.0.3",
 		"nanoid": "^5.1.2",
