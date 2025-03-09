@@ -29,6 +29,7 @@
 	"dependencies": {
 		"@conform-to/zod": "1.2.2",
 		"@kobun/common": "workspace:*",
+		"@mjackson/file-storage": "^0.6.1",
 		"fast-glob": "3.3.3",
 		"gray-matter": "^4.0.3",
 		"nanoid": "^5.1.2",
