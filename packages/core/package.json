@@ -2,9 +2,7 @@
 	"name": "@kobun/core",
 	"version": "0.5.3",
 	"type": "module",
-	"files": [
-		"dist"
-	],
+	"files": ["dist"],
 	"main": "./dist/index.cjs",
 	"module": "./dist/index.js",
 	"style": "./dist/index.css",
