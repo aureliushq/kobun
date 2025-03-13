@@ -1,5 +1,5 @@
 import { Kobun } from '@kobun/core'
-import { handleActions, handleLoader } from '@kobun/server/node'
+import { handleActions, handleLoaders } from '@kobun/server/cloudflare'
 import kobunConfig from '~/kobun.config'
 import '@kobun/core/kobun.css'
 import type { Route } from './+types/cms'
@@ -16,10 +16,10 @@ export const action = async (args: Route.ActionArgs) =>
 	handleActions({ ...args, config: kobunConfig })
 
 export const loader = async (args: Route.LoaderArgs) =>
-	handleLoader({ ...args, config: kobunConfig })
+	handleLoaders({ ...args, config: kobunConfig })
 
 const CMS = () => {
-	return <Kobun config={kobunConfig} />
+	return <Kobun />
 }
 
 export default CMS

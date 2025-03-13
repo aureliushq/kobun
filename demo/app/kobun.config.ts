@@ -123,10 +123,14 @@ const kobunConfig = config({
 		}),
 	},
 	storage: {
-		mode: 'local',
-		assets: 'assets',
-		content: 'content',
+		credentials: {
+			accountId: process.env.CF_ACCOUNT_ID as string,
+			accessKeyId: process.env.CF_ACCESS_KEY as string,
+			bucketName: process.env.R2_BUCKET_NAME as string,
+			secretAccessKey: process.env.CF_SECRET_ACCESS_KEY as string,
+		},
 		format: 'mdx',
+		mode: 'r2',
 	},
 })
 
