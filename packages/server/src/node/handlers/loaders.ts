@@ -8,7 +8,8 @@ import {
 } from '~/node/utils'
 import type { LoaderHandlerArgs } from '~/types'
 
-export const handleLoader = async ({ config, request }: LoaderHandlerArgs) => {
+// TODO: remove secrets from config before returning to frontend
+export const handleLoaders = async ({ config, request }: LoaderHandlerArgs) => {
 	const url = new URL(request.url)
 	const { basePath, collections } = config
 	const params = parseAdminPathname({
@@ -44,10 +45,10 @@ export const handleLoader = async ({ config, request }: LoaderHandlerArgs) => {
 					}),
 				)
 
-				return { everything }
+				return { config, everything }
 			}
 			if (params.section === 'settings') {
-				return {}
+				return { config }
 			}
 			const collectionSlug = params.collectionSlug
 			invariant(
@@ -57,15 +58,16 @@ export const handleLoader = async ({ config, request }: LoaderHandlerArgs) => {
 			const collection = collections[collectionSlug]
 			if (params.section === 'collections') {
 				const filters = params.search
-				return readItemsInLocalCollection({
+				const collectionItems = await readItemsInLocalCollection({
 					collection,
 					filters,
 					format,
 				})
+				return { config, items: collectionItems }
 			}
 
 			if (params.section === 'editor-create') {
-				return {}
+				return { config }
 			}
 
 			const id = params.id
@@ -74,12 +76,13 @@ export const handleLoader = async ({ config, request }: LoaderHandlerArgs) => {
 				options: { omit: ['content'], type: 'loader' },
 			})
 			if (params.section === 'editor-edit') {
-				return readItemInLocalCollection({
+				const item = readItemInLocalCollection({
 					collection,
 					format,
 					id,
 					schema,
 				})
+				return { config, item }
 			}
 			break
 		}

@@ -84,7 +84,6 @@ export const readItemInLocalCollection = async ({
 	}
 	const file = await fs.readFile(path, 'utf8')
 	const { content, data } = matter(file)
-	console.log('data', data)
 	const metadata = schema.parse(data)
 	return { content, ...metadata }
 }
