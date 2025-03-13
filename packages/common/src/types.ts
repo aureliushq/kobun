@@ -161,37 +161,39 @@ const ASSETS_LOCAL_CONFIG = z.object({
 const ASSETS_CONFIG = z.union([ASSETS_R2_CONFIG, ASSETS_LOCAL_CONFIG])
 
 const LOCAL_MODE = z.object({
-	format: CONTENT_FORMAT,
 	mode: z.literal('local'),
 	assets: ASSETS_CONFIG.default({
 		type: 'local',
 		prefix: 'public/assets',
-	}),
+	}).optional(),
 	content: z
 		.object({
 			prefix: z.string(),
 		})
 		.default({
 			prefix: 'app/content',
-		}),
+		})
+		.optional(),
+	format: CONTENT_FORMAT,
 })
 
 const R2_MODE = z.object({
 	mode: z.literal('r2'),
-	format: CONTENT_FORMAT,
-	credentials: R2_CREDENTIALS,
 	assets: ASSETS_R2_CONFIG.default({
 		type: 'r2',
 		prefix: 'assets',
 		credentials: z.NEVER,
-	}),
+	}).optional(),
 	content: z
 		.object({
 			prefix: z.string(),
 		})
 		.default({
 			prefix: 'content',
-		}),
+		})
+		.optional(),
+	credentials: R2_CREDENTIALS,
+	format: CONTENT_FORMAT,
 })
 
 const STORAGE = z.discriminatedUnion('mode', [LOCAL_MODE, R2_MODE])
