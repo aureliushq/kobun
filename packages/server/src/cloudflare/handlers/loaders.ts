@@ -1,9 +1,14 @@
-import { PATHS, parseAdminPathname } from '@kobun/common'
+import { createZodSchema, parseAdminPathname } from '@kobun/common'
 import invariant from 'tiny-invariant'
-import YAML from 'yaml'
+
 import { CloudflareR2FileStorage } from '~/cloudflare/r2'
+import {
+	readItemInR2Collection,
+	readItemsInR2Collection,
+} from '~/cloudflare/utils'
 import type { LoaderHandlerArgs } from '~/types'
 
+// TODO: remove secrets from config before returning to frontend
 export const handleLoaders = async ({ config, request }: LoaderHandlerArgs) => {
 	const url = new URL(request.url)
 	const { basePath, collections } = config
@@ -11,6 +16,7 @@ export const handleLoaders = async ({ config, request }: LoaderHandlerArgs) => {
 		basePath,
 		collections,
 		pathname: url.pathname,
+		search: url.search,
 	})
 
 	if (!params) return {}
@@ -22,92 +28,57 @@ export const handleLoaders = async ({ config, request }: LoaderHandlerArgs) => {
 			const contentPrefix = config.storage.content?.prefix ?? 'content'
 
 			if (params.section === 'root' || params.section === 'settings') {
-				return {}
+				return { config }
 			}
 
 			const r2Storage = new CloudflareR2FileStorage(
 				config.storage.credentials,
 			)
 
+			const { collectionSlug } = params
+			invariant(
+				collections[collectionSlug],
+				`Collection ${collectionSlug} not found in config`,
+			)
+			const collection = collections[collectionSlug]
+			const prefix = `${contentPrefix}/collections/${collectionSlug}`
 			if (params.section === 'collections') {
-				const { collectionSlug } = params
-				invariant(
-					collections[collectionSlug],
-					`Collection ${collectionSlug} not found in config`,
-				)
+				const filters = params.search
+				const collectionItems = await readItemsInR2Collection({
+					filters,
+					format,
+					prefix,
+					r2Storage,
+				})
 
-				const prefix = `${contentPrefix}/${collectionSlug}`
-				const files = await r2Storage.list(prefix)
-				const items = await Promise.all(
-					files.map(async (fileName) => {
-						const content = await r2Storage.get(
-							`${prefix}/${fileName}`,
-						)
-						if (!content) return null
-
-						const text = await content.text()
-						const parts = text.split('---')
-						if (parts.length < 2) return null
-
-						const frontmatter = parts[1]?.trim()
-						if (!frontmatter) return null
-
-						const metadata = YAML.parse(frontmatter)
-
-						return {
-							id: fileName.replace(`.${format}`, ''),
-							...metadata,
-						}
-					}),
-				)
-
-				return {
-					items: items.filter(Boolean),
-				}
+				return { config, items: collectionItems }
 			}
 
+			if (params.section === 'editor-create') {
+				return { config }
+			}
+
+			const id = params.id
+			const schema = createZodSchema({
+				schema: collection.schema,
+				options: { omit: ['content'], type: 'loader' },
+			})
 			if (params.section === 'editor-edit') {
-				const { collectionSlug, id } = params
-				invariant(
-					collections[collectionSlug],
-					`Collection ${collectionSlug} not found in config`,
-				)
-
-				const prefix = `${contentPrefix}/${collectionSlug}`
-				const content = await r2Storage.get(`${prefix}/${id}.${format}`)
-				if (!content) {
-					throw new Error(
-						`File ${id}.${format} not found in collection ${collectionSlug}`,
-					)
-				}
-
-				const text = await content.text()
-				const parts = text.split('---')
-				invariant(
-					parts.length >= 2,
-					'Invalid file format - missing frontmatter',
-				)
-
-				const frontmatter = parts[1]?.trim()
-				invariant(
-					frontmatter,
-					'Invalid file format - empty frontmatter',
-				)
-
-				const markdown = parts.slice(2).join('---').trim()
-				const metadata = YAML.parse(frontmatter)
-
-				return {
-					content: markdown,
-					...metadata,
-				}
+				const item = await readItemInR2Collection({
+					format,
+					id,
+					prefix,
+					r2Storage,
+					schema,
+				})
+				return { config, item }
 			}
-
-			return {}
+			break
 		}
 		default: {
+			// TODO: add link to documentation
 			throw new Error(
-				`Storage mode ${mode} is not supported in Cloudflare environment`,
+				`Unsupported or incompatible storage mode: ${mode}. Make sure you're using the correct loader for the storage mode you're using.`,
 			)
 		}
 	}

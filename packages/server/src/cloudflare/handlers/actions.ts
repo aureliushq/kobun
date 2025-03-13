@@ -89,12 +89,11 @@ export const handleActions = async ({ config, request }: ActionHandlerArgs) => {
 				const id = params.id
 
 				// Read existing file from R2
-				const existingFile = await r2Storage.get(
+				const existingContent = await r2Storage.get(
 					`${collectionSlug}/${id}.${format}`,
 				)
-				invariant(existingFile, `File not found for id: ${id}`)
+				invariant(existingContent, `File not found for id: ${id}`)
 
-				const existingContent = await existingFile.text()
 				const parts = existingContent.split('---')
 				invariant(
 					parts.length >= 2,
