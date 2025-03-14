@@ -140,34 +140,63 @@ export interface Collections {
 
 // Storage
 // TODO: update cloud config properties
-const ASSETS_CLOUD_CONFIG = z.object({
-	type: z.enum(['r2', 's3']),
-	accessKey: z.string(),
-	secretKey: z.string(),
-	region: z.string(),
+const R2_CREDENTIALS = z.object({
+	accountId: z.string(),
+	accessKeyId: z.string(),
+	secretAccessKey: z.string(),
 	bucketName: z.string(),
 })
 
-const ASSETS_LOCAL_CONFIG = z.string()
+const ASSETS_R2_CONFIG = z.object({
+	type: z.literal('r2'),
+	credentials: R2_CREDENTIALS,
+	prefix: z.string().default('assets'),
+})
 
-const ASSETS_CONFIG = z.union([ASSETS_CLOUD_CONFIG, ASSETS_LOCAL_CONFIG])
+const ASSETS_LOCAL_CONFIG = z.object({
+	type: z.literal('local'),
+	prefix: z.string(),
+})
+
+const ASSETS_CONFIG = z.union([ASSETS_R2_CONFIG, ASSETS_LOCAL_CONFIG])
 
 const LOCAL_MODE = z.object({
-	format: CONTENT_FORMAT,
 	mode: z.literal('local'),
-	// TODO: add validation for assets and content paths
-	assets: ASSETS_CONFIG.optional(),
-	content: z.string().optional(),
+	assets: ASSETS_CONFIG.default({
+		type: 'local',
+		prefix: 'public/assets',
+	}).optional(),
+	content: z
+		.object({
+			prefix: z.string(),
+		})
+		.default({
+			prefix: 'app/content',
+		})
+		.optional(),
+	format: CONTENT_FORMAT,
 })
 
-const CLOUD_MODE = z.object({
-	mode: z.literal('cloud'),
-	assets: ASSETS_CONFIG,
-	// TODO: dsn can be a string or an object
-	content: z.object({ dsn: z.string() }),
+const R2_MODE = z.object({
+	mode: z.literal('r2'),
+	assets: ASSETS_R2_CONFIG.default({
+		type: 'r2',
+		prefix: 'assets',
+		credentials: z.NEVER,
+	}).optional(),
+	content: z
+		.object({
+			prefix: z.string(),
+		})
+		.default({
+			prefix: 'content',
+		})
+		.optional(),
+	credentials: R2_CREDENTIALS,
+	format: CONTENT_FORMAT,
 })
 
-const STORAGE = z.discriminatedUnion('mode', [LOCAL_MODE, CLOUD_MODE])
+const STORAGE = z.discriminatedUnion('mode', [LOCAL_MODE, R2_MODE])
 
 export type Storage = z.infer<typeof STORAGE>
 

@@ -1,5 +1,6 @@
 import type { Config } from '@kobun/common'
 import { useContext } from 'react'
+import { useLoaderData } from 'react-router'
 import invariant from 'tiny-invariant'
 
 import Collection from '~/components/blocks/collection'
@@ -64,9 +65,8 @@ const Root = () => {
 	return <div>Not Found. Check the URL and make sure there are no typos.</div>
 }
 
-type KobunProps = KobunContextData
-
-const Kobun = ({ config }: KobunProps) => {
+const Kobun = () => {
+	const { config } = useLoaderData<KobunContextData>()
 	invariant(
 		config,
 		'`config` is required for the Kobun component. Check the docs to see how to write the configuration.',

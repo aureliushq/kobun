@@ -38,7 +38,7 @@ const EditorLayout = ({
 				key !== 'updatedAt',
 		)
 
-	const defaultValue = useLoaderData()
+	const { item: defaultValue } = useLoaderData()
 
 	const [form, fields] = useForm({
 		defaultValue,

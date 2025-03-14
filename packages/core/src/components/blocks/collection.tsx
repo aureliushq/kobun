@@ -254,7 +254,7 @@ const Collection = ({
 		schema: COLLECTION_ZOD_SCHEMA,
 	}) as Array<z.infer<typeof COLLECTION_ZOD_SCHEMA>>
 
-	const data = useLoaderData()
+	const { items: data } = useLoaderData()
 
 	const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
 	const [sorting, setSorting] = useState<SortingState>([
