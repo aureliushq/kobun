@@ -7,6 +7,7 @@ import YAML from 'yaml'
 import { CloudflareR2FileStorage } from '~/cloudflare/r2'
 import { transformMultiselectFields } from '~/lib/utils'
 import type { ActionHandlerArgs } from '~/types'
+import { readItemInR2Collection } from '../utils'
 
 const nanoid = customAlphabet('0123456789abcdefghijklmnopqrstuvwxyz', 32)
 
@@ -24,7 +25,9 @@ export const handleActions = async ({ config, request }: ActionHandlerArgs) => {
 	const mode = config.storage.mode
 	switch (mode) {
 		case 'r2': {
+			const contentPrefix = config.storage.content?.prefix ?? 'content'
 			const format = config.storage.format
+
 			if (
 				params.section === 'root' ||
 				params.section === 'settings' ||
@@ -40,12 +43,12 @@ export const handleActions = async ({ config, request }: ActionHandlerArgs) => {
 			)
 			const collection = collections[collectionSlug]
 
-			// Initialize R2 storage
 			const r2Storage = new CloudflareR2FileStorage(
 				config.storage.credentials,
 			)
 
 			const formData = await request.formData()
+			const prefix = `${contentPrefix}/collections/${collectionSlug}`
 			const schema = createZodSchema({
 				schema: collection.schema,
 				options: { type: 'action' },
@@ -53,8 +56,13 @@ export const handleActions = async ({ config, request }: ActionHandlerArgs) => {
 
 			if (params.section === 'editor-create') {
 				const submission = parseWithZod(formData, { schema })
+				// manually transform multiselect fields since parseWithZod is not doing it correctly
+				const transformedPayload = transformMultiselectFields(
+					submission.payload,
+					collection.schema,
+				)
+				const { content = '', intent, ...payload } = transformedPayload
 				const id = nanoid()
-				const { content = '', intent, ...payload } = submission.payload
 				const markdown = content as string
 				const slug = payload.slug as string
 				let metadata = {
@@ -75,34 +83,31 @@ export const handleActions = async ({ config, request }: ActionHandlerArgs) => {
 					? `---\n${frontmatter}\n---\n\n${markdown}\n`
 					: `---\n${frontmatter}\n---`
 
-				// Create file and upload to R2
 				const file = new File([fileContent], `${slug}.${format}`, {
 					type: 'text/markdown',
 				})
-				await r2Storage.set(`${collectionSlug}/${slug}.${format}`, file)
+				await r2Storage.set(`${prefix}/${slug}.${format}`, file)
 
 				const redirectUrl = `${basePath}/${PATHS.EDITOR}/${collectionSlug}/${id}`
 				return redirect(redirectUrl)
 			}
 
+			const id = params.id
 			if (params.section === 'editor-edit') {
-				const id = params.id
-
-				// Read existing file from R2
-				const existingContent = await r2Storage.get(
-					`${collectionSlug}/${id}.${format}`,
-				)
-				invariant(existingContent, `File not found for id: ${id}`)
-
-				const parts = existingContent.split('---')
-				invariant(
-					parts.length >= 2,
-					'Invalid file format - missing frontmatter',
-				)
-				const existingFrontmatter = parts[1] ?? ''
-				const oldMetadata = YAML.parse(existingFrontmatter.trim())
+				const data = await readItemInR2Collection({
+					format,
+					id,
+					prefix,
+					r2Storage,
+					schema: createZodSchema({
+						schema: collection.schema,
+						options: { omit: ['content'], type: 'loader' },
+					}),
+				})
+				const { content: oldContent = '', ...oldMetadata } = data
 
 				const submission = parseWithZod(formData, { schema })
+				// manually transform multiselect fields since parseWithZod is not doing it correctly
 				const transformedPayload = transformMultiselectFields(
 					submission.payload,
 					collection.schema,
@@ -110,7 +115,6 @@ export const handleActions = async ({ config, request }: ActionHandlerArgs) => {
 				const { content = '', intent, ...payload } = transformedPayload
 				const markdown = content as string
 				const slug = payload.slug as string
-
 				let metadata = {
 					...oldMetadata,
 					...payload,
@@ -123,7 +127,6 @@ export const handleActions = async ({ config, request }: ActionHandlerArgs) => {
 						status: 'published',
 					})
 				}
-
 				const frontmatter = YAML.stringify(metadata).trimEnd()
 				const fileContent = markdown
 					? `---\n${frontmatter}\n---\n\n${markdown}\n`
@@ -132,7 +135,7 @@ export const handleActions = async ({ config, request }: ActionHandlerArgs) => {
 				// If slug changed, delete old file
 				if (oldMetadata.slug !== slug) {
 					await r2Storage.remove(
-						`${collectionSlug}/${oldMetadata.slug}.${format}`,
+						`${prefix}/${oldMetadata.slug}.${format}`,
 					)
 				}
 
@@ -140,7 +143,7 @@ export const handleActions = async ({ config, request }: ActionHandlerArgs) => {
 				const file = new File([fileContent], `${slug}.${format}`, {
 					type: 'text/markdown',
 				})
-				await r2Storage.set(`${collectionSlug}/${slug}.${format}`, file)
+				await r2Storage.set(`${prefix}/${slug}.${format}`, file)
 
 				return metadata
 			}
