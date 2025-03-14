@@ -1,5 +1,11 @@
 # @kobun/common
 
+## 0.5.4
+
+### Patch Changes
+
+- e0163e7: Bug Fixes
+
 ## 0.5.3
 
 ### Patch Changes

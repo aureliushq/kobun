@@ -1,8 +1,10 @@
 {
 	"name": "@kobun/common",
-	"version": "0.5.3",
+	"version": "0.5.4",
 	"type": "module",
-	"files": ["dist"],
+	"files": [
+		"dist"
+	],
 	"main": "./dist/index.cjs",
 	"module": "./dist/index.js",
 	"style": "./dist/index.css",
