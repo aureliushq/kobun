@@ -24,8 +24,8 @@ export const handleLoaders = async ({ config, request }: LoaderHandlerArgs) => {
 	const mode = config.storage.mode
 	switch (mode) {
 		case 'r2': {
-			const format = config.storage.format
 			const contentPrefix = config.storage.content?.prefix ?? 'content'
+			const format = config.storage.format
 
 			if (params.section === 'root' || params.section === 'settings') {
 				return { config }

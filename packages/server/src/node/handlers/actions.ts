@@ -29,21 +29,20 @@ export const handleActions = async ({ config, request }: ActionHandlerArgs) => {
 	switch (mode) {
 		case 'local': {
 			const format = config.storage.format
-			if (params.section === 'root') {
+			if (
+				params.section === 'root' ||
+				params.section === 'settings' ||
+				params.section === 'collections'
+			) {
 				return {}
 			}
-			if (params.section === 'settings') {
-				return {}
-			}
+
 			const collectionSlug = params.collectionSlug
 			invariant(
 				collections[collectionSlug],
 				`Collection ${collectionSlug} not found in config`,
 			)
 			const collection = collections[collectionSlug]
-			if (params.section === 'collections') {
-				return {}
-			}
 
 			const formData = await request.formData()
 			const schema = createZodSchema({
@@ -53,8 +52,13 @@ export const handleActions = async ({ config, request }: ActionHandlerArgs) => {
 			if (params.section === 'editor-create') {
 				// TODO: check if parseWithZod is successful and only then create the file
 				const submission = parseWithZod(formData, { schema })
+				// manually transform multiselect fields since parseWithZod is not doing it correctly
+				const transformedPayload = transformMultiselectFields(
+					submission.payload,
+					collection.schema,
+				)
+				const { content = '', intent, ...payload } = transformedPayload
 				const id = nanoid()
-				const { content = '', intent, ...payload } = submission.payload
 				const markdown = content as string
 				const slug = payload.slug as string
 				let metadata = {
