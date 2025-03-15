@@ -1,4 +1,4 @@
-import { collection, config, fields } from '@kobun/core'
+import { collection, config, fields, singleton } from '@kobun/core'
 
 const AUTHOR_OPTIONS = [{ label: 'James Holden', value: 'james-holden' }]
 
@@ -122,8 +122,35 @@ const kobunConfig = config({
 			},
 		}),
 	},
+	singletons: {
+		home: singleton({
+			label: 'Home Page',
+			paths: {
+				content: 'home/**/*',
+			},
+			schema: {
+				title: fields.text({
+					label: 'Site Title',
+				}),
+				description: fields.text({
+					label: 'Site Description',
+					multiline: true,
+				}),
+				author: fields.select({
+					label: 'Default Author',
+					options: AUTHOR_OPTIONS,
+				}),
+				socialLinks: fields.document({
+					label: 'Social Links',
+				}),
+			},
+		}),
+	},
 	storage: {
-		format: 'mdx',
+		format: {
+			collections: 'mdx',
+			singletons: 'json',
+		},
 		mode: 'r2',
 	},
 })
