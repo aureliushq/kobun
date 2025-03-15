@@ -14,15 +14,17 @@ import {
 
 export const createZodSchema = <T extends ConfigSchema<SchemaKey>>({
 	features = DEFAULT_FEATURES,
-	schema,
 	options,
+	schema,
+	type = 'collection',
 }: {
 	features?: Features
-	schema: T
 	options?: {
 		omit?: (keyof T)[]
 		type?: 'action' | 'loader'
 	}
+	schema: T
+	type?: 'collection' | 'singleton'
 }): z.ZodType => {
 	const getFieldSchema = (field: Field): z.ZodType => {
 		switch (field.type) {
@@ -69,39 +71,43 @@ export const createZodSchema = <T extends ConfigSchema<SchemaKey>>({
 		}
 	}, {})
 
-	// Add built-in fields
-	let BUILT_IN_SCHEMA = z.object({
-		id: z.string(),
-	})
+	if (type === 'collection') {
+		// Add built-in fields
+		let BUILT_IN_SCHEMA = z.object({
+			id: z.string(),
+		})
 
-	const allFeatures = { ...DEFAULT_FEATURES, ...features }
-	if (allFeatures?.timestamps?.createdAt) {
-		BUILT_IN_SCHEMA = BUILT_IN_SCHEMA.merge(
-			z.object({ createdAt: z.coerce.date() }),
-		)
+		const allFeatures = { ...DEFAULT_FEATURES, ...features }
+		if (allFeatures?.timestamps?.createdAt) {
+			BUILT_IN_SCHEMA = BUILT_IN_SCHEMA.merge(
+				z.object({ createdAt: z.coerce.date() }),
+			)
+		}
+		if (allFeatures?.timestamps?.updatedAt) {
+			BUILT_IN_SCHEMA = BUILT_IN_SCHEMA.merge(
+				z.object({ updatedAt: z.coerce.date() }),
+			)
+		}
+
+		const EXTENDED_SCHEMA = z.object(FIELD_SCHEMAS).merge(BUILT_IN_SCHEMA)
+
+		if (allFeatures?.publish) {
+			// Add publish status fields
+			return z.discriminatedUnion('status', [
+				EXTENDED_SCHEMA.merge(z.object({ status: z.literal('draft') })),
+				EXTENDED_SCHEMA.merge(
+					z.object({
+						status: z.literal('published'),
+						publishedAt: z.coerce.date(),
+					}),
+				),
+			])
+		}
+
+		return EXTENDED_SCHEMA
 	}
-	if (allFeatures?.timestamps?.updatedAt) {
-		BUILT_IN_SCHEMA = BUILT_IN_SCHEMA.merge(
-			z.object({ updatedAt: z.coerce.date() }),
-		)
-	}
 
-	const EXTENDED_SCHEMA = z.object(FIELD_SCHEMAS).merge(BUILT_IN_SCHEMA)
-
-	if (allFeatures?.publish) {
-		// Add publish status fields
-		return z.discriminatedUnion('status', [
-			EXTENDED_SCHEMA.merge(z.object({ status: z.literal('draft') })),
-			EXTENDED_SCHEMA.merge(
-				z.object({
-					status: z.literal('published'),
-					publishedAt: z.coerce.date(),
-				}),
-			),
-		])
-	}
-
-	return EXTENDED_SCHEMA
+	return z.object(FIELD_SCHEMAS)
 }
 
 export const parseAdminPathname = ({

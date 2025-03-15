@@ -37,8 +37,9 @@ export const handleLoaders = async ({ config, request }: LoaderHandlerArgs) => {
 				)
 				const singleton = singletons[singletonSlug]
 				const schema = createZodSchema({
-					schema: singleton.schema,
 					options: { type: 'loader' },
+					schema: singleton.schema,
+					type: 'singleton',
 				})
 				const singletonData = await readLocalSingleton({
 					format: singletonFormat,

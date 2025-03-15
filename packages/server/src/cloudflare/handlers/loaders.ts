@@ -10,7 +10,6 @@ import {
 	readItemInR2Collection,
 	readItemsInR2Collection,
 } from '~/cloudflare/utils'
-import { readLocalSingleton } from '~/node/utils'
 import type { LoaderHandlerArgs } from '~/types'
 
 export const handleLoaders = async ({
@@ -50,6 +49,8 @@ export const handleLoaders = async ({
 
 			// Handle singletons
 			const singletonFormat = config.storage.format.singletons
+			const singletonPrefix = `${contentPrefix}/singletons`
+			// TODO: when route changes loader data is not updated
 			if (params.section === 'edit-singleton') {
 				const singletonSlug = params.singletonSlug
 				invariant(
@@ -58,16 +59,17 @@ export const handleLoaders = async ({
 				)
 				const singleton = singletons[singletonSlug]
 				const schema = createZodSchema({
-					schema: singleton.schema,
 					options: { type: 'loader' },
+					schema: singleton.schema,
+					type: 'singleton',
 				})
-				// TODO: read from r2 instead of local
-				const singletonData = await readLocalSingleton({
-					format: singletonFormat,
-					schema,
-					singleton,
-				})
-				return { config, item: singletonData }
+				const content = (await r2Storage.get(
+					`${singletonPrefix}/${singletonSlug}.${singletonFormat}`,
+				)) as string
+				if (!content) return { config }
+				const data = JSON.parse(content)
+				const item = schema.parse(data)
+				return { config, item }
 			}
 
 			const collectionSlug = params.collectionSlug
@@ -77,13 +79,13 @@ export const handleLoaders = async ({
 			)
 			const collection = collections[collectionSlug]
 			const collectionFormat = config.storage.format.collections
-			const prefix = `${contentPrefix}/collections/${collectionSlug}`
+			const collectionPrefix = `${contentPrefix}/collections/${collectionSlug}`
 			if (params.section === 'collections') {
 				const filters = params.search
 				const collectionItems = await readItemsInR2Collection({
 					filters,
 					format: collectionFormat,
-					prefix,
+					prefix: collectionPrefix,
 					r2Storage,
 				})
 
@@ -103,7 +105,7 @@ export const handleLoaders = async ({
 				const item = await readItemInR2Collection({
 					format: collectionFormat,
 					id,
-					prefix,
+					prefix: collectionPrefix,
 					r2Storage,
 					schema,
 				})

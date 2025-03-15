@@ -43,7 +43,7 @@ const Editor = ({
 						'rs-prose dark:rs-prose-invert rs-flex rs-w-full rs-items-start rs-justify-center',
 						bodyFont,
 						layout === 'form'
-							? 'rs-border rs-border-border rs-rounded-md rs-w-full rs-max-w-4xl rs-px-2 [&>div]:rs-px-3 [&>div]:rs-py-2 [&>div]:rs-w-full [&>div]:rs-max-w-4xl [&>div>div]:rs-min-h-[120px]'
+							? 'rs-border rs-border-border rs-rounded-md rs-w-full rs-max-w-4xl rs-px-2 [&>div]:rs-px-3 [&>div]:rs-py-2 [&>div]:rs-w-full [&>div]:rs-max-w-4xl [&>div>div]:rs-min-h-[120px] [&>div>div]:rs-text-base'
 							: 'editor-wrapper rs-h-auto rs-min-h-max rs-pb-12 rs-px-2',
 					)}
 				>
