@@ -123,25 +123,37 @@ const kobunConfig = config({
 		}),
 	},
 	singletons: {
-		home: singleton({
-			label: 'Home Page',
+		now: singleton({
+			label: 'Now',
 			paths: {
-				content: 'home/**/*',
+				content: 'now/**/*',
 			},
 			schema: {
 				title: fields.text({
-					label: 'Site Title',
+					label: 'Page title',
 				}),
-				description: fields.text({
-					label: 'Site Description',
-					multiline: true,
+				description: fields.document({
+					label: 'Page description',
 				}),
-				author: fields.select({
-					label: 'Default Author',
-					options: AUTHOR_OPTIONS,
+				subtitle: fields.text({
+					label: 'Page subtitle',
 				}),
-				socialLinks: fields.document({
-					label: 'Social Links',
+			},
+		}),
+		projects: singleton({
+			label: 'Projects',
+			paths: {
+				content: 'projects/**/*',
+			},
+			schema: {
+				title: fields.text({
+					label: 'Page title',
+				}),
+				description: fields.document({
+					label: 'Page description',
+				}),
+				subtitle: fields.text({
+					label: 'Page subtitle',
 				}),
 			},
 		}),
