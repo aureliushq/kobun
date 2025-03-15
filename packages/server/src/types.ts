@@ -19,7 +19,7 @@ export type UniqueArg = {
 		slug?: string
 	}
 	options?: {
-		headings: boolean
+		headings?: boolean
 	}
 }
 
@@ -36,6 +36,12 @@ export type CollectionInterface<T extends SchemaKey> = {
 	unique: (arg: UniqueArg) => Promise<unknown>
 }
 
+export type SingletonInterface<T extends SchemaKey> = {
+	_label: string
+	_schema: ConfigSchema<T>
+	get: () => Promise<unknown>
+}
+
 export type KobunReader<T extends SchemaKey> = {
-	[key: string]: CollectionInterface<T>
+	[key: string]: CollectionInterface<T> | SingletonInterface<T>
 }

@@ -25,7 +25,7 @@ const MultiSelectField = ({
 	)
 
 	return (
-		<div className='rs-w-full rs-flex rs-flex-col rs-items-start rs-gap-2 rs-px-2'>
+		<div className='rs-w-full rs-flex rs-flex-col rs-items-start rs-gap-2'>
 			<div className='rs-grid rs-gap-1.5 rs-leading-none'>
 				<Label>{label}</Label>
 				{description && (

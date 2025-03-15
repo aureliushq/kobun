@@ -19,7 +19,11 @@ export type {
 	Collection,
 	Collections,
 	SchemaKey,
+	R2Credentials,
 	Storage,
 	Config,
+	Singleton,
+	SingletonFormat,
+	Singletons,
 } from '~/types'
 export * from '~/utils'

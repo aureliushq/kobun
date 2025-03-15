@@ -21,7 +21,7 @@ const DateField = ({ description, label, ...rest }: DateProps) => {
 	const [date, setDate] = React.useState<Date>()
 
 	return (
-		<div className='rs-flex rs-items-center rs-justify-between rs-flex-wrap rs-gap-2 rs-px-2'>
+		<div className='rs-flex rs-items-center rs-justify-between rs-flex-wrap rs-gap-2'>
 			<div className='rs-grid rs-gap-1.5 rs-leading-none'>
 				<Label>{label}</Label>
 				{description && (

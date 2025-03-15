@@ -1,22 +1,21 @@
 import { createZodSchema, parseAdminPathname } from '@kobun/common'
-import fg from 'fast-glob'
 import invariant from 'tiny-invariant'
 import {
-	getLocalCollectionContentPath,
 	readItemInLocalCollection,
 	readItemsInLocalCollection,
+	readLocalSingleton,
 } from '~/node/utils'
 import type { LoaderHandlerArgs } from '~/types'
 
-// TODO: remove secrets from config before returning to frontend
 export const handleLoaders = async ({ config, request }: LoaderHandlerArgs) => {
 	const url = new URL(request.url)
-	const { basePath, collections } = config
+	const { basePath, collections, singletons } = config
 	const params = parseAdminPathname({
 		basePath,
 		collections,
 		pathname: url.pathname,
 		search: url.search,
+		singletons,
 	})
 
 	if (!params) return {}
@@ -24,49 +23,51 @@ export const handleLoaders = async ({ config, request }: LoaderHandlerArgs) => {
 	const mode = config.storage.mode
 	switch (mode) {
 		case 'local': {
-			const format = config.storage.format
-			if (params.section === 'root') {
-				// TODO: return data required for dashboard
-				// recent drafts in different collections
-				const everything = await Promise.all(
-					Object.keys(config.collections).map(async (key) => {
-						const slug = key
-						invariant(
-							collections[slug],
-							`Collection ${slug} not found in config`,
-						)
-						const collection = collections[slug]
-						const path = getLocalCollectionContentPath({
-							collection,
-							format,
-						})
-						const files = await fg(path, { onlyFiles: true })
-						return { files }
-					}),
-				)
-
-				return { config, everything }
-			}
-			if (params.section === 'settings') {
+			if (params.section === 'root' || params.section === 'settings') {
 				return { config }
 			}
+
+			// Handle singletons
+			const singletonFormat = config.storage.format.singletons
+			if (params.section === 'edit-singleton') {
+				const singletonSlug = params.singletonSlug
+				invariant(
+					singletons?.[singletonSlug],
+					`Singleton ${singletonSlug} not found in config`,
+				)
+				const singleton = singletons[singletonSlug]
+				const schema = createZodSchema({
+					options: { type: 'loader' },
+					schema: singleton.schema,
+					type: 'singleton',
+				})
+				const singletonData = await readLocalSingleton({
+					format: singletonFormat,
+					schema,
+					singleton,
+				})
+				return { config, item: singletonData }
+			}
+
+			// Handle collections
 			const collectionSlug = params.collectionSlug
 			invariant(
 				collections[collectionSlug],
 				`Collection ${collectionSlug} not found in config`,
 			)
 			const collection = collections[collectionSlug]
+			const collectionFormat = config.storage.format.collections
 			if (params.section === 'collections') {
 				const filters = params.search
 				const collectionItems = await readItemsInLocalCollection({
 					collection,
 					filters,
-					format,
+					format: collectionFormat,
 				})
 				return { config, items: collectionItems }
 			}
 
-			if (params.section === 'editor-create') {
+			if (params.section === 'create-collection-item') {
 				return { config }
 			}
 
@@ -75,10 +76,10 @@ export const handleLoaders = async ({ config, request }: LoaderHandlerArgs) => {
 				schema: collection.schema,
 				options: { omit: ['content'], type: 'loader' },
 			})
-			if (params.section === 'editor-edit') {
+			if (params.section === 'edit-collection-item') {
 				const item = readItemInLocalCollection({
 					collection,
-					format,
+					format: collectionFormat,
 					id,
 					schema,
 				})

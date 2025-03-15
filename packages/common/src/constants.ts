@@ -10,6 +10,7 @@ export const PATHS = {
 	COLLECTIONS: 'collections',
 	EDITOR: 'editor/collections',
 	SETTINGS: 'settings',
+	SINGLETONS: 'editor/singletons',
 }
 
 // export const COLLECTION_SLUG_REGEX = z
