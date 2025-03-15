@@ -1,4 +1,8 @@
-import { createZodSchema, parseAdminPathname } from '@kobun/common'
+import {
+	type R2Credentials,
+	createZodSchema,
+	parseAdminPathname,
+} from '@kobun/common'
 import invariant from 'tiny-invariant'
 
 import { CloudflareR2FileStorage } from '~/cloudflare/r2'
@@ -8,8 +12,11 @@ import {
 } from '~/cloudflare/utils'
 import type { LoaderHandlerArgs } from '~/types'
 
-// TODO: remove secrets from config before returning to frontend
-export const handleLoaders = async ({ config, request }: LoaderHandlerArgs) => {
+export const handleLoaders = async ({
+	config,
+	context,
+	request,
+}: LoaderHandlerArgs) => {
 	const url = new URL(request.url)
 	const { basePath, collections } = config
 	const params = parseAdminPathname({
@@ -31,9 +38,14 @@ export const handleLoaders = async ({ config, request }: LoaderHandlerArgs) => {
 				return { config }
 			}
 
-			const r2Storage = new CloudflareR2FileStorage(
-				config.storage.credentials,
-			)
+			const env = process?.env ?? context.cloudflare.env
+			const credentials: R2Credentials = {
+				accountId: env.ACCOUNT_ID as string,
+				accessKeyId: env.ACCESS_KEY as string,
+				bucketName: env.BUCKET_NAME as string,
+				secretAccessKey: env.SECRET_ACCESS_KEY as string,
+			}
+			const r2Storage = new CloudflareR2FileStorage(credentials)
 
 			const { collectionSlug } = params
 			invariant(

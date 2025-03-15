@@ -1,5 +1,10 @@
 import { parseWithZod } from '@conform-to/zod'
-import { PATHS, createZodSchema, parseAdminPathname } from '@kobun/common'
+import {
+	PATHS,
+	createZodSchema,
+	parseAdminPathname,
+	type R2Credentials,
+} from '@kobun/common'
 import { customAlphabet } from 'nanoid'
 import { redirect } from 'react-router'
 import invariant from 'tiny-invariant'
@@ -11,7 +16,11 @@ import { readItemInR2Collection } from '../utils'
 
 const nanoid = customAlphabet('0123456789abcdefghijklmnopqrstuvwxyz', 32)
 
-export const handleActions = async ({ config, request }: ActionHandlerArgs) => {
+export const handleActions = async ({
+	config,
+	context,
+	request,
+}: ActionHandlerArgs) => {
 	const url = new URL(request.url)
 	const { basePath, collections } = config
 	const params = parseAdminPathname({
@@ -43,9 +52,14 @@ export const handleActions = async ({ config, request }: ActionHandlerArgs) => {
 			)
 			const collection = collections[collectionSlug]
 
-			const r2Storage = new CloudflareR2FileStorage(
-				config.storage.credentials,
-			)
+			const env = context.cloudflare.env
+			const credentials: R2Credentials = {
+				accountId: env.ACCOUNT_ID as string,
+				accessKeyId: env.ACCESS_KEY as string,
+				bucketName: env.BUCKET_NAME as string,
+				secretAccessKey: env.SECRET_ACCESS_KEY as string,
+			}
+			const r2Storage = new CloudflareR2FileStorage(credentials)
 
 			const formData = await request.formData()
 			const prefix = `${contentPrefix}/collections/${collectionSlug}`

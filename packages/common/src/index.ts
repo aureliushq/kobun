@@ -19,6 +19,7 @@ export type {
 	Collection,
 	Collections,
 	SchemaKey,
+	R2Credentials,
 	Storage,
 	Config,
 } from '~/types'

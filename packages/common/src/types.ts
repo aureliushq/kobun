@@ -146,10 +146,10 @@ const R2_CREDENTIALS = z.object({
 	secretAccessKey: z.string(),
 	bucketName: z.string(),
 })
+export type R2Credentials = z.infer<typeof R2_CREDENTIALS>
 
 const ASSETS_R2_CONFIG = z.object({
 	type: z.literal('r2'),
-	credentials: R2_CREDENTIALS,
 	prefix: z.string().default('assets'),
 })
 
@@ -182,7 +182,6 @@ const R2_MODE = z.object({
 	assets: ASSETS_R2_CONFIG.default({
 		type: 'r2',
 		prefix: 'assets',
-		credentials: z.NEVER,
 	}).optional(),
 	content: z
 		.object({
@@ -192,7 +191,6 @@ const R2_MODE = z.object({
 			prefix: 'content',
 		})
 		.optional(),
-	credentials: R2_CREDENTIALS,
 	format: CONTENT_FORMAT,
 })
 
