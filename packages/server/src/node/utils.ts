@@ -1,14 +1,22 @@
 // biome-ignore lint/style/useNodejsImportProtocol: <explanation>
 import { promises as fs } from 'fs'
-import { APP_BASE_PATH, type Collection } from '@kobun/common'
+import {
+	APP_BASE_PATH,
+	type Collection,
+	type ContentFormat,
+	type ContentPath,
+	type Singleton,
+	type SingletonFormat,
+} from '@kobun/common'
 import fg from 'fast-glob'
 import matter from 'gray-matter'
 import type z from 'zod'
+import { readFile } from 'node:fs/promises'
 
 type LocalCollectionContentPath = {
 	collection: Collection
 	filters?: Record<string, string>
-	format: 'md' | 'mdx'
+	format: ContentFormat
 	slug?: string
 }
 
@@ -120,4 +128,66 @@ export const writeItemToLocalCollection = async ({
 		}
 		await fs.writeFile(path, fileContent)
 	}
+}
+
+type ReadLocalSingletonPath = {
+	singleton: Singleton
+	format: ContentFormat
+	schema: z.ZodType
+}
+
+export const getLocalSingletonContentPath = ({
+	format = 'json',
+	singleton,
+}: {
+	format?: SingletonFormat
+	singleton: Singleton
+}): string => {
+	const contentPath = singleton.paths.content as string
+	return `${process.cwd()}${APP_BASE_PATH}/content/singletons/${contentPath}.${format}`
+}
+
+export const readLocalSingleton = async ({
+	singleton,
+	schema,
+}: Omit<ReadLocalSingletonPath, 'format'>) => {
+	const path = getLocalSingletonContentPath({
+		singleton,
+	})
+	try {
+		const content = await readFile(path, 'utf-8')
+		const data = JSON.parse(content)
+		const parsedData = schema.parse(data)
+		return parsedData
+	} catch (error) {
+		if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+			// Return empty object if file doesn't exist
+			return {}
+		}
+		throw error
+	}
+}
+
+type WriteLocalSingletonPath = {
+	singleton: Singleton
+	format: SingletonFormat
+	fileContent: string
+}
+
+export const writeLocalSingleton = async ({
+	fileContent,
+	format = 'json',
+	singleton,
+}: WriteLocalSingletonPath) => {
+	const path = getLocalSingletonContentPath({
+		format,
+		singleton,
+	})
+	const dir = path.split('/').slice(0, -1).join('/')
+	try {
+		await fs.access(dir)
+	} catch (error) {
+		await fs.mkdir(dir, { recursive: true })
+	}
+	await fs.writeFile(path, fileContent)
 }

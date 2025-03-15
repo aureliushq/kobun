@@ -3,9 +3,10 @@ import {
 	type Collection,
 	type Config,
 	type SchemaKey,
+	type Singleton,
 } from '@kobun/common'
-import type { AllParams, CollectionInterface, KobunReader } from '~/types'
-import { readItemInLocalCollection, readItemsInLocalCollection } from './utils'
+import type { AllParams, CollectionInterface, KobunReader, SingletonInterface } from '~/types'
+import { readItemInLocalCollection, readItemsInLocalCollection, readLocalSingleton } from './utils'
 
 export const createReader = (
 	config: Config,
@@ -56,14 +57,49 @@ export const createReader = (
 			return collectionInterface
 		}
 
+		const generateInterfaceForSingleton = <T extends SchemaKey>(
+			singleton: Singleton,
+		) => {
+			const singletonInterface: SingletonInterface<T> = {
+				_label: singleton.label,
+				_schema: singleton.schema,
+
+				async get() {
+					const schema = createZodSchema({
+						schema: singleton.schema,
+						options: { omit: ['content'], type: 'loader' },
+					})
+					return await readLocalSingleton({
+						singleton,
+						format,
+						schema,
+					})
+				},
+			}
+
+			return singletonInterface
+		}
+
+		// Add collections to reader
 		for (const key in config.collections) {
 			const collection = config.collections[key] as Collection
-
 			reader = Object.assign(reader, {
 				[key]: {
 					...generateInterfaceForCollection(collection),
 				},
 			})
+		}
+
+		// Add singletons to reader
+		if (config.singletons) {
+			for (const key in config.singletons) {
+				const singleton = config.singletons[key] as Singleton
+				reader = Object.assign(reader, {
+					[key]: {
+						...generateInterfaceForSingleton(singleton),
+					},
+				})
+			}
 		}
 
 		return reader

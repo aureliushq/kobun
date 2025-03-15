@@ -9,6 +9,7 @@ import { transformMultiselectFields } from '~/lib/utils'
 import {
 	readItemInLocalCollection,
 	writeItemToLocalCollection,
+	writeLocalSingleton,
 } from '~/node/utils'
 import type { ActionHandlerArgs } from '~/types'
 
@@ -16,11 +17,12 @@ const nanoid = customAlphabet('0123456789abcdefghijklmnopqrstuvwxyz', 32)
 
 export const handleActions = async ({ config, request }: ActionHandlerArgs) => {
 	const url = new URL(request.url)
-	const { basePath, collections } = config
+	const { basePath, collections, singletons } = config
 	const params = parseAdminPathname({
 		basePath,
 		collections,
 		pathname: url.pathname,
+		singletons,
 	})
 
 	if (!params) return {}
@@ -28,7 +30,6 @@ export const handleActions = async ({ config, request }: ActionHandlerArgs) => {
 	const mode = config.storage.mode
 	switch (mode) {
 		case 'local': {
-			const format = config.storage.format
 			if (
 				params.section === 'root' ||
 				params.section === 'settings' ||
@@ -37,19 +38,52 @@ export const handleActions = async ({ config, request }: ActionHandlerArgs) => {
 				return {}
 			}
 
+			// Handle singletons
+			const singletonFormat = config.storage.format.singletons
+			if (params.section === 'edit-singleton') {
+				const singletonSlug = params.singletonSlug
+				invariant(
+					singletons?.[singletonSlug],
+					`Singleton ${singletonSlug} not found in config`,
+				)
+				const singleton = singletons[singletonSlug]
+				const formData = await request.formData()
+				const schema = createZodSchema({
+					schema: singleton.schema,
+					options: { type: 'action' },
+				})
+				const submission = parseWithZod(formData, { schema })
+				const transformedPayload = transformMultiselectFields(
+					submission.payload,
+					singleton.schema,
+				)
+				const metadata = {
+					...transformedPayload,
+					updatedAt: new Date().toISOString(),
+				}
+				const fileContent = JSON.stringify(metadata, null, 2)
+				return await writeLocalSingleton({
+					format: singletonFormat,
+					fileContent,
+					singleton,
+				})
+			}
+
+			// Handle collections
 			const collectionSlug = params.collectionSlug
 			invariant(
 				collections[collectionSlug],
 				`Collection ${collectionSlug} not found in config`,
 			)
 			const collection = collections[collectionSlug]
+			const collectionFormat = config.storage.format.collections
 
 			const formData = await request.formData()
 			const schema = createZodSchema({
 				schema: collection.schema,
 				options: { type: 'action' },
 			})
-			if (params.section === 'editor-create') {
+			if (params.section === 'create-collection-item') {
 				// TODO: check if parseWithZod is successful and only then create the file
 				const submission = parseWithZod(formData, { schema })
 				// manually transform multiselect fields since parseWithZod is not doing it correctly
@@ -80,7 +114,7 @@ export const handleActions = async ({ config, request }: ActionHandlerArgs) => {
 					: `---\n${frontmatter}\n---`
 				await writeItemToLocalCollection({
 					collection,
-					format,
+					format: collectionFormat,
 					fileContent,
 					slug,
 				})
@@ -89,10 +123,10 @@ export const handleActions = async ({ config, request }: ActionHandlerArgs) => {
 			}
 
 			const id = params.id
-			if (params.section === 'editor-edit') {
+			if (params.section === 'edit-collection-item') {
 				const data = await readItemInLocalCollection({
 					collection,
-					format,
+					format: collectionFormat,
 					id,
 					schema: createZodSchema({
 						schema: collection.schema,
@@ -128,7 +162,7 @@ export const handleActions = async ({ config, request }: ActionHandlerArgs) => {
 					: `---\n${frontmatter}\n---`
 				await writeItemToLocalCollection({
 					collection,
-					format,
+					format: collectionFormat,
 					fileContent,
 					oldSlug:
 						oldMetadata.slug !== payload.slug
@@ -138,7 +172,7 @@ export const handleActions = async ({ config, request }: ActionHandlerArgs) => {
 				})
 				return await readItemInLocalCollection({
 					collection,
-					format,
+					format: collectionFormat,
 					id,
 					schema: createZodSchema({
 						schema: collection.schema,
