@@ -156,12 +156,12 @@ const DashboardSidebar = () => {
 				{config.singletons && (
 					<SidebarGroup>
 						<SidebarGroupLabel>Singletons</SidebarGroupLabel>
-						{Object.keys(config.singletons).map((key) => {
-							const singleton = config.singletons?.[key]
-							const link = `${basePath}/${PATHS.SINGLETONS}/${key}`
-							return (
-								<SidebarMenu key={key}>
-									<SidebarMenuItem>
+						<SidebarMenu>
+							{Object.keys(config.singletons).map((key) => {
+								const singleton = config.singletons?.[key]
+								const link = `${basePath}/${PATHS.SINGLETONS}/${key}`
+								return (
+									<SidebarMenuItem key={key}>
 										<SidebarMenuButton
 											asChild
 											isActive={
@@ -174,9 +174,9 @@ const DashboardSidebar = () => {
 											</Link>
 										</SidebarMenuButton>
 									</SidebarMenuItem>
-								</SidebarMenu>
-							)
-						})}
+								)
+							})}
+						</SidebarMenu>
 					</SidebarGroup>
 				)}
 			</SidebarContent>

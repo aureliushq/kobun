@@ -2,6 +2,7 @@ import type { FieldMetadata } from '@conform-to/react'
 import type { ConfigSchema, SchemaKey } from '@kobun/common'
 
 import InputRenderer from '~/components/form/input-renderer'
+import type { Layout } from '~/lib/types'
 
 const Form = <T extends SchemaKey>({
 	fields,
@@ -16,7 +17,7 @@ const Form = <T extends SchemaKey>({
 		[x: string]: FieldMetadata<any, Record<string, any>, string[]>
 	}>
 	isContentFieldAvailable: boolean
-	layout?: 'editor' | 'form'
+	layout?: Layout
 	primaryInputFields: string[]
 	schema: ConfigSchema<T>
 	secondaryInputFields: string[]
@@ -34,6 +35,7 @@ const Form = <T extends SchemaKey>({
 							fieldData={fieldData}
 							fieldKey={key}
 							fieldMetadata={fieldMetadata}
+							layout={layout}
 							key={key}
 						/>
 					)
@@ -53,6 +55,7 @@ const Form = <T extends SchemaKey>({
 							fieldData={fieldData}
 							fieldKey={key}
 							fieldMetadata={fieldMetadata}
+							layout={layout}
 							key={key}
 						/>
 					)
@@ -63,7 +66,7 @@ const Form = <T extends SchemaKey>({
 		return (
 			<section className='rs-flex rs-h-full rs-w-full rs-max-w-4xl rs-mx-auto rs-flex-grow rs-flex-col rs-items-center rs-justify-start rs-px-6 rs-z-9'>
 				<div className='rs-flex rs-h-full rs-w-full rs-flex-col rs-items-center rs-justify-start rs-gap-6 rs-px-4 rs-pt-12 rs-pb-24 md:rs-pb-16 lg:rs-px-0'>
-					<div className='rs-w-full rs-flex rs-flex-col rs-gap-6'>
+					<div className='rs-w-full rs-flex rs-flex-col rs-gap-6 rs-px-2'>
 						{SecondaryInputs}
 					</div>
 				</div>

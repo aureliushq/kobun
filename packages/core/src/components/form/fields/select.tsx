@@ -27,7 +27,7 @@ const SelectField = ({
 	const [selected, setSelected] = useState<string>(defaultOption?.value ?? '')
 
 	return (
-		<div className='rs-flex rs-items-center rs-justify-between rs-flex-wrap rs-gap-2 rs-px-2'>
+		<div className='rs-flex rs-items-center rs-justify-between rs-flex-wrap rs-gap-2'>
 			<div className='rs-grid rs-gap-1.5 rs-leading-none'>
 				<Label>{label}</Label>
 				{description && (
