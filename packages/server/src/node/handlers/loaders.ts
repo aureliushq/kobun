@@ -28,7 +28,7 @@ export const handleLoaders = async ({ config, request }: LoaderHandlerArgs) => {
 			}
 
 			// Handle singletons
-			// const singletonFormat = config.storage.format.singletons
+			const singletonFormat = config.storage.format.singletons
 			if (params.section === 'edit-singleton') {
 				const singletonSlug = params.singletonSlug
 				invariant(
@@ -41,8 +41,9 @@ export const handleLoaders = async ({ config, request }: LoaderHandlerArgs) => {
 					options: { type: 'loader' },
 				})
 				const singletonData = await readLocalSingleton({
-					singleton,
+					format: singletonFormat,
 					schema,
+					singleton,
 				})
 				return { config, item: singletonData }
 			}

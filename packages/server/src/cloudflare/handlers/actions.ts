@@ -45,7 +45,7 @@ export const handleActions = async ({
 				return {}
 			}
 
-			const env = context.cloudflare.env
+			const env = process?.env ?? context.cloudflare.env
 			const credentials: R2Credentials = {
 				accountId: env.ACCOUNT_ID as string,
 				accessKeyId: env.ACCESS_KEY as string,
@@ -83,7 +83,7 @@ export const handleActions = async ({
 					[fileContent],
 					`${singletonSlug}.${singletonFormat}`,
 					{
-						type: 'text/markdown',
+						type: 'text/json',
 					},
 				)
 				await r2Storage.set(

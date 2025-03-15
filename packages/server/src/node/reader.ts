@@ -5,8 +5,17 @@ import {
 	type SchemaKey,
 	type Singleton,
 } from '@kobun/common'
-import type { AllParams, CollectionInterface, KobunReader, SingletonInterface } from '~/types'
-import { readItemInLocalCollection, readItemsInLocalCollection, readLocalSingleton } from './utils'
+import type {
+	AllParams,
+	CollectionInterface,
+	KobunReader,
+	SingletonInterface,
+} from '~/types'
+import {
+	readItemInLocalCollection,
+	readItemsInLocalCollection,
+	readLocalSingleton,
+} from './utils'
 
 export const createReader = (
 	config: Config,
@@ -14,7 +23,8 @@ export const createReader = (
 	const mode = config.storage.mode
 	if (mode === 'local') {
 		let reader = {}
-		const format = config.storage.format
+		const collectionFormat = config.storage.format.collections
+		const singletonFormat = config.storage.format.singletons
 
 		const generateInterfaceForCollection = <T extends SchemaKey>(
 			collection: Collection,
@@ -27,7 +37,7 @@ export const createReader = (
 					return await readItemsInLocalCollection({
 						collection,
 						filters,
-						format,
+						format: collectionFormat,
 					})
 				},
 
@@ -39,7 +49,7 @@ export const createReader = (
 					if (!where.slug) {
 						return await readItemInLocalCollection({
 							collection,
-							format,
+							format: collectionFormat,
 							id: where.id,
 							schema,
 						})
@@ -47,7 +57,7 @@ export const createReader = (
 
 					return await readItemInLocalCollection({
 						collection,
-						format,
+						format: collectionFormat,
 						slug: where.slug,
 						schema,
 					})
@@ -71,7 +81,7 @@ export const createReader = (
 					})
 					return await readLocalSingleton({
 						singleton,
-						format,
+						format: singletonFormat,
 						schema,
 					})
 				},

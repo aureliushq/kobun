@@ -49,6 +49,7 @@ export const handleLoaders = async ({
 			const r2Storage = new CloudflareR2FileStorage(credentials)
 
 			// Handle singletons
+			const singletonFormat = config.storage.format.singletons
 			if (params.section === 'edit-singleton') {
 				const singletonSlug = params.singletonSlug
 				invariant(
@@ -60,9 +61,11 @@ export const handleLoaders = async ({
 					schema: singleton.schema,
 					options: { type: 'loader' },
 				})
+				// TODO: read from r2 instead of local
 				const singletonData = await readLocalSingleton({
-					singleton,
+					format: singletonFormat,
 					schema,
+					singleton,
 				})
 				return { config, item: singletonData }
 			}

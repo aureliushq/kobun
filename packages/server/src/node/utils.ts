@@ -132,7 +132,7 @@ export const writeItemToLocalCollection = async ({
 
 type ReadLocalSingletonPath = {
 	singleton: Singleton
-	format: ContentFormat
+	format: SingletonFormat
 	schema: z.ZodType
 }
 
@@ -148,10 +148,12 @@ export const getLocalSingletonContentPath = ({
 }
 
 export const readLocalSingleton = async ({
-	singleton,
+	format = 'json',
 	schema,
-}: Omit<ReadLocalSingletonPath, 'format'>) => {
+	singleton,
+}: ReadLocalSingletonPath) => {
 	const path = getLocalSingletonContentPath({
+		format,
 		singleton,
 	})
 	try {
