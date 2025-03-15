@@ -22,5 +22,8 @@ export type {
 	R2Credentials,
 	Storage,
 	Config,
+	Singleton,
+	SingletonFormat,
+	Singletons,
 } from '~/types'
 export * from '~/utils'

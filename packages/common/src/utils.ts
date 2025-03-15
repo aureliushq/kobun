@@ -9,6 +9,7 @@ import {
 	type Field,
 	FieldTypes,
 	type SchemaKey,
+	type Singletons,
 } from '~/types'
 
 export const createZodSchema = <T extends ConfigSchema<SchemaKey>>({
@@ -108,11 +109,13 @@ export const parseAdminPathname = ({
 	collections,
 	pathname,
 	search,
+	singletons,
 }: {
 	basePath?: string | RegExp
 	collections: Collections
 	pathname: string
 	search?: string
+	singletons?: Singletons
 }): AdminPaths | null => {
 	const replaced = pathname.replace(basePath, '')
 	const parts =
@@ -176,7 +179,7 @@ export const parseAdminPathname = ({
 		}
 		// const slug = collections[collection]?.slug as string
 		return {
-			section: 'editor-create',
+			section: 'create-collection-item',
 			collectionSlug,
 			// slug,
 		}
@@ -197,7 +200,25 @@ export const parseAdminPathname = ({
 			return null
 		}
 		const id = parts[3] as string
-		return { section: 'editor-edit', collectionSlug, id }
+		return { section: 'edit-collection-item', collectionSlug, id }
+	}
+
+	// Handle /editor/singletons/<slug> route (edit item)
+	if (
+		parts.length >= 4 &&
+		parts[0] === 'editor' &&
+		parts[1] === 'singletons' &&
+		singletons
+	) {
+		const singletonSlug = parts[2]
+		invariant(
+			singletonSlug,
+			`Invalid value for singleton: "${singletonSlug}"`,
+		)
+		if (!(singletonSlug in singletons)) {
+			return null
+		}
+		return { section: 'edit-singleton', singletonSlug }
 	}
 
 	return null

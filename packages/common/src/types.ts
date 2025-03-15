@@ -5,6 +5,9 @@ import { z } from 'zod'
 const CONTENT_FORMAT = z.enum(['md', 'mdx'])
 export type ContentFormat = z.infer<typeof CONTENT_FORMAT>
 
+const SINGLETON_FORMAT = z.literal('json')
+export type SingletonFormat = z.infer<typeof SINGLETON_FORMAT>
+
 type Glob = '*' | '**'
 type Path = `${string}/${Glob}` | `${string}/${Glob}/${string}`
 export type AssetPath = Path
@@ -134,8 +137,23 @@ export type Collection = {
 	// slug: CollectionSlug
 }
 
-export interface Collections {
+export type Collections = {
 	[key: string]: Collection
+}
+
+// Singleton
+export type Singleton = {
+	features?: Features
+	label: string
+	paths: {
+		assets?: AssetPath | string
+		content: ContentPath | string
+	}
+	schema: ConfigSchema<SchemaKey>
+}
+
+export type Singletons = {
+	[key: string]: Singleton
 }
 
 // Storage
@@ -174,7 +192,10 @@ const LOCAL_MODE = z.object({
 			prefix: 'app/content',
 		})
 		.optional(),
-	format: CONTENT_FORMAT,
+	format: z.object({
+		collections: CONTENT_FORMAT,
+		singletons: SINGLETON_FORMAT,
+	}),
 })
 
 const R2_MODE = z.object({
@@ -191,17 +212,20 @@ const R2_MODE = z.object({
 			prefix: 'content',
 		})
 		.optional(),
-	format: CONTENT_FORMAT,
+	format: z.object({
+		collections: CONTENT_FORMAT,
+		singletons: SINGLETON_FORMAT,
+	}),
 })
 
 const STORAGE = z.discriminatedUnion('mode', [LOCAL_MODE, R2_MODE])
-
 export type Storage = z.infer<typeof STORAGE>
 
 // Configuration
 export type Config = {
 	basePath?: string
 	collections: Collections
+	singletons?: Singletons
 	storage: Storage
 }
 
@@ -214,13 +238,17 @@ const ADMIN_PATHS = z.discriminatedUnion('section', [
 		search: z.record(z.string(), z.string()).optional(),
 	}),
 	z.object({
-		section: z.literal('editor-create'),
+		section: z.literal('create-collection-item'),
 		collectionSlug: z.string(),
 	}),
 	z.object({
-		section: z.literal('editor-edit'),
+		section: z.literal('edit-collection-item'),
 		collectionSlug: z.string(),
 		id: z.string(),
+	}),
+	z.object({
+		section: z.literal('edit-singleton'),
+		singletonSlug: z.string(),
 	}),
 ])
 export type AdminPaths = z.infer<typeof ADMIN_PATHS>
