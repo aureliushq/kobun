@@ -205,7 +205,7 @@ export const parseAdminPathname = ({
 
 	// Handle /editor/singletons/<slug> route (edit item)
 	if (
-		parts.length >= 4 &&
+		parts.length === 3 &&
 		parts[0] === 'editor' &&
 		parts[1] === 'singletons' &&
 		singletons
