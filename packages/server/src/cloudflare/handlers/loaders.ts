@@ -10,6 +10,7 @@ import {
 	readItemInR2Collection,
 	readItemsInR2Collection,
 } from '~/cloudflare/utils'
+import { readLocalSingleton } from '~/node/utils'
 import type { LoaderHandlerArgs } from '~/types'
 
 export const handleLoaders = async ({
@@ -18,12 +19,13 @@ export const handleLoaders = async ({
 	request,
 }: LoaderHandlerArgs) => {
 	const url = new URL(request.url)
-	const { basePath, collections } = config
+	const { basePath, collections, singletons } = config
 	const params = parseAdminPathname({
 		basePath,
 		collections,
 		pathname: url.pathname,
 		search: url.search,
+		singletons,
 	})
 
 	if (!params) return {}
@@ -32,7 +34,6 @@ export const handleLoaders = async ({
 	switch (mode) {
 		case 'r2': {
 			const contentPrefix = config.storage.content?.prefix ?? 'content'
-			const format = config.storage.format
 
 			if (params.section === 'root' || params.section === 'settings') {
 				return { config }
@@ -47,18 +48,38 @@ export const handleLoaders = async ({
 			}
 			const r2Storage = new CloudflareR2FileStorage(credentials)
 
-			const { collectionSlug } = params
+			// Handle singletons
+			if (params.section === 'edit-singleton') {
+				const singletonSlug = params.singletonSlug
+				invariant(
+					singletons?.[singletonSlug],
+					`Singleton ${singletonSlug} not found in config`,
+				)
+				const singleton = singletons[singletonSlug]
+				const schema = createZodSchema({
+					schema: singleton.schema,
+					options: { type: 'loader' },
+				})
+				const singletonData = await readLocalSingleton({
+					singleton,
+					schema,
+				})
+				return { config, item: singletonData }
+			}
+
+			const collectionSlug = params.collectionSlug
 			invariant(
 				collections[collectionSlug],
 				`Collection ${collectionSlug} not found in config`,
 			)
 			const collection = collections[collectionSlug]
+			const collectionFormat = config.storage.format.collections
 			const prefix = `${contentPrefix}/collections/${collectionSlug}`
 			if (params.section === 'collections') {
 				const filters = params.search
 				const collectionItems = await readItemsInR2Collection({
 					filters,
-					format,
+					format: collectionFormat,
 					prefix,
 					r2Storage,
 				})
@@ -66,7 +87,7 @@ export const handleLoaders = async ({
 				return { config, items: collectionItems }
 			}
 
-			if (params.section === 'editor-create') {
+			if (params.section === 'create-collection-item') {
 				return { config }
 			}
 
@@ -75,9 +96,9 @@ export const handleLoaders = async ({
 				schema: collection.schema,
 				options: { omit: ['content'], type: 'loader' },
 			})
-			if (params.section === 'editor-edit') {
+			if (params.section === 'edit-collection-item') {
 				const item = await readItemInR2Collection({
-					format,
+					format: collectionFormat,
 					id,
 					prefix,
 					r2Storage,
