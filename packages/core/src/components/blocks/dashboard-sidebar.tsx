@@ -153,6 +153,32 @@ const DashboardSidebar = () => {
 						)
 					})}
 				</SidebarGroup>
+				{config.singletons && (
+					<SidebarGroup>
+						<SidebarGroupLabel>Singletons</SidebarGroupLabel>
+						{Object.keys(config.singletons).map((key) => {
+							const singleton = config.singletons?.[key]
+							const link = `${basePath}/${PATHS.SINGLETONS}/${key}`
+							return (
+								<SidebarMenu key={key}>
+									<SidebarMenuItem>
+										<SidebarMenuButton
+											asChild
+											isActive={
+												location.pathname === link &&
+												location.search === ''
+											}
+										>
+											<Link to={link}>
+												{`${singleton?.label}`}
+											</Link>
+										</SidebarMenuButton>
+									</SidebarMenuItem>
+								</SidebarMenu>
+							)
+						})}
+					</SidebarGroup>
+				)}
 			</SidebarContent>
 			<SidebarFooter>
 				<SidebarGroup>

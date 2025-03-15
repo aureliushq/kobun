@@ -37,6 +37,7 @@ const KobunProvider = ({ config, children }: KobunProviderProps) => {
 			collections: config.collections,
 			pathname: location.pathname,
 			search: location.search,
+			singletons: config.singletons,
 		})
 	}, [config, location.pathname, location.search])
 
