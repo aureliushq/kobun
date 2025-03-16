@@ -6,6 +6,7 @@ import {
 	type Field,
 	FieldTypes,
 	type MultiSelectField as MultiSelectFieldType,
+	type ObjectField as ObjectFieldType,
 	type SchemaKey,
 	type SelectField as SelectFieldType,
 	type SlugField as SlugFieldType,
@@ -33,6 +34,7 @@ import Editor from '~/components/editor'
 import BooleanField from '~/components/form/fields/boolean'
 import DateField from '~/components/form/fields/date'
 import MultiSelectField from '~/components/form/fields/multiselect'
+import ObjectField from '~/components/form/fields/object'
 import SelectField from '~/components/form/fields/select'
 import SlugField from '~/components/form/fields/slug'
 import TextField from '~/components/form/fields/text'
@@ -238,6 +240,18 @@ const InputRenderer = ({
 					name={fieldMetadata.name}
 					options={data.options}
 					placeholder={data.placeholder}
+				/>
+			)
+		}
+		case FieldTypes.OBJECT: {
+			const data = fieldData as ObjectFieldType
+			return (
+				<ObjectField
+					description={data.description}
+					fields={fields}
+					label={data.label}
+					name={fieldMetadata.name}
+					schema={data.schema}
 				/>
 			)
 		}
