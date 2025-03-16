@@ -34,11 +34,10 @@ export const createZodSchema = <T extends ConfigSchema<SchemaKey>>({
 				return z.coerce.date()
 			case FieldTypes.DOCUMENT:
 			case FieldTypes.IMAGE:
-			case FieldTypes.TEXT:
-			case FieldTypes.SLUG:
-			case FieldTypes.URL:
-				return z.string()
 			case FieldTypes.SELECT:
+			case FieldTypes.SLUG:
+			case FieldTypes.TEXT:
+			case FieldTypes.URL:
 				return z.string()
 			case FieldTypes.MULTISELECT:
 				if (options?.type === 'action') {
@@ -54,6 +53,21 @@ export const createZodSchema = <T extends ConfigSchema<SchemaKey>>({
 				}
 
 				return z.array(z.string()).transform((val) => val.join(','))
+			case FieldTypes.OBJECT: {
+				// Create schema for nested fields
+				const nestedSchemas = Object.entries(field.schema).reduce<
+					Record<string, z.ZodType>
+				>((acc, [key, nestedField]) => {
+					return {
+						// biome-ignore lint/performance/noAccumulatingSpread: <explanation>
+						...acc,
+						[key]: getFieldSchema(nestedField),
+					}
+				}, {})
+				return z.object(nestedSchemas)
+			}
+			default:
+				return z.string()
 		}
 	}
 

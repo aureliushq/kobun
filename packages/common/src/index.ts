@@ -9,6 +9,7 @@ export type {
 	DateField,
 	DocumentField,
 	MultiSelectField,
+	ObjectField,
 	SelectOption,
 	SelectField,
 	SlugField,

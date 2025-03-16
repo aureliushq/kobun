@@ -34,6 +34,7 @@ export enum FieldTypes {
 	DOCUMENT = 'document',
 	IMAGE = 'image',
 	MULTISELECT = 'multiselect',
+	OBJECT = 'object',
 	SELECT = 'select',
 	SLUG = 'slug',
 	TEXT = 'text',
@@ -111,12 +112,19 @@ export type UrlField = BasicField & {
 	type: FieldTypes.URL
 }
 
+export type ObjectField = BasicField & {
+	name?: HTMLInputElement['name']
+	schema: ConfigSchema<SchemaKey>
+	type: FieldTypes.OBJECT
+}
+
 export type Field =
 	| BooleanField
 	| DateField
 	| DocumentField
 	| ImageField
 	| MultiSelectField
+	| ObjectField
 	| SelectField
 	| SlugField
 	| TextField
