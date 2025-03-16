@@ -1,5 +1,16 @@
 # @kobun/server
 
+## 0.6.0
+
+### Minor Changes
+
+- 0eef2fe: Add support for singletons (pending bug fixes)
+
+### Patch Changes
+
+- Updated dependencies [0eef2fe]
+  - @kobun/common@0.6.0
+
 ## 0.5.5
 
 ### Patch Changes
