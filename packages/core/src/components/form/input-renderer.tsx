@@ -2,9 +2,11 @@ import type { FieldMetadata } from '@conform-to/react'
 import {
 	type BooleanField as BooleanFieldType,
 	type DateField as DateFieldType,
+	type DocumentField as DocumentFieldType,
 	type Field,
 	FieldTypes,
 	type MultiSelectField as MultiSelectFieldType,
+	type ObjectField as ObjectFieldType,
 	type SchemaKey,
 	type SelectField as SelectFieldType,
 	type SlugField as SlugFieldType,
@@ -32,11 +34,13 @@ import Editor from '~/components/editor'
 import BooleanField from '~/components/form/fields/boolean'
 import DateField from '~/components/form/fields/date'
 import MultiSelectField from '~/components/form/fields/multiselect'
+import ObjectField from '~/components/form/fields/object'
 import SelectField from '~/components/form/fields/select'
 import SlugField from '~/components/form/fields/slug'
 import TextField from '~/components/form/fields/text'
 import UrlField from '~/components/form/fields/url'
 import { Textarea } from '~/components/ui/textarea'
+import type { Layout } from '~/lib/types'
 
 const lowlight = createLowlight(common)
 
@@ -51,6 +55,7 @@ const InputRenderer = ({
 	fieldData,
 	fieldKey,
 	fieldMetadata,
+	layout,
 }: {
 	fields: Required<{
 		// biome-ignore lint/suspicious/noExplicitAny: <explanation>
@@ -59,6 +64,7 @@ const InputRenderer = ({
 	fieldData: Field & { type: FieldTypes }
 	fieldKey: SchemaKey
 	fieldMetadata: FieldMetadata
+	layout: Layout
 }) => {
 	const editorData = useRef<EditorData>({
 		content: (fieldMetadata.initialValue as string) || '',
@@ -101,7 +107,10 @@ const InputRenderer = ({
 			}),
 			TiptapLink.configure({ openOnClick: false }),
 			Placeholder.configure({
-				placeholder: 'Start writing or press "/" to insert content...',
+				placeholder:
+					layout === 'editor'
+						? 'Start writing or press "/" to insert content...'
+						: '',
 			}),
 			Highlight.configure({ multicolor: true }),
 			StarterKit.configure({
@@ -198,11 +207,15 @@ const InputRenderer = ({
 			)
 		}
 		case FieldTypes.DOCUMENT: {
+			const data = fieldData as DocumentFieldType
 			return (
 				<>
 					<Editor
 						bodyFont={settings.bodyFont}
+						description={data.description}
 						editor={editor as TiptapEditor}
+						label={data.label}
+						layout={layout}
 					/>
 					<Textarea
 						className='rs-hidden'
@@ -227,6 +240,18 @@ const InputRenderer = ({
 					name={fieldMetadata.name}
 					options={data.options}
 					placeholder={data.placeholder}
+				/>
+			)
+		}
+		case FieldTypes.OBJECT: {
+			const data = fieldData as ObjectFieldType
+			return (
+				<ObjectField
+					description={data.description}
+					fields={fields}
+					label={data.label}
+					name={fieldMetadata.name}
+					schema={data.schema}
 				/>
 			)
 		}
@@ -266,19 +291,17 @@ const InputRenderer = ({
 		case FieldTypes.TEXT: {
 			const data = fieldData as TextFieldType
 
-			if (fieldKey === 'title') {
+			if (fieldKey === 'title' && layout === 'editor') {
 				return (
-					<div className='rs-px-2'>
-						<Textarea
-							autoFocus
-							className={`rs-w-full rs-min-h-[48px] rs-border-0 rs-p-0 focus-visible:rs-ring-0 focus-visible:rs-ring-offset-0 rs-flex rs-items-center rs-resize-none rs-overflow-y-hidden rs-bg-transparent rs-text-xl rs-font-semibold rs-leading-snug rs-text-foreground focus:rs-outline-none lg:rs-text-3xl lg:rs-leading-snug rs-${settings?.titleFont}`}
-							defaultValue={fieldMetadata.initialValue as string}
-							name={fieldMetadata.name}
-							placeholder='Untitled'
-							ref={titleRef}
-							rows={1}
-						/>
-					</div>
+					<Textarea
+						autoFocus
+						className={`rs-w-full rs-min-h-[48px] rs-border-0 rs-p-0 focus-visible:rs-ring-0 focus-visible:rs-ring-offset-0 rs-flex rs-items-center rs-resize-none rs-overflow-y-hidden rs-bg-transparent rs-text-xl rs-font-semibold rs-leading-snug rs-text-foreground focus:rs-outline-none lg:rs-text-3xl lg:rs-leading-snug rs-${settings?.titleFont}`}
+						defaultValue={fieldMetadata.initialValue as string}
+						name={fieldMetadata.name}
+						placeholder='Untitled'
+						ref={titleRef}
+						rows={1}
+					/>
 				)
 			}
 

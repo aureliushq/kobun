@@ -1,4 +1,8 @@
-import { createZodSchema, parseAdminPathname } from '@kobun/common'
+import {
+	type R2Credentials,
+	createZodSchema,
+	parseAdminPathname,
+} from '@kobun/common'
 import invariant from 'tiny-invariant'
 
 import { CloudflareR2FileStorage } from '~/cloudflare/r2'
@@ -8,15 +12,19 @@ import {
 } from '~/cloudflare/utils'
 import type { LoaderHandlerArgs } from '~/types'
 
-// TODO: remove secrets from config before returning to frontend
-export const handleLoaders = async ({ config, request }: LoaderHandlerArgs) => {
+export const handleLoaders = async ({
+	config,
+	context,
+	request,
+}: LoaderHandlerArgs) => {
 	const url = new URL(request.url)
-	const { basePath, collections } = config
+	const { basePath, collections, singletons } = config
 	const params = parseAdminPathname({
 		basePath,
 		collections,
 		pathname: url.pathname,
 		search: url.search,
+		singletons,
 	})
 
 	if (!params) return {}
@@ -25,36 +33,76 @@ export const handleLoaders = async ({ config, request }: LoaderHandlerArgs) => {
 	switch (mode) {
 		case 'r2': {
 			const contentPrefix = config.storage.content?.prefix ?? 'content'
-			const format = config.storage.format
 
 			if (params.section === 'root' || params.section === 'settings') {
 				return { config }
 			}
 
-			const r2Storage = new CloudflareR2FileStorage(
-				config.storage.credentials,
-			)
+			const env = process?.env ?? context.cloudflare.env
+			const credentials: R2Credentials = {
+				accountId: env.ACCOUNT_ID as string,
+				accessKeyId: env.ACCESS_KEY as string,
+				bucketName: env.BUCKET_NAME as string,
+				secretAccessKey: env.SECRET_ACCESS_KEY as string,
+			}
+			const r2Storage = new CloudflareR2FileStorage(credentials)
 
-			const { collectionSlug } = params
+			// Handle singletons
+			const singletonFormat = config.storage.format.singletons
+			const singletonPrefix = `${contentPrefix}/singletons`
+			// TODO: when route changes loader data is not updated
+			if (params.section === 'edit-singleton') {
+				const singletonSlug = params.singletonSlug
+				invariant(
+					singletons?.[singletonSlug],
+					`Singleton ${singletonSlug} not found in config`,
+				)
+				const singleton = singletons[singletonSlug]
+				const schema = createZodSchema({
+					options: { type: 'loader' },
+					schema: singleton.schema,
+					type: 'singleton',
+				})
+				const content = (await r2Storage.get(
+					`${singletonPrefix}/${singletonSlug}.${singletonFormat}`,
+				)) as string
+				if (!content) return { config }
+				const data = JSON.parse(content)
+				const result = schema.safeParse(data)
+				if (!result.success) {
+					// Return partial data with empty values for invalid fields
+					const partialData = { ...data } as Record<string, unknown>
+					// biome-ignore lint/complexity/noForEach: <explanation>
+					result.error.errors.forEach((error) => {
+						const path = error.path.join('.')
+						partialData[path] = ''
+					})
+					return { config, item: partialData }
+				}
+				return { config, item: result.data }
+			}
+
+			const collectionSlug = params.collectionSlug
 			invariant(
 				collections[collectionSlug],
 				`Collection ${collectionSlug} not found in config`,
 			)
 			const collection = collections[collectionSlug]
-			const prefix = `${contentPrefix}/collections/${collectionSlug}`
+			const collectionFormat = config.storage.format.collections
+			const collectionPrefix = `${contentPrefix}/collections/${collectionSlug}`
 			if (params.section === 'collections') {
 				const filters = params.search
 				const collectionItems = await readItemsInR2Collection({
 					filters,
-					format,
-					prefix,
+					format: collectionFormat,
+					prefix: collectionPrefix,
 					r2Storage,
 				})
 
 				return { config, items: collectionItems }
 			}
 
-			if (params.section === 'editor-create') {
+			if (params.section === 'create-collection-item') {
 				return { config }
 			}
 
@@ -63,11 +111,11 @@ export const handleLoaders = async ({ config, request }: LoaderHandlerArgs) => {
 				schema: collection.schema,
 				options: { omit: ['content'], type: 'loader' },
 			})
-			if (params.section === 'editor-edit') {
+			if (params.section === 'edit-collection-item') {
 				const item = await readItemInR2Collection({
-					format,
+					format: collectionFormat,
 					id,
-					prefix,
+					prefix: collectionPrefix,
 					r2Storage,
 					schema,
 				})

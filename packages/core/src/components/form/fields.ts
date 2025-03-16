@@ -4,10 +4,13 @@ import {
 	type BooleanField,
 	type DateField,
 	type DocumentField,
+	type ObjectField,
 	type SelectField,
 	type SlugField,
 	type TextField,
 	type UrlField,
+	type ConfigSchema,
+	type SchemaKey,
 } from '@kobun/common'
 
 export const fields = {
@@ -36,6 +39,15 @@ export const fields = {
 	): MultiSelectField => ({
 		...config,
 		type: FieldTypes.MULTISELECT,
+	}),
+
+	object: (
+		schema: ConfigSchema<SchemaKey>,
+		config: Omit<ObjectField, 'type' | 'schema'>,
+	): ObjectField => ({
+		...config,
+		schema,
+		type: FieldTypes.OBJECT,
 	}),
 
 	select: (config: Omit<SelectField, 'type'>): SelectField => ({

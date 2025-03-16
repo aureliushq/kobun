@@ -1,4 +1,4 @@
-import { collection, config, fields } from '@kobun/core'
+import { collection, config, fields, singleton } from '@kobun/core'
 
 const AUTHOR_OPTIONS = [{ label: 'James Holden', value: 'james-holden' }]
 
@@ -122,14 +122,57 @@ const kobunConfig = config({
 			},
 		}),
 	},
+	singletons: {
+		now: singleton({
+			label: 'Now',
+			paths: {
+				content: 'now/**/*',
+			},
+			schema: {
+				title: fields.text({
+					label: 'Page title',
+				}),
+				description: fields.document({
+					label: 'Page description',
+				}),
+				subtitle: fields.text({
+					label: 'Page subtitle',
+				}),
+				data: fields.object(
+					{
+						title: fields.text({
+							label: 'Question',
+						}),
+					},
+					{
+						label: 'Questions',
+					},
+				),
+			},
+		}),
+		projects: singleton({
+			label: 'Projects',
+			paths: {
+				content: 'projects/**/*',
+			},
+			schema: {
+				title: fields.text({
+					label: 'Page title',
+				}),
+				description: fields.document({
+					label: 'Page description',
+				}),
+				subtitle: fields.text({
+					label: 'Page subtitle',
+				}),
+			},
+		}),
+	},
 	storage: {
-		credentials: {
-			accountId: process.env.CF_ACCOUNT_ID as string,
-			accessKeyId: process.env.CF_ACCESS_KEY as string,
-			bucketName: process.env.R2_BUCKET_NAME as string,
-			secretAccessKey: process.env.CF_SECRET_ACCESS_KEY as string,
+		format: {
+			collections: 'mdx',
+			singletons: 'json',
 		},
-		format: 'mdx',
 		mode: 'r2',
 	},
 })

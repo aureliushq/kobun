@@ -59,16 +59,42 @@ export const readItemInR2Collection = async ({
 			r2Storage,
 		})
 		const item = items.find((item) => item.id === id)
-		const data = await r2Storage.get(`${prefix}/${item?.slug}.${format}`)
-		if (!data) return null
-		const metadata = schema.parse(item)
+		if (!item) return {}
+		const result = schema.safeParse(item)
+		if (!result.success) {
+			// Return partial data with empty values for invalid fields
+			const partialData = { ...item } as Record<string, unknown>
+			// biome-ignore lint/complexity/noForEach: <explanation>
+			result.error.errors.forEach((error) => {
+				const path = error.path.join('.')
+				partialData[path] = ''
+			})
+			return partialData
+		}
+		const data = await r2Storage.get(
+			`${prefix}/${result.data.slug}.${format}`,
+		)
+		if (!data) return {}
 		const { content } = matter(data)
-		return { content, ...metadata }
+		return { content, ...result.data }
 	}
 
 	const data = await r2Storage.get(`${prefix}/${slug}.${format}`)
-	if (!data) return null
-	const metadata = schema.parse(data)
-	const { content } = matter(data)
-	return { content, ...metadata }
+	if (!data) return {}
+	const { data: metadata } = matter(data)
+	const result = schema.safeParse(metadata)
+	if (!result.success) {
+		// Return partial data with empty values for invalid fields
+		const partialData = { ...metadata, content: data } as Record<
+			string,
+			unknown
+		>
+		// biome-ignore lint/complexity/noForEach: <explanation>
+		result.error.errors.forEach((error) => {
+			const path = error.path.join('.')
+			partialData[path] = ''
+		})
+		return partialData
+	}
+	return { content: data, ...result.data }
 }

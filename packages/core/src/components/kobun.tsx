@@ -4,6 +4,7 @@ import { useLoaderData } from 'react-router'
 import invariant from 'tiny-invariant'
 
 import Collection from '~/components/blocks/collection'
+import Singleton from '~/components/blocks/singleton'
 import DashboardLayout from '~/components/layouts/dashboard'
 import EditorLayout from '~/components/layouts/editor'
 import { TooltipProvider } from '~/components/ui/tooltip'
@@ -26,8 +27,8 @@ const Root = () => {
 	let labels: Labels | undefined
 	if (
 		params?.section === 'collections' ||
-		params?.section === 'editor-create' ||
-		params?.section === 'editor-edit'
+		params?.section === 'create-collection-item' ||
+		params?.section === 'edit-collection-item'
 	) {
 		const collectionSlug = params.collectionSlug
 		labels = generateLabelsForCollection(config as Config, collectionSlug)
@@ -43,8 +44,8 @@ const Root = () => {
 	}
 
 	if (
-		params?.section === 'editor-create' ||
-		params?.section === 'editor-edit'
+		params?.section === 'create-collection-item' ||
+		params?.section === 'edit-collection-item'
 	) {
 		const collectionSlug = params.collectionSlug
 		return (
@@ -54,12 +55,21 @@ const Root = () => {
 		)
 	}
 
-	if (params?.section === 'root') {
-		return <DashboardLayout>Dashboard</DashboardLayout>
+	if (params?.section === 'edit-singleton') {
+		const singletonSlug = params.singletonSlug
+		return (
+			<DashboardLayout>
+				<Singleton singletonSlug={singletonSlug} />
+			</DashboardLayout>
+		)
 	}
 
 	if (params?.section === 'settings') {
 		return <DashboardLayout>Settings</DashboardLayout>
+	}
+
+	if (params?.section === 'root') {
+		return <DashboardLayout>Dashboard</DashboardLayout>
 	}
 
 	return <div>Not Found. Check the URL and make sure there are no typos.</div>
