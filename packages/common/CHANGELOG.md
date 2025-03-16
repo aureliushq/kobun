@@ -1,5 +1,11 @@
 # @kobun/common
 
+## 0.6.0
+
+### Minor Changes
+
+- 0eef2fe: Add support for singletons (pending bug fixes)
+
 ## 0.5.5
 
 ### Patch Changes
