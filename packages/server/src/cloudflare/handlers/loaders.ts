@@ -68,8 +68,17 @@ export const handleLoaders = async ({
 				)) as string
 				if (!content) return { config }
 				const data = JSON.parse(content)
-				const item = schema.parse(data)
-				return { config, item }
+				const result = schema.safeParse(data)
+				if (!result.success) {
+					// Return partial data with empty values for invalid fields
+					const partialData = { ...data } as Record<string, unknown>
+					result.error.errors.forEach((error) => {
+						const path = error.path.join('.')
+						partialData[path] = ''
+					})
+					return { config, item: partialData }
+				}
+				return { config, item: result.data }
 			}
 
 			const collectionSlug = params.collectionSlug

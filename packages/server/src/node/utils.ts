@@ -77,11 +77,13 @@ export const readItemInLocalCollection = async ({
 		// TODO: use the index to get the file name instead of parsing every file
 		const items = await readItemsInLocalCollection({ collection, format })
 		const data = items.find((item) => item.id === id)
-		const metadata = schema.parse(data)
+		if (!data) return {}
+		const result = schema.safeParse(data)
+		if (!result.success) return {}
 		path = getLocalCollectionContentPath({
 			collection,
 			format,
-			slug: metadata.slug,
+			slug: result.data.slug,
 		})
 	} else {
 		path = getLocalCollectionContentPath({
@@ -90,10 +92,18 @@ export const readItemInLocalCollection = async ({
 			slug,
 		})
 	}
-	const file = await fs.readFile(path, 'utf8')
-	const { content, data } = matter(file)
-	const metadata = schema.parse(data)
-	return { content, ...metadata }
+	try {
+		const file = await fs.readFile(path, 'utf8')
+		const { content, data } = matter(file)
+		const result = schema.safeParse(data)
+		if (!result.success) return { content: '' }
+		return { content, ...result.data }
+	} catch (error) {
+		if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+			return {}
+		}
+		throw error
+	}
 }
 
 type WriteLocalCollectionItemPath = {
@@ -159,8 +169,9 @@ export const readLocalSingleton = async ({
 	try {
 		const content = await readFile(path, 'utf-8')
 		const data = JSON.parse(content)
-		const parsedData = schema.parse(data)
-		return parsedData
+		const result = schema.safeParse(data)
+		if (!result.success) return {}
+		return result.data
 	} catch (error) {
 		if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
 			// Return empty object if file doesn't exist
