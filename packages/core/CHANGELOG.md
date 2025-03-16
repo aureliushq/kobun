@@ -1,5 +1,13 @@
 # @kobun/core
 
+## 0.5.5
+
+### Patch Changes
+
+- c19a238: Add Cloudflare R2 storage mode and bug fixes
+- Updated dependencies [c19a238]
+  - @kobun/common@0.5.5
+
 ## 0.5.4
 
 ### Patch Changes

@@ -1,8 +1,12 @@
 {
 	"name": "@kobun/server",
-	"version": "0.5.4",
+	"version": "0.5.5",
 	"type": "module",
-	"files": ["dist", "README.md", "package.json"],
+	"files": [
+		"dist",
+		"README.md",
+		"package.json"
+	],
 	"exports": {
 		"./cloudflare": {
 			"types": "./dist/cloudflare.d.ts",
