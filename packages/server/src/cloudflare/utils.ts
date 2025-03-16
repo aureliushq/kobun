@@ -64,6 +64,7 @@ export const readItemInR2Collection = async ({
 		if (!result.success) {
 			// Return partial data with empty values for invalid fields
 			const partialData = { ...item } as Record<string, unknown>
+			// biome-ignore lint/complexity/noForEach: <explanation>
 			result.error.errors.forEach((error) => {
 				const path = error.path.join('.')
 				partialData[path] = ''
@@ -88,6 +89,7 @@ export const readItemInR2Collection = async ({
 			string,
 			unknown
 		>
+		// biome-ignore lint/complexity/noForEach: <explanation>
 		result.error.errors.forEach((error) => {
 			const path = error.path.join('.')
 			partialData[path] = ''
