@@ -138,6 +138,16 @@ const kobunConfig = config({
 				subtitle: fields.text({
 					label: 'Page subtitle',
 				}),
+				data: fields.object(
+					{
+						title: fields.text({
+							label: 'Question',
+						}),
+					},
+					{
+						label: 'Questions',
+					},
+				),
 			},
 		}),
 		projects: singleton({
