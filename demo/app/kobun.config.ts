@@ -143,6 +143,9 @@ const kobunConfig = config({
 						title: fields.text({
 							label: 'Question',
 						}),
+						answer: fields.document({
+							label: 'Answer',
+						}),
 					},
 					{
 						label: 'Questions',
