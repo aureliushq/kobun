@@ -1,5 +1,6 @@
 import type { FieldMetadata } from '@conform-to/react'
 import {
+	type ArrayField as ArrayFieldType,
 	type BooleanField as BooleanFieldType,
 	type DateField as DateFieldType,
 	type DocumentField as DocumentFieldType,
@@ -31,6 +32,7 @@ import { useEffect, useRef } from 'react'
 import { Markdown } from 'tiptap-markdown'
 
 import Editor from '~/components/editor'
+import ArrayField from '~/components/form/fields/array'
 import BooleanField from '~/components/form/fields/boolean'
 import DateField from '~/components/form/fields/date'
 import MultiSelectField from '~/components/form/fields/multiselect'
@@ -179,9 +181,21 @@ const InputRenderer = ({
 	}, [fields.title.value])
 
 	switch (fieldData.type) {
+		case FieldTypes.ARRAY: {
+			const data = fieldData as ArrayFieldType
+			return (
+				<ArrayField
+					description={data.description}
+					field={data.field}
+					fields={fields}
+					itemLabel={data.itemLabel}
+					label={data.label}
+					name={fieldMetadata.name}
+				/>
+			)
+		}
 		case FieldTypes.BOOLEAN: {
 			const data = fieldData as BooleanFieldType
-
 			return (
 				<BooleanField
 					component={data.component}
@@ -197,7 +211,6 @@ const InputRenderer = ({
 		}
 		case FieldTypes.DATE: {
 			const data = fieldData as DateFieldType
-
 			return (
 				<DateField
 					description={data.description}
@@ -227,7 +240,6 @@ const InputRenderer = ({
 		}
 		case FieldTypes.MULTISELECT: {
 			const data = fieldData as MultiSelectFieldType
-
 			return (
 				<MultiSelectField
 					defaultOptions={
@@ -257,7 +269,6 @@ const InputRenderer = ({
 		}
 		case FieldTypes.SELECT: {
 			const data = fieldData as SelectFieldType
-
 			return (
 				<SelectField
 					defaultOption={
@@ -275,7 +286,6 @@ const InputRenderer = ({
 		}
 		case FieldTypes.SLUG: {
 			const data = fieldData as SlugFieldType
-
 			return (
 				<SlugField
 					config={{
@@ -290,7 +300,6 @@ const InputRenderer = ({
 		}
 		case FieldTypes.TEXT: {
 			const data = fieldData as TextFieldType
-
 			if (fieldKey === 'title' && layout === 'editor') {
 				return (
 					<Textarea
@@ -320,7 +329,6 @@ const InputRenderer = ({
 		}
 		case FieldTypes.URL: {
 			const data = fieldData as UrlFieldType
-
 			return (
 				<UrlField
 					description={data.description}

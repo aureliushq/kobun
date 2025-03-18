@@ -138,14 +138,22 @@ const kobunConfig = config({
 				subtitle: fields.text({
 					label: 'Page subtitle',
 				}),
-				data: fields.object(
+				data: fields.array(
+					fields.object(
+						{
+							title: fields.text({
+								label: 'Question',
+							}),
+							answer: fields.document({
+								label: 'Answer',
+							}),
+						},
+						{
+							label: '',
+						},
+					),
 					{
-						title: fields.text({
-							label: 'Question',
-						}),
-					},
-					{
-						label: 'Questions',
+						label: 'Data',
 					},
 				),
 			},
@@ -164,6 +172,9 @@ const kobunConfig = config({
 				}),
 				subtitle: fields.text({
 					label: 'Page subtitle',
+				}),
+				data: fields.array(fields.text({ label: 'Project Name' }), {
+					label: 'Projects',
 				}),
 			},
 		}),

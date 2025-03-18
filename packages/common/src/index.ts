@@ -2,6 +2,7 @@ export * from '~/constants'
 export { FieldTypes } from '~/types'
 export type {
 	AssetPath,
+	ArrayField,
 	ContentFormat,
 	ContentPath,
 	Features,

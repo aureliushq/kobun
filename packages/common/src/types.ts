@@ -29,6 +29,7 @@ type SpecialSchemaKeys = 'content' | 'slug' | 'title'
 export type SchemaKey = SpecialSchemaKeys | string
 
 export enum FieldTypes {
+	ARRAY = 'array',
 	BOOLEAN = 'boolean',
 	DATE = 'date',
 	DOCUMENT = 'document',
@@ -118,7 +119,15 @@ export type ObjectField = BasicField & {
 	type: FieldTypes.OBJECT
 }
 
+export type ArrayField = BasicField & {
+	name?: HTMLInputElement['name']
+	field: Field
+	itemLabel?: (props: { value: unknown; fields?: Record<string, { value: unknown }> }) => string
+	type: FieldTypes.ARRAY
+}
+
 export type Field =
+	| ArrayField
 	| BooleanField
 	| DateField
 	| DocumentField
