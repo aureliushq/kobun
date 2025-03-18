@@ -28,6 +28,8 @@ export const createZodSchema = <T extends ConfigSchema<SchemaKey>>({
 }): z.ZodType => {
 	const getFieldSchema = (field: Field): z.ZodType => {
 		switch (field.type) {
+			case FieldTypes.ARRAY:
+				return z.array(getFieldSchema(field.field))
 			case FieldTypes.BOOLEAN:
 				return z.coerce.boolean()
 			case FieldTypes.DATE:
