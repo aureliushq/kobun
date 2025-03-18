@@ -37,6 +37,7 @@ const ArrayField = ({
 		setItems((prev) => prev.filter((_, i) => i !== index))
 	}
 
+	// TODO: when there's a label, remove button is misaligned
 	return (
 		<div className='rs-w-full rs-flex rs-flex-col rs-items-start rs-gap-4'>
 			<div className='rs-grid rs-gap-1.5 rs-leading-none'>

@@ -173,6 +173,9 @@ const kobunConfig = config({
 				subtitle: fields.text({
 					label: 'Page subtitle',
 				}),
+				data: fields.array(fields.text({ label: 'Project Name' }), {
+					label: 'Projects',
+				}),
 			},
 		}),
 	},
