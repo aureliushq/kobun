@@ -138,17 +138,22 @@ const kobunConfig = config({
 				subtitle: fields.text({
 					label: 'Page subtitle',
 				}),
-				data: fields.object(
+				data: fields.array(
+					fields.object(
+						{
+							title: fields.text({
+								label: 'Question',
+							}),
+							answer: fields.document({
+								label: 'Answer',
+							}),
+						},
+						{
+							label: '',
+						},
+					),
 					{
-						title: fields.text({
-							label: 'Question',
-						}),
-						answer: fields.document({
-							label: 'Answer',
-						}),
-					},
-					{
-						label: 'Questions',
+						label: 'Data',
 					},
 				),
 			},
