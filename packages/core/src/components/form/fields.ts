@@ -1,6 +1,7 @@
 import {
 	FieldTypes,
 	type MultiSelectField,
+	type ArrayField,
 	type BooleanField,
 	type DateField,
 	type DocumentField,
@@ -11,9 +12,19 @@ import {
 	type UrlField,
 	type ConfigSchema,
 	type SchemaKey,
+	type Field,
 } from '@kobun/common'
 
 export const fields = {
+	array: (
+		field: Field,
+		config: Omit<ArrayField, 'type' | 'field'>,
+	): ArrayField => ({
+		...config,
+		field,
+		type: FieldTypes.ARRAY,
+	}),
+
 	boolean: (config: Omit<BooleanField, 'type'>): BooleanField => ({
 		...config,
 		type: FieldTypes.BOOLEAN,
