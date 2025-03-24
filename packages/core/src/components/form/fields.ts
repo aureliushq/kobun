@@ -54,7 +54,7 @@ export const fields = {
 
 	object: (
 		schema: ConfigSchema<SchemaKey>,
-		config: Omit<ObjectField, 'type' | 'schema'>,
+		config: Omit<ObjectField, 'type' | 'schema'> = { label: '' },
 	): ObjectField => ({
 		...config,
 		schema,

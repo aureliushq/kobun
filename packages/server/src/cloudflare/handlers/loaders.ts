@@ -39,6 +39,9 @@ export const handleLoaders = async ({
 			}
 
 			const env = process?.env ?? context.cloudflare.env
+			console.log('process.env', process.env)
+			console.log('context.cloudflare.env', context.cloudflare.env)
+			console.log('env', env)
 			const credentials: R2Credentials = {
 				accountId: env.ACCOUNT_ID as string,
 				accessKeyId: env.ACCESS_KEY as string,

@@ -1,6 +1,7 @@
 import type { FieldMetadata } from '@conform-to/react'
 import type { ConfigSchema, SchemaKey } from '@kobun/common'
 
+import InputRenderer from '~/components/form/input-renderer'
 import {
 	Accordion,
 	AccordionContent,
@@ -9,7 +10,6 @@ import {
 } from '~/components/ui/accordion'
 import { Label } from '~/components/ui/label'
 import type { Layout } from '~/lib/types'
-import InputRenderer from '~/components/form/input-renderer'
 
 type ObjectFieldProps<T extends SchemaKey> = {
 	description?: string
@@ -31,7 +31,7 @@ const ObjectField = <T extends SchemaKey>({
 }: ObjectFieldProps<T>) => {
 	// Find the title field if it exists
 	const titleField = Object.keys(schema).find((key) => key === 'title')
-	const titleValue = schema[titleField as T].label
+	const titleValue = titleField ? (fields[titleField].value as string) : label
 
 	return (
 		<div className='rs-w-full rs-flex rs-flex-col rs-items-start rs-gap-2'>
@@ -63,11 +63,16 @@ const ObjectField = <T extends SchemaKey>({
 					<AccordionContent className='rs-w-full rs-p-4'>
 						<div className='rs-space-y-4'>
 							{Object.entries(schema).map(([key, field]) => {
-								console.log('titleField', titleField)
 								const fieldData = schema[key as T]
-								const fieldMetadata =
-									// @ts-ignore
-									fields[key].getFieldset()
+								const fieldMetadata = fields[
+									key
+								] as FieldMetadata<
+									// biome-ignore lint/suspicious/noExplicitAny: <explanation>
+									any,
+									// biome-ignore lint/suspicious/noExplicitAny: <explanation>
+									Record<string, any>,
+									string[]
+								>
 
 								return (
 									<InputRenderer
