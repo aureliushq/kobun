@@ -1,5 +1,11 @@
 # @kobun/common
 
+## 0.6.1
+
+### Patch Changes
+
+- 5eb1da0: Update array and object fields. Add dangerous console.log statements. DO NOT USE v0.6.1.
+
 ## 0.6.0
 
 ### Minor Changes
