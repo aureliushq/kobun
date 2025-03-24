@@ -37,7 +37,6 @@ const ArrayField = ({
 		setItems((prev) => prev.filter((_, i) => i !== index))
 	}
 
-	// TODO: when there's a label, remove button is misaligned
 	return (
 		<div className='rs-w-full rs-flex rs-flex-col rs-items-start rs-gap-4'>
 			<div className='rs-grid rs-gap-1.5 rs-leading-none'>
@@ -52,7 +51,7 @@ const ArrayField = ({
 				{items.map((index) => (
 					<div
 						key={index}
-						className='rs-flex rs-items-start rs-gap-2 rs-w-full'
+						className='rs-flex rs-items-end rs-gap-2 rs-w-full'
 					>
 						<div className='rs-flex-1'>
 							<InputRenderer
@@ -85,4 +84,3 @@ const ArrayField = ({
 }
 
 export default ArrayField
-
