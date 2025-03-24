@@ -1,5 +1,11 @@
 # @kobun/common
 
+## 0.6.2
+
+### Patch Changes
+
+- d135606: Fix env in r2 storage mode.
+
 ## 0.6.1
 
 ### Patch Changes
