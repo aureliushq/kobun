@@ -1,18 +1,19 @@
 import { parseWithZod } from '@conform-to/zod'
 import {
 	PATHS,
+	type R2Credentials,
 	createZodSchema,
 	parseAdminPathname,
-	type R2Credentials,
 } from '@kobun/common'
 import { customAlphabet } from 'nanoid'
 import { redirect } from 'react-router'
 import invariant from 'tiny-invariant'
 import YAML from 'yaml'
+
 import { CloudflareR2FileStorage } from '~/cloudflare/r2'
+import { readItemInR2Collection } from '~/cloudflare/utils'
 import { transformMultiselectFields } from '~/lib/utils'
 import type { ActionHandlerArgs } from '~/types'
-import { readItemInR2Collection } from '../utils'
 
 const nanoid = customAlphabet('0123456789abcdefghijklmnopqrstuvwxyz', 32)
 
@@ -21,8 +22,9 @@ export const handleActions = async ({
 	context,
 	request,
 }: ActionHandlerArgs) => {
+	const { adminAccess, basePath, collections, singletons } = config
+	if (adminAccess?.disabled) return redirect(adminAccess?.redirectUrl ?? '/')
 	const url = new URL(request.url)
-	const { basePath, collections, singletons } = config
 	const params = parseAdminPathname({
 		basePath,
 		collections,
