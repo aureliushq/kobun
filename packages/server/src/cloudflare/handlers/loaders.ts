@@ -3,6 +3,7 @@ import {
 	createZodSchema,
 	parseAdminPathname,
 } from '@kobun/common'
+import { redirect } from 'react-router'
 import invariant from 'tiny-invariant'
 
 import { CloudflareR2FileStorage } from '~/cloudflare/r2'
@@ -17,8 +18,11 @@ export const handleLoaders = async ({
 	context,
 	request,
 }: LoaderHandlerArgs) => {
+	const { adminAccess, basePath, collections, singletons } = config
+	if (adminAccess?.disabled) {
+		return redirect(adminAccess?.redirectUrl ?? '/')
+	}
 	const url = new URL(request.url)
-	const { basePath, collections, singletons } = config
 	const params = parseAdminPathname({
 		basePath,
 		collections,
@@ -38,7 +42,7 @@ export const handleLoaders = async ({
 				return { config }
 			}
 
-			const env = context.cloudflare.env
+			const env = context?.cloudflare?.env ?? process?.env
 			const credentials: R2Credentials = {
 				accountId: env.ACCOUNT_ID as string,
 				accessKeyId: env.ACCESS_KEY as string,

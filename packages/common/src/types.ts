@@ -122,7 +122,10 @@ export type ObjectField = BasicField & {
 export type ArrayField = BasicField & {
 	name?: HTMLInputElement['name']
 	field: Field
-	itemLabel?: (props: { value: unknown; fields?: Record<string, { value: unknown }> }) => string
+	itemLabel?: (props: {
+		value: unknown
+		fields?: Record<string, { value: unknown }>
+	}) => string
 	type: FieldTypes.ARRAY
 }
 
@@ -240,6 +243,10 @@ export type Storage = z.infer<typeof STORAGE>
 
 // Configuration
 export type Config = {
+	adminAccess?: {
+		disabled?: boolean
+		redirectUrl?: string
+	}
 	basePath?: string
 	collections: Collections
 	singletons?: Singletons

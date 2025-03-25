@@ -2,11 +2,7 @@
 	"name": "@kobun/server",
 	"version": "0.6.2",
 	"type": "module",
-	"files": [
-		"dist",
-		"README.md",
-		"package.json"
-	],
+	"files": ["dist", "README.md", "package.json"],
 	"exports": {
 		"./cloudflare": {
 			"types": "./dist/cloudflare.d.ts",
@@ -23,7 +19,7 @@
 		"nuke": "rimraf dist node_modules .turbo"
 	},
 	"peerDependencies": {
-		"react-router": "^7.0.0"
+		"react-router": "^7.1.2"
 	},
 	"devDependencies": {
 		"@kobun/tsconfig": "workspace:*",

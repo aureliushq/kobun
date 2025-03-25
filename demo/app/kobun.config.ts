@@ -26,6 +26,9 @@ const TAG_OPTIONS = [
 ]
 
 const kobunConfig = config({
+	// adminAccess: {
+	// 	disabled: true,
+	// },
 	basePath: '/kobun',
 	collections: {
 		articles: collection({

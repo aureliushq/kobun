@@ -1,5 +1,7 @@
 import { createZodSchema, parseAdminPathname } from '@kobun/common'
+import { redirect } from 'react-router'
 import invariant from 'tiny-invariant'
+
 import {
 	readItemInLocalCollection,
 	readItemsInLocalCollection,
@@ -8,8 +10,9 @@ import {
 import type { LoaderHandlerArgs } from '~/types'
 
 export const handleLoaders = async ({ config, request }: LoaderHandlerArgs) => {
+	const { adminAccess, basePath, collections, singletons } = config
+	if (adminAccess?.disabled) return redirect(adminAccess?.redirectUrl ?? '/')
 	const url = new URL(request.url)
-	const { basePath, collections, singletons } = config
 	const params = parseAdminPathname({
 		basePath,
 		collections,

@@ -16,8 +16,9 @@ import type { ActionHandlerArgs } from '~/types'
 const nanoid = customAlphabet('0123456789abcdefghijklmnopqrstuvwxyz', 32)
 
 export const handleActions = async ({ config, request }: ActionHandlerArgs) => {
+	const { adminAccess, basePath, collections, singletons } = config
+	if (adminAccess?.disabled) return redirect(adminAccess?.redirectUrl ?? '/')
 	const url = new URL(request.url)
-	const { basePath, collections, singletons } = config
 	const params = parseAdminPathname({
 		basePath,
 		collections,
