@@ -29,6 +29,7 @@
 	"workspaces": ["demo", "packages/*"],
 	"trustedDependencies": ["@biomejs/biome", "esbuild"],
 	"resolutions": {
+		"@aws-sdk/client-s3": "3.758.0",
 		"react": "19.0.0",
 		"react-dom": "19.0.0",
 		"react-router": "7.1.2",
