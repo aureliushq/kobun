@@ -1,5 +1,11 @@
 # @kobun/common
 
+## 0.6.3
+
+### Patch Changes
+
+- 84c8d96: Add option to block admin access, which is useful for blocking access in production
+
 ## 0.6.2
 
 ### Patch Changes
