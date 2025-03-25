@@ -5,6 +5,7 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
+  '@aws-sdk/client-s3': 3.758.0
   react: 19.0.0
   react-dom: 19.0.0
   react-router: 7.1.2
@@ -358,7 +359,7 @@ importers:
   packages/server:
     dependencies:
       '@aws-sdk/client-s3':
-        specifier: ^3.758.0
+        specifier: 3.758.0
         version: 3.758.0
       '@conform-to/zod':
         specifier: 1.2.2
