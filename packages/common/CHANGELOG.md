@@ -1,5 +1,11 @@
 # @kobun/common
 
+## 0.6.4
+
+### Patch Changes
+
+- f42b74a: Resolve aws sdk version
+
 ## 0.6.3
 
 ### Patch Changes
