@@ -2,9 +2,7 @@
 	"name": "@kobun/core",
 	"version": "0.6.2",
 	"type": "module",
-	"files": [
-		"dist"
-	],
+	"files": ["dist"],
 	"main": "./dist/index.cjs",
 	"module": "./dist/index.js",
 	"style": "./dist/index.css",
@@ -25,7 +23,7 @@
 	"peerDependencies": {
 		"react": ">=18.0.0",
 		"react-dom": ">=18.0.0",
-		"react-router": "^7.0.0"
+		"react-router": "^7.1.2"
 	},
 	"devDependencies": {
 		"@kobun/tsconfig": "workspace:*",

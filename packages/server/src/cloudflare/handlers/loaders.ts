@@ -19,7 +19,9 @@ export const handleLoaders = async ({
 	request,
 }: LoaderHandlerArgs) => {
 	const { adminAccess, basePath, collections, singletons } = config
-	if (adminAccess?.disabled) return redirect(adminAccess?.redirectUrl ?? '/')
+	if (adminAccess?.disabled) {
+		return redirect(adminAccess?.redirectUrl ?? '/')
+	}
 	const url = new URL(request.url)
 	const params = parseAdminPathname({
 		basePath,
