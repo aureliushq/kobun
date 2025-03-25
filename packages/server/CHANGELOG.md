@@ -1,5 +1,21 @@
 # @kobun/server
 
+## 0.6.2
+
+### Patch Changes
+
+- d135606: Fix env in r2 storage mode.
+- Updated dependencies [d135606]
+  - @kobun/common@0.6.2
+
+## 0.6.1
+
+### Patch Changes
+
+- 5eb1da0: Update array and object fields. Add dangerous console.log statements. DO NOT USE v0.6.1.
+- Updated dependencies [5eb1da0]
+  - @kobun/common@0.6.1
+
 ## 0.6.0
 
 ### Minor Changes
