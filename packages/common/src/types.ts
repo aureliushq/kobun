@@ -224,6 +224,7 @@ const R2_MODE = z.object({
 		type: 'r2',
 		prefix: 'assets',
 	}).optional(),
+	credentials: R2_CREDENTIALS.optional(),
 	content: z
 		.object({
 			prefix: z.string(),

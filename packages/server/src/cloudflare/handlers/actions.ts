@@ -22,7 +22,7 @@ export const handleActions = async ({
 	context,
 	request,
 }: ActionHandlerArgs) => {
-	const { adminAccess, basePath, collections, singletons } = config
+	const { adminAccess, basePath, collections, singletons, storage } = config
 	if (adminAccess?.disabled) return redirect(adminAccess?.redirectUrl ?? '/')
 	const url = new URL(request.url)
 	const params = parseAdminPathname({
@@ -34,7 +34,7 @@ export const handleActions = async ({
 
 	if (!params) return {}
 
-	const mode = config.storage.mode
+	const mode = storage.mode
 	switch (mode) {
 		case 'r2': {
 			const contentPrefix = config.storage.content?.prefix ?? 'content'
@@ -47,14 +47,27 @@ export const handleActions = async ({
 				return {}
 			}
 
-			const env = context.cloudflare.env ?? process?.env
-			// const credentials: R2Credentials = {
-			// 	accountId: env.ACCOUNT_ID as string,
-			// 	accessKeyId: env.ACCESS_KEY as string,
-			// 	bucketName: env.BUCKET_NAME as string,
-			// 	secretAccessKey: env.SECRET_ACCESS_KEY as string,
-			// }
-			const r2Storage = new CloudflareR2FileStorage(env)
+			const credentials: R2Credentials = storage.credentials
+				? storage.credentials
+				: context.cloudflare.env
+					? {
+							accountId: context.cloudflare.env
+								.ACCOUNT_ID as string,
+							accessKeyId: context.cloudflare.env
+								.ACCESS_KEY as string,
+							bucketName: context.cloudflare.env
+								.BUCKET_NAME as string,
+							secretAccessKey: context.cloudflare.env
+								.SECRET_ACCESS_KEY as string,
+						}
+					: {
+							accountId: process.env.ACCOUNT_ID as string,
+							accessKeyId: process.env.ACCESS_KEY as string,
+							bucketName: process.env.BUCKET_NAME as string,
+							secretAccessKey: process.env
+								.SECRET_ACCESS_KEY as string,
+						}
+			const r2Storage = new CloudflareR2FileStorage(credentials)
 
 			// Handle singletons
 			const singletonFormat = config.storage.format.singletons
