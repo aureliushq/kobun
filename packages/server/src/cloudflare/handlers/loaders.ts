@@ -18,10 +18,8 @@ export const handleLoaders = async ({
 	context,
 	request,
 }: LoaderHandlerArgs) => {
-	const { adminAccess, basePath, collections, singletons } = config
-	if (adminAccess?.disabled) {
-		return redirect(adminAccess?.redirectUrl ?? '/')
-	}
+	const { adminAccess, basePath, collections, singletons, storage } = config
+	if (adminAccess?.disabled) return redirect(adminAccess?.redirectUrl ?? '/')
 	const url = new URL(request.url)
 	const params = parseAdminPathname({
 		basePath,
@@ -33,23 +31,43 @@ export const handleLoaders = async ({
 
 	if (!params) return {}
 
-	const mode = config.storage.mode
+	const mode = storage.mode
 	switch (mode) {
 		case 'r2': {
 			const contentPrefix = config.storage.content?.prefix ?? 'content'
 
-			if (params.section === 'root' || params.section === 'settings') {
-				return { config }
-			}
+			const credentials: R2Credentials = storage.credentials
+				? storage.credentials
+				: context.cloudflare.env
+					? {
+							accountId: context.cloudflare.env
+								.ACCOUNT_ID as string,
+							accessKeyId: context.cloudflare.env
+								.ACCESS_KEY as string,
+							bucketName: context.cloudflare.env
+								.BUCKET_NAME as string,
+							secretAccessKey: context.cloudflare.env
+								.SECRET_ACCESS_KEY as string,
+						}
+					: {
+							accountId: process.env.ACCOUNT_ID as string,
+							accessKeyId: process.env.ACCESS_KEY as string,
+							bucketName: process.env.BUCKET_NAME as string,
+							secretAccessKey: process.env
+								.SECRET_ACCESS_KEY as string,
+						}
+			const r2Storage = new CloudflareR2FileStorage(credentials)
 
-			const env = context?.cloudflare?.env ?? process?.env
-			// const credentials: R2Credentials = {
-			// 	accountId: env.ACCOUNT_ID as string,
-			// 	accessKeyId: env.ACCESS_KEY as string,
-			// 	bucketName: env.BUCKET_NAME as string,
-			// 	secretAccessKey: env.SECRET_ACCESS_KEY as string,
-			// }
-			const r2Storage = new CloudflareR2FileStorage(env)
+			const clientConfig = Object.assign({}, config, {
+				storage: {
+					...storage,
+					credentials: null,
+				},
+			})
+
+			if (params.section === 'root' || params.section === 'settings') {
+				return { config: clientConfig }
+			}
 
 			// Handle singletons
 			const singletonFormat = config.storage.format.singletons
@@ -70,7 +88,7 @@ export const handleLoaders = async ({
 				const content = (await r2Storage.get(
 					`${singletonPrefix}/${singletonSlug}.${singletonFormat}`,
 				)) as string
-				if (!content) return { config }
+				if (!content) return { config: clientConfig }
 				const data = JSON.parse(content)
 				const result = schema.safeParse(data)
 				if (!result.success) {
@@ -81,9 +99,9 @@ export const handleLoaders = async ({
 						const path = error.path.join('.')
 						partialData[path] = ''
 					})
-					return { config, item: partialData }
+					return { config: clientConfig, item: partialData }
 				}
-				return { config, item: result.data }
+				return { config: clientConfig, item: result.data }
 			}
 
 			const collectionSlug = params.collectionSlug
@@ -103,11 +121,11 @@ export const handleLoaders = async ({
 					r2Storage,
 				})
 
-				return { config, items: collectionItems }
+				return { config: clientConfig, items: collectionItems }
 			}
 
 			if (params.section === 'create-collection-item') {
-				return { config }
+				return { config: clientConfig }
 			}
 
 			const id = params.id
@@ -123,7 +141,7 @@ export const handleLoaders = async ({
 					r2Storage,
 					schema,
 				})
-				return { config, item }
+				return { config: clientConfig, item }
 			}
 			break
 		}
