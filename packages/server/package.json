@@ -2,11 +2,7 @@
 	"name": "@kobun/server",
 	"version": "0.6.3",
 	"type": "module",
-	"files": [
-		"dist",
-		"README.md",
-		"package.json"
-	],
+	"files": ["dist", "README.md", "package.json"],
 	"exports": {
 		"./cloudflare": {
 			"types": "./dist/cloudflare.d.ts",
@@ -31,7 +27,7 @@
 		"typescript": "5.6.2"
 	},
 	"dependencies": {
-		"@aws-sdk/client-s3": "^3.758.0",
+		"@aws-sdk/client-s3": "3.758.0",
 		"@conform-to/zod": "1.2.2",
 		"@kobun/common": "workspace:*",
 		"@mjackson/file-storage": "^0.6.1",
@@ -41,8 +37,5 @@
 		"tiny-invariant": "1.3.3",
 		"yaml": "^2.7.0",
 		"zod": "3.24.1"
-	},
-	"resolutions": {
-		"@aws-sdk/client-s3": "3.758.0"
 	}
 }
