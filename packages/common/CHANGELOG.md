@@ -1,5 +1,11 @@
 # @kobun/common
 
+## 0.6.5
+
+### Patch Changes
+
+- d57936a: Update how credentials are passed to aws sdk
+
 ## 0.6.4
 
 ### Patch Changes
