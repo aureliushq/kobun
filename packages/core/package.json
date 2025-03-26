@@ -1,6 +1,6 @@
 {
 	"name": "@kobun/core",
-	"version": "0.6.3",
+	"version": "0.6.5",
 	"type": "module",
 	"files": [
 		"dist"
