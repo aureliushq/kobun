@@ -8,13 +8,20 @@ import {
 } from '@aws-sdk/client-s3'
 import type { FileStorage } from '@mjackson/file-storage'
 
-interface CloudflareR2Options {
-	accountId: string
-	bucketName: string
-	accessKeyId: string
-	secretAccessKey: string
-	endpoint?: string
-	publicUrlPrefix?: string
+// interface CloudflareR2Options {
+// 	accountId: string
+// 	bucketName: string
+// 	accessKeyId: string
+// 	secretAccessKey: string
+// 	endpoint?: string
+// 	publicUrlPrefix?: string
+// }
+
+interface Env {
+	ACCOUNT_ID: string
+	ACCESS_KEY: string
+	BUCKET_NAME: string
+	SECRET_ACCESS_KEY: string
 }
 
 export class CloudflareR2FileStorage implements FileStorage {
@@ -23,23 +30,44 @@ export class CloudflareR2FileStorage implements FileStorage {
 	private publicUrlPrefix?: string
 	private client: S3Client
 
-	constructor(options: CloudflareR2Options) {
-		this.bucketName = options.bucketName
+	// constructor(options: CloudflareR2Options) {
+	// 	this.bucketName = options.bucketName
+	//
+	// 	// Set up the R2 endpoint
+	// 	this.endpoint =
+	// 		options.endpoint ||
+	// 		`https://${options.accountId}.r2.cloudflarestorage.com`
+	//
+	// 	this.publicUrlPrefix = options.publicUrlPrefix
+	//
+	// 	// Create S3 client for R2
+	// 	this.client = new S3Client({
+	// 		endpoint: this.endpoint,
+	// 		region: 'auto',
+	// 		credentials: {
+	// 			accessKeyId: options.accessKeyId,
+	// 			secretAccessKey: options.secretAccessKey,
+	// 		},
+	// 		requestChecksumCalculation: 'WHEN_REQUIRED',
+	// 		responseChecksumValidation: 'WHEN_REQUIRED',
+	// 	})
+	// }
+
+	constructor(env: Env) {
+		this.bucketName = env.BUCKET_NAME as string
 
 		// Set up the R2 endpoint
-		this.endpoint =
-			options.endpoint ||
-			`https://${options.accountId}.r2.cloudflarestorage.com`
+		this.endpoint = `https://${env.ACCOUNT_ID}.r2.cloudflarestorage.com`
 
-		this.publicUrlPrefix = options.publicUrlPrefix
+		this.publicUrlPrefix = ''
 
 		// Create S3 client for R2
 		this.client = new S3Client({
 			endpoint: this.endpoint,
 			region: 'auto',
 			credentials: {
-				accessKeyId: options.accessKeyId,
-				secretAccessKey: options.secretAccessKey,
+				accessKeyId: env.ACCESS_KEY,
+				secretAccessKey: env.SECRET_ACCESS_KEY,
 			},
 			requestChecksumCalculation: 'WHEN_REQUIRED',
 			responseChecksumValidation: 'WHEN_REQUIRED',

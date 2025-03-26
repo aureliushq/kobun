@@ -47,14 +47,14 @@ export const handleActions = async ({
 				return {}
 			}
 
-			const env = process?.env ?? context.cloudflare.env
-			const credentials: R2Credentials = {
-				accountId: env.ACCOUNT_ID as string,
-				accessKeyId: env.ACCESS_KEY as string,
-				bucketName: env.BUCKET_NAME as string,
-				secretAccessKey: env.SECRET_ACCESS_KEY as string,
-			}
-			const r2Storage = new CloudflareR2FileStorage(credentials)
+			const env = context.cloudflare.env ?? process?.env
+			// const credentials: R2Credentials = {
+			// 	accountId: env.ACCOUNT_ID as string,
+			// 	accessKeyId: env.ACCESS_KEY as string,
+			// 	bucketName: env.BUCKET_NAME as string,
+			// 	secretAccessKey: env.SECRET_ACCESS_KEY as string,
+			// }
+			const r2Storage = new CloudflareR2FileStorage(env)
 
 			// Handle singletons
 			const singletonFormat = config.storage.format.singletons
