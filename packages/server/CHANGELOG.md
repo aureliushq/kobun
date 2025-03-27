@@ -1,5 +1,13 @@
 # @kobun/server
 
+## 0.6.8
+
+### Patch Changes
+
+- 1dafc78: Fix reader api return values
+- Updated dependencies [1dafc78]
+  - @kobun/common@0.6.8
+
 ## 0.6.7
 
 ### Patch Changes

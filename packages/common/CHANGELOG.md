@@ -1,5 +1,11 @@
 # @kobun/common
 
+## 0.6.8
+
+### Patch Changes
+
+- 1dafc78: Fix reader api return values
+
 ## 0.6.7
 
 ### Patch Changes
