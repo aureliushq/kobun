@@ -1,12 +1,22 @@
-import { createReader } from '@kobun/server/node'
+import { createReader } from '@kobun/server/cloudflare'
+import type { LoaderFunctionArgs } from 'react-router'
 import { Link, useLoaderData } from 'react-router'
 
 import kobunConfig from '~/kobun.config'
 
-export const loader = async () => {
-	const reader = createReader(kobunConfig)
-	const blog = reader?.articles
-	const items = await blog?.all({ filters: { status: 'published' } })
+export const loader = async ({ context }: LoaderFunctionArgs) => {
+	const credentials = {
+		accessKeyId: process.env.ACCESS_KEY_ID as string,
+		accountId: process.env.ACCOUNT_ID as string,
+		bucketName: process.env.BUCKET_NAME as string,
+		secretAccessKey: process.env.SECRET_ACCESS_KEY as string,
+	}
+	// @ts-ignore
+	kobunConfig.storage.credentials = credentials
+	const reader = createReader({ config: kobunConfig, context })
+	const items = reader?.collections.articles.all({
+		filters: { status: 'published' },
+	})
 	return items
 }
 
