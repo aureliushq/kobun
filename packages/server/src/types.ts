@@ -32,7 +32,7 @@ export type UniqueReturn = {
 export type CollectionInterface<T extends SchemaKey> = {
 	_label: string
 	_schema: ConfigSchema<T>
-	all: (params: AllParams) => Promise<unknown[]>
+	all: (params?: AllParams) => Promise<unknown[]>
 	unique: (arg: UniqueArg) => Promise<unknown>
 }
 
@@ -42,6 +42,15 @@ export type SingletonInterface<T extends SchemaKey> = {
 	get: () => Promise<unknown>
 }
 
-export type KobunReader<T extends SchemaKey> = {
-	[key: string]: CollectionInterface<T> | SingletonInterface<T>
+export interface CollectionsReader<T extends SchemaKey> {
+	[collectionName: string]: CollectionInterface<T>
+}
+
+export interface SingletonsReader<T extends SchemaKey> {
+	[singletonName: string]: SingletonInterface<T>
+}
+
+export interface KobunReader<T extends SchemaKey> {
+	collections: CollectionsReader<T>
+	singletons: SingletonsReader<T>
 }

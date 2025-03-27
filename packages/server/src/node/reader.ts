@@ -22,21 +22,24 @@ export const createReader = (
 ): KobunReader<SchemaKey> | undefined => {
 	const mode = config.storage.mode
 	if (mode === 'local') {
-		let reader = {}
+		const collections: Record<string, CollectionInterface<SchemaKey>> = {}
+		const singletons: Record<string, SingletonInterface<SchemaKey>> = {}
+
 		const collectionFormat = config.storage.format.collections
 		const singletonFormat = config.storage.format.singletons
 
 		const generateInterfaceForCollection = <T extends SchemaKey>(
 			collection: Collection,
+			collectionSlug: string,
 		) => {
 			const collectionInterface: CollectionInterface<T> = {
 				_label: collection.label,
 				_schema: collection.schema,
 
-				async all({ filters }: AllParams) {
+				async all(params?: AllParams) {
 					return await readItemsInLocalCollection({
 						collection,
-						filters,
+						filters: params?.filters,
 						format: collectionFormat,
 					})
 				},
@@ -69,6 +72,7 @@ export const createReader = (
 
 		const generateInterfaceForSingleton = <T extends SchemaKey>(
 			singleton: Singleton,
+			slug: string,
 		) => {
 			const singletonInterface: SingletonInterface<T> = {
 				_label: singleton.label,
@@ -93,26 +97,21 @@ export const createReader = (
 		// Add collections to reader
 		for (const key in config.collections) {
 			const collection = config.collections[key] as Collection
-			reader = Object.assign(reader, {
-				[key]: {
-					...generateInterfaceForCollection(collection),
-				},
-			})
+			collections[key] = generateInterfaceForCollection(collection, key)
 		}
 
 		// Add singletons to reader
 		if (config.singletons) {
 			for (const key in config.singletons) {
 				const singleton = config.singletons[key] as Singleton
-				reader = Object.assign(reader, {
-					[key]: {
-						...generateInterfaceForSingleton(singleton),
-					},
-				})
+				singletons[key] = generateInterfaceForSingleton(singleton, key)
 			}
 		}
 
-		return reader
+		return {
+			collections,
+			singletons,
+		}
 	}
 
 	// TODO: add link to documentation
