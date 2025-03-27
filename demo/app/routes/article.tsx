@@ -23,8 +23,6 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 const Article = () => {
 	const data = useLoaderData()
 
-	console.log(data)
-
 	return (
 		<article className='max-w-2xl px-64'>
 			<header>
