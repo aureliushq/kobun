@@ -75,13 +75,13 @@ export const readItemInR2Collection = async ({
 			`${prefix}/${result.data.slug}.${format}`,
 		)
 		if (!data) return {}
-		const { content } = matter(data)
-		return { content, ...result.data }
+		const { content, data: metadata } = matter(data as string)
+		return { content, ...metadata }
 	}
 
 	const data = await r2Storage.get(`${prefix}/${slug}.${format}`)
 	if (!data) return {}
-	const { data: metadata } = matter(data)
+	const { content, data: metadata } = matter(data)
 	const result = schema.safeParse(metadata)
 	if (!result.success) {
 		// Return partial data with empty values for invalid fields
@@ -96,7 +96,7 @@ export const readItemInR2Collection = async ({
 		})
 		return partialData
 	}
-	return { content: data, ...result.data }
+	return { content, ...result.data }
 }
 
 export const readR2Singleton = async ({
