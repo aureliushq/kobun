@@ -1,5 +1,11 @@
 # @kobun/common
 
+## 0.6.6
+
+### Patch Changes
+
+- 3701ec8: Revert change and update config
+
 ## 0.6.5
 
 ### Patch Changes
