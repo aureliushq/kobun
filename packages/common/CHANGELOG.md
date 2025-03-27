@@ -1,5 +1,11 @@
 # @kobun/common
 
+## 0.6.7
+
+### Patch Changes
+
+- c316773: Update reader api
+
 ## 0.6.6
 
 ### Patch Changes
