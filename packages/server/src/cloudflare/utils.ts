@@ -98,3 +98,30 @@ export const readItemInR2Collection = async ({
 	}
 	return { content: data, ...result.data }
 }
+
+export const readR2Singleton = async ({
+	format = 'json',
+	prefix,
+	r2Storage,
+	schema,
+	slug,
+}: {
+	format?: string
+	prefix: string
+	r2Storage: CloudflareR2FileStorage
+	schema: z.ZodType
+	slug: string
+}) => {
+	const path = `${prefix}/${slug}.${format}`
+	try {
+		const content = await r2Storage.get(path)
+		if (!content) return {}
+		const data = JSON.parse(content as string)
+		const result = schema.safeParse(data)
+		if (!result.success) return {}
+		return result.data
+	} catch (error) {
+		// Return empty object if file doesn't exist or other errors occur
+		return {}
+	}
+}
