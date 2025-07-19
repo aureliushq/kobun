@@ -15,7 +15,7 @@ import {
 	useReactTable,
 } from '@tanstack/react-table'
 import { CircleX, FileTextIcon, Settings2 } from 'lucide-react'
-import { useContext, useId, useRef, useState } from 'react'
+import { useContext, useId, useRef, useState, useMemo, memo } from 'react'
 import { Link, useLoaderData } from 'react-router'
 import invariant from 'tiny-invariant'
 import type z from 'zod'
@@ -53,7 +53,7 @@ interface CollectionHeaderProps<TData> {
 	table: ReactTable<TData>
 }
 
-const CollectionHeader = <TData extends RowData>({
+const CollectionHeader = memo(<TData extends RowData>({
 	basePath,
 	collection,
 	collectionSlug,
@@ -221,7 +221,7 @@ const CollectionHeader = <TData extends RowData>({
 			</div>
 		</section>
 	)
-}
+})
 
 const Collection = ({
 	collectionSlug,
@@ -238,21 +238,22 @@ const Collection = ({
 	const basePath = config.basePath ?? ''
 	const collection = config.collections[collectionSlug]
 
-	const COLLECTION_ZOD_SCHEMA = createZodSchema({
+	const COLLECTION_ZOD_SCHEMA = useMemo(() => createZodSchema({
 		features: collection.features,
 		options: {
 			omit: ['content', 'slug', 'updatedAt'],
 		},
 		schema: collection.schema,
-	})
-	const columns = createColumnDefs({
+	}), [collection.features, collection.schema])
+	
+	const columns = useMemo(() => createColumnDefs({
 		basePath,
 		collectionSlug,
 		options: {
 			only: ['title', 'createdAt', 'updatedAt', 'status', 'publishedAt'],
 		},
 		schema: COLLECTION_ZOD_SCHEMA,
-	}) as Array<z.infer<typeof COLLECTION_ZOD_SCHEMA>>
+	}) as Array<z.infer<typeof COLLECTION_ZOD_SCHEMA>>, [basePath, collectionSlug, COLLECTION_ZOD_SCHEMA])
 
 	const { items: data } = useLoaderData()
 
@@ -264,9 +265,12 @@ const Collection = ({
 		},
 	])
 
+	// Memoize table data to prevent unnecessary re-renders
+	const tableData = useMemo(() => data || [], [data])
+
 	const table = useReactTable({
 		columns,
-		data,
+		data: tableData,
 		initialState: {
 			columnOrder: ['title', 'status', 'createdAt'],
 			// TODO: selected columns should persist to local storage

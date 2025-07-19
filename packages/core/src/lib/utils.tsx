@@ -91,7 +91,7 @@ export const createColumnDefs = <T extends z.ZodType>({
 					const value = getValue()
 					// If object has 'label', use that
 					// @ts-ignore
-					if (value?.label) value.label
+					if (value?.label) return value.label
 					// Otherwise stringify the object
 					return JSON.stringify(value)
 				},

@@ -7,6 +7,10 @@ import {
 	type ContentPath,
 	type Singleton,
 	type SingletonFormat,
+	safeFileOperation,
+	NotFoundError,
+	ValidationError,
+	StorageError,
 } from '@kobun/common'
 import fg from 'fast-glob'
 import matter from 'gray-matter'
@@ -92,18 +96,28 @@ export const readItemInLocalCollection = async ({
 			slug,
 		})
 	}
-	try {
-		const file = await fs.readFile(path, 'utf8')
-		const { content, data } = matter(file)
-		const result = schema.safeParse(data)
-		if (!result.success) return { content: '' }
-		return { content, ...result.data }
-	} catch (error) {
-		if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-			return {}
-		}
-		throw error
-	}
+	return await safeFileOperation(
+		async () => {
+			const file = await fs.readFile(path, 'utf8')
+			const { content, data } = matter(file)
+			const result = schema.safeParse(data)
+			
+			if (!result.success) {
+				throw new ValidationError(
+					`Failed to validate item metadata`,
+					{ 
+						path, 
+						id, 
+						errors: result.error.errors 
+					}
+				)
+			}
+			
+			return { content, ...result.data }
+		},
+		'read collection item',
+		path
+	)
 }
 
 type WriteLocalCollectionItemPath = {
