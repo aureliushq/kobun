@@ -8,6 +8,7 @@ import {
 	createFileContent,
 	createSingletonContent,
 	processFormSubmission,
+	extractSlug,
 } from '@kobun/common'
 import { redirect } from 'react-router'
 import invariant from 'tiny-invariant'
@@ -101,7 +102,7 @@ export const handleActions = async ({ config, request }: ActionHandlerArgs) => {
 					generateId: true 
 				})
 				
-				const slug = payloadMetadata.slug as string
+				const slug = extractSlug(payloadMetadata)
 				const fileContent = createFileContent(metadata, content)
 				
 				await writeItemToLocalCollection({
@@ -140,7 +141,7 @@ export const handleActions = async ({ config, request }: ActionHandlerArgs) => {
 					generateId: false
 				})
 				
-				const slug = payloadMetadata.slug as string
+				const slug = extractSlug(payloadMetadata)
 				const fileContent = createFileContent(metadata, content)
 				
 				await writeItemToLocalCollection({

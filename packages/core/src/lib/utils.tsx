@@ -105,9 +105,14 @@ export const createColumnDefs = <T extends z.ZodType>({
 	// For discriminated unions, we need to extract the common fields
 	if (schema instanceof z.ZodDiscriminatedUnion) {
 		// Get the first option's shape (they should all share common fields)
-		// biome-ignore lint/suspicious/noExplicitAny: <explanation>
-		const firstOption = schema.options[0] as z.ZodObject<any>
-		const shape = firstOption.shape
+		const firstOption = schema.options[0]
+		
+		// Type guard to check if the option is a ZodObject
+		if (!firstOption || typeof firstOption !== 'object' || !('shape' in firstOption)) {
+			throw new Error('Invalid discriminated union schema structure')
+		}
+		
+		const shape = (firstOption as { shape: Record<string, z.ZodType> }).shape
 
 		// Function to check if a field should be included
 		const shouldIncludeField = (key: string) => {

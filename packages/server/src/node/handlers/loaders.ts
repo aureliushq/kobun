@@ -1,4 +1,12 @@
-import { createZodSchema, parseAdminPathname } from '@kobun/common'
+import {
+	createZodSchema,
+	parseAdminPathname,
+	createClientConfig,
+	createEmptyResponse,
+	createSingletonResponse,
+	createCollectionListResponse,
+	createCollectionItemResponse,
+} from '@kobun/common'
 import { redirect } from 'react-router'
 import invariant from 'tiny-invariant'
 
@@ -26,8 +34,10 @@ export const handleLoaders = async ({ config, request }: LoaderHandlerArgs) => {
 	const mode = config.storage.mode
 	switch (mode) {
 		case 'local': {
+			const clientConfig = createClientConfig(config)
+			
 			if (params.section === 'root' || params.section === 'settings') {
-				return { config }
+				return createEmptyResponse(clientConfig)
 			}
 
 			// Handle singletons
@@ -49,7 +59,7 @@ export const handleLoaders = async ({ config, request }: LoaderHandlerArgs) => {
 					schema,
 					singleton,
 				})
-				return { config, item: singletonData }
+				return createSingletonResponse(clientConfig, singletonData)
 			}
 
 			// Handle collections
@@ -67,11 +77,11 @@ export const handleLoaders = async ({ config, request }: LoaderHandlerArgs) => {
 					filters,
 					format: collectionFormat,
 				})
-				return { config, items: collectionItems }
+				return createCollectionListResponse(clientConfig, collectionItems)
 			}
 
 			if (params.section === 'create-collection-item') {
-				return { config }
+				return createEmptyResponse(clientConfig)
 			}
 
 			const id = params.id
@@ -80,13 +90,13 @@ export const handleLoaders = async ({ config, request }: LoaderHandlerArgs) => {
 				options: { omit: ['content'], type: 'loader' },
 			})
 			if (params.section === 'edit-collection-item') {
-				const item = readItemInLocalCollection({
+				const item = await readItemInLocalCollection({
 					collection,
 					format: collectionFormat,
 					id,
 					schema,
 				})
-				return { config, item }
+				return createCollectionItemResponse(clientConfig, item)
 			}
 			break
 		}

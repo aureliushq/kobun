@@ -1,4 +1,5 @@
 import type { Config, ConfigSchema, SchemaKey } from '@kobun/common'
+import type { CollectionItemMetadata, SingletonMetadata, ProcessedContent } from '@kobun/common'
 import type { ActionFunctionArgs, LoaderFunctionArgs } from 'react-router'
 
 export type ActionHandlerArgs = {
@@ -23,23 +24,19 @@ export type UniqueArg = {
 	}
 }
 
-export type UniqueReturn = {
-	code: string
-	content: string
-	frontmatter: unknown
-}
+export type UniqueReturn = ProcessedContent<CollectionItemMetadata>
 
 export type CollectionInterface<T extends SchemaKey> = {
 	_label: string
 	_schema: ConfigSchema<T>
-	all: (params?: AllParams) => Promise<unknown[]>
-	unique: (arg: UniqueArg) => Promise<unknown>
+	all: (params?: AllParams) => Promise<Record<string, unknown>[]>
+	unique: (arg: UniqueArg) => Promise<ProcessedContent<Record<string, unknown>>>
 }
 
 export type SingletonInterface<T extends SchemaKey> = {
 	_label: string
 	_schema: ConfigSchema<T>
-	get: () => Promise<unknown>
+	get: () => Promise<ProcessedContent<Record<string, unknown>>>
 }
 
 export interface CollectionsReader<T extends SchemaKey> {

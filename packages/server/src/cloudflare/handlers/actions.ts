@@ -9,6 +9,9 @@ import {
 	createFileContent,
 	createSingletonContent,
 	processFormSubmission,
+	extractSlug,
+	getCloudflareEnvVar,
+	getEnvVar,
 } from '@kobun/common'
 import { redirect } from 'react-router'
 import invariant from 'tiny-invariant'
@@ -51,21 +54,16 @@ export const handleActions = async ({
 				? storage.credentials
 				: context.cloudflare.env
 					? {
-							accountId: context.cloudflare.env
-								.ACCOUNT_ID as string,
-							accessKeyId: context.cloudflare.env
-								.ACCESS_KEY as string,
-							bucketName: context.cloudflare.env
-								.BUCKET_NAME as string,
-							secretAccessKey: context.cloudflare.env
-								.SECRET_ACCESS_KEY as string,
+							accountId: getCloudflareEnvVar(context.cloudflare.env, 'ACCOUNT_ID'),
+							accessKeyId: getCloudflareEnvVar(context.cloudflare.env, 'ACCESS_KEY'),
+							bucketName: getCloudflareEnvVar(context.cloudflare.env, 'BUCKET_NAME'),
+							secretAccessKey: getCloudflareEnvVar(context.cloudflare.env, 'SECRET_ACCESS_KEY'),
 						}
 					: {
-							accountId: process.env.ACCOUNT_ID as string,
-							accessKeyId: process.env.ACCESS_KEY as string,
-							bucketName: process.env.BUCKET_NAME as string,
-							secretAccessKey: process.env
-								.SECRET_ACCESS_KEY as string,
+							accountId: getEnvVar('ACCOUNT_ID'),
+							accessKeyId: getEnvVar('ACCESS_KEY'),
+							bucketName: getEnvVar('BUCKET_NAME'),
+							secretAccessKey: getEnvVar('SECRET_ACCESS_KEY'),
 						}
 			const r2Storage = new CloudflareR2FileStorage(credentials)
 
@@ -137,7 +135,7 @@ export const handleActions = async ({
 					generateId: true 
 				})
 				
-				const slug = payloadMetadata.slug as string
+				const slug = extractSlug(payloadMetadata)
 				const fileContent = createFileContent(metadata, content)
 
 				const file = new File(
@@ -182,7 +180,7 @@ export const handleActions = async ({
 					generateId: false
 				})
 				
-				const slug = payloadMetadata.slug as string
+				const slug = extractSlug(payloadMetadata)
 				const fileContent = createFileContent(metadata, content)
 
 				// If slug changed, delete old file

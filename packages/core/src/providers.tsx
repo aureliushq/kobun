@@ -32,13 +32,21 @@ const KobunProvider = ({ config, children }: KobunProviderProps) => {
 
 	const location = useLocation()
 	const params = useMemo(() => {
-		return parseAdminPathname({
-			basePath: config.basePath,
+		const params: Parameters<typeof parseAdminPathname>[0] = {
 			collections: config.collections,
 			pathname: location.pathname,
 			search: location.search,
-			singletons: config.singletons,
-		})
+		}
+		
+		if (config.basePath) {
+			params.basePath = config.basePath
+		}
+		
+		if (config.singletons) {
+			params.singletons = config.singletons
+		}
+		
+		return parseAdminPathname(params)
 	}, [config, location.pathname, location.search])
 
 	return (
