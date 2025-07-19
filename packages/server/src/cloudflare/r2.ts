@@ -83,7 +83,6 @@ export class CloudflareR2FileStorage implements FileStorage {
 		}
 	}
 
-	// @ts-ignore
 	async get(key: string): Promise<string | null> {
 		try {
 			const command = new GetObjectCommand({
@@ -130,7 +129,6 @@ export class CloudflareR2FileStorage implements FileStorage {
 		return `${this.publicUrlPrefix}/${encodeURIComponent(key)}`
 	}
 
-	// @ts-ignore
 	async list(prefix?: string): Promise<string[]> {
 		try {
 			const command = new ListObjectsV2Command({

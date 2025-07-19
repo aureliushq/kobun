@@ -90,8 +90,9 @@ export const createColumnDefs = <T extends z.ZodType>({
 				cell: ({ getValue }) => {
 					const value = getValue()
 					// If object has 'label', use that
-					// @ts-ignore
-					if (value?.label) return value.label
+					if (value && typeof value === 'object' && 'label' in value) {
+						return String((value as { label: unknown }).label)
+					}
 					// Otherwise stringify the object
 					return JSON.stringify(value)
 				},
@@ -169,7 +170,6 @@ export const createColumnDefs = <T extends z.ZodType>({
 					}
 
 					default: {
-						// @ts-ignore
 						const defaultDef = getColumnDef(key, zodType)
 						const override = options?.overrides?.[key]
 						return {
@@ -219,7 +219,6 @@ export const createColumnDefs = <T extends z.ZodType>({
 			header: '',
 		})
 
-		// @ts-ignore
 		return columns
 	}
 

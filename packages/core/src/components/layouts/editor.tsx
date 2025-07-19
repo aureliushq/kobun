@@ -59,9 +59,8 @@ const EditorLayout = ({
 				onOpenChange={setOpenCollectionSettings}
 				open={openCollectionSettings}
 				style={{
-					// @ts-ignore
 					'--sidebar-width': '30rem',
-				}}
+				} as React.CSSProperties}
 			>
 				<main className='rs-w-screen rs-h-screen rs-flex rs-flex-col rs-gap-4'>
 					<EditorHeader

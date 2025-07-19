@@ -9,8 +9,7 @@ export const transformMultiselectFields = <T extends SchemaKey>(
 
 	// biome-ignore lint/complexity/noForEach: <explanation>
 	Object.entries(collectionSchema).forEach(([key, field]) => {
-		// @ts-ignore
-		const fieldType = field.type as FieldTypes
+		const fieldType = (field as { type: FieldTypes }).type
 		if (
 			fieldType === 'multiselect' &&
 			typeof payload[key] === 'string' &&

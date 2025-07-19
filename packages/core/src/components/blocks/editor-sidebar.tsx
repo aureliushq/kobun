@@ -1,5 +1,5 @@
 import type { FieldMetadata } from '@conform-to/react'
-import type { ConfigSchema, SchemaKey } from '@kobun/common'
+import type { ConfigSchema, Field, FieldTypes, SchemaKey } from '@kobun/common'
 import type { Dispatch, SetStateAction } from 'react'
 
 import InputRenderer from '~/components/form/input-renderer'
@@ -33,13 +33,11 @@ const EditorSidebar = <T extends SchemaKey>({
 	const SecondaryInputs =
 		secondaryInputFields.length > 0
 			? secondaryInputFields.map((key) => {
-					const fieldData = schema[key as T]
+					const fieldData = schema[key as T] as Field & { type: FieldTypes }
 					const fieldMetadata = fields[key as string]
 					return (
 						<InputRenderer
 							fields={fields}
-							// TODO: fix this type
-							// @ts-ignore
 							fieldData={fieldData}
 							fieldKey={key}
 							fieldMetadata={fieldMetadata}

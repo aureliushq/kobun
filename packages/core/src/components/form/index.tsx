@@ -1,5 +1,5 @@
 import type { FieldMetadata } from '@conform-to/react'
-import type { ConfigSchema, SchemaKey } from '@kobun/common'
+import type { ConfigSchema, Field, FieldTypes, SchemaKey } from '@kobun/common'
 
 import InputRenderer from '~/components/form/input-renderer'
 import type { Layout } from '~/lib/types'
@@ -25,13 +25,11 @@ const Form = <T extends SchemaKey>({
 	const PrimaryInputs =
 		primaryInputFields.length > 0
 			? primaryInputFields.map((key) => {
-					const fieldData = schema[key as T]
+					const fieldData = schema[key as T] as Field & { type: FieldTypes }
 					const fieldMetadata = fields[key]
 					return (
 						<InputRenderer
 							fields={fields}
-							// TODO: fix this type
-							// @ts-ignore
 							fieldData={fieldData}
 							fieldKey={key}
 							fieldMetadata={fieldMetadata}
@@ -45,13 +43,11 @@ const Form = <T extends SchemaKey>({
 	const SecondaryInputs =
 		secondaryInputFields.length > 0
 			? secondaryInputFields.map((key) => {
-					const fieldData = schema[key as T]
+					const fieldData = schema[key as T] as Field & { type: FieldTypes }
 					const fieldMetadata = fields[key]
 					return (
 						<InputRenderer
 							fields={fields}
-							// TODO: fix this type
-							// @ts-ignore
 							fieldData={fieldData}
 							fieldKey={key}
 							fieldMetadata={fieldMetadata}
