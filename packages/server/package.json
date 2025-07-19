@@ -28,7 +28,7 @@
 	"devDependencies": {
 		"@kobun/tsconfig": "workspace:*",
 		"tsup": "8.3.5",
-		"typescript": "5.6.2"
+		"typescript": "5.7.2"
 	},
 	"dependencies": {
 		"@aws-sdk/client-s3": "3.758.0",
