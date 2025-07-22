@@ -6,7 +6,8 @@ import {
 	PutObjectCommand,
 	S3Client,
 } from '@aws-sdk/client-s3'
-import type { FileStorage } from '@mjackson/file-storage'
+// Note: Removed FileStorage import as we use our own ContentStorage interface
+import { logger, type AWSError } from '@kobun/common'
 
 interface CloudflareR2Options {
 	accountId: string
@@ -17,7 +18,7 @@ interface CloudflareR2Options {
 	publicUrlPrefix?: string
 }
 
-export class CloudflareR2FileStorage implements FileStorage {
+export class CloudflareR2FileStorage {
 	private bucketName: string
 	private endpoint: string
 	private publicUrlPrefix?: string
@@ -56,11 +57,13 @@ export class CloudflareR2FileStorage implements FileStorage {
 			await this.client.send(command)
 			return true
 		} catch (error) {
-			// biome-ignore lint: lint/suspicious/noExplicitAny
-			if ((error as any).name === 'NotFound') {
+			if ((error as AWSError).name === 'NotFound') {
 				return false
 			}
-			console.error(`Error checking if file exists: ${error}`)
+			logger.error('Failed to check file existence', { 
+				key, 
+				bucket: this.bucketName 
+			}, error as Error)
 			return false
 		}
 	}
@@ -78,7 +81,11 @@ export class CloudflareR2FileStorage implements FileStorage {
 
 			await this.client.send(command)
 		} catch (error) {
-			console.error(`Error uploading file: ${error}`)
+			logger.error('Failed to upload file', { 
+				key, 
+				bucket: this.bucketName,
+				fileType: file.type 
+			}, error as Error)
 			throw error
 		}
 	}
@@ -98,11 +105,13 @@ export class CloudflareR2FileStorage implements FileStorage {
 
 			return response.Body.transformToString()
 		} catch (error) {
-			// biome-ignore lint: lint/suspicious/noExplicitAny
-			if ((error as any).name === 'NoSuchKey') {
+			if ((error as AWSError).name === 'NoSuchKey') {
 				return null
 			}
-			console.error(`Error getting file: ${error}`)
+			logger.error('Failed to get file', { 
+				key, 
+				bucket: this.bucketName 
+			}, error as Error)
 			return null
 		}
 	}
@@ -116,7 +125,10 @@ export class CloudflareR2FileStorage implements FileStorage {
 
 			await this.client.send(command)
 		} catch (error) {
-			console.error(`Error deleting file: ${error}`)
+			logger.error('Failed to delete file', { 
+				key, 
+				bucket: this.bucketName 
+			}, error as Error)
 			throw error
 		}
 	}
@@ -146,7 +158,10 @@ export class CloudflareR2FileStorage implements FileStorage {
 				(key): key is string => key !== undefined,
 			)
 		} catch (error) {
-			console.error(`Error listing files: ${error}`)
+			logger.error('Failed to list files', { 
+				prefix, 
+				bucket: this.bucketName 
+			}, error as Error)
 			return []
 		}
 	}

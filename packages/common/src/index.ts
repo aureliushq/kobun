@@ -30,10 +30,32 @@ export type {
 } from '~/types'
 export * from '~/utils'
 export * from '~/utils/type-guards'
+export * from '~/utils/logger'
 export * from '~/handlers/shared-metadata'
 export * from '~/handlers/shared-processing'
 export * from '~/errors/types'
 export * from '~/errors/handlers'
+export type {
+	BaseMetadata,
+	CollectionItemMetadata,
+	SingletonMetadata,
+	ContentPayload,
+	FormSubmissionData,
+	MetadataGenerationOptions
+} from '~/types/metadata'
+export type {
+	FormProcessingResult,
+	FormPayload,
+	CollectionSchema,
+	FieldConfiguration
+} from '~/types/form-processing'
+export type {
+	FileSystemError,
+	SubmissionValidationResult,
+	SafeFunction,
+	OperationContext
+} from '~/types/error-handling'
+export type { AWSError } from '~/types/aws-errors'
 export * from '~/api/interfaces'
 export * from '~/api/validation'
 export * from '~/api/response-helpers'

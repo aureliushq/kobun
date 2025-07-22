@@ -1,13 +1,9 @@
 import { parseWithZod } from '@conform-to/zod'
 import type z from 'zod'
+import type { FormProcessingResult, FormPayload, CollectionSchema, FieldConfiguration } from '../types/form-processing.js'
 
-export interface FormProcessingResult {
-	transformedPayload: Record<string, any>
-	submission: any
-	content: string
-	intent?: string
-	metadata: Record<string, any>
-}
+// Re-export for backward compatibility
+export type { FormProcessingResult, FormPayload, CollectionSchema } from '../types/form-processing.js'
 
 /**
  * Transform multiselect fields to ensure proper data structure
@@ -15,12 +11,12 @@ export interface FormProcessingResult {
  */
 export const transformMultiselectFields = <T extends string>(
 	payload: { [k: string]: unknown },
-	collectionSchema: Record<string, any>
+	collectionSchema: CollectionSchema
 ): Record<string, unknown> => {
 	const transformed = { ...payload }
 
 	Object.entries(collectionSchema).forEach(([key, field]) => {
-		const fieldType = (field as any)?.type
+		const fieldType = (field as FieldConfiguration)?.type
 		if (
 			fieldType === 'multiselect' &&
 			typeof payload[key] === 'string' &&
@@ -38,11 +34,11 @@ export const transformMultiselectFields = <T extends string>(
 /**
  * Process form submission with validation and transformation
  */
-export const processFormSubmission = async (
+export const processFormSubmission = async <T = FormPayload>(
 	formData: FormData,
-	schema: z.ZodType,
-	collectionSchema: Record<string, any>
-): Promise<FormProcessingResult> => {
+	schema: z.ZodType<T>,
+	collectionSchema: CollectionSchema
+): Promise<FormProcessingResult<T>> => {
 	const submission = parseWithZod(formData, { schema })
 	
 	// Transform multiselect fields
@@ -54,7 +50,7 @@ export const processFormSubmission = async (
 	const { content = '', intent, ...metadata } = transformedPayload
 
 	return {
-		transformedPayload,
+		transformedPayload: transformedPayload as T,
 		submission,
 		content: content as string,
 		intent: intent as string | undefined,

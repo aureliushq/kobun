@@ -1,25 +1,26 @@
 import { customAlphabet } from 'nanoid'
 import YAML from 'yaml'
+import type { CollectionItemMetadata, SingletonMetadata, ContentPayload, MetadataGenerationOptions } from '../types/metadata.js'
 
 const nanoid = customAlphabet('0123456789abcdefghijklmnopqrstuvwxyz', 32)
 
-export interface MetadataOptions {
-	intent?: string
-	existingMetadata?: Record<string, any>
-	generateId?: boolean
-}
+// Re-export for backward compatibility
+export type { MetadataGenerationOptions as MetadataOptions } from '../types/metadata.js'
 
 /**
  * Generates standardized metadata for collection items
  */
 export const generateItemMetadata = (
-	payload: Record<string, any>,
-	options: MetadataOptions = {}
-): Record<string, any> => {
+	payload: ContentPayload,
+	options: MetadataGenerationOptions = {}
+): CollectionItemMetadata => {
 	const { intent, existingMetadata, generateId = true } = options
 	const { content, ...metadataPayload } = payload
 
-	let metadata: Record<string, any> = {
+	let metadata: CollectionItemMetadata = {
+		id: existingMetadata?.id || '',
+		createdAt: existingMetadata?.createdAt || '',
+		status: existingMetadata?.status || 'draft',
 		...existingMetadata,
 		...metadataPayload,
 		updatedAt: new Date().toISOString(),
@@ -50,8 +51,8 @@ export const generateItemMetadata = (
  * Generates standardized metadata for singletons
  */
 export const generateSingletonMetadata = (
-	payload: Record<string, any>
-): Record<string, any> => {
+	payload: ContentPayload
+): SingletonMetadata => {
 	return {
 		...payload,
 		updatedAt: new Date().toISOString(),
@@ -62,7 +63,7 @@ export const generateSingletonMetadata = (
  * Creates file content with YAML frontmatter
  */
 export const createFileContent = (
-	metadata: Record<string, any>,
+	metadata: CollectionItemMetadata | SingletonMetadata,
 	content = ''
 ): string => {
 	const frontmatter = YAML.stringify(metadata).trimEnd()
@@ -75,6 +76,6 @@ export const createFileContent = (
 /**
  * Creates JSON content for singletons
  */
-export const createSingletonContent = (metadata: Record<string, any>): string => {
+export const createSingletonContent = (metadata: SingletonMetadata): string => {
 	return JSON.stringify(metadata, null, 2)
 }

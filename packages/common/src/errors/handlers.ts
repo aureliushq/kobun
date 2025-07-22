@@ -1,19 +1,21 @@
 import { KobunError, ValidationError, StorageError, NotFoundError, type ErrorResponse, createErrorResponse } from './types'
+import type { FileSystemError, SubmissionValidationResult, SafeFunction } from '../types/error-handling.js'
+import { logger } from '../utils/logger.js'
 
 /**
  * Wraps a function with error handling and logging
  */
-export const withErrorHandling = <T extends (...args: any[]) => any>(
-	fn: T,
+export const withErrorHandling = <TArgs extends unknown[], TReturn>(
+	fn: SafeFunction<TArgs, TReturn>,
 	context: string
-): T => {
-	return ((...args: any[]) => {
+): SafeFunction<TArgs, TReturn> => {
+	return ((...args: TArgs) => {
 		try {
 			const result = fn(...args)
 			
 			// Handle async functions
-			if (result && typeof result.catch === 'function') {
-				return result.catch((error: Error) => {
+			if (result && typeof (result as any)?.catch === 'function') {
+				return (result as Promise<TReturn>).catch((error: Error) => {
 					handleError(error, context)
 					throw error
 				})
@@ -24,28 +26,24 @@ export const withErrorHandling = <T extends (...args: any[]) => any>(
 			handleError(error as Error, context)
 			throw error
 		}
-	}) as T
+	}) as SafeFunction<TArgs, TReturn>
 }
 
 /**
  * Centralized error handling and logging
  */
 export const handleError = (error: Error, context: string): void => {
-	const timestamp = new Date().toISOString()
-	
 	if (error instanceof KobunError) {
-		console.error(`[${timestamp}] ${context}: ${error.name}`, {
-			message: error.message,
+		logger.error(`${context}: ${error.name}`, {
 			code: error.code,
 			statusCode: error.statusCode,
 			details: error.details,
-			stack: error.stack,
-		})
+			operation: context
+		}, error)
 	} else {
-		console.error(`[${timestamp}] ${context}: UnhandledError`, {
-			message: error.message,
-			stack: error.stack,
-		})
+		logger.error(`${context}: UnhandledError`, {
+			operation: context
+		}, error)
 	}
 }
 
@@ -62,14 +60,14 @@ export const safeFileOperation = async <T>(
 	} catch (error) {
 		const message = `Failed to ${operationName}${filePath ? ` for ${filePath}` : ''}`
 		
-		if ((error as any)?.code === 'ENOENT') {
+		if ((error as FileSystemError)?.code === 'ENOENT') {
 			throw new NotFoundError(`${message}: File not found`, { 
 				filePath, 
 				originalError: error 
 			})
 		}
 		
-		if ((error as any)?.code === 'EACCES') {
+		if ((error as FileSystemError)?.code === 'EACCES') {
 			throw new StorageError(`${message}: Permission denied`, { 
 				filePath, 
 				originalError: error 
@@ -86,7 +84,10 @@ export const safeFileOperation = async <T>(
 /**
  * Validates form submission and returns proper error response
  */
-export const validateSubmission = (submission: any, operationName: string) => {
+export const validateSubmission = <T = Record<string, unknown>>(
+	submission: SubmissionValidationResult<T>, 
+	operationName: string
+): SubmissionValidationResult<T> => {
 	if (submission.status !== 'success') {
 		throw new ValidationError(
 			`Form validation failed for ${operationName}`,

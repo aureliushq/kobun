@@ -22,6 +22,12 @@
 		},
 		"nuke": {
 			"dependsOn": ["^nuke"]
+		},
+		"test": {
+			"dependsOn": ["^build"]
+		},
+		"test:coverage": {
+			"dependsOn": ["^build"]
 		}
 	}
 }

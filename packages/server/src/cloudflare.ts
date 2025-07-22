@@ -1,3 +1,5 @@
 export * from '~/cloudflare/handlers/actions'
 export * from '~/cloudflare/handlers/loaders'
 export * from '~/cloudflare/reader'
+export * from '~/cloudflare/content-managers'
+export * from '~/shared/content-storage'
