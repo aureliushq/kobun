@@ -41,19 +41,19 @@ export type {
 	SingletonMetadata,
 	ContentPayload,
 	FormSubmissionData,
-	MetadataGenerationOptions
+	MetadataGenerationOptions,
 } from '~/types/metadata'
 export type {
 	FormProcessingResult,
 	FormPayload,
 	CollectionSchema,
-	FieldConfiguration
+	FieldConfiguration,
 } from '~/types/form-processing'
 export type {
 	FileSystemError,
 	SubmissionValidationResult,
 	SafeFunction,
-	OperationContext
+	OperationContext,
 } from '~/types/error-handling'
 export type { AWSError } from '~/types/aws-errors'
 export * from '~/api/interfaces'

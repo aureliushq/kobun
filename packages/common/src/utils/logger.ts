@@ -6,7 +6,7 @@ export enum LogLevel {
 	DEBUG = 'debug',
 	INFO = 'info',
 	WARN = 'warn',
-	ERROR = 'error'
+	ERROR = 'error',
 }
 
 export interface LogContext {
@@ -37,7 +37,12 @@ class Logger {
 		this.isDevelopment = process.env.NODE_ENV === 'development'
 	}
 
-	private formatLogEntry(level: LogLevel, message: string, context?: LogContext, error?: Error): LogEntry {
+	private formatLogEntry(
+		level: LogLevel,
+		message: string,
+		context?: LogContext,
+		error?: Error,
+	): LogEntry {
 		const entry: LogEntry = {
 			level,
 			message,
@@ -53,21 +58,33 @@ class Logger {
 				name: error.name,
 				message: error.message,
 				stack: error.stack,
-				code: (error as any).code
+				// biome-ignore lint/suspicious/noExplicitAny: error.code is not part of standard Error interface
+				code: (error as any).code,
 			}
 		}
 
 		return entry
 	}
 
-	private log(level: LogLevel, message: string, context?: LogContext, error?: Error): void {
+	private log(
+		level: LogLevel,
+		message: string,
+		context?: LogContext,
+		error?: Error,
+	): void {
 		const entry = this.formatLogEntry(level, message, context, error)
 
 		if (this.isDevelopment) {
 			// Pretty print for development
-			const contextStr = context ? ` [${Object.entries(context).map(([k, v]) => `${k}:${v}`).join(', ')}]` : ''
+			const contextStr = context
+				? ` [${Object.entries(context)
+						.map(([k, v]) => `${k}:${v}`)
+						.join(', ')}]`
+				: ''
 			const errorStr = error ? ` Error: ${error.message}` : ''
-			console.log(`[${entry.timestamp}] ${level.toUpperCase()}: ${message}${contextStr}${errorStr}`)
+			console.log(
+				`[${entry.timestamp}] ${level.toUpperCase()}: ${message}${contextStr}${errorStr}`,
+			)
 		} else {
 			// Structured JSON for production
 			console.log(JSON.stringify(entry))

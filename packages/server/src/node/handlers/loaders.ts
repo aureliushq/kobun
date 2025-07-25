@@ -35,7 +35,7 @@ export const handleLoaders = async ({ config, request }: LoaderHandlerArgs) => {
 	switch (mode) {
 		case 'local': {
 			const clientConfig = createClientConfig(config)
-			
+
 			if (params.section === 'root' || params.section === 'settings') {
 				return createEmptyResponse(clientConfig)
 			}
@@ -77,7 +77,10 @@ export const handleLoaders = async ({ config, request }: LoaderHandlerArgs) => {
 					filters,
 					format: collectionFormat,
 				})
-				return createCollectionListResponse(clientConfig, collectionItems)
+				return createCollectionListResponse(
+					clientConfig,
+					collectionItems,
+				)
 			}
 
 			if (params.section === 'create-collection-item') {

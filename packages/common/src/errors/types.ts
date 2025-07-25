@@ -6,11 +6,12 @@ export class KobunError extends Error {
 		message: string,
 		public readonly code: string,
 		public readonly statusCode: number = 500,
-		public readonly details?: Record<string, any>
+		// biome-ignore lint/suspicious/noExplicitAny: error details can contain any type of debugging information
+		public readonly details?: Record<string, any>,
 	) {
 		super(message)
 		this.name = 'KobunError'
-		
+
 		// Maintains proper stack trace for where our error was thrown (only available on V8)
 		if (Error.captureStackTrace) {
 			Error.captureStackTrace(this, KobunError)
@@ -22,6 +23,7 @@ export class KobunError extends Error {
  * Error thrown when validation fails
  */
 export class ValidationError extends KobunError {
+	// biome-ignore lint/suspicious/noExplicitAny: error details can contain any type of debugging information
 	constructor(message: string, details?: Record<string, any>) {
 		super(message, 'VALIDATION_ERROR', 400, details)
 		this.name = 'ValidationError'
@@ -32,6 +34,7 @@ export class ValidationError extends KobunError {
  * Error thrown when storage operations fail
  */
 export class StorageError extends KobunError {
+	// biome-ignore lint/suspicious/noExplicitAny: error details can contain any type of debugging information
 	constructor(message: string, details?: Record<string, any>) {
 		super(message, 'STORAGE_ERROR', 500, details)
 		this.name = 'StorageError'
@@ -42,6 +45,7 @@ export class StorageError extends KobunError {
  * Error thrown when configuration is invalid
  */
 export class ConfigurationError extends KobunError {
+	// biome-ignore lint/suspicious/noExplicitAny: error details can contain any type of debugging information
 	constructor(message: string, details?: Record<string, any>) {
 		super(message, 'CONFIGURATION_ERROR', 500, details)
 		this.name = 'ConfigurationError'
@@ -52,6 +56,7 @@ export class ConfigurationError extends KobunError {
  * Error thrown when authorization fails
  */
 export class AuthorizationError extends KobunError {
+	// biome-ignore lint/suspicious/noExplicitAny: error details can contain any type of debugging information
 	constructor(message: string, details?: Record<string, any>) {
 		super(message, 'AUTHORIZATION_ERROR', 403, details)
 		this.name = 'AuthorizationError'
@@ -62,6 +67,7 @@ export class AuthorizationError extends KobunError {
  * Error thrown when a resource is not found
  */
 export class NotFoundError extends KobunError {
+	// biome-ignore lint/suspicious/noExplicitAny: error details can contain any type of debugging information
 	constructor(message: string, details?: Record<string, any>) {
 		super(message, 'NOT_FOUND_ERROR', 404, details)
 		this.name = 'NotFoundError'
@@ -76,6 +82,7 @@ export interface ErrorResponse {
 		message: string
 		code: string
 		statusCode: number
+		// biome-ignore lint/suspicious/noExplicitAny: error details can contain any type of debugging information
 		details?: Record<string, any>
 	}
 	timestamp: string

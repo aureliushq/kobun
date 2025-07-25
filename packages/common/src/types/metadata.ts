@@ -3,36 +3,36 @@
  */
 
 export interface BaseMetadata {
-  id?: string;
-  createdAt?: string;
-  updatedAt: string;
-  status?: "draft" | "published";
-  publishedAt?: string;
+	id?: string
+	createdAt?: string
+	updatedAt: string
+	status?: 'draft' | 'published'
+	publishedAt?: string
 }
 
 export interface CollectionItemMetadata extends BaseMetadata {
-  id: string;
-  createdAt: string;
-  status: "draft" | "published";
-  [key: string]: unknown;
+	id: string
+	createdAt: string
+	status: 'draft' | 'published'
+	[key: string]: unknown
 }
 
 export interface SingletonMetadata extends BaseMetadata {
-  [key: string]: unknown;
+	[key: string]: unknown
 }
 
 export interface ContentPayload {
-  content?: string;
-  [key: string]: unknown;
+	content?: string
+	[key: string]: unknown
 }
 
 export interface FormSubmissionData {
-  intent?: string;
-  [key: string]: unknown;
+	intent?: string
+	[key: string]: unknown
 }
 
 export interface MetadataGenerationOptions {
-  intent?: string;
-  existingMetadata?: BaseMetadata;
-  generateId?: boolean;
+	intent?: string
+	existingMetadata?: BaseMetadata
+	generateId?: boolean
 }

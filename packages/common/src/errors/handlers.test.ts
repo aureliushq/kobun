@@ -8,8 +8,8 @@ vi.mock('../utils/logger', () => ({
 		error: vi.fn(),
 		warn: vi.fn(),
 		info: vi.fn(),
-		debug: vi.fn()
-	}
+		debug: vi.fn(),
+	},
 }))
 
 describe('error handlers', () => {
@@ -57,7 +57,7 @@ describe('error handlers', () => {
 		it('should return submission when status is success', () => {
 			const submission = {
 				status: 'success' as const,
-				payload: { field: 'value' }
+				payload: { field: 'value' },
 			}
 
 			const result = validateSubmission(submission, 'test-operation')
@@ -68,17 +68,19 @@ describe('error handlers', () => {
 		it('should throw ValidationError when status is not success', () => {
 			const submission = {
 				status: 'error' as const,
-				error: { field: ['Required'] }
+				error: { field: ['Required'] },
 			}
 
-			expect(() => validateSubmission(submission, 'test-operation')).toThrow(ValidationError)
+			expect(() =>
+				validateSubmission(submission, 'test-operation'),
+			).toThrow(ValidationError)
 		})
 
 		it('should include submission details in error', () => {
 			const submission = {
 				status: 'error' as const,
 				error: { field: ['Required'] },
-				reply: { formData: 'test' }
+				reply: { formData: 'test' },
 			}
 
 			try {
@@ -87,7 +89,7 @@ describe('error handlers', () => {
 				expect(error).toBeInstanceOf(ValidationError)
 				expect((error as ValidationError).details).toMatchObject({
 					submission: { field: ['Required'] },
-					status: 'error'
+					status: 'error',
 				})
 			}
 		})
@@ -112,9 +114,9 @@ describe('error handlers', () => {
 				error: {
 					message: 'Test error',
 					code: 'TEST_ERROR',
-					statusCode: 400
+					statusCode: 400,
 				},
-				timestamp: expect.any(String)
+				timestamp: expect.any(String),
 			})
 		})
 
@@ -128,9 +130,9 @@ describe('error handlers', () => {
 				error: {
 					message: 'Unknown error',
 					code: 'UNKNOWN_ERROR',
-					statusCode: 500
+					statusCode: 500,
 				},
-				timestamp: expect.any(String)
+				timestamp: expect.any(String),
 			})
 		})
 
@@ -144,9 +146,9 @@ describe('error handlers', () => {
 				error: {
 					message: 'An unknown error occurred',
 					code: 'UNKNOWN_ERROR',
-					statusCode: 500
+					statusCode: 500,
 				},
-				timestamp: expect.any(String)
+				timestamp: expect.any(String),
 			})
 		})
 	})

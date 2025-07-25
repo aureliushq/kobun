@@ -37,15 +37,15 @@ const KobunProvider = ({ config, children }: KobunProviderProps) => {
 			pathname: location.pathname,
 			search: location.search,
 		}
-		
+
 		if (config.basePath) {
 			params.basePath = config.basePath
 		}
-		
+
 		if (config.singletons) {
 			params.singletons = config.singletons
 		}
-		
+
 		return parseAdminPathname(params)
 	}, [config, location.pathname, location.search])
 

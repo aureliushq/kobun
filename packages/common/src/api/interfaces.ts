@@ -47,10 +47,10 @@ export interface EmptyResponse extends BaseApiResponse {
 /**
  * Union type for all possible API responses
  */
-export type ApiResponse = 
-	| SingletonResponse 
-	| CollectionListResponse 
-	| CollectionItemResponse 
+export type ApiResponse =
+	| SingletonResponse
+	| CollectionListResponse
+	| CollectionItemResponse
 	| EmptyResponse
 
 /**

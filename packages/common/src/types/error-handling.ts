@@ -16,7 +16,9 @@ export interface SubmissionValidationResult<T = Record<string, unknown>> {
 	reply?: Record<string, unknown>
 }
 
-export type SafeFunction<TArgs extends unknown[], TReturn> = (...args: TArgs) => TReturn | Promise<TReturn>
+export type SafeFunction<TArgs extends unknown[], TReturn> = (
+	...args: TArgs
+) => TReturn | Promise<TReturn>
 
 export interface OperationContext {
 	operationName: string

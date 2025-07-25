@@ -54,10 +54,22 @@ export const handleActions = async ({
 				? storage.credentials
 				: context.cloudflare.env
 					? {
-							accountId: getCloudflareEnvVar(context.cloudflare.env, 'ACCOUNT_ID'),
-							accessKeyId: getCloudflareEnvVar(context.cloudflare.env, 'ACCESS_KEY'),
-							bucketName: getCloudflareEnvVar(context.cloudflare.env, 'BUCKET_NAME'),
-							secretAccessKey: getCloudflareEnvVar(context.cloudflare.env, 'SECRET_ACCESS_KEY'),
+							accountId: getCloudflareEnvVar(
+								context.cloudflare.env,
+								'ACCOUNT_ID',
+							),
+							accessKeyId: getCloudflareEnvVar(
+								context.cloudflare.env,
+								'ACCESS_KEY',
+							),
+							bucketName: getCloudflareEnvVar(
+								context.cloudflare.env,
+								'BUCKET_NAME',
+							),
+							secretAccessKey: getCloudflareEnvVar(
+								context.cloudflare.env,
+								'SECRET_ACCESS_KEY',
+							),
 						}
 					: {
 							accountId: getEnvVar('ACCOUNT_ID'),
@@ -82,16 +94,16 @@ export const handleActions = async ({
 					schema: singleton.schema,
 					options: { type: 'action' },
 				})
-				
+
 				const { transformedPayload } = await processFormSubmission(
 					formData,
 					schema,
-					singleton.schema
+					singleton.schema,
 				)
-				
+
 				const metadata = generateSingletonMetadata(transformedPayload)
 				const fileContent = createSingletonContent(metadata)
-				
+
 				const file = new File(
 					[fileContent],
 					`${singletonSlug}.${singletonFormat}`,
@@ -124,17 +136,21 @@ export const handleActions = async ({
 			})
 
 			if (params.section === 'create-collection-item') {
-				const { content, intent, metadata: payloadMetadata } = await processFormSubmission(
+				const {
+					content,
+					intent,
+					metadata: payloadMetadata,
+				} = await processFormSubmission(
 					formData,
 					schema,
-					collection.schema
+					collection.schema,
 				)
-				
-				const metadata = generateItemMetadata(payloadMetadata, { 
-					intent, 
-					generateId: true 
+
+				const metadata = generateItemMetadata(payloadMetadata, {
+					intent,
+					generateId: true,
 				})
-				
+
 				const slug = extractSlug(payloadMetadata)
 				const fileContent = createFileContent(metadata, content)
 
@@ -168,18 +184,22 @@ export const handleActions = async ({
 				})
 				const { content: oldContent = '', ...oldMetadata } = data
 
-				const { content, intent, metadata: payloadMetadata } = await processFormSubmission(
+				const {
+					content,
+					intent,
+					metadata: payloadMetadata,
+				} = await processFormSubmission(
 					formData,
 					schema,
-					collection.schema
+					collection.schema,
 				)
-				
+
 				const metadata = generateItemMetadata(payloadMetadata, {
 					intent,
 					existingMetadata: oldMetadata,
-					generateId: false
+					generateId: false,
 				})
-				
+
 				const slug = extractSlug(payloadMetadata)
 				const fileContent = createFileContent(metadata, content)
 

@@ -33,7 +33,9 @@ const EditorSidebar = <T extends SchemaKey>({
 	const SecondaryInputs =
 		secondaryInputFields.length > 0
 			? secondaryInputFields.map((key) => {
-					const fieldData = schema[key as T] as Field & { type: FieldTypes }
+					const fieldData = schema[key as T] as Field & {
+						type: FieldTypes
+					}
 					const fieldMetadata = fields[key as string]
 					return (
 						<InputRenderer

@@ -1,5 +1,16 @@
-import { KobunError, ValidationError, StorageError, NotFoundError, type ErrorResponse, createErrorResponse } from './types'
-import type { FileSystemError, SubmissionValidationResult, SafeFunction } from '../types/error-handling.js'
+import {
+	KobunError,
+	ValidationError,
+	StorageError,
+	NotFoundError,
+	type ErrorResponse,
+	createErrorResponse,
+} from './types'
+import type {
+	FileSystemError,
+	SubmissionValidationResult,
+	SafeFunction,
+} from '../types/error-handling.js'
 import { logger } from '../utils/logger.js'
 
 /**
@@ -7,20 +18,21 @@ import { logger } from '../utils/logger.js'
  */
 export const withErrorHandling = <TArgs extends unknown[], TReturn>(
 	fn: SafeFunction<TArgs, TReturn>,
-	context: string
+	context: string,
 ): SafeFunction<TArgs, TReturn> => {
 	return ((...args: TArgs) => {
 		try {
 			const result = fn(...args)
-			
+
 			// Handle async functions
+			// biome-ignore lint/suspicious/noExplicitAny: checking for promise-like object requires any casting
 			if (result && typeof (result as any)?.catch === 'function') {
 				return (result as Promise<TReturn>).catch((error: Error) => {
 					handleError(error, context)
 					throw error
 				})
 			}
-			
+
 			return result
 		} catch (error) {
 			handleError(error as Error, context)
@@ -34,16 +46,24 @@ export const withErrorHandling = <TArgs extends unknown[], TReturn>(
  */
 export const handleError = (error: Error, context: string): void => {
 	if (error instanceof KobunError) {
-		logger.error(`${context}: ${error.name}`, {
-			code: error.code,
-			statusCode: error.statusCode,
-			details: error.details,
-			operation: context
-		}, error)
+		logger.error(
+			`${context}: ${error.name}`,
+			{
+				code: error.code,
+				statusCode: error.statusCode,
+				details: error.details,
+				operation: context,
+			},
+			error,
+		)
 	} else {
-		logger.error(`${context}: UnhandledError`, {
-			operation: context
-		}, error)
+		logger.error(
+			`${context}: UnhandledError`,
+			{
+				operation: context,
+			},
+			error,
+		)
 	}
 }
 
@@ -53,30 +73,30 @@ export const handleError = (error: Error, context: string): void => {
 export const safeFileOperation = async <T>(
 	operation: () => Promise<T>,
 	operationName: string,
-	filePath?: string
+	filePath?: string,
 ): Promise<T> => {
 	try {
 		return await operation()
 	} catch (error) {
 		const message = `Failed to ${operationName}${filePath ? ` for ${filePath}` : ''}`
-		
+
 		if ((error as FileSystemError)?.code === 'ENOENT') {
-			throw new NotFoundError(`${message}: File not found`, { 
-				filePath, 
-				originalError: error 
+			throw new NotFoundError(`${message}: File not found`, {
+				filePath,
+				originalError: error,
 			})
 		}
-		
+
 		if ((error as FileSystemError)?.code === 'EACCES') {
-			throw new StorageError(`${message}: Permission denied`, { 
-				filePath, 
-				originalError: error 
+			throw new StorageError(`${message}: Permission denied`, {
+				filePath,
+				originalError: error,
 			})
 		}
-		
-		throw new StorageError(message, { 
-			filePath, 
-			originalError: error 
+
+		throw new StorageError(message, {
+			filePath,
+			originalError: error,
 		})
 	}
 }
@@ -85,19 +105,19 @@ export const safeFileOperation = async <T>(
  * Validates form submission and returns proper error response
  */
 export const validateSubmission = <T = Record<string, unknown>>(
-	submission: SubmissionValidationResult<T>, 
-	operationName: string
+	submission: SubmissionValidationResult<T>,
+	operationName: string,
 ): SubmissionValidationResult<T> => {
 	if (submission.status !== 'success') {
 		throw new ValidationError(
 			`Form validation failed for ${operationName}`,
-			{ 
+			{
 				submission: submission.error || submission.reply,
-				status: submission.status 
-			}
+				status: submission.status,
+			},
 		)
 	}
-	
+
 	return submission
 }
 
@@ -106,25 +126,25 @@ export const validateSubmission = <T = Record<string, unknown>>(
  */
 export const safeExecute = async <T>(
 	operation: () => Promise<T>,
-	context: string
+	context: string,
 ): Promise<T | ErrorResponse> => {
 	try {
 		return await operation()
 	} catch (error) {
 		handleError(error as Error, context)
-		
+
 		if (error instanceof KobunError) {
 			return createErrorResponse(error)
 		}
-		
+
 		// Convert unknown errors to KobunError
 		const kobunError = new KobunError(
 			(error as Error).message || 'An unknown error occurred',
 			'UNKNOWN_ERROR',
 			500,
-			{ originalError: error }
+			{ originalError: error },
 		)
-		
+
 		return createErrorResponse(kobunError)
 	}
 }

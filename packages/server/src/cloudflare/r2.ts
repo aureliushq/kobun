@@ -60,10 +60,14 @@ export class CloudflareR2FileStorage {
 			if ((error as AWSError).name === 'NotFound') {
 				return false
 			}
-			logger.error('Failed to check file existence', { 
-				key, 
-				bucket: this.bucketName 
-			}, error as Error)
+			logger.error(
+				'Failed to check file existence',
+				{
+					key,
+					bucket: this.bucketName,
+				},
+				error as Error,
+			)
 			return false
 		}
 	}
@@ -81,11 +85,15 @@ export class CloudflareR2FileStorage {
 
 			await this.client.send(command)
 		} catch (error) {
-			logger.error('Failed to upload file', { 
-				key, 
-				bucket: this.bucketName,
-				fileType: file.type 
-			}, error as Error)
+			logger.error(
+				'Failed to upload file',
+				{
+					key,
+					bucket: this.bucketName,
+					fileType: file.type,
+				},
+				error as Error,
+			)
 			throw error
 		}
 	}
@@ -108,10 +116,14 @@ export class CloudflareR2FileStorage {
 			if ((error as AWSError).name === 'NoSuchKey') {
 				return null
 			}
-			logger.error('Failed to get file', { 
-				key, 
-				bucket: this.bucketName 
-			}, error as Error)
+			logger.error(
+				'Failed to get file',
+				{
+					key,
+					bucket: this.bucketName,
+				},
+				error as Error,
+			)
 			return null
 		}
 	}
@@ -125,10 +137,14 @@ export class CloudflareR2FileStorage {
 
 			await this.client.send(command)
 		} catch (error) {
-			logger.error('Failed to delete file', { 
-				key, 
-				bucket: this.bucketName 
-			}, error as Error)
+			logger.error(
+				'Failed to delete file',
+				{
+					key,
+					bucket: this.bucketName,
+				},
+				error as Error,
+			)
 			throw error
 		}
 	}
@@ -158,10 +174,14 @@ export class CloudflareR2FileStorage {
 				(key): key is string => key !== undefined,
 			)
 		} catch (error) {
-			logger.error('Failed to list files', { 
-				prefix, 
-				bucket: this.bucketName 
-			}, error as Error)
+			logger.error(
+				'Failed to list files',
+				{
+					prefix,
+					bucket: this.bucketName,
+				},
+				error as Error,
+			)
 			return []
 		}
 	}

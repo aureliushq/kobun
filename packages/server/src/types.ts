@@ -1,5 +1,9 @@
 import type { Config, ConfigSchema, SchemaKey } from '@kobun/common'
-import type { CollectionItemMetadata, SingletonMetadata, ProcessedContent } from '@kobun/common'
+import type {
+	CollectionItemMetadata,
+	SingletonMetadata,
+	ProcessedContent,
+} from '@kobun/common'
 import type { ActionFunctionArgs, LoaderFunctionArgs } from 'react-router'
 
 export type ActionHandlerArgs = {
@@ -30,7 +34,9 @@ export type CollectionInterface<T extends SchemaKey> = {
 	_label: string
 	_schema: ConfigSchema<T>
 	all: (params?: AllParams) => Promise<Record<string, unknown>[]>
-	unique: (arg: UniqueArg) => Promise<ProcessedContent<Record<string, unknown>>>
+	unique: (
+		arg: UniqueArg,
+	) => Promise<ProcessedContent<Record<string, unknown>>>
 }
 
 export type SingletonInterface<T extends SchemaKey> = {

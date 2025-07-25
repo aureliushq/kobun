@@ -8,23 +8,23 @@ import type { ValidationResult, ProcessedContent } from './interfaces'
 export const validateWithSchema = <T>(
 	data: unknown,
 	schema: z.ZodType<T>,
-	context?: string
+	context?: string,
 ): ValidationResult<T> => {
 	const result = schema.safeParse(data)
-	
+
 	if (result.success) {
 		return {
 			success: true,
 			data: result.data,
 		}
 	}
-	
-	const errors = result.error.errors.map(error => ({
+
+	const errors = result.error.errors.map((error) => ({
 		field: error.path.join('.'),
 		message: error.message,
 		code: error.code,
 	}))
-	
+
 	return {
 		success: false,
 		errors,
@@ -37,20 +37,18 @@ export const validateWithSchema = <T>(
 export const validateOrThrow = <T>(
 	data: unknown,
 	schema: z.ZodType<T>,
-	context: string
+	context: string,
 ): T => {
 	const validation = validateWithSchema(data, schema, context)
-	
+
 	if (!validation.success) {
-		throw new ValidationError(
-			`Validation failed for ${context}`,
-			{ 
-				errors: validation.errors,
-				context 
-			}
-		)
+		throw new ValidationError(`Validation failed for ${context}`, {
+			errors: validation.errors,
+			context,
+		})
 	}
-	
+
+	// biome-ignore lint/style/noNonNullAssertion: validation.success guarantees data exists
 	return validation.data!
 }
 
@@ -61,10 +59,10 @@ export const validateProcessedContent = <T>(
 	content: string,
 	metadata: unknown,
 	schema: z.ZodType<T>,
-	context: string
+	context: string,
 ): ProcessedContent<T> => {
 	const validatedMetadata = validateOrThrow(metadata, schema, context)
-	
+
 	return {
 		content,
 		metadata: validatedMetadata,
@@ -83,7 +81,10 @@ export const createValidator = <T>(schema: z.ZodType<T>, context: string) => {
 /**
  * Creates a type-safe validator function that throws on error
  */
-export const createStrictValidator = <T>(schema: z.ZodType<T>, context: string) => {
+export const createStrictValidator = <T>(
+	schema: z.ZodType<T>,
+	context: string,
+) => {
 	return (data: unknown): T => {
 		return validateOrThrow(data, schema, context)
 	}
@@ -93,20 +94,21 @@ export const createStrictValidator = <T>(schema: z.ZodType<T>, context: string) 
  * Validation middleware for form submissions with consistent error handling
  */
 export const validateFormSubmission = <T>(
+	// biome-ignore lint/suspicious/noExplicitAny: submission comes from form data with unknown structure
 	submission: any,
 	schema: z.ZodType<T>,
-	operationName: string
+	operationName: string,
 ): T => {
 	if (submission.status !== 'success') {
 		throw new ValidationError(
 			`Form validation failed for ${operationName}`,
-			{ 
+			{
 				submission: submission.error || submission.reply,
 				status: submission.status,
-				operation: operationName
-			}
+				operation: operationName,
+			},
 		)
 	}
-	
+
 	return validateOrThrow(submission.payload, schema, operationName)
 }

@@ -25,7 +25,9 @@ const Form = <T extends SchemaKey>({
 	const PrimaryInputs =
 		primaryInputFields.length > 0
 			? primaryInputFields.map((key) => {
-					const fieldData = schema[key as T] as Field & { type: FieldTypes }
+					const fieldData = schema[key as T] as Field & {
+						type: FieldTypes
+					}
 					const fieldMetadata = fields[key]
 					return (
 						<InputRenderer
@@ -43,7 +45,9 @@ const Form = <T extends SchemaKey>({
 	const SecondaryInputs =
 		secondaryInputFields.length > 0
 			? secondaryInputFields.map((key) => {
-					const fieldData = schema[key as T] as Field & { type: FieldTypes }
+					const fieldData = schema[key as T] as Field & {
+						type: FieldTypes
+					}
 					const fieldMetadata = fields[key]
 					return (
 						<InputRenderer

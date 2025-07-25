@@ -101,22 +101,19 @@ export const readItemInLocalCollection = async ({
 			const file = await fs.readFile(path, 'utf8')
 			const { content, data } = matter(file)
 			const result = schema.safeParse(data)
-			
+
 			if (!result.success) {
-				throw new ValidationError(
-					`Failed to validate item metadata`,
-					{ 
-						path, 
-						id, 
-						errors: result.error.errors 
-					}
-				)
+				throw new ValidationError('Failed to validate item metadata', {
+					path,
+					id,
+					errors: result.error.errors,
+				})
 			}
-			
+
 			return { content, ...result.data }
 		},
 		'read collection item',
-		path
+		path,
 	)
 }
 

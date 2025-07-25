@@ -21,7 +21,7 @@ const createBaseResponse = (config: Config): BaseApiResponse => ({
  */
 export const createSingletonResponse = (
 	config: Config,
-	item: Record<string, unknown>
+	item: Record<string, unknown>,
 ): SingletonResponse => ({
 	...createBaseResponse(config),
 	item,
@@ -39,17 +39,20 @@ export const createCollectionListResponse = (
 		limit?: number
 		hasNext?: boolean
 		hasPrevious?: boolean
-	}
+	},
 ): CollectionListResponse => ({
 	...createBaseResponse(config),
 	items,
 	total: options?.total,
-	pagination: options?.page !== undefined ? {
-		page: options.page,
-		limit: options.limit || items.length,
-		hasNext: options.hasNext || false,
-		hasPrevious: options.hasPrevious || false,
-	} : undefined,
+	pagination:
+		options?.page !== undefined
+			? {
+					page: options.page,
+					limit: options.limit || items.length,
+					hasNext: options.hasNext || false,
+					hasPrevious: options.hasPrevious || false,
+				}
+			: undefined,
 })
 
 /**
@@ -57,7 +60,7 @@ export const createCollectionListResponse = (
  */
 export const createCollectionItemResponse = (
 	config: Config,
-	item: Record<string, unknown>
+	item: Record<string, unknown>,
 ): CollectionItemResponse => ({
 	...createBaseResponse(config),
 	item,
@@ -76,12 +79,12 @@ export const createEmptyResponse = (config: Config): EmptyResponse => ({
 export const createClientConfig = (config: Config): Config => {
 	// Remove sensitive storage credentials from client-facing config
 	let storage = config.storage
-	
+
 	if (storage.mode === 'r2' && 'credentials' in storage) {
 		const { credentials, ...storageWithoutCredentials } = storage
 		storage = storageWithoutCredentials
 	}
-	
+
 	return {
 		...config,
 		storage,

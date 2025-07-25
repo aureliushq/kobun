@@ -53,175 +53,180 @@ interface CollectionHeaderProps<TData> {
 	table: ReactTable<TData>
 }
 
-const CollectionHeader = memo(<TData extends RowData>({
-	basePath,
-	collection,
-	collectionSlug,
-	labels,
-	table,
-}: CollectionHeaderProps<TData>) => {
-	const id = useId()
-	const inputRef = useRef<HTMLInputElement>(null)
-	const [inputValue, setInputValue] = useState('')
-	const [orderValue, setOrderValue] = useState('newest-first')
+const CollectionHeader = memo(
+	<TData extends RowData>({
+		basePath,
+		collection,
+		collectionSlug,
+		labels,
+		table,
+	}: CollectionHeaderProps<TData>) => {
+		const id = useId()
+		const inputRef = useRef<HTMLInputElement>(null)
+		const [inputValue, setInputValue] = useState('')
+		const [orderValue, setOrderValue] = useState('newest-first')
 
-	const handleClearInput = () => {
-		setInputValue('')
-		table.getColumn('title')?.setFilterValue('')
-		if (inputRef.current) {
-			inputRef.current.focus()
-		}
-	}
-
-	const handleOrdering = (value: string) => {
-		setOrderValue(value)
-		switch (value) {
-			case 'newest-first': {
-				const column = table.getColumn('createdAt')
-				column?.toggleSorting(true)
-				break
-			}
-			case 'oldest-first': {
-				const column = table.getColumn('createdAt')
-				column?.toggleSorting(false)
-				break
-			}
-			// case 'recently-published': {
-			// 	const createdAtColumn = table.getColumn('createdAt')
-			// 	const publishedAtColumn = table.getColumn('publishedAt')
-			// 	const updatedAtColumn = table.getColumn('updatedAt')
-			// 	createdAtColumn?.clearSorting()
-			// 	publishedAtColumn?.toggleSorting(true)
-			// 	publishedAtColumn?.setFilterValue({
-			// 		id: 'publishedAt',
-			// 		value: (value: Date | null) => {
-			// 			console.log(value)
-			// 			return value !== null && value !== undefined
-			// 		},
-			// 	})
-			// 	updatedAtColumn?.clearSorting()
-			// 	break
-			// }
-			case 'recently-updated': {
-				const createdAtColumn = table.getColumn('createdAt')
-				const updatedAtColumn = table.getColumn('updatedAt')
-				createdAtColumn?.clearSorting()
-				updatedAtColumn?.toggleSorting(true)
+		const handleClearInput = () => {
+			setInputValue('')
+			table.getColumn('title')?.setFilterValue('')
+			if (inputRef.current) {
+				inputRef.current.focus()
 			}
 		}
-	}
 
-	return (
-		<section className='rs-w-full rs-flex rs-flex-col rs-gap-2'>
-			<div className='rs-w-full rs-h-12 rs-flex rs-items-center rs-justify-between'>
-				<h3 className='rs-text-xl rs-font-semibold'>
-					{collection.label}
-				</h3>
-				<div className='rs-flex rs-items-center rs-gap-2'>
-					<div className='rs-relative'>
-						<Input
-							className='rs-h-9 rs-pe-9'
-							id={id}
-							onChange={(event) => {
-								table
-									.getColumn('title')
-									?.setFilterValue(event.target.value)
-								setInputValue(event.target.value)
-							}}
-							placeholder={`Search ${labels?.plural.toLowerCase()}...`}
-							ref={inputRef}
-							type='text'
-							value={
-								(table
-									.getColumn('title')
-									?.getFilterValue() as string) || ''
-							}
-						/>
-						{inputValue && (
-							<button
-								aria-label='Clear input'
-								className='rs-absolute rs-inset-y-0 rs-end-0 rs-flex rs-h-full rs-w-9 rs-items-center rs-justify-center rs-rounded-e-lg rs-text-muted-foreground/80 rs-outline-offset-2 rs-transition-colors hover:rs-text-foreground focus:rs-z-10 focus-visible:rs-outline focus-visible:rs-outline-2 focus-visible:rs-outline-ring/70 disabled:rs-pointer-events-none disabled:rs-cursor-not-allowed disabled:rs-opacity-50'
-								onClick={handleClearInput}
-								type='button'
+		const handleOrdering = (value: string) => {
+			setOrderValue(value)
+			switch (value) {
+				case 'newest-first': {
+					const column = table.getColumn('createdAt')
+					column?.toggleSorting(true)
+					break
+				}
+				case 'oldest-first': {
+					const column = table.getColumn('createdAt')
+					column?.toggleSorting(false)
+					break
+				}
+				// case 'recently-published': {
+				// 	const createdAtColumn = table.getColumn('createdAt')
+				// 	const publishedAtColumn = table.getColumn('publishedAt')
+				// 	const updatedAtColumn = table.getColumn('updatedAt')
+				// 	createdAtColumn?.clearSorting()
+				// 	publishedAtColumn?.toggleSorting(true)
+				// 	publishedAtColumn?.setFilterValue({
+				// 		id: 'publishedAt',
+				// 		value: (value: Date | null) => {
+				// 			console.log(value)
+				// 			return value !== null && value !== undefined
+				// 		},
+				// 	})
+				// 	updatedAtColumn?.clearSorting()
+				// 	break
+				// }
+				case 'recently-updated': {
+					const createdAtColumn = table.getColumn('createdAt')
+					const updatedAtColumn = table.getColumn('updatedAt')
+					createdAtColumn?.clearSorting()
+					updatedAtColumn?.toggleSorting(true)
+				}
+			}
+		}
+
+		return (
+			<section className='rs-w-full rs-flex rs-flex-col rs-gap-2'>
+				<div className='rs-w-full rs-h-12 rs-flex rs-items-center rs-justify-between'>
+					<h3 className='rs-text-xl rs-font-semibold'>
+						{collection.label}
+					</h3>
+					<div className='rs-flex rs-items-center rs-gap-2'>
+						<div className='rs-relative'>
+							<Input
+								className='rs-h-9 rs-pe-9'
+								id={id}
+								onChange={(event) => {
+									table
+										.getColumn('title')
+										?.setFilterValue(event.target.value)
+									setInputValue(event.target.value)
+								}}
+								placeholder={`Search ${labels?.plural.toLowerCase()}...`}
+								ref={inputRef}
+								type='text'
+								value={
+									(table
+										.getColumn('title')
+										?.getFilterValue() as string) || ''
+								}
+							/>
+							{inputValue && (
+								<button
+									aria-label='Clear input'
+									className='rs-absolute rs-inset-y-0 rs-end-0 rs-flex rs-h-full rs-w-9 rs-items-center rs-justify-center rs-rounded-e-lg rs-text-muted-foreground/80 rs-outline-offset-2 rs-transition-colors hover:rs-text-foreground focus:rs-z-10 focus-visible:rs-outline focus-visible:rs-outline-2 focus-visible:rs-outline-ring/70 disabled:rs-pointer-events-none disabled:rs-cursor-not-allowed disabled:rs-opacity-50'
+									onClick={handleClearInput}
+									type='button'
+								>
+									<CircleX
+										size={16}
+										strokeWidth={2}
+										aria-hidden='true'
+									/>
+								</button>
+							)}
+						</div>
+						<DropdownMenu>
+							<DropdownMenuTrigger asChild>
+								<Button
+									variant='outline'
+									size='sm'
+									className='ml-auto hidden h-8 lg:flex'
+								>
+									<Settings2 />
+									Display
+								</Button>
+							</DropdownMenuTrigger>
+							<DropdownMenuContent
+								align='end'
+								className='rs-w-[320px]'
 							>
-								<CircleX
-									size={16}
-									strokeWidth={2}
-									aria-hidden='true'
-								/>
-							</button>
-						)}
-					</div>
-					<DropdownMenu>
-						<DropdownMenuTrigger asChild>
-							<Button
-								variant='outline'
-								size='sm'
-								className='ml-auto hidden h-8 lg:flex'
-							>
-								<Settings2 />
-								Display
-							</Button>
-						</DropdownMenuTrigger>
-						<DropdownMenuContent
-							align='end'
-							className='rs-w-[320px]'
+								<DropdownMenuLabel>Ordering</DropdownMenuLabel>
+								<DropdownMenuSeparator />
+								<DropdownMenuRadioGroup
+									onValueChange={handleOrdering}
+									value={orderValue}
+								>
+									<DropdownMenuRadioItem value='newest-first'>
+										Newest first
+									</DropdownMenuRadioItem>
+									<DropdownMenuRadioItem value='oldest-first'>
+										Oldest first
+									</DropdownMenuRadioItem>
+									{/* TODO: check if publish feature is enabled */}
+									{/* <DropdownMenuRadioItem value='recently-published'> */}
+									{/* 	Recently published */}
+									{/* </DropdownMenuRadioItem> */}
+									<DropdownMenuRadioItem value='recently-updated'>
+										Recently updated
+									</DropdownMenuRadioItem>
+								</DropdownMenuRadioGroup>
+								<DropdownMenuSeparator />
+								<DropdownMenuLabel>
+									Column visibility
+								</DropdownMenuLabel>
+								<DropdownMenuSeparator />
+								{table
+									.getAllColumns()
+									.filter(
+										(column) =>
+											typeof column.accessorFn !==
+												'undefined' &&
+											column.getCanHide(),
+									)
+									.filter((column) => column.id !== 'actions')
+									.map((column) => (
+										<DropdownMenuCheckboxItem
+											key={column.id}
+											className='capitalize'
+											checked={column.getIsVisible()}
+											onCheckedChange={(value) =>
+												column.toggleVisibility(!!value)
+											}
+										>
+											{column.columnDef.header as string}
+										</DropdownMenuCheckboxItem>
+									))}
+							</DropdownMenuContent>
+						</DropdownMenu>
+						<Link
+							to={`${basePath}/${PATHS.EDITOR}/${collectionSlug}`}
 						>
-							<DropdownMenuLabel>Ordering</DropdownMenuLabel>
-							<DropdownMenuSeparator />
-							<DropdownMenuRadioGroup
-								onValueChange={handleOrdering}
-								value={orderValue}
-							>
-								<DropdownMenuRadioItem value='newest-first'>
-									Newest first
-								</DropdownMenuRadioItem>
-								<DropdownMenuRadioItem value='oldest-first'>
-									Oldest first
-								</DropdownMenuRadioItem>
-								{/* TODO: check if publish feature is enabled */}
-								{/* <DropdownMenuRadioItem value='recently-published'> */}
-								{/* 	Recently published */}
-								{/* </DropdownMenuRadioItem> */}
-								<DropdownMenuRadioItem value='recently-updated'>
-									Recently updated
-								</DropdownMenuRadioItem>
-							</DropdownMenuRadioGroup>
-							<DropdownMenuSeparator />
-							<DropdownMenuLabel>
-								Column visibility
-							</DropdownMenuLabel>
-							<DropdownMenuSeparator />
-							{table
-								.getAllColumns()
-								.filter(
-									(column) =>
-										typeof column.accessorFn !==
-											'undefined' && column.getCanHide(),
-								)
-								.filter((column) => column.id !== 'actions')
-								.map((column) => (
-									<DropdownMenuCheckboxItem
-										key={column.id}
-										className='capitalize'
-										checked={column.getIsVisible()}
-										onCheckedChange={(value) =>
-											column.toggleVisibility(!!value)
-										}
-									>
-										{column.columnDef.header as string}
-									</DropdownMenuCheckboxItem>
-								))}
-						</DropdownMenuContent>
-					</DropdownMenu>
-					<Link to={`${basePath}/${PATHS.EDITOR}/${collectionSlug}`}>
-						<Button size='sm'>{`New ${labels?.singular}`}</Button>
-					</Link>
+							<Button size='sm'>{`New ${labels?.singular}`}</Button>
+						</Link>
+					</div>
 				</div>
-			</div>
-		</section>
-	)
-})
+			</section>
+		)
+	},
+)
 
 const Collection = ({
 	collectionSlug,
@@ -238,22 +243,36 @@ const Collection = ({
 	const basePath = config.basePath ?? ''
 	const collection = config.collections[collectionSlug]
 
-	const COLLECTION_ZOD_SCHEMA = useMemo(() => createZodSchema({
-		features: collection.features,
-		options: {
-			omit: ['content', 'slug', 'updatedAt'],
-		},
-		schema: collection.schema,
-	}), [collection.features, collection.schema])
-	
-	const columns = useMemo(() => createColumnDefs({
-		basePath,
-		collectionSlug,
-		options: {
-			only: ['title', 'createdAt', 'updatedAt', 'status', 'publishedAt'],
-		},
-		schema: COLLECTION_ZOD_SCHEMA,
-	}) as Array<z.infer<typeof COLLECTION_ZOD_SCHEMA>>, [basePath, collectionSlug, COLLECTION_ZOD_SCHEMA])
+	const COLLECTION_ZOD_SCHEMA = useMemo(
+		() =>
+			createZodSchema({
+				features: collection.features,
+				options: {
+					omit: ['content', 'slug', 'updatedAt'],
+				},
+				schema: collection.schema,
+			}),
+		[collection.features, collection.schema],
+	)
+
+	const columns = useMemo(
+		() =>
+			createColumnDefs({
+				basePath,
+				collectionSlug,
+				options: {
+					only: [
+						'title',
+						'createdAt',
+						'updatedAt',
+						'status',
+						'publishedAt',
+					],
+				},
+				schema: COLLECTION_ZOD_SCHEMA,
+			}) as Array<z.infer<typeof COLLECTION_ZOD_SCHEMA>>,
+		[basePath, collectionSlug, COLLECTION_ZOD_SCHEMA],
+	)
 
 	const { items: data } = useLoaderData()
 

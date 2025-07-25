@@ -90,7 +90,11 @@ export const createColumnDefs = <T extends z.ZodType>({
 				cell: ({ getValue }) => {
 					const value = getValue()
 					// If object has 'label', use that
-					if (value && typeof value === 'object' && 'label' in value) {
+					if (
+						value &&
+						typeof value === 'object' &&
+						'label' in value
+					) {
 						return String((value as { label: unknown }).label)
 					}
 					// Otherwise stringify the object
@@ -107,13 +111,18 @@ export const createColumnDefs = <T extends z.ZodType>({
 	if (schema instanceof z.ZodDiscriminatedUnion) {
 		// Get the first option's shape (they should all share common fields)
 		const firstOption = schema.options[0]
-		
+
 		// Type guard to check if the option is a ZodObject
-		if (!firstOption || typeof firstOption !== 'object' || !('shape' in firstOption)) {
+		if (
+			!firstOption ||
+			typeof firstOption !== 'object' ||
+			!('shape' in firstOption)
+		) {
 			throw new Error('Invalid discriminated union schema structure')
 		}
-		
-		const shape = (firstOption as { shape: Record<string, z.ZodType> }).shape
+
+		const shape = (firstOption as { shape: Record<string, z.ZodType> })
+			.shape
 
 		// Function to check if a field should be included
 		const shouldIncludeField = (key: string) => {

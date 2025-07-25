@@ -58,16 +58,16 @@ export const handleActions = async ({ config, request }: ActionHandlerArgs) => {
 					schema: singleton.schema,
 					options: { type: 'action' },
 				})
-				
+
 				const { transformedPayload } = await processFormSubmission(
 					formData,
 					schema,
-					singleton.schema
+					singleton.schema,
 				)
-				
+
 				const metadata = generateSingletonMetadata(transformedPayload)
 				const fileContent = createSingletonContent(metadata)
-				
+
 				return await writeLocalSingleton({
 					format: singletonFormat,
 					fileContent,
@@ -91,27 +91,31 @@ export const handleActions = async ({ config, request }: ActionHandlerArgs) => {
 			})
 			if (params.section === 'create-collection-item') {
 				// TODO: check if parseWithZod is successful and only then create the file
-				const { content, intent, metadata: payloadMetadata } = await processFormSubmission(
+				const {
+					content,
+					intent,
+					metadata: payloadMetadata,
+				} = await processFormSubmission(
 					formData,
 					schema,
-					collection.schema
+					collection.schema,
 				)
-				
-				const metadata = generateItemMetadata(payloadMetadata, { 
-					intent, 
-					generateId: true 
+
+				const metadata = generateItemMetadata(payloadMetadata, {
+					intent,
+					generateId: true,
 				})
-				
+
 				const slug = extractSlug(payloadMetadata)
 				const fileContent = createFileContent(metadata, content)
-				
+
 				await writeItemToLocalCollection({
 					collection,
 					format: collectionFormat,
 					fileContent,
 					slug,
 				})
-				
+
 				const redirectUrl = `${basePath}/${PATHS.EDITOR}/${collectionSlug}/${metadata.id}`
 				return redirect(redirectUrl)
 			}
@@ -129,21 +133,25 @@ export const handleActions = async ({ config, request }: ActionHandlerArgs) => {
 				})
 				const { content: oldContent = '', ...oldMetadata } = data
 
-				const { content, intent, metadata: payloadMetadata } = await processFormSubmission(
+				const {
+					content,
+					intent,
+					metadata: payloadMetadata,
+				} = await processFormSubmission(
 					formData,
 					schema,
-					collection.schema
+					collection.schema,
 				)
-				
+
 				const metadata = generateItemMetadata(payloadMetadata, {
 					intent,
 					existingMetadata: oldMetadata,
-					generateId: false
+					generateId: false,
 				})
-				
+
 				const slug = extractSlug(payloadMetadata)
 				const fileContent = createFileContent(metadata, content)
-				
+
 				await writeItemToLocalCollection({
 					collection,
 					format: collectionFormat,
@@ -154,7 +162,7 @@ export const handleActions = async ({ config, request }: ActionHandlerArgs) => {
 							: '',
 					slug,
 				})
-				
+
 				return await readItemInLocalCollection({
 					collection,
 					format: collectionFormat,

@@ -16,7 +16,7 @@ export class NodeFileStorage implements ContentStorage {
 			return false
 		}
 	}
-	
+
 	async read(path: string): Promise<string | null> {
 		try {
 			return await readFile(path, 'utf-8')
@@ -27,17 +27,17 @@ export class NodeFileStorage implements ContentStorage {
 			throw error
 		}
 	}
-	
+
 	async write(path: string, content: string): Promise<void> {
 		// Ensure directory exists
 		const dir = path.split('/').slice(0, -1).join('/')
 		if (!(await this.exists(dir))) {
 			await fs.mkdir(dir, { recursive: true })
 		}
-		
+
 		await fs.writeFile(path, content)
 	}
-	
+
 	async list(prefix: string): Promise<string[]> {
 		try {
 			return await fg(prefix, { onlyFiles: true })
@@ -46,7 +46,7 @@ export class NodeFileStorage implements ContentStorage {
 			return []
 		}
 	}
-	
+
 	async remove(path: string): Promise<void> {
 		await fs.unlink(path)
 	}

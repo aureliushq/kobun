@@ -14,11 +14,13 @@ export const isNonEmptyString = (value: unknown): value is string => {
  */
 export const getEnvVar = (name: string, fallback?: string): string => {
 	const value = process.env[name] || fallback
-	
+
 	if (!isNonEmptyString(value)) {
-		throw new Error(`Required environment variable ${name} is not set or is empty`)
+		throw new Error(
+			`Required environment variable ${name} is not set or is empty`,
+		)
 	}
-	
+
 	return value
 }
 
@@ -28,14 +30,16 @@ export const getEnvVar = (name: string, fallback?: string): string => {
 export const getCloudflareEnvVar = (
 	env: Record<string, unknown> | undefined,
 	name: string,
-	fallback?: string
+	fallback?: string,
 ): string => {
 	const value = env?.[name] || fallback
-	
+
 	if (!isNonEmptyString(value)) {
-		throw new Error(`Required Cloudflare environment variable ${name} is not set or is empty`)
+		throw new Error(
+			`Required Cloudflare environment variable ${name} is not set or is empty`,
+		)
 	}
-	
+
 	return value
 }
 
@@ -44,7 +48,7 @@ export const getCloudflareEnvVar = (
  */
 export const isValidJsonString = (value: unknown): value is string => {
 	if (!isNonEmptyString(value)) return false
-	
+
 	try {
 		JSON.parse(value)
 		return true
@@ -58,7 +62,7 @@ export const isValidJsonString = (value: unknown): value is string => {
  */
 export const safeJsonParse = <T = unknown>(value: unknown): T | null => {
 	if (!isValidJsonString(value)) return null
-	
+
 	try {
 		return JSON.parse(value) as T
 	} catch {
@@ -74,6 +78,7 @@ export const hasSlugProperty = (value: unknown): value is { slug: string } => {
 		typeof value === 'object' &&
 		value !== null &&
 		'slug' in value &&
+		// biome-ignore lint/suspicious/noExplicitAny: type guard requires checking unknown object properties
 		isNonEmptyString((value as any).slug)
 	)
 }
@@ -85,7 +90,7 @@ export const extractSlug = (payload: Record<string, unknown>): string => {
 	if (!hasSlugProperty(payload)) {
 		throw new Error('Payload missing required slug property')
 	}
-	
+
 	return payload.slug
 }
 
@@ -93,7 +98,9 @@ export const extractSlug = (payload: Record<string, unknown>): string => {
  * Type guard for checking if a value is a string array path
  */
 export const isStringArray = (value: unknown): value is string[] => {
-	return Array.isArray(value) && value.every(item => typeof item === 'string')
+	return (
+		Array.isArray(value) && value.every((item) => typeof item === 'string')
+	)
 }
 
 /**
@@ -102,11 +109,11 @@ export const isStringArray = (value: unknown): value is string[] => {
 export const getLastPathSegment = (path: string): string => {
 	const segments = path.split('/')
 	const lastSegment = segments[segments.length - 1]
-	
+
 	if (!isNonEmptyString(lastSegment)) {
 		throw new Error(`Invalid path: ${path}`)
 	}
-	
+
 	return lastSegment
 }
 

@@ -1,6 +1,11 @@
 import { customAlphabet } from 'nanoid'
 import YAML from 'yaml'
-import type { CollectionItemMetadata, SingletonMetadata, ContentPayload, MetadataGenerationOptions } from '../types/metadata.js'
+import type {
+	CollectionItemMetadata,
+	SingletonMetadata,
+	ContentPayload,
+	MetadataGenerationOptions,
+} from '../types/metadata.js'
 
 const nanoid = customAlphabet('0123456789abcdefghijklmnopqrstuvwxyz', 32)
 
@@ -12,7 +17,7 @@ export type { MetadataGenerationOptions as MetadataOptions } from '../types/meta
  */
 export const generateItemMetadata = (
 	payload: ContentPayload,
-	options: MetadataGenerationOptions = {}
+	options: MetadataGenerationOptions = {},
 ): CollectionItemMetadata => {
 	const { intent, existingMetadata, generateId = true } = options
 	const { content, ...metadataPayload } = payload
@@ -51,7 +56,7 @@ export const generateItemMetadata = (
  * Generates standardized metadata for singletons
  */
 export const generateSingletonMetadata = (
-	payload: ContentPayload
+	payload: ContentPayload,
 ): SingletonMetadata => {
 	return {
 		...payload,
@@ -64,10 +69,10 @@ export const generateSingletonMetadata = (
  */
 export const createFileContent = (
 	metadata: CollectionItemMetadata | SingletonMetadata,
-	content = ''
+	content = '',
 ): string => {
 	const frontmatter = YAML.stringify(metadata).trimEnd()
-	
+
 	return content
 		? `---\n${frontmatter}\n---\n\n${content}\n`
 		: `---\n${frontmatter}\n---`
