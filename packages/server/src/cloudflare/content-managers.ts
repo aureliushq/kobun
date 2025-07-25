@@ -49,10 +49,10 @@ export function createCloudflareSingletonManager(
 	// biome-ignore lint/suspicious/noExplicitAny: R2 context requires minimal interface mock
 	const mockSingleton = {} as any
 
-	// biome-ignore lint/suspicious/noExplicitAny: format parameter needs flexible typing for R2 compatibility
 	return new SingletonContentManager(
 		storage,
 		mockSingleton,
+		// biome-ignore lint/suspicious/noExplicitAny: format parameter needs flexible typing for R2 compatibility
 		format as any,
 		getPath,
 	)
