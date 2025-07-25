@@ -110,6 +110,16 @@ importers:
         specifier: ^5.7.0
         version: 5.7.2
 
+  packages/client:
+    dependencies:
+      typescript:
+        specifier: ^5.7.0
+        version: 5.7.2
+    devDependencies:
+      '@kobun/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+
   packages/common:
     dependencies:
       '@conform-to/dom':
