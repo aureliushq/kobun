@@ -15,6 +15,7 @@
 		"lint": "biome lint --write .",
 		"nuke": "turbo run nuke && rimraf node_modules .turbo",
 		"release": "turbo run build --filter @kobun/* && changeset version && changeset publish",
+		"start": "turbo run start --filter @kobun/demo",
 		"test": "turbo run test",
 		"test:coverage": "turbo run test:coverage"
 	},

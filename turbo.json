@@ -23,6 +23,9 @@
 		"nuke": {
 			"dependsOn": ["^nuke"]
 		},
+		"start": {
+			"dependsOn": ["^start"]
+		},
 		"test": {
 			"dependsOn": ["^build"]
 		},
