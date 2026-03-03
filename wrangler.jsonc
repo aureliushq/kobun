@@ -18,8 +18,9 @@
 		{
 			"binding": "DB",
 			"database_name": "kobun-dev",
-			"database_id": "2a027cd4-ffef-4c61-9f4e-9f57273a9cd9",
-			"migrations_dir": "drizzle"
+			"database_id": "eb1a5fa5-91b7-4c34-892b-6c60a7fdcc71",
+			"migrations_dir": "drizzle/migrations",
+			"remote": true
 		}
 	],
 	"env": {
@@ -31,8 +32,9 @@
 				{
 					"binding": "DB",
 					"database_name": "kobun-dev",
-					"database_id": "2a027cd4-ffef-4c61-9f4e-9f57273a9cd9",
-					"migrations_dir": "drizzle"
+					"database_id": "eb1a5fa5-91b7-4c34-892b-6c60a7fdcc71",
+					"migrations_dir": "drizzle/migrations",
+					"remote": true
 				}
 			]
 		},
@@ -43,9 +45,9 @@
 			"d1_databases": [
 				{
 					"binding": "DB",
-					"database_name": "kobun",
-					"database_id": "2a027cd4-ffef-4c61-9f4e-9f57273a9cd9",
-					"migrations_dir": "drizzle"
+					"database_name": "kobun-prod",
+					"database_id": "c0701dd5-be37-4573-99fd-6a8a5876366c",
+					"migrations_dir": "drizzle/migrations"
 				}
 			]
 		}
