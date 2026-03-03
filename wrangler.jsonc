@@ -4,18 +4,52 @@
  */
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
-	"name": "kobun-io",
+	"name": "kobun",
 	"compatibility_date": "2025-04-04",
 	"main": "./workers/app.ts",
 	"vars": {
-		"VALUE_FROM_CLOUDFLARE": "Hello from Cloudflare"
+		"BETTER_AUTH_URL": "http://localhost:5173"
 	},
 	"observability": {
 		"enabled": true
 	},
-	"compatibility_flags": [
-		"nodejs_compat"
-	]
+	"compatibility_flags": ["nodejs_compat"],
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "kobun-dev",
+			"database_id": "2a027cd4-ffef-4c61-9f4e-9f57273a9cd9",
+			"migrations_dir": "drizzle"
+		}
+	],
+	"env": {
+		"dev": {
+			"vars": {
+				"BETTER_AUTH_URL": "https://dev.kobun.io"
+			},
+			"d1_databases": [
+				{
+					"binding": "DB",
+					"database_name": "kobun-dev",
+					"database_id": "2a027cd4-ffef-4c61-9f4e-9f57273a9cd9",
+					"migrations_dir": "drizzle"
+				}
+			]
+		},
+		"prod": {
+			"vars": {
+				"BETTER_AUTH_URL": "https://app.kobun.io"
+			},
+			"d1_databases": [
+				{
+					"binding": "DB",
+					"database_name": "kobun",
+					"database_id": "2a027cd4-ffef-4c61-9f4e-9f57273a9cd9",
+					"migrations_dir": "drizzle"
+				}
+			]
+		}
+	}
 	/**
 	 * Smart Placement
 	 * https://developers.cloudflare.com/workers/configuration/smart-placement/#smart-placement
