@@ -1,5 +1,6 @@
 import {
 	BookOpenIcon,
+	ChevronsUpDownIcon,
 	ExternalLinkIcon,
 	HouseIcon,
 	LogOutIcon,
@@ -7,9 +8,19 @@ import {
 } from "lucide-react";
 // import { useContext } from "react";
 import { Form, Link, useLocation } from "react-router";
+
 // import invariant from "tiny-invariant";
 
+import { useState } from "react";
 import { Logo, LogoDark } from "~/components/blocks/logo";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuGroup,
+	DropdownMenuItem,
+	DropdownMenuLabel,
+	DropdownMenuTrigger,
+} from "~/components/ui/dropdown-menu";
 import {
 	Sidebar,
 	SidebarContent,
@@ -19,17 +30,36 @@ import {
 	SidebarGroupLabel,
 	SidebarHeader,
 	SidebarMenu,
-	// SidebarMenuAction,
 	SidebarMenuButton,
 	SidebarMenuItem,
+	useSidebar,
 } from "~/components/ui/sidebar";
+import { useTheme } from "~/hooks/use-theme";
 import { PATHS } from "~/lib/constants";
+import { Button } from "../ui/button";
 
 // import { cn } from "~/lib/utils";
 
 // import { KobunContext, type KobunContextData, useTheme } from "~/providers";
 
+const projects = [
+	{
+		name: "v3.i4o.dev",
+		branch: "main",
+	},
+	{
+		name: "bunko.app",
+		branch: "main",
+	},
+	{
+		name: "kobun.io",
+		branch: "main",
+	},
+];
+
 const DashboardSidebar = () => {
+	const { isMobile } = useSidebar();
+	const [activeProject, setActiveProject] = useState(projects[0]);
 	// const { config } = useContext<KobunContextData>(KobunContext);
 	// invariant(config, "`config` is required.");
 	// const basePath = config.basePath ?? "";
@@ -37,20 +67,56 @@ const DashboardSidebar = () => {
 
 	const location = useLocation();
 
-	// const { theme } = useTheme();
-	const theme = "light";
+	const { resolvedTheme } = useTheme();
 
 	return (
 		<Sidebar>
 			<SidebarHeader>
 				<Link
-					className="w-full h-12 flex items-center justify-start"
+					className="w-full h-12 px-2 flex items-center justify-start"
 					to={basePath}
 				>
-					{theme === "light" ? <Logo /> : <LogoDark />}
+					{resolvedTheme === "light" ? <Logo /> : <LogoDark />}
 				</Link>
+
+				<DropdownMenu>
+					<DropdownMenuTrigger
+						render={<Button className="h-12" size="lg" variant="outline" />}
+					>
+						<div className="grid flex-1 text-left text-sm leading-tight">
+							<span className="truncate font-medium">{activeProject.name}</span>
+							<span className="truncate text-xs">{activeProject.branch}</span>
+						</div>
+						<ChevronsUpDownIcon />
+					</DropdownMenuTrigger>
+					<DropdownMenuContent
+						align="start"
+						className="w-52"
+						side={isMobile ? "bottom" : "right"}
+						sideOffset={4}
+					>
+						<DropdownMenuGroup>
+							<DropdownMenuLabel>Projects</DropdownMenuLabel>
+							{projects.map((project, _index) => (
+								<DropdownMenuItem
+									key={project.name}
+									onClick={() => setActiveProject(project)}
+								>
+									{project.name}
+								</DropdownMenuItem>
+							))}
+						</DropdownMenuGroup>
+					</DropdownMenuContent>
+				</DropdownMenu>
 			</SidebarHeader>
 			<SidebarContent>
+				<SidebarGroup>
+					<SidebarGroupContent>
+						<SidebarMenu>
+							<SidebarMenuItem></SidebarMenuItem>
+						</SidebarMenu>
+					</SidebarGroupContent>
+				</SidebarGroup>
 				<SidebarGroup>
 					<SidebarGroupContent>
 						<SidebarMenu>
@@ -190,7 +256,7 @@ const DashboardSidebar = () => {
 							</SidebarMenuButton>
 						</SidebarMenuItem>
 						<SidebarMenuItem>
-							<Form method="POST">
+							<Form method="POST" action={PATHS.BASE}>
 								<SidebarMenuButton
 									className="sidebar-menu-button"
 									name="intent"

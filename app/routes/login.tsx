@@ -1,6 +1,6 @@
 import { GithubIcon } from "lucide-react";
 import { Form, redirect } from "react-router";
-import { Logo } from "~/components/blocks/logo";
+import { Logo, LogoDark } from "~/components/blocks/logo";
 import { Button } from "~/components/ui/button";
 import {
 	Card,
@@ -10,6 +10,7 @@ import {
 	CardTitle,
 } from "~/components/ui/card";
 import { Field, FieldDescription, FieldGroup } from "~/components/ui/field";
+import { useTheme } from "~/hooks/use-theme";
 import { getAuth } from "~/lib/auth/auth.server";
 import type { Route } from "./+types/login";
 
@@ -41,16 +42,18 @@ export async function action({ context, request }: Route.ActionArgs) {
 }
 
 export default function LoginPage() {
+	const { resolvedTheme } = useTheme();
+
 	return (
 		<div className="flex min-h-svh flex-col items-center justify-center gap-6 bg-muted p-6 md:p-10">
 			<div className="flex w-full max-w-sm flex-col gap-6">
 				<a
-					className="flex items-center justify-center"
+					className="flex items-center justify-start"
 					href="https://kobun.io"
 					rel="noopener noreferrer"
 					target="_blank"
 				>
-					<Logo />
+					{resolvedTheme === "light" ? <Logo /> : <LogoDark />}
 				</a>
 				<div className="flex flex-col gap-6">
 					<Card>

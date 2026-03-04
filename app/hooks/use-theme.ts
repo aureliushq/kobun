@@ -1,4 +1,10 @@
-import { createContext, useCallback, useContext, useEffect } from "react";
+import {
+	createContext,
+	useCallback,
+	useContext,
+	useEffect,
+	useSyncExternalStore,
+} from "react";
 import { useFetcher } from "react-router";
 import type { Theme } from "~/lib/theme.server";
 
@@ -13,15 +19,38 @@ export const ThemeContext = createContext<ThemeContextValue | undefined>(
 function applyThemeToDOM(theme: Theme) {
 	const root = document.documentElement;
 	root.setAttribute("data-theme", theme);
-	if (
-		theme === "dark" ||
-		(theme === "system" &&
-			window.matchMedia("(prefers-color-scheme: dark)").matches)
-	) {
+	if (isDark(theme)) {
 		root.classList.add("dark");
 	} else {
 		root.classList.remove("dark");
 	}
+}
+
+function isDark(theme: Theme): boolean {
+	return (
+		theme === "dark" ||
+		(theme === "system" &&
+			typeof window !== "undefined" &&
+			window.matchMedia("(prefers-color-scheme: dark)").matches)
+	);
+}
+
+const darkMediaQuery =
+	typeof window !== "undefined"
+		? window.matchMedia("(prefers-color-scheme: dark)")
+		: null;
+
+function subscribeToMediaQuery(callback: () => void) {
+	darkMediaQuery?.addEventListener("change", callback);
+	return () => darkMediaQuery?.removeEventListener("change", callback);
+}
+
+function getPrefersDark() {
+	return darkMediaQuery?.matches ?? false;
+}
+
+function getServerPrefersDark() {
+	return false;
 }
 
 export function useTheme() {
@@ -38,18 +67,19 @@ export function useTheme() {
 
 	const theme = optimisticTheme ?? context.theme;
 
+	const prefersDark = useSyncExternalStore(
+		subscribeToMediaQuery,
+		getPrefersDark,
+		getServerPrefersDark,
+	);
+
+	const resolvedTheme: "light" | "dark" =
+		theme === "system" ? (prefersDark ? "dark" : "light") : theme;
+
+	// biome-ignore lint/correctness/useExhaustiveDependencies: it's fine
 	useEffect(() => {
 		applyThemeToDOM(theme);
-	}, [theme]);
-
-	useEffect(() => {
-		if (theme !== "system") return;
-
-		const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-		const handler = () => applyThemeToDOM("system");
-		mediaQuery.addEventListener("change", handler);
-		return () => mediaQuery.removeEventListener("change", handler);
-	}, [theme]);
+	}, [theme, resolvedTheme]);
 
 	const setTheme = useCallback(
 		(newTheme: Theme) => {
@@ -62,5 +92,5 @@ export function useTheme() {
 		[fetcher],
 	);
 
-	return { theme, setTheme };
+	return { theme, resolvedTheme, setTheme };
 }
