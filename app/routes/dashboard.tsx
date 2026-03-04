@@ -1,5 +1,4 @@
-import { Form, redirect } from "react-router";
-import { Button } from "~/components/ui/button";
+import { redirect } from "react-router";
 import { getAuth } from "~/lib/auth/auth.server";
 import type { Route } from "./+types/dashboard";
 
@@ -19,24 +18,19 @@ export async function loader({ context, request }: Route.LoaderArgs) {
 
 export async function action({ context, request }: Route.ActionArgs) {
 	const auth = getAuth(context.cloudflare.env);
-	console.log("signing out...");
-	const response = await auth.api.signOut({
-		asResponse: true,
-		headers: request.headers,
-	});
-	console.log(response);
-	if (response.ok) {
-		return redirect("/", { headers: response.headers });
+	const formData = await request.formData();
+	const intent = formData.get("intent");
+	if (intent === "logout") {
+		const response = await auth.api.signOut({
+			asResponse: true,
+			headers: request.headers,
+		});
+		if (response.ok) {
+			return redirect("/", { headers: response.headers });
+		}
 	}
 }
 
 export default function IndexRoute({ loaderData }: Route.ComponentProps) {
-	return (
-		<div>
-			Welcome, {loaderData.user.email}
-			<Form method="POST">
-				<Button type="submit">Logout</Button>
-			</Form>
-		</div>
-	);
+	return <div>Welcome, {loaderData.user.email}</div>;
 }

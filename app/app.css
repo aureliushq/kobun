@@ -142,3 +142,7 @@ body {
 		@apply font-sans;
 	}
 }
+
+.sidebar-menu-button {
+	@apply !gap-1 [&_svg:not([class*='size-'])]:size-3.5 cursor-pointer;
+}

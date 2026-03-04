@@ -1,5 +1,6 @@
-import { GalleryVerticalEndIcon, GithubIcon } from "lucide-react";
+import { GithubIcon } from "lucide-react";
 import { Form, redirect } from "react-router";
+import { Logo } from "~/components/blocks/logo";
 import { Button } from "~/components/ui/button";
 import {
 	Card,
@@ -44,17 +45,13 @@ export default function LoginPage() {
 		<div className="flex min-h-svh flex-col items-center justify-center gap-6 bg-muted p-6 md:p-10">
 			<div className="flex w-full max-w-sm flex-col gap-6">
 				<a
-					className="flex items-center gap-2 self-center font-medium"
+					className="flex items-center justify-center"
 					href="https://kobun.io"
 					rel="noopener noreferrer"
 					target="_blank"
 				>
-					<div className="flex size-6 items-center justify-center rounded-md bg-primary text-primary-foreground">
-						<GalleryVerticalEndIcon className="size-4" />
-					</div>
-					Kobun
+					<Logo />
 				</a>
-				{/*<LoginForm />*/}
 				<div className="flex flex-col gap-6">
 					<Card>
 						<CardHeader>
@@ -75,7 +72,7 @@ export default function LoginPage() {
 						</CardContent>
 					</Card>
 					<FieldDescription className="px-4">
-						By clicking continue, you agree to our{" "}
+						By signing in, you agree to our{" "}
 						<a
 							href="https://kobun.io/tos"
 							rel="noopener noreferrer"
