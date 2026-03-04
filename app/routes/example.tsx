@@ -1,5 +1,4 @@
 import ComponentExample from "~/components/component-example";
-import type { Route } from "./+types/example";
 
 export function meta() {
 	return [
@@ -8,11 +7,6 @@ export function meta() {
 	];
 }
 
-export function loader({ context }: Route.LoaderArgs) {
-	return { message: context.cloudflare.env.VALUE_FROM_CLOUDFLARE };
-}
-
-export default function Home({ loaderData }: Route.ComponentProps) {
-	console.log(loaderData.message);
+export default function Example() {
 	return <ComponentExample />;
 }
