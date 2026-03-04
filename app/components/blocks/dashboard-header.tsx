@@ -1,4 +1,4 @@
-import { GithubIcon } from "lucide-react";
+import { GithubIcon, Moon, Sun } from "lucide-react";
 import { Link } from "react-router";
 
 import {
@@ -8,17 +8,22 @@ import {
 	BreadcrumbList,
 } from "~/components/ui/breadcrumb";
 import { Button } from "~/components/ui/button";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuRadioGroup,
+	DropdownMenuRadioItem,
+	DropdownMenuTrigger,
+} from "~/components/ui/dropdown-menu";
 import { SIDEBAR_WIDTH } from "~/components/ui/sidebar";
-
-// import { KobunContext, type KobunContextData, useTheme } from "~/providers";
+import { useTheme } from "~/hooks/use-theme";
 
 const DashboardHeader = () => {
 	// const { config, params } = useContext<KobunContextData>(KobunContext);
 	// invariant(config, "`config` is required.");
 	// const basePath = config.basePath ?? "";
 	const basePath = "";
-
-	// const { setTheme } = useTheme();
+	const { theme, setTheme } = useTheme();
 
 	return (
 		<header
@@ -71,27 +76,29 @@ const DashboardHeader = () => {
 						<GithubIcon />
 					</Button>
 				</a>
-				{/* TODO: make this functional */}
-				{/*<DropdownMenu>
-          <DropdownMenuTrigger>
-            <Button variant="ghost" size="icon">
-              <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-              <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-              <span className="sr-only">Toggle theme</span>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => setTheme("light")}>
-              Light
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setTheme("dark")}>
-              Dark
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setTheme("system")}>
-              System
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>*/}
+				<DropdownMenu>
+					<DropdownMenuTrigger>
+						<Button variant="ghost" size="icon">
+							<Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+							<Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+							<span className="sr-only">Toggle theme</span>
+						</Button>
+					</DropdownMenuTrigger>
+					<DropdownMenuContent align="end">
+						<DropdownMenuRadioGroup
+							value={theme}
+							onValueChange={(value) =>
+								setTheme(value as "light" | "dark" | "system")
+							}
+						>
+							<DropdownMenuRadioItem value="light">Light</DropdownMenuRadioItem>
+							<DropdownMenuRadioItem value="dark">Dark</DropdownMenuRadioItem>
+							<DropdownMenuRadioItem value="system">
+								System
+							</DropdownMenuRadioItem>
+						</DropdownMenuRadioGroup>
+					</DropdownMenuContent>
+				</DropdownMenu>
 			</section>
 		</header>
 	);
