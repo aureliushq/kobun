@@ -12,7 +12,10 @@
 		"lint": "biome lint --write",
 		"postinstall": "npm run cf-typegen",
 		"preview": "bun run build && vite preview",
-		"typecheck": "npm run cf-typegen && react-router typegen && tsc -b"
+		"typecheck": "npm run cf-typegen && react-router typegen && tsc -b",
+		"db:migrate:local": "wrangler d1 migrations apply kobun-dev --local",
+		"db:migrate:dev": "wrangler d1 migrations apply kobun-dev --remote --env dev",
+		"db:migrate:prod": "wrangler d1 migrations apply kobun-prod --remote --env prod"
 	},
 	"dependencies": {
 		"@base-ui/react": "^1.2.0",
