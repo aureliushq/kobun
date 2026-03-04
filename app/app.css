@@ -6,8 +6,9 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme {
+	--font-mono: "Geist Mono Variable";
 	--font-sans:
-		"Inter", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji",
+		"Geist Variable", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji",
 		"Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
 }
 
@@ -90,6 +91,7 @@ html.dark {
 }
 
 @theme inline {
+	--font-mono: "Geist Mono Variable", monospace;
 	--font-sans: "Geist Variable", sans-serif;
 	--color-sidebar-ring: var(--sidebar-ring);
 	--color-sidebar-border: var(--sidebar-border);
@@ -144,5 +146,5 @@ html.dark {
 }
 
 .sidebar-menu-button {
-	@apply !gap-1 [&_svg:not([class*='size-'])]:size-3.5 cursor-pointer;
+	@apply gap-1! [&_svg:not([class*='size-'])]:size-3.5 cursor-pointer;
 }

@@ -58,8 +58,10 @@ export default function LoginPage() {
 				<div className="flex flex-col gap-6">
 					<Card>
 						<CardHeader>
-							<CardTitle>Sign In</CardTitle>
-							<CardDescription>Login with your Github account</CardDescription>
+							<CardTitle className="text-lg font-medium">Sign In</CardTitle>
+							<CardDescription className="font-mono">
+								Login with your Github account
+							</CardDescription>
 						</CardHeader>
 						<CardContent>
 							<Form method="POST">
@@ -74,7 +76,7 @@ export default function LoginPage() {
 							</Form>
 						</CardContent>
 					</Card>
-					<FieldDescription className="px-4">
+					<FieldDescription className="font-mono px-4">
 						By signing in, you agree to our{" "}
 						<a
 							href="https://kobun.io/tos"

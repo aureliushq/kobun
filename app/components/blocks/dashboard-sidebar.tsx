@@ -80,12 +80,14 @@ const DashboardSidebar = () => {
 				</Link>
 
 				<DropdownMenu>
-					<DropdownMenuTrigger
-						render={<Button className="h-12" size="lg" variant="outline" />}
-					>
-						<div className="grid flex-1 text-left text-sm leading-tight">
-							<span className="truncate font-medium">{activeProject.name}</span>
-							<span className="truncate text-xs">{activeProject.branch}</span>
+					<DropdownMenuTrigger render={<Button variant="outline" />}>
+						<div className="flex-1 text-left leading-tight">
+							<span className="truncate font-medium font-mono">
+								{activeProject.name}
+							</span>
+							{/*<span className="truncate text-xs font-mono">
+                {activeProject.branch}
+              </span>*/}
 						</div>
 						<ChevronsUpDownIcon />
 					</DropdownMenuTrigger>
@@ -99,8 +101,9 @@ const DashboardSidebar = () => {
 							<DropdownMenuLabel>Projects</DropdownMenuLabel>
 							{projects.map((project, _index) => (
 								<DropdownMenuItem
-									key={project.name}
+									className="font-mono"
 									onClick={() => setActiveProject(project)}
+									key={project.name}
 								>
 									{project.name}
 								</DropdownMenuItem>
@@ -110,13 +113,6 @@ const DashboardSidebar = () => {
 				</DropdownMenu>
 			</SidebarHeader>
 			<SidebarContent>
-				<SidebarGroup>
-					<SidebarGroupContent>
-						<SidebarMenu>
-							<SidebarMenuItem></SidebarMenuItem>
-						</SidebarMenu>
-					</SidebarGroupContent>
-				</SidebarGroup>
 				<SidebarGroup>
 					<SidebarGroupContent>
 						<SidebarMenu>
@@ -237,7 +233,7 @@ const DashboardSidebar = () => {
 								}
 							>
 								<BookOpenIcon />
-								<span className="flex-grow">Documentation</span>
+								<span className="grow">Documentation</span>
 								<ExternalLinkIcon className="hidden transition-all duration-100 group-hover/docs:inline" />
 							</SidebarMenuButton>
 						</SidebarMenuItem>

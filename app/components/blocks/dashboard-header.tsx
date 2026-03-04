@@ -31,7 +31,7 @@ const DashboardHeader = () => {
 		>
 			<Breadcrumb>
 				<BreadcrumbList>
-					<BreadcrumbItem>
+					<BreadcrumbItem className="font-mono uppercase">
 						{/*{params?.section === "root" ? (*/}
 						{/*<BreadcrumbPage>
                 <BreadcrumbLink >
