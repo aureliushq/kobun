@@ -70,6 +70,8 @@ jobs:
 
       - name: ʦ Types check
         run: bun run check:types
+        env:
+          CLOUDFLARE_ENV: test
 
   unit-tests:
     name: ⚡️ Unit tests
