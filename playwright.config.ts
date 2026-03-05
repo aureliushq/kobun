@@ -2,7 +2,9 @@ import { defineConfig, devices } from "@playwright/test"
 
 const baseURL = process.env.TEST_PAGE_URL
 	? process.env.TEST_PAGE_URL
-	: "http://localhost:5173"
+	: process.env.CI
+		? "http://localhost:4173"
+		: "http://localhost:5173"
 
 /**
  * See https://playwright.dev/docs/test-configuration.
