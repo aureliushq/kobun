@@ -1,5 +1,7 @@
 import { GithubIcon } from "lucide-react"
 import { Form, redirect } from "react-router"
+import { getAuth } from "@/auth/auth.server"
+import { envContext } from "@/core/context"
 import { Button } from "@/ui/components/base/button"
 import {
 	Card,
@@ -11,11 +13,10 @@ import {
 import { Field, FieldDescription, FieldGroup } from "@/ui/components/base/field"
 import { Logo, LogoDark } from "@/ui/components/logo"
 import { useTheme } from "@/ui/hooks/use-theme"
-import { getAuth } from "~/lib/auth/auth.server"
 import type { Route } from "./+types/login"
 
 export async function loader({ context, request }: Route.LoaderArgs) {
-	const auth = getAuth(context.cloudflare.env)
+	const auth = getAuth(context.get(envContext))
 
 	const session = await auth.api.getSession({
 		headers: request.headers,
@@ -27,7 +28,7 @@ export async function loader({ context, request }: Route.LoaderArgs) {
 }
 
 export async function action({ context, request }: Route.ActionArgs) {
-	const auth = getAuth(context.cloudflare.env)
+	const auth = getAuth(context.get(envContext))
 	const response = await auth.api.signInSocial({
 		asResponse: true,
 		body: { provider: "github" },

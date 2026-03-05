@@ -10,7 +10,7 @@ export default [
 	route("/api/auth/*", "routes/api.auth.$.ts"),
 	route("/api/set-theme", "routes/api.set-theme.ts"),
 	route("/component-example", "routes/example.tsx"),
-	layout("components/layouts/dashboard.tsx", [
+	layout("core/components/layouts/dashboard.tsx", [
 		route("/dashboard", "routes/dashboard.tsx"),
 	]),
 ] satisfies RouteConfig
