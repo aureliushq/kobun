@@ -9,12 +9,6 @@ import tsconfigPaths from "vite-tsconfig-paths"
 const isStorybook = process.argv[1]?.includes("storybook")
 
 export default defineConfig({
-	server: {
-		port: 3000,
-	},
-	preview: {
-		port: 3000,
-	},
 	build: {
 		sourcemap: true,
 		rollupOptions: {
