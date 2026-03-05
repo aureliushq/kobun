@@ -1,0 +1,22 @@
+# Node
+node_modules
+
+# React router
+/build
+/.react-router/
+
+# Reports
+/.reports
+
+# Mac
+.DS_Store
+
+# DB
+/packages/db/schema.sql
+
+# Cloudflare
+/.wrangler
+/.env*
+
+# Storybook
+*storybook.log

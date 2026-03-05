@@ -1,0 +1,52 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "kobun",
+	"compatibility_date": "2025-08-23",
+	"compatibility_flags": ["nodejs_compat"],
+	"main": "workers/index.ts",
+	"assets": {
+		"directory": "./build/client",
+		"binding": "ASSETS"
+	},
+	"preview_urls": true,
+	"observability": {
+		"enabled": true
+	},
+	"upload_source_maps": true,
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "kobun-development",
+			"database_id": "<DATABASE_ID>"
+		}
+	],
+	"env": {
+		"production": {
+			"d1_databases": [
+				{
+					"binding": "DB",
+					"database_name": "kobun-production",
+					"database_id": ""
+				}
+			]
+		},
+		"preview": {
+			"d1_databases": [
+				{
+					"binding": "DB",
+					"database_name": "kobun-preview",
+					"database_id": ""
+				}
+			]
+		},
+		"test": {
+			"d1_databases": [
+				{
+					"binding": "DB",
+					"database_name": "kobun-development",
+					"database_id": "<DATABASE_ID>"
+				}
+			]
+		}
+	}
+}

@@ -1,0 +1,264 @@
+name: 🚀 Deploy
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - ready_for_review
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
+env:
+  # This reliably gets the branch name regardless of event type
+  BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
+  # This is used to determine the environment to deploy to
+  APP_ENV: ${{ github.ref == 'refs/heads/main' && 'production' || 'preview' }}
+
+jobs:
+  check:
+    name: 💎 Quality check
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout repo
+        uses: actions/checkout@v6
+
+      - name: ⎔ Setup node
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .tool-versions
+
+      - name: 🥟 Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: .tool-versions
+
+      - name: 📦 Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: 💎 Quality check
+        run: bunx biome ci
+
+  types:
+    name: ʦ Types check
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout repo
+        uses: actions/checkout@v6
+
+      - name: ⎔ Setup node
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .tool-versions
+
+      - name: 🥟 Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: .tool-versions
+
+      - name: 📦 Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: 📋 Copy environment variables
+        run: bun run setup:env
+
+      - name: ʦ Types check
+        run: bun run check:types
+
+  unit-tests:
+    name: ⚡️ Unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout repo
+        uses: actions/checkout@v6
+
+      - name: ⎔ Setup node
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .tool-versions
+
+      - name: 🥟 Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: .tool-versions
+
+      - name: 📦 Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: 📋 Copy environment variables
+        run: bun run setup:env
+
+      - name: 🗄️ Database setup
+        run: bun run db:setup
+
+      - name: ⚡️ Run Vitest
+        run: bun run test:coverage
+
+  e2e-tests:
+    name: 🎭 E2E tests
+    timeout-minutes: 30
+    runs-on: ubuntu-latest
+    needs: [check, types, unit-tests]
+    steps:
+      - name: 📥 Checkout repo
+        uses: actions/checkout@v6
+
+      - name: ⎔ Setup node
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .tool-versions
+
+      - name: 🥟 Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: .tool-versions
+
+      - name: 📦 Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: 📋 Copy environment variables
+        run: bun run setup:env
+
+      - name: 🏷️ Store Playwright Version
+        run: echo "PLAYWRIGHT_VERSION=`bunx playwright -V | cut -d ' ' -f2`" >> $GITHUB_ENV
+
+      - name: 📝 Cache Playwright Browsers
+        id: cache-playwright-browsers
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-browsers-${{ env.PLAYWRIGHT_VERSION }}
+
+      - name: 📦 Install Playwright Browsers
+        if: steps.cache-playwright-browsers.outputs.cache-hit != 'true'
+        run: bunx playwright install --with-deps chromium
+
+      - name: 🛠️ Build
+        run: CLOUDFLARE_ENV=test NODE_ENV=test bun run build
+
+      - name: 🗄️ Database setup
+        run: bun run db:setup
+
+      - name: 🎭 Run Playwright tests
+        run: bun run test:e2e
+
+  database:
+    name: 🚚 Database migration
+    runs-on: ubuntu-latest
+    needs: [e2e-tests]
+    if: ${{ github.ref == 'refs/heads/main' || github.event.pull_request.draft == false }}
+    concurrency:
+      group: database-${{ github.ref == 'refs/heads/main' && 'production' || 'preview' }}
+    env:
+      CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - name: 📥 Checkout repo
+        uses: actions/checkout@v6
+
+      - name: ⎔ Setup node
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .tool-versions
+
+      - name: 🥟 Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: .tool-versions
+
+      - name: 📦 Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: 🚚 Database migration
+        run: ${{ env.APP_ENV == 'production' && 'bun db:migrate:production' || 'bun db:migrate:preview' }}
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
+  deploy:
+    name: 🚀 Deploy
+    runs-on: ubuntu-latest
+    needs: [database]
+    environment:
+      name: ${{ github.ref == 'refs/heads/main' && 'production' || 'preview' }}
+      url: ${{ steps.deploy.outputs.deployment-url }}
+    outputs:
+      page_url: ${{ steps.deploy.outputs.deployment-url }}
+    permissions:
+      contents: read
+      deployments: write
+    steps:
+      - name: 📥 Checkout repo
+        uses: actions/checkout@v6
+
+      - name: ⎔ Setup node
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .tool-versions
+
+      - name: 🥟 Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: .tool-versions
+
+      - name: 📦 Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: 🛠️ Build
+        run: CLOUDFLARE_ENV=${{ env.APP_ENV }} bun run build
+
+      - name: 🚀 Deploy
+        id: deploy
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          command: ${{ env.APP_ENV == 'production' && 'deploy' || 'versions upload' }}
+
+  smoke-tests:
+    name: 🚬 Smoke tests
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    needs: [deploy]
+    if: ${{ vars.CLOUDFLARE_ACCESS_CLIENT_ID }}
+    steps:
+      - name: 📥 Checkout repo
+        uses: actions/checkout@v6
+
+      - name: ⎔ Setup node
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .tool-versions
+
+      - name: 🥟 Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: .tool-versions
+
+      - name: 📦 Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: 🏷️ Store Playwright Version
+        run: echo "PLAYWRIGHT_VERSION=`bunx playwright -V | cut -d ' ' -f2`" >> $GITHUB_ENV
+
+      - name: 📝 Cache Playwright Browsers
+        id: cache-playwright-browsers
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-browsers-${{ env.PLAYWRIGHT_VERSION }}
+
+      - name: 📦 Install Playwright Browsers
+        if: steps.cache-playwright-browsers.outputs.cache-hit != 'true'
+        run: bunx playwright install --with-deps chromium
+
+      - name: 🚬 Run smoke tests
+        run: bun run test:smoke
+        env:
+          TEST_PAGE_URL: ${{ needs.deploy.outputs.page_url }}
+          CLOUDFLARE_ACCESS_CLIENT_ID: ${{ vars.CLOUDFLARE_ACCESS_CLIENT_ID }}
+          CLOUDFLARE_ACCESS_CLIENT_SECRET: ${{ secrets.CLOUDFLARE_ACCESS_CLIENT_SECRET }}

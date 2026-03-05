@@ -1,0 +1,49 @@
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "quarterly"
+    open-pull-requests-limit: 2
+
+  - package-ecosystem: "bun"
+    directory: "/"
+    schedule:
+      interval: "quarterly"
+    open-pull-requests-limit: 10
+    commit-message:
+      prefix: "chore"
+    ignore:
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@types/bun"
+        
+    groups:      
+      patch:
+        update-types:
+          - "patch"
+        exclude-patterns:
+          - "@cloudflare/*"
+          - "wrangler"
+
+      cloudflare:
+        patterns:
+          - "@cloudflare/*"
+          - "wrangler"
+
+      react:
+        patterns:
+          - "react"
+          - "react-dom"
+          - "@types/react"
+          - "@types/react-dom"
+
+      react-router:
+        patterns:
+          - "@react-router/*"
+          - "react-router"
+
+      storybook:
+        patterns:
+          - "@storybook/*"
+          - "storybook"
