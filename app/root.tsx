@@ -1,49 +1,87 @@
-import { ErrorPage } from "app/core/components/error-page"
-import { type ReactNode } from "react"
-import { Links, Meta, Outlet, Scripts, useRouteError } from "react-router"
-import config from "@/config"
-import fonts from "@/core/fonts/inter-normal-latin.woff2?url"
-import styles from "@/core/styles/index.css?url"
+// biome-ignore-all lint/security/noDangerouslySetInnerHtml: it's fine
+import {
+	isRouteErrorResponse,
+	Links,
+	Meta,
+	Outlet,
+	Scripts,
+	ScrollRestoration,
+	useLoaderData,
+	useRouteLoaderData,
+} from "react-router"
 
-export function Layout({ children }: { children: ReactNode }) {
+import { ThemeContext } from "@/ui/hooks/use-theme"
+import { getThemeFromRequest, type Theme } from "@/ui/theme.server"
+import type { Route } from "./+types/root"
+import "@/core/styles/app.css"
+import config from "@/config"
+
+export const links: Route.LinksFunction = () => [
+	{ rel: "preconnect", href: "https://fonts.googleapis.com" },
+	{
+		rel: "preconnect",
+		href: "https://fonts.gstatic.com",
+		crossOrigin: "anonymous",
+	},
+	{
+		rel: "stylesheet",
+		href: "https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap",
+	},
+]
+
+export function meta() {
+	return [
+		{ title: config.core.appTitle },
+		{ name: "description", content: config.core.appDescription },
+		{ name: "keywords", content: config.core.appKeywords },
+	]
+}
+
+export async function loader({ request }: Route.LoaderArgs) {
+	const theme = getThemeFromRequest(request)
+	return { theme }
+}
+
+function getThemeClass(theme: Theme) {
+	if (theme === "dark") return "dark"
+	return config.core.darkMode ? "dark" : ""
+}
+
+const themeScript = `
+(function() {
+  var theme = document.documentElement.getAttribute("data-theme");
+  var isDark = theme === "dark" || (theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+  if (isDark) {
+    document.documentElement.classList.add("dark");
+  } else {
+    document.documentElement.classList.remove("dark");
+  }
+})();
+`
+
+export function Layout({ children }: { children: React.ReactNode }) {
+	const data = useRouteLoaderData<typeof loader>("root")
+	const theme: Theme = data?.theme ?? "system"
+
 	return (
-		<html lang="en">
+		<html
+			lang="en"
+			data-theme={theme}
+			className={getThemeClass(theme)}
+			suppressHydrationWarning
+		>
 			<head>
 				<meta charSet="utf-8" />
-				<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-				<title>{config.core.appTitle}</title>
-				{config.core.appDescription && (
-					<meta name="description" content={config.core.appDescription} />
-				)}
-				{config.core.appKeywords && (
-					<meta name="keywords" content={config.core.appKeywords.join(", ")} />
-				)}
+				<meta name="viewport" content="width=device-width, initial-scale=1" />
 				<Meta />
-				{!import.meta.env.DEV && (
-					// When link preload is present for styles, hot reloading for Tailwind
-					// stops working. As such, let's not render preload links in development.
-					<>
-						<link
-							rel="preload"
-							as="style"
-							href={styles}
-							crossOrigin="anonymous"
-						></link>
-						<link
-							rel="preload"
-							as="font"
-							href={fonts}
-							crossOrigin="anonymous"
-						></link>
-					</>
-				)}
 				<link rel="icon" href="/favicon.svg" type="image/svg+xml"></link>
 				<link rel="canonical" href={config.core.websiteUrl} />
-				<link rel="stylesheet" href={styles} crossOrigin="anonymous"></link>
 				<Links />
+				<script dangerouslySetInnerHTML={{ __html: themeScript }} />
 			</head>
-			<body className={config.core.darkMode ? "dark" : ""}>
+			<body>
 				{children}
+				<ScrollRestoration />
 				<Scripts />
 			</body>
 		</html>
@@ -51,11 +89,39 @@ export function Layout({ children }: { children: ReactNode }) {
 }
 
 export default function App() {
-	return <Outlet />
+	const { theme } = useLoaderData<typeof loader>()
+	return (
+		<ThemeContext.Provider value={{ theme }}>
+			<Outlet />
+		</ThemeContext.Provider>
+	)
 }
 
-export function ErrorBoundary() {
-	const error = useRouteError()
+export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
+	let message = "Oops!"
+	let details = "An unexpected error occurred."
+	let stack: string | undefined
 
-	return <ErrorPage error={error} />
+	if (isRouteErrorResponse(error)) {
+		message = error.status === 404 ? "404" : "Error"
+		details =
+			error.status === 404
+				? "The requested page could not be found."
+				: error.statusText || details
+	} else if (import.meta.env.DEV && error && error instanceof Error) {
+		details = error.message
+		stack = error.stack
+	}
+
+	return (
+		<main className="container mx-auto p-4 pt-16">
+			<h1>{message}</h1>
+			<p>{details}</p>
+			{stack && (
+				<pre className="w-full overflow-x-auto p-4">
+					<code>{stack}</code>
+				</pre>
+			)}
+		</main>
+	)
 }
