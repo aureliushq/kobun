@@ -26,10 +26,10 @@ import { cn } from "@/ui/lib/utils"
 
 const SIDEBAR_COOKIE_NAME = "sidebar_state"
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7
-const SIDEBAR_WIDTH = "16rem"
-const SIDEBAR_WIDTH_MOBILE = "18rem"
-const SIDEBAR_WIDTH_ICON = "3rem"
 const SIDEBAR_KEYBOARD_SHORTCUT = "b"
+export const SIDEBAR_WIDTH = "16rem"
+export const SIDEBAR_WIDTH_MOBILE = "18rem"
+export const SIDEBAR_WIDTH_ICON = "3rem"
 
 type SidebarContextProps = {
 	state: "expanded" | "collapsed"
@@ -82,6 +82,7 @@ function SidebarProvider({
 			}
 
 			// This sets the cookie to keep the sidebar state.
+			// biome-ignore lint/suspicious/noDocumentCookie: it's fine
 			document.cookie = `${SIDEBAR_COOKIE_NAME}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`
 		},
 		[setOpenProp, open],
