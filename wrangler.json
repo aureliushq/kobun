@@ -21,7 +21,7 @@
 		}
 	],
 	"vars": {
-		"BETTER_AUTH_URL": "",
+		"BETTER_AUTH_URL": "http://localhost:5173",
 		"BETTER_AUTH_SECRET": "",
 		"GITHUB_CLIENT_ID": "",
 		"GITHUB_CLIENT_SECRET": ""
@@ -36,10 +36,7 @@
 				}
 			],
 			"vars": {
-				"BETTER_AUTH_URL": "",
-				"BETTER_AUTH_SECRET": "",
-				"GITHUB_CLIENT_ID": "",
-				"GITHUB_CLIENT_SECRET": ""
+				"BETTER_AUTH_URL": "https://app.kobun.io"
 			}
 		},
 		"preview": {
@@ -51,10 +48,7 @@
 				}
 			],
 			"vars": {
-				"BETTER_AUTH_URL": "",
-				"BETTER_AUTH_SECRET": "",
-				"GITHUB_CLIENT_ID": "",
-				"GITHUB_CLIENT_SECRET": ""
+				"BETTER_AUTH_URL": "https://dev.app.kobun.io"
 			}
 		},
 		"test": {
