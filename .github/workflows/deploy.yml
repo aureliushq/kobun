@@ -219,7 +219,7 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
-          command: ${{ env.APP_ENV == 'production' && 'deploy' || 'versions upload' }}
+          command: ${{ env.APP_ENV == 'production' && 'deploy' || 'versions upload --env preview' }}
 
   smoke-tests:
     name: 🚬 Smoke tests

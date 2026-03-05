@@ -45,7 +45,7 @@
 				}
 			],
 			"vars": {
-				"BETTER_AUTH_URL": "https://dev.app.kobun.io"
+				"BETTER_AUTH_URL": "https://kobun-preview.i4o.workers.dev"
 			}
 		},
 		"test": {
