@@ -13,12 +13,6 @@
 		"enabled": true
 	},
 	"upload_source_maps": true,
-	"vars": {
-		"BETTER_AUTH_URL": "",
-		"BETTER_AUTH_SECRET": "",
-		"GITHUB_CLIENT_ID": "",
-		"GITHUB_CLIENT_SECRET": ""
-	},
 	"d1_databases": [
 		{
 			"binding": "DB",
@@ -26,6 +20,12 @@
 			"database_id": "<DATABASE_ID>"
 		}
 	],
+	"vars": {
+		"BETTER_AUTH_URL": "",
+		"BETTER_AUTH_SECRET": "",
+		"GITHUB_CLIENT_ID": "",
+		"GITHUB_CLIENT_SECRET": ""
+	},
 	"env": {
 		"production": {
 			"d1_databases": [
@@ -34,7 +34,13 @@
 					"database_name": "kobun-production",
 					"database_id": "fb48c6f7-9eae-429f-8023-f457b9ad964d"
 				}
-			]
+			],
+			"vars": {
+				"BETTER_AUTH_URL": "",
+				"BETTER_AUTH_SECRET": "",
+				"GITHUB_CLIENT_ID": "",
+				"GITHUB_CLIENT_SECRET": ""
+			}
 		},
 		"preview": {
 			"d1_databases": [
@@ -43,7 +49,13 @@
 					"database_name": "kobun-preview",
 					"database_id": "427b809e-6340-422f-8189-2c27dd39c9bf"
 				}
-			]
+			],
+			"vars": {
+				"BETTER_AUTH_URL": "",
+				"BETTER_AUTH_SECRET": "",
+				"GITHUB_CLIENT_ID": "",
+				"GITHUB_CLIENT_SECRET": ""
+			}
 		},
 		"test": {
 			"d1_databases": [
@@ -52,7 +64,13 @@
 					"database_name": "kobun-development",
 					"database_id": "<DATABASE_ID>"
 				}
-			]
+			],
+			"vars": {
+				"BETTER_AUTH_URL": "",
+				"BETTER_AUTH_SECRET": "",
+				"GITHUB_CLIENT_ID": "",
+				"GITHUB_CLIENT_SECRET": ""
+			}
 		}
 	}
 }
