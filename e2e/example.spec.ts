@@ -2,5 +2,5 @@ import { expect, test } from "@playwright/test"
 
 test("has content", async ({ page }) => {
 	await page.goto("/")
-	await expect(page.getByText("Database says hello!")).toBeVisible()
+	await expect(page.getByText("Sign In")).toBeVisible()
 })

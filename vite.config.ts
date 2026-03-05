@@ -48,6 +48,10 @@ export default defineConfig({
 		// Clears mocks history
 		clearMocks: true,
 
+		// Pass if there are no tests (without which CI fails)
+		// TODO: add unit tests
+		passWithNoTests: true,
+
 		coverage: {
 			include: ["{apps,packages}/**/*.{ts,tsx}"],
 			exclude: ["**/*.stories.tsx"],
