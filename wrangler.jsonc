@@ -19,8 +19,7 @@
 			"binding": "DB",
 			"database_name": "kobun-dev",
 			"database_id": "eb1a5fa5-91b7-4c34-892b-6c60a7fdcc71",
-			"migrations_dir": "drizzle/migrations",
-			"remote": true
+			"migrations_dir": "drizzle/migrations"
 		}
 	],
 	"env": {
