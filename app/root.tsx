@@ -1,7 +1,7 @@
+import { ErrorPage } from "app/core/components/error-page"
 import { type ReactNode } from "react"
 import { Links, Meta, Outlet, Scripts, useRouteError } from "react-router"
 import config from "@/config"
-import { ErrorPage } from "@/core/components/error-page"
 import fonts from "@/core/fonts/inter-normal-latin.woff2?url"
 import styles from "@/core/styles/index.css?url"
 
