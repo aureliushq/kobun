@@ -11,7 +11,7 @@ const requestHandler = createRequestHandler(
 
 export default {
 	async fetch(request, env) {
-		const db = drizzle(env.DB, { schema })
+		const db = drizzle(env.DB, { schema, casing: "snake_case" })
 
 		const context = new RouterContextProvider()
 		context.set(dbContext, db)
