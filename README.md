@@ -1,79 +1,158 @@
-# Welcome to React Router!
+# PageZERO
 
-A modern, production-ready template for building full-stack React applications using React Router.
+An open-source TypeScript starter for full-stack web applications built for Cloudflare.
 
-## Features
+Guiding principles:
 
-- 🚀 Server-side rendering
-- ⚡️ Hot Module Replacement (HMR)
-- 📦 Asset bundling and optimization
-- 🔄 Data loading and mutations
-- 🔒 TypeScript by default
-- 🎉 TailwindCSS for styling
-- 📖 [React Router docs](https://reactrouter.com/)
+- Easy to learn
+- Fast to build with
+- Pleasure to work with
+- Cheap to maintain
 
-## Getting Started
+## 🔧 Prerequisites
 
-### Installation
+Before getting started, make sure you have the following installed:
 
-Install the dependencies:
+- [**Node.js**](https://nodejs.org/): Version >= 24
+- [**Bun**](https://bun.com/): Version >= 1.3
 
-```bash
-npm install
-```
+> [!TIP]
+> For PageZERO, [asdf](https://asdf-vm.com/) is the recommended runtime version manager.
+> After asdf setup, to automatically install proper asdf plugins and versions of Node.js and Bun, run in your project directory:
+> ```sh
+> asdf plugin add nodejs && asdf plugin add bun && asdf install
+> ``` 
+> Alternatively, if you are in a rush and have Node.js already installed, you can quickly install Bun with `npm install -g bun`.
 
-### Development
 
-Start the development server with HMR:
+## ⚡️ Quick start
 
-```bash
-npm run dev
-```
+In 4 steps:
 
-Your application will be available at `http://localhost:5173`.
+1. `bun create pagezero-dev/pagezero <your-project-name>`
+1. `cd <your-project-name>`
+1. `bun run setup`
+1. `bun run dev`
 
-## Previewing the Production Build
+You should be able to access the http://localhost:3000/ development page now.
 
-Preview the production build locally:
+> [!NOTE]
+> `bun create` will:
+> - download the template
+> - execute `bun install`
+> - initialize a fresh Git repo
 
-```bash
-npm run preview
-```
+## 🧑‍💻 The stack
 
-## Building for Production
+Building on strong foundations:
 
-Create a production build:
+_Core:_
 
-```bash
-npm run build
-```
+- 🚀 [Vite](https://vite.dev/) + [React](https://react.dev/) + [React Router v7](https://reactrouter.com/)
+- ☁️ [Cloudflare Workers](https://workers.cloudflare.com/) (hosting) + [Cloudflare D1](https://www.cloudflare.com/en-au/developer-platform/products/d1/) (database)
+- 🏗️ [TypeScript](https://www.typescriptlang.org/) + [TailwindCSS](https://tailwindcss.com/) + [Drizzle ORM](https://orm.drizzle.team/)
 
-## Deployment
+_Tooling:_
 
-Deployment is done using the Wrangler CLI.
+- ⚡ [Bun](https://bun.com/) (package manager)
+- ✨ [Biome](https://biomejs.dev/) (code quality)
+- ✅ [GitHub Actions](https://github.com/features/actions) (CI/CD)
+- 🧪 [Vitest](https://vitest.dev/) + [Playwright](https://playwright.dev/) (testing)
+- 📖 [Shadcn](https://ui.shadcn.com/) + [Storybook](https://storybook.js.org/) (UI)
 
-To build and deploy directly to production:
+## ✨ Scripts
 
-```sh
-npm run deploy
-```
+Essential bun scripts:
 
-To deploy a preview URL:
+- `bun run setup` - performs bun install, sets up basic env vars, database and Playwright browser drivers
+- `bun run dev` - boots the development server
+- `bun run preview` - builds the app and boots the compiled version
+- `bun run test` - executes unit tests
+- `bun run test:watch` - run unit tests in watch mode
+- `bun run test:e2e:ui` - executes browser tests in UI mode, perfect for development
+- `bun run check` - code quality check (linting and formatting)
+- `bun run check:types` - TypeScript types check
+- `bun run check:fix` - fix linting and formatting issues
+- `bun run storybook` - boots Storybook
+- `bun run doctor` - runs all basic sanity checks: format, lint, types check and unit tests
 
-```sh
-npx wrangler versions upload
-```
+## 🚀 Deployment
 
-You can then promote a version to production after verification or roll it out progressively.
+Deployment in PageZERO happens through the GitHub Actions CI/CD pipeline. That means once the pipeline is set,
+every merge to the `main` branch will automatically trigger deployment to Cloudflare Workers and database
+migration for Cloudflare D1.
 
-```sh
-npx wrangler versions deploy
-```
+Additionally, every PR will trigger "preview deployment", so you can access the version of your app for every PR. More about preview urls: https://developers.cloudflare.com/workers/configuration/previews/.
 
-## Styling
+The database for preview deployments is shared. If you wish to reset it, you can manually trigger the "Reset preview database" workflow in GitHub Actions.
 
-This template comes with [Tailwind CSS](https://tailwindcss.com/) already configured for a simple default starting experience. You can use whatever CSS framework you prefer.
+OK, now to make it all work, we must go through a few setup steps...
 
----
+### Cloudflare configuration
 
-Built with ❤️ using React Router.
+> [!IMPORTANT]
+> Steps below require a [Cloudflare](https://www.cloudflare.com/) account.
+
+1. Login through `bunx wrangler login`
+
+1. Create production and preview database:
+   ```sh
+   bunx wrangler d1 create <project-name>-production
+   bunx wrangler d1 create <project-name>-preview
+   ```
+
+1. Update `wrangler.json` with: project name, database names and returned `database_id`s
+
+1. Perform manual deployments to create Cloudflare Workers:
+   ```sh
+   bun run deploy:production
+   bun run deploy:preview
+   ```
+
+### Github configuration
+
+> [!IMPORTANT]
+> Steps below require [GitHub CLI](https://cli.github.com/).
+> For Mac, you can set it up with: `brew install gh`.
+
+1.  Login through `gh auth login`
+
+1.  Create a GitHub repo for the project and push all changes
+
+    ```sh
+    cd <project-name>
+    gh repo create <project-name> --private --source=. --remote=origin --push
+    ```
+
+1.  Add the following repository variable:
+
+    ```sh
+    gh variable set CLOUDFLARE_ACCOUNT_ID --body "<your-cloudflare-account-id>"
+    ```
+
+    > Cloudflare account ID can be obtained through `bunx wrangler whoami` command.
+
+    > You can browse variables by going to the GitHub UI "Settings / Secrets and variables / Actions" for your repo
+    > or by executing `gh variable list`.
+
+1.  Obtain Cloudflare API token
+
+    > Cloudflare API token can be obtained through the Cloudflare dashboard under "Manage account / Account API Tokens". You have to create the token there. The token will require the following permissions: D1:Edit, Workers Scripts:Edit.
+
+1.  Add the following repository secret:
+
+    ```sh
+    gh secret set CLOUDFLARE_API_TOKEN
+    gh secret set CLOUDFLARE_API_TOKEN --app dependabot
+    ```
+
+    > Secret for Dependabot needs to be set separately. Otherwise Dependabot PRs will not perform preview deploys.
+
+    > You can browse secrets by going to the GitHub UI "Settings / Secrets and variables / Actions" for your repo
+    > or by executing `gh secret list`.
+
+### All done! 🎉
+
+Now, you can test everything out. Create a PR in your project GitHub repository. You should notice an action in the "Actions" section being triggered. If the basic checks pass, the workflow will perform preview deployment to Cloudflare workers and database migration on your preview database. After deployment, the "View deployment" button should appear in your PR, with a link to your PR "preview" deployment.
+
+When you merge PR to "main", production deployment will happen, and database migration will be performed on your production DB.

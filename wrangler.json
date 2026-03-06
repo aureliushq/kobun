@@ -1,0 +1,67 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "kobun",
+	"compatibility_date": "2025-08-23",
+	"compatibility_flags": ["nodejs_compat"],
+	"main": "workers/index.ts",
+	"assets": {
+		"directory": "./build/client",
+		"binding": "ASSETS"
+	},
+	"preview_urls": true,
+	"observability": {
+		"enabled": true
+	},
+	"upload_source_maps": true,
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "kobun-development",
+			"database_id": "<DATABASE_ID>"
+		}
+	],
+	"vars": {
+		"BETTER_AUTH_URL": "http://localhost:5173"
+	},
+	"env": {
+		"production": {
+			"d1_databases": [
+				{
+					"binding": "DB",
+					"database_name": "kobun-production",
+					"database_id": "fb48c6f7-9eae-429f-8023-f457b9ad964d"
+				}
+			],
+			"vars": {
+				"BETTER_AUTH_URL": "https://app.kobun.io"
+			}
+		},
+		"preview": {
+			"d1_databases": [
+				{
+					"binding": "DB",
+					"database_name": "kobun-preview",
+					"database_id": "427b809e-6340-422f-8189-2c27dd39c9bf"
+				}
+			],
+			"vars": {
+				"BETTER_AUTH_URL": "https://kobun-preview.i4o.workers.dev"
+			}
+		},
+		"test": {
+			"d1_databases": [
+				{
+					"binding": "DB",
+					"database_name": "kobun-development",
+					"database_id": "<DATABASE_ID>"
+				}
+			],
+			"vars": {
+				"BETTER_AUTH_URL": "",
+				"BETTER_AUTH_SECRET": "",
+				"GITHUB_CLIENT_ID": "",
+				"GITHUB_CLIENT_SECRET": ""
+			}
+		}
+	}
+}

@@ -1,18 +1,23 @@
-.DS_Store
-.env
-/node_modules/
-*.tsbuildinfo
+# Node
+node_modules
 
-# React Router
+# React router
+/build
 /.react-router/
-/build/
+
+# Reports
+/.reports
+
+# Mac
+.DS_Store
+
+# DB
+/packages/db/schema.sql
 
 # Cloudflare
-.mf
-.wrangler
-.dev.vars*
-worker-configuration.d.ts
+/.wrangler
+/.env
+/.dev.vars
 
-
-!.dev.vars.example
-!.env.example
+# Storybook
+*storybook.log
