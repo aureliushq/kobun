@@ -37,6 +37,7 @@ import {
 import { Logo, LogoDark } from "@/ui/components/logo"
 import { useTheme } from "@/ui/hooks/use-theme"
 import { PATHS } from "@/ui/lib/constants"
+import { Badge } from "../base/badge"
 
 // import { cn } from "~/lib/utils";
 
@@ -72,12 +73,15 @@ const DashboardSidebar = () => {
 	return (
 		<Sidebar>
 			<SidebarHeader>
-				<Link
-					className="flex h-12 w-full items-center justify-start px-2"
-					to={basePath}
-				>
-					{resolvedTheme === "light" ? <Logo /> : <LogoDark />}
-				</Link>
+				<div className="flex items-center justify-between px-2">
+					<Link
+						className="flex h-12 w-full items-center justify-start"
+						to={basePath}
+					>
+						{resolvedTheme === "light" ? <Logo /> : <LogoDark />}
+					</Link>
+					<Badge className="font-mono text-[0.6rem] uppercase">Alpha</Badge>
+				</div>
 
 				<DropdownMenu>
 					<DropdownMenuTrigger render={<Button variant="outline" />}>
