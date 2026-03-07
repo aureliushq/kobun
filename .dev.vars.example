@@ -1,0 +1,12 @@
+# Base URL of your app
+BETTER_AUTH_URL=http://localhost:5173
+# Generate a secure secret: openssl rand -base64 32
+BETTER_AUTH_SECRET=
+
+# Github
+GITHUB_CLIENT_ID=
+GITHUB_CLIENT_SECRET=
+GITHUB_APP_ID=
+GITHUB_APP_PRIVATE_KEY=
+GITHUB_APP_WEBHOOK_SECRET=
+GITHUB_APP_SLUG=
