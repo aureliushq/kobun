@@ -1,18 +1,18 @@
 export enum RepositorySelection {
-	ALL,
-	SELECTED,
+	ALL = "all",
+	SELECTED = "selected",
 }
 
 export enum ConfigStatus {
-	UNKNOWN,
-	PRESENT,
-	MISSING,
-	ERROR,
-	TOO_LARGE,
+	UNKNOWN = "unknown",
+	PRESENT = "present",
+	MISSING = "missing",
+	ERROR = "error",
+	TOO_LARGE = "too_large",
 }
 
 export enum ProjectStatus {
-	ACTIVE,
-	DISCONNECTED,
-	ARCHIVED,
+	ACTIVE = "active",
+	DISCONNECTED = "disconnected",
+	ARCHIVED = "archived",
 }
