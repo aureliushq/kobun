@@ -20,6 +20,7 @@ export const githubInstallation = sqliteTable(
 		repositorySelection: text("repository_selection").notNull(),
 		suspendedAt: integer("suspended_at", { mode: "timestamp_ms" }),
 		deletedAt: integer("deleted_at", { mode: "timestamp_ms" }),
+		lastSyncedAt: integer("last_synced_at", { mode: "timestamp_ms" }),
 		createdAt: integer("created_at", { mode: "timestamp_ms" })
 			.default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
 			.notNull(),
@@ -82,6 +83,8 @@ export const project = sqliteTable(
 		repoHtmlUrl: text("repo_html_url").notNull(),
 		configPath: text("config_path").notNull(),
 		configStatus: text("config_status").notNull(),
+		configCheckedAt: integer("config_checked_at", { mode: "timestamp_ms" }),
+		configError: text("config_error"),
 		status: text("status").notNull(),
 		createdAt: integer("created_at", { mode: "timestamp_ms" })
 			.default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
