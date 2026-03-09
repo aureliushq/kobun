@@ -1,4 +1,5 @@
 export const BASE_PATH = "/dashboard"
+export const ONBOARDING_PATH = "/onboarding"
 
 export const PATHS = {
 	BASE: BASE_PATH,

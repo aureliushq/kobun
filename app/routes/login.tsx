@@ -13,6 +13,7 @@ import {
 import { Field, FieldDescription, FieldGroup } from "@/ui/components/base/field"
 import { Logo, LogoDark } from "@/ui/components/logo"
 import { useTheme } from "@/ui/hooks/use-theme"
+import { ONBOARDING_PATH } from "@/ui/lib/constants"
 import type { Route } from "./+types/login"
 
 export async function loader({ context, request }: Route.LoaderArgs) {
@@ -23,7 +24,7 @@ export async function loader({ context, request }: Route.LoaderArgs) {
 	})
 
 	if (session?.user) {
-		return redirect("/dashboard")
+		return redirect(ONBOARDING_PATH)
 	}
 }
 
