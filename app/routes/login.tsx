@@ -13,7 +13,7 @@ import {
 import { Field, FieldDescription, FieldGroup } from "@/ui/components/base/field"
 import { Logo, LogoDark } from "@/ui/components/logo"
 import { useTheme } from "@/ui/hooks/use-theme"
-import { ONBOARDING_PATH } from "@/ui/lib/constants"
+import { PATHS } from "@/ui/lib/constants"
 import type { Route } from "./+types/login"
 
 export async function loader({ context, request }: Route.LoaderArgs) {
@@ -23,16 +23,14 @@ export async function loader({ context, request }: Route.LoaderArgs) {
 		headers: request.headers,
 	})
 
-	if (session?.user) {
-		return redirect(ONBOARDING_PATH)
-	}
+	if (session?.user) return redirect(PATHS.SETUP)
 }
 
 export async function action({ context, request }: Route.ActionArgs) {
 	const auth = getAuth(context.get(envContext))
 	const response = await auth.api.signInSocial({
 		asResponse: true,
-		body: { provider: "github" },
+		body: { provider: "github", callbackURL: PATHS.SETUP },
 		headers: request.headers,
 	})
 	if (response.ok && response.headers) {

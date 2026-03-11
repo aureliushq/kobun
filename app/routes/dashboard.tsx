@@ -1,6 +1,7 @@
 import { redirect } from "react-router"
 import { getAuth } from "@/auth/auth.server"
 import { envContext } from "@/core/context"
+import { PATHS } from "@/ui/lib/constants"
 import type { Route } from "./+types/dashboard"
 
 export async function loader({ context, request }: Route.LoaderArgs) {
@@ -10,9 +11,7 @@ export async function loader({ context, request }: Route.LoaderArgs) {
 		headers: request.headers,
 	})
 
-	if (!session?.user) {
-		throw redirect("/")
-	}
+	if (!session?.user) throw redirect(PATHS.LOGIN)
 
 	return { user: session.user }
 }
