@@ -1,5 +1,6 @@
 import { eq } from "drizzle-orm"
-import { redirect } from "react-router"
+import { ArrowUpRightIcon, FolderGit2Icon } from "lucide-react"
+import { Form, redirect } from "react-router"
 import { getAuth } from "@/auth/auth.server"
 import { envContext } from "@/core/context"
 import { dbContext } from "@/db/context"
@@ -8,6 +9,15 @@ import {
 	getGithubAppInstallUrl,
 	listGithubInstallationRepositories,
 } from "@/github/octokit.server"
+import { Button } from "@/ui/components/base/button"
+import {
+	Empty,
+	EmptyContent,
+	EmptyDescription,
+	EmptyHeader,
+	EmptyMedia,
+	EmptyTitle,
+} from "@/ui/components/base/empty"
 import { PATHS } from "@/ui/lib/constants"
 import type { Route } from "./+types/setup"
 
@@ -114,6 +124,49 @@ export async function action({ context, request }: Route.ActionArgs) {
 	}
 }
 
-export default function Onboarding() {
-	return <div>Onboarding</div>
+export default function Setup() {
+	return <NoInstallations />
+}
+
+export function NoInstallations() {
+	return (
+		<Empty>
+			<EmptyHeader>
+				<EmptyMedia variant="icon">
+					<FolderGit2Icon />
+				</EmptyMedia>
+				<EmptyTitle>Connect a repository</EmptyTitle>
+				<EmptyDescription>
+					Install the Github App to let Kobun read your configuration and manage
+					your content files.
+				</EmptyDescription>
+			</EmptyHeader>
+			<EmptyContent className="flex-row justify-center gap-2">
+				<Form method="POST">
+					<Button
+						name="intent"
+						type="submit"
+						value={ACTION_INTENTS.INSTALL_APP}
+					>
+						Install Github App
+					</Button>
+				</Form>
+			</EmptyContent>
+			<Button
+				variant="link"
+				className="text-muted-foreground"
+				size="sm"
+				nativeButton={false}
+				render={
+					<a
+						href="https://kobun.io/docs/configuration/getting-started"
+						rel="noopener noreferrer"
+						target="_blank"
+					>
+						Learn More <ArrowUpRightIcon />
+					</a>
+				}
+			/>
+		</Empty>
+	)
 }
