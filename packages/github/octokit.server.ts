@@ -108,6 +108,8 @@ export async function listGithubInstallationRepositories(
 		if (data.repositories.length < 100) break
 		page += 1
 	}
+
+	return repositories
 }
 
 /**
