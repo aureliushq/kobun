@@ -28,8 +28,13 @@ export async function loader({ context, request }: Route.LoaderArgs) {
 	const githubInstallationId = url.searchParams.get("installation_id")
 	const _state = url.searchParams.get("state")
 
-	// TODO: handle post-install callback
+	// handle post-install callback
 	if (githubInstallationId) {
+		// TODO: validate state cookie
+		// TODO: fetch installation from github app api
+		// TODO: upsert githubInstallation
+		// TODO: upsert userInstalltion
+		// TODO: redirect to /setup (without query params)
 	}
 
 	const linkedInstallations = await db.query.userInstallation.findMany({
