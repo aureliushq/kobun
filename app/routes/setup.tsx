@@ -4,9 +4,17 @@ import { getAuth } from "@/auth/auth.server"
 import { envContext } from "@/core/context"
 import { dbContext } from "@/db/context"
 import { project, userInstallation } from "@/db/schema"
-import { listGithubInstallationRepositories } from "@/github/octokit.server"
+import {
+	getGithubAppInstallUrl,
+	listGithubInstallationRepositories,
+} from "@/github/octokit.server"
 import { PATHS } from "@/ui/lib/constants"
 import type { Route } from "./+types/setup"
+
+enum ACTION_INTENTS {
+	CREATE_PROJECT = "create-project",
+	INSTALL_APP = "install-app",
+}
 
 export async function loader({ context, request }: Route.LoaderArgs) {
 	const db = context.get(dbContext)
@@ -18,7 +26,7 @@ export async function loader({ context, request }: Route.LoaderArgs) {
 
 	const url = new URL(request.url)
 	const githubInstallationId = url.searchParams.get("installation_id")
-	// const state = url.searchParams.get("state")
+	const _state = url.searchParams.get("state")
 
 	// TODO: handle post-install callback
 	if (githubInstallationId) {
@@ -62,6 +70,42 @@ export async function loader({ context, request }: Route.LoaderArgs) {
 			})),
 		})),
 		installUrl: null,
+	}
+}
+
+export async function action({ context, request }: Route.ActionArgs) {
+	const _db = context.get(dbContext)
+	const env = context.get(envContext)
+
+	const auth = getAuth(env)
+	const session = await auth.api.getSession({ headers: request.headers })
+	if (!session?.user) throw redirect(PATHS.LOGIN)
+
+	const formData = await request.formData()
+	const intent = formData.get("intent") as ACTION_INTENTS
+
+	if (intent === ACTION_INTENTS.CREATE_PROJECT) {
+		const _repoId = formData.get("repoId") as string
+		const _repoName = formData.get("repoName") as string
+		const _repoOwner = formData.get("repoOwner") as string
+		const _repoHtmlUrl = formData.get("repoHtmlUrl") as string
+		const _installationId = formData.get("installationId") as string
+
+		// TODO: validation that the installation belongs to user
+		// TODO: check config path
+		// TODO: insert project
+		// TODO: redirect to /dashboard
+	}
+
+	if (intent === ACTION_INTENTS.INSTALL_APP) {
+		const state = crypto.randomUUID()
+		const installUrl = getGithubAppInstallUrl(env, state)
+
+		return redirect(installUrl, {
+			headers: {
+				"Set-Cookie": `github_install_state=${state}; HttpOnly; Secure; SameSite=Lax; Path=${PATHS.SETUP}; Max-Age=600`,
+			},
+		})
 	}
 }
 
