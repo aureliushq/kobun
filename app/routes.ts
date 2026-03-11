@@ -6,14 +6,17 @@ import {
 } from "@react-router/dev/routes"
 
 export default [
+	layout("core/components/layouts/dashboard.tsx", [
+		// route("/:owner/:repo", "routes/dashboard.tsx"),
+		route("/", "routes/dashboard.tsx"),
+	]),
+	layout("core/components/layouts/minimal.tsx", [
+		route("/login", "routes/login.tsx"),
+		route("/setup", "routes/setup.tsx"),
+	]),
 	...prefix("api", [
 		route("auth/*", "routes/api.auth.$.ts"),
 		route("set-theme", "routes/api.set-theme.ts"),
 	]),
-	layout("core/components/layouts/dashboard.tsx", [
-		route("/", "routes/dashboard.tsx"),
-	]),
 	route("/component-examples", "routes/example.tsx"),
-	route("/login", "routes/login.tsx"),
-	route("/setup", "routes/setup.tsx"),
 ] satisfies RouteConfig

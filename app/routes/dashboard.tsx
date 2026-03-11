@@ -5,12 +5,10 @@ import { PATHS } from "@/ui/lib/constants"
 import type { Route } from "./+types/dashboard"
 
 export async function loader({ context, request }: Route.LoaderArgs) {
-	const auth = getAuth(context.get(envContext))
+	const env = context.get(envContext)
 
-	const session = await auth.api.getSession({
-		headers: request.headers,
-	})
-
+	const auth = getAuth(env)
+	const session = await auth.api.getSession({ headers: request.headers })
 	if (!session?.user) throw redirect(PATHS.LOGIN)
 
 	return { user: session.user }
@@ -26,7 +24,7 @@ export async function action({ context, request }: Route.ActionArgs) {
 			headers: request.headers,
 		})
 		if (response.ok) {
-			return redirect("/", { headers: response.headers })
+			return redirect(PATHS.LOGIN, { headers: response.headers })
 		}
 	}
 }

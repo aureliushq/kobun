@@ -8,7 +8,7 @@ const DashboardLayout = () => {
 	return (
 		<SidebarProvider>
 			<DashboardSidebar />
-			<main className="flex h-screen w-screen flex-col gap-4 bg-muted">
+			<main className="flex h-screen w-screen flex-col gap-4">
 				<DashboardHeader />
 				<ScrollArea className="z-10 h-full w-full p-8">
 					<section className="flex w-full justify-center">
