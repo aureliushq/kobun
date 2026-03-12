@@ -1,3 +1,4 @@
+import { createPrivateKey } from "node:crypto"
 import { createAppAuth } from "@octokit/auth-app"
 import { Octokit } from "@octokit/rest"
 
@@ -11,9 +12,20 @@ const GITHUB_HEADERS = {
 /**
  * Private keys stored as env vars have literal "\n" instead of newlines.
  * This restores them.
+ *
+ * GitHub generates PKCS#1 keys (BEGIN RSA PRIVATE KEY) but
+ * @octokit/auth-app requires PKCS#8 (BEGIN PRIVATE KEY).
+ * Convert automatically when needed.
  */
 function getGithubAppPrivateKey(env: Env) {
-	return env.GITHUB_APP_PRIVATE_KEY.replace(/\\n/g, "\n")
+	const pem = env.GITHUB_APP_PRIVATE_KEY.replace(/\\n/g, "\n")
+
+	if (pem.includes("BEGIN RSA PRIVATE KEY")) {
+		const key = createPrivateKey(pem)
+		return key.export({ type: "pkcs8", format: "pem" }) as string
+	}
+
+	return pem
 }
 
 /**

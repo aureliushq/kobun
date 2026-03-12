@@ -4,9 +4,10 @@ import { Form, redirect } from "react-router"
 import { getAuth } from "@/auth/auth.server"
 import { envContext } from "@/core/context"
 import { dbContext } from "@/db/context"
-import { project, userInstallation } from "@/db/schema"
+import { githubInstallation, project, userInstallation } from "@/db/schema"
 import {
 	getGithubAppInstallUrl,
+	getGithubInstallation,
 	listGithubInstallationRepositories,
 } from "@/github/octokit.server"
 import { Button } from "@/ui/components/base/button"
@@ -36,15 +37,82 @@ export async function loader({ context, request }: Route.LoaderArgs) {
 
 	const url = new URL(request.url)
 	const githubInstallationId = url.searchParams.get("installation_id")
-	const _state = url.searchParams.get("state")
+	const receivedState = url.searchParams.get("state")
 
 	// handle post-install callback
 	if (githubInstallationId) {
-		// TODO: validate state cookie
-		// TODO: fetch installation from github app api
-		// TODO: upsert githubInstallation
-		// TODO: upsert userInstalltion
-		// TODO: redirect to /setup (without query params)
+		const cookieHeader = request.headers.get("Cookie")
+		const cookies: Record<string, unknown> = {}
+		if (cookieHeader) {
+			cookieHeader.split(";").forEach((cookie) => {
+				const [name, ...rest] = cookie.split("=")
+				if (name && rest) {
+					cookies[name.trim()] = decodeURIComponent(rest.join("="))
+				}
+			})
+		}
+		const originalState = cookies.github_install_state as string
+		if (receivedState !== originalState) {
+			throw redirect(PATHS.SETUP)
+		}
+
+		const installation = await getGithubInstallation(env, githubInstallationId)
+		console.log("github installation: ", installation)
+
+		const existing = await db.query.githubInstallation.findFirst({
+			where: eq(
+				githubInstallation.githubInstallationId,
+				String(installation.id),
+			),
+		})
+
+		const id = existing?.id ?? String(crypto.randomUUID())
+		await db
+			.insert(githubInstallation)
+			.values({
+				// @ts-expect-error: type is wrong, id is available
+				id,
+				githubInstallationId: String(installation.id),
+				targetId: String(installation?.account?.id),
+				// @ts-expect-error: type is wrong, login is available
+				targetLogin: installation?.account?.login,
+				targetAvatarUrl: installation?.account?.avatar_url,
+				targetHtmlUrl: installation?.account?.html_url,
+				repositorySelection: installation.repository_selection,
+				suspendedAt: installation.suspended_at
+					? new Date(installation.suspended_at)
+					: null,
+				deletedAt: null,
+				lastSyncedAt: new Date(),
+			})
+			.onConflictDoUpdate({
+				target: githubInstallation.githubInstallationId,
+				set: {
+					targetId: String(installation?.account?.id),
+					// @ts-expect-error: type is wrong, login is available
+					targetLogin: installation?.account?.login,
+					targetAvatarUrl: installation?.account?.avatar_url,
+					targetHtmlUrl: installation?.account?.html_url,
+					repositorySelection: installation.repository_selection,
+					suspendedAt: installation.suspended_at
+						? new Date(installation.suspended_at)
+						: null,
+					deletedAt: null,
+					lastSyncedAt: new Date(),
+				},
+			})
+
+		// Link user to installation (no-op if already linked)
+		await db
+			.insert(userInstallation)
+			.values({
+				id: crypto.randomUUID(),
+				userId: session.user.id,
+				installationId: id,
+			})
+			.onConflictDoNothing()
+
+		return redirect(PATHS.SETUP)
 	}
 
 	const linkedInstallations = await db.query.userInstallation.findMany({
@@ -124,7 +192,8 @@ export async function action({ context, request }: Route.ActionArgs) {
 	}
 }
 
-export default function Setup() {
+export default function Setup({ loaderData }: Route.ComponentProps) {
+	console.log(loaderData)
 	return <NoInstallations />
 }
 
