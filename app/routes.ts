@@ -8,7 +8,7 @@ import {
 export default [
 	layout("core/components/layouts/dashboard.tsx", [
 		// route("/:owner/:repo", "routes/dashboard.tsx"),
-		route("/", "routes/dashboard.tsx"),
+		route("/:owner/:name", "routes/dashboard.tsx"),
 	]),
 	layout("core/components/layouts/minimal.tsx", [
 		route("/login", "routes/login.tsx"),
