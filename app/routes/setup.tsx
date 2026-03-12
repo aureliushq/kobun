@@ -1,5 +1,11 @@
 import { eq } from "drizzle-orm"
-import { ArrowUpRightIcon, FolderGit2Icon } from "lucide-react"
+import {
+	ArrowUpRightIcon,
+	CheckIcon,
+	ChevronDownIcon,
+	FolderGit2Icon,
+} from "lucide-react"
+import { useState } from "react"
 import { Form, redirect } from "react-router"
 import { getAuth } from "@/auth/auth.server"
 import { envContext } from "@/core/context"
@@ -12,6 +18,15 @@ import {
 } from "@/github/octokit.server"
 import { Button } from "@/ui/components/base/button"
 import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuGroup,
+	DropdownMenuItem,
+	DropdownMenuLabel,
+	DropdownMenuSeparator,
+	DropdownMenuTrigger,
+} from "@/ui/components/base/dropdown-menu"
+import {
 	Empty,
 	EmptyContent,
 	EmptyDescription,
@@ -19,6 +34,18 @@ import {
 	EmptyMedia,
 	EmptyTitle,
 } from "@/ui/components/base/empty"
+import {
+	FieldDescription,
+	FieldLegend,
+	FieldSet,
+} from "@/ui/components/base/field"
+import {
+	Item,
+	ItemActions,
+	ItemContent,
+	ItemTitle,
+} from "@/ui/components/base/item"
+import { ScrollArea } from "@/ui/components/base/scroll-area"
 import { PATHS } from "@/ui/lib/constants"
 import type { Route } from "./+types/setup"
 
@@ -57,16 +84,16 @@ export async function loader({ context, request }: Route.LoaderArgs) {
 		}
 
 		const installation = await getGithubInstallation(env, githubInstallationId)
-		console.log("github installation: ", installation)
 
-		const existing = await db.query.githubInstallation.findFirst({
+		const existingInstallation = await db.query.githubInstallation.findFirst({
 			where: eq(
 				githubInstallation.githubInstallationId,
 				String(installation.id),
 			),
 		})
 
-		const id = existing?.id ?? String(crypto.randomUUID())
+		// upsert to githubInstallation table
+		const id = existingInstallation?.id ?? String(crypto.randomUUID())
 		await db
 			.insert(githubInstallation)
 			.values({
@@ -102,7 +129,7 @@ export async function loader({ context, request }: Route.LoaderArgs) {
 				},
 			})
 
-		// Link user to installation (no-op if already linked)
+		// link user to installation (no-op if already linked)
 		await db
 			.insert(userInstallation)
 			.values({
@@ -120,20 +147,37 @@ export async function loader({ context, request }: Route.LoaderArgs) {
 		with: { githubInstallation: true },
 	})
 
-	const installationsWithRepos = await Promise.all(
-		linkedInstallations
-			.filter((li) => !li.githubInstallation.deletedAt)
-			.map(async (li) => {
-				const repos = await listGithubInstallationRepositories(
-					env,
-					li.githubInstallation.githubInstallationId,
-				)
-				return {
-					installation: li.githubInstallation,
-					repos,
-				}
-			}),
-	)
+	const installationsWithRepos = (
+		await Promise.all(
+			linkedInstallations
+				.filter((li) => !li.githubInstallation.deletedAt)
+				.map(async (li) => {
+					try {
+						const repos = await listGithubInstallationRepositories(
+							env,
+							li.githubInstallation.githubInstallationId,
+						)
+						return {
+							installation: li.githubInstallation,
+							repos,
+						}
+					} catch (error) {
+						if (
+							error instanceof Error &&
+							"status" in error &&
+							error.status === 404
+						) {
+							await db
+								.update(githubInstallation)
+								.set({ deletedAt: new Date() })
+								.where(eq(githubInstallation.id, li.githubInstallation.id))
+							return null
+						}
+						throw error
+					}
+				}),
+		)
+	).filter((item) => item !== null)
 
 	const projects = await db.query.project.findMany({
 		where: eq(project.userId, session.user.id),
@@ -193,7 +237,94 @@ export async function action({ context, request }: Route.ActionArgs) {
 }
 
 export default function Setup({ loaderData }: Route.ComponentProps) {
-	console.log(loaderData)
+	const installations = loaderData.installations
+	const [activeLogin, setActiveLogin] = useState(
+		installations.length > 0 ? installations[0].installation.targetLogin : null,
+	)
+
+	if (installations.length > 0) {
+		const LOGINS = installations.map((item) => {
+			const login = item.installation.targetLogin
+			return {
+				label: login,
+				value: login,
+			}
+		})
+		return (
+			<div className="flex w-full flex-col gap-4">
+				<FieldSet>
+					<FieldLegend>Create a Project</FieldLegend>
+					<FieldDescription>
+						Select a repository to create a new project from.
+					</FieldDescription>
+					<DropdownMenu>
+						<DropdownMenuTrigger
+							render={<Button className="w-fit" variant="outline" />}
+						>
+							{activeLogin}
+							<ChevronDownIcon className="ml-2" />
+						</DropdownMenuTrigger>
+						<DropdownMenuContent>
+							<DropdownMenuGroup>
+								<DropdownMenuLabel>Accounts</DropdownMenuLabel>
+								{LOGINS.map((item) => (
+									<DropdownMenuItem
+										className="justify-between text-xs/relaxed"
+										key={item.value}
+										onClick={() => setActiveLogin(item.value)}
+									>
+										{item.label}
+										{item.value === activeLogin && <CheckIcon />}
+									</DropdownMenuItem>
+								))}
+								<DropdownMenuSeparator />
+							</DropdownMenuGroup>
+							<DropdownMenuGroup>
+								<Form method="POST">
+									<DropdownMenuItem
+										render={
+											<Button
+												className="w-full justify-start font-normal! text-xs/relaxed! hover:bg-accent! hover:text-accent-foreground!"
+												name="intent"
+												type="submit"
+												value={ACTION_INTENTS.INSTALL_APP}
+												variant="ghost"
+											/>
+										}
+									>
+										Add Account
+									</DropdownMenuItem>
+								</Form>
+							</DropdownMenuGroup>
+						</DropdownMenuContent>
+					</DropdownMenu>
+					<ScrollArea className="h-64 w-full">
+						{installations
+							.find((item) => item.installation.targetLogin === activeLogin)
+							?.repos.map((repo) => {
+								return (
+									<Item
+										className="-my-px rounded-none first:mt-px first:rounded-tl-md first:rounded-tr-md last:mb-px last:rounded-br-md last:rounded-bl-md"
+										key={repo.full_name}
+										variant="outline"
+									>
+										<ItemContent>
+											<ItemTitle>{repo.name}</ItemTitle>
+										</ItemContent>
+										<ItemActions>
+											<Button size="sm" variant="secondary">
+												Create Project
+											</Button>
+										</ItemActions>
+									</Item>
+								)
+							})}
+					</ScrollArea>
+				</FieldSet>
+			</div>
+		)
+	}
+
 	return <NoInstallations />
 }
 
@@ -228,6 +359,7 @@ export function NoInstallations() {
 				nativeButton={false}
 				render={
 					<a
+						// TODO: update this link when website and docs are ready
 						href="https://kobun.io/docs/configuration/getting-started"
 						rel="noopener noreferrer"
 						target="_blank"
