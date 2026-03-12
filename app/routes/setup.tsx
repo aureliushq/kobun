@@ -1,4 +1,4 @@
-import { and, eq, or } from "drizzle-orm"
+import { and, desc, eq, or } from "drizzle-orm"
 import {
 	ArrowUpRightIcon,
 	CheckIcon,
@@ -7,7 +7,7 @@ import {
 	FolderGit2Icon,
 } from "lucide-react"
 import { useState } from "react"
-import { Form, redirect } from "react-router"
+import { Form, Link, redirect } from "react-router"
 import { getAuth } from "@/auth/auth.server"
 import { envContext } from "@/core/context"
 import { dbContext } from "@/db/context"
@@ -168,20 +168,43 @@ export async function loader({ context, request }: Route.LoaderArgs) {
 		with: { githubInstallation: true },
 	})
 
-	const installationsWithRepos = (
+	const accounts: {
+		id: string
+		githubInstallationId: string
+		login: string
+		avatarUrl: string
+	}[] = linkedInstallations.map((li) => ({
+		id: li.githubInstallation.id,
+		githubInstallationId: li.githubInstallation.githubInstallationId,
+		login: li.githubInstallation.targetLogin,
+		avatarUrl: li.githubInstallation.targetAvatarUrl,
+	}))
+
+	const repos: {
+		id: number
+		name: string
+		fullName: string
+		htmlUrl: string
+		ownerLogin: string
+		installationId: string
+	}[] = (
 		await Promise.all(
 			linkedInstallations
 				.filter((li) => !li.githubInstallation.deletedAt)
 				.map(async (li) => {
 					try {
-						const repos = await listGithubInstallationRepositories(
+						const ghRepos = await listGithubInstallationRepositories(
 							env,
 							li.githubInstallation.githubInstallationId,
 						)
-						return {
-							installation: li.githubInstallation,
-							repos,
-						}
+						return ghRepos.map((repo) => ({
+							id: repo.id,
+							name: repo.name,
+							fullName: repo.full_name,
+							htmlUrl: repo.html_url,
+							ownerLogin: repo.owner.login,
+							installationId: li.githubInstallation.id,
+						}))
 					} catch (error) {
 						if (
 							error instanceof Error &&
@@ -192,33 +215,22 @@ export async function loader({ context, request }: Route.LoaderArgs) {
 								.update(githubInstallation)
 								.set({ deletedAt: new Date() })
 								.where(eq(githubInstallation.id, li.githubInstallation.id))
-							return null
+							return []
 						}
 						throw error
 					}
 				}),
 		)
-	).filter((item) => item !== null)
+	).flat()
 
-	const projects = await db.query.project.findMany({
+	const allProjects = await db.query.project.findMany({
 		where: eq(project.userId, session.user.id),
+		orderBy: desc(project.updatedAt),
 	})
+	const recentProjects = allProjects.slice(0, 3)
+	const projectRepoIds = allProjects.map((p) => p.repoId)
 
-	const projectsByRepoId = new Map(
-		projects.map((project) => [project.repoId, project]),
-	)
-
-	return {
-		user: session.user,
-		installations: installationsWithRepos.map((iwr) => ({
-			...iwr,
-			repos: iwr.repos.map((repo) => ({
-				...repo,
-				project: projectsByRepoId.get(String(repo.id)) ?? null,
-			})),
-		})),
-		installUrl: null,
-	}
+	return { accounts, repos, recentProjects, projectRepoIds }
 }
 
 export async function action({ context, request }: Route.ActionArgs) {
@@ -340,7 +352,7 @@ export async function action({ context, request }: Route.ActionArgs) {
 				},
 			})
 
-		return redirect(PATHS.BASE)
+		return redirect(`/${selectedRepo.owner.login}/${selectedRepo.name}`)
 	}
 
 	if (intent === ACTION_INTENTS.INSTALL_APP) {
@@ -356,28 +368,53 @@ export async function action({ context, request }: Route.ActionArgs) {
 }
 
 export default function Setup({ loaderData }: Route.ComponentProps) {
-	const installations = loaderData.installations
-	const [activeAvatarUrl, setActiveAvatarUrl] = useState(
-		installations.length > 0
-			? installations[0].installation.targetAvatarUrl
-			: null,
-	)
+	const { accounts, repos, recentProjects, projectRepoIds } = loaderData
 	const [activeInstallationId, setActiveInstallationId] = useState(
-		installations.length > 0 ? installations[0].installation.id : null,
-	)
-	const [activeLogin, setActiveLogin] = useState(
-		installations.length > 0 ? installations[0].installation.targetLogin : null,
+		accounts.length > 0 ? accounts[0].id : null,
 	)
 
-	if (installations.length > 0) {
-		const LOGINS = installations.map((item) => ({
-			avatarUrl: item.installation.targetAvatarUrl,
-			githubInstallationId: item.installation.githubInstallationId,
-			installationId: item.installation.id,
-			login: item.installation.targetLogin,
-		}))
+	const activeAccount = accounts.find((a) => a.id === activeInstallationId)
+	const projectRepoIdSet = new Set(projectRepoIds)
+
+	if (accounts.length > 0) {
 		return (
-			<div className="flex w-full flex-col gap-4">
+			<div className="flex w-full flex-col gap-8">
+				<FieldSet>
+					<FieldLegend>Recent Projects</FieldLegend>
+					<FieldDescription>
+						Select a repository to create a new project from.
+					</FieldDescription>
+					<div className="w-full">
+						{recentProjects.map((project) => (
+							<Item
+								className="group -my-px rounded-none first:mt-px first:rounded-tl-md first:rounded-tr-md last:mb-px last:rounded-br-md last:rounded-bl-md"
+								key={project.id}
+								variant="outline"
+							>
+								<ItemContent>
+									<ItemTitle>
+										{`${project.repoOwnerLogin}/${project.repoName}`}
+										<a
+											className="hidden group-hover:flex"
+											href={project.repoHtmlUrl}
+											rel="noopener noreferrer"
+											target="_blank"
+										>
+											<ExternalLinkIcon className="size-3" />
+										</a>
+									</ItemTitle>
+								</ItemContent>
+								<ItemActions>
+									<Link to={`/${project.repoOwnerLogin}/${project.repoName}`}>
+										<Button size="sm" variant="secondary">
+											Open
+										</Button>
+									</Link>
+								</ItemActions>
+							</Item>
+						))}
+					</div>
+				</FieldSet>
 				<FieldSet>
 					<FieldLegend>Create a Project</FieldLegend>
 					<FieldDescription>
@@ -390,41 +427,41 @@ export default function Setup({ loaderData }: Route.ComponentProps) {
 							<div className="flex items-center gap-2">
 								<Avatar className="size-4">
 									<AvatarImage
-										alt={`${activeLogin}'s avatar`}
-										src={String(activeAvatarUrl)}
+										alt={`${activeAccount?.login}'s avatar`}
+										src={activeAccount?.avatarUrl ?? ""}
 									/>
 									<AvatarFallback>
-										{String(activeLogin).charAt(0)}
+										{activeAccount?.login.charAt(0)}
 									</AvatarFallback>
 								</Avatar>
-								{activeLogin}
+								{activeAccount?.login}
 							</div>
 							<ChevronDownIcon className="ml-2" />
 						</DropdownMenuTrigger>
 						<DropdownMenuContent>
 							<DropdownMenuGroup>
 								<DropdownMenuLabel>Accounts</DropdownMenuLabel>
-								{LOGINS.map((item) => (
+								{accounts.map((account) => (
 									<DropdownMenuItem
 										className="justify-between text-xs/relaxed"
-										key={item.login}
+										key={account.login}
 										onClick={() => {
-											setActiveAvatarUrl(item.avatarUrl)
-											setActiveInstallationId(item.installationId)
-											setActiveLogin(item.login)
+											setActiveInstallationId(account.id)
 										}}
 									>
 										<div className="flex items-center gap-2">
 											<Avatar className="size-4">
 												<AvatarImage
-													src={item.avatarUrl}
-													alt={`${item.login}'s avatar`}
+													src={account.avatarUrl}
+													alt={`${account.login}'s avatar`}
 												/>
-												<AvatarFallback>{item.login.charAt(0)}</AvatarFallback>
+												<AvatarFallback>
+													{account.login.charAt(0)}
+												</AvatarFallback>
 											</Avatar>
-											{item.login}
+											{account.login}
 										</div>
-										{item.login === activeLogin && <CheckIcon />}
+										{account.id === activeInstallationId && <CheckIcon />}
 									</DropdownMenuItem>
 								))}
 								<DropdownMenuSeparator />
@@ -449,29 +486,35 @@ export default function Setup({ loaderData }: Route.ComponentProps) {
 						</DropdownMenuContent>
 					</DropdownMenu>
 					<ScrollArea className="h-64 w-full">
-						{installations
-							.find((item) => item.installation.targetLogin === activeLogin)
-							?.repos.map((repo) => {
-								return (
-									<Item
-										className="group -my-px rounded-none first:mt-px first:rounded-tl-md first:rounded-tr-md last:mb-px last:rounded-br-md last:rounded-bl-md"
-										key={repo.full_name}
-										variant="outline"
-									>
-										<ItemContent>
-											<ItemTitle>
-												{repo.name}
-												<a
-													className="hidden group-hover:flex"
-													href={repo.html_url}
-													rel="noopener noreferrer"
-													target="_blank"
-												>
-													<ExternalLinkIcon className="size-3" />
-												</a>
-											</ItemTitle>
-										</ItemContent>
-										<ItemActions>
+						{repos
+							.filter((repo) => repo.installationId === activeInstallationId)
+							.map((repo) => (
+								<Item
+									className="group -my-px rounded-none first:mt-px first:rounded-tl-md first:rounded-tr-md last:mb-px last:rounded-br-md last:rounded-bl-md"
+									key={repo.fullName}
+									variant="outline"
+								>
+									<ItemContent>
+										<ItemTitle>
+											{repo.name}
+											<a
+												className="hidden group-hover:flex"
+												href={repo.htmlUrl}
+												rel="noopener noreferrer"
+												target="_blank"
+											>
+												<ExternalLinkIcon className="size-3" />
+											</a>
+										</ItemTitle>
+									</ItemContent>
+									<ItemActions>
+										{projectRepoIdSet.has(String(repo.id)) ? (
+											<Link to={`/${repo.ownerLogin}/${repo.name}`}>
+												<Button size="sm" variant="secondary">
+													Open
+												</Button>
+											</Link>
+										) : (
 											<Form method="POST">
 												<Input name="repo_id" type="hidden" value={repo.id} />
 												<Input
@@ -482,15 +525,13 @@ export default function Setup({ loaderData }: Route.ComponentProps) {
 												<Input
 													name="repo_owner"
 													type="hidden"
-													value={repo.owner.login}
+													value={repo.ownerLogin}
 												/>
-												{activeInstallationId && (
-													<Input
-														name="installation_id"
-														type="hidden"
-														value={activeInstallationId}
-													/>
-												)}
+												<Input
+													name="installation_id"
+													type="hidden"
+													value={repo.installationId}
+												/>
 												<Button
 													name="intent"
 													size="sm"
@@ -501,10 +542,10 @@ export default function Setup({ loaderData }: Route.ComponentProps) {
 													Create Project
 												</Button>
 											</Form>
-										</ItemActions>
-									</Item>
-								)
-							})}
+										)}
+									</ItemActions>
+								</Item>
+							))}
 					</ScrollArea>
 				</FieldSet>
 			</div>
