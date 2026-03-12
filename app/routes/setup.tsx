@@ -1,8 +1,9 @@
-import { eq } from "drizzle-orm"
+import { and, eq, or } from "drizzle-orm"
 import {
 	ArrowUpRightIcon,
 	CheckIcon,
 	ChevronDownIcon,
+	ExternalLinkIcon,
 	FolderGit2Icon,
 } from "lucide-react"
 import { useState } from "react"
@@ -11,11 +12,18 @@ import { getAuth } from "@/auth/auth.server"
 import { envContext } from "@/core/context"
 import { dbContext } from "@/db/context"
 import { githubInstallation, project, userInstallation } from "@/db/schema"
+import { ConfigStatus, ProjectStatus } from "@/db/types"
 import {
 	getGithubAppInstallUrl,
+	getGithubFileContent,
 	getGithubInstallation,
 	listGithubInstallationRepositories,
 } from "@/github/octokit.server"
+import {
+	Avatar,
+	AvatarFallback,
+	AvatarImage,
+} from "@/ui/components/base/avatar"
 import { Button } from "@/ui/components/base/button"
 import {
 	DropdownMenu,
@@ -39,6 +47,7 @@ import {
 	FieldLegend,
 	FieldSet,
 } from "@/ui/components/base/field"
+import { Input } from "@/ui/components/base/input"
 import {
 	Item,
 	ItemActions,
@@ -73,7 +82,7 @@ export async function loader({ context, request }: Route.LoaderArgs) {
 		if (cookieHeader) {
 			cookieHeader.split(";").forEach((cookie) => {
 				const [name, ...rest] = cookie.split("=")
-				if (name && rest) {
+				if (name && rest.length > 0) {
 					cookies[name.trim()] = decodeURIComponent(rest.join("="))
 				}
 			})
@@ -86,11 +95,23 @@ export async function loader({ context, request }: Route.LoaderArgs) {
 		const installation = await getGithubInstallation(env, githubInstallationId)
 
 		const existingInstallation = await db.query.githubInstallation.findFirst({
-			where: eq(
-				githubInstallation.githubInstallationId,
-				String(installation.id),
+			where: or(
+				eq(githubInstallation.githubInstallationId, String(installation.id)),
+				eq(githubInstallation.targetId, String(installation.account?.id)),
 			),
 		})
+
+		// if the account was reinstalled with a new github installation id,
+		// update the old row so the upsert's conflict target can match
+		if (
+			existingInstallation &&
+			existingInstallation.githubInstallationId !== String(installation.id)
+		) {
+			await db
+				.update(githubInstallation)
+				.set({ githubInstallationId: String(installation.id) })
+				.where(eq(githubInstallation.id, existingInstallation.id))
+		}
 
 		// upsert to githubInstallation table
 		const id = existingInstallation?.id ?? String(crypto.randomUUID())
@@ -184,7 +205,7 @@ export async function loader({ context, request }: Route.LoaderArgs) {
 	})
 
 	const projectsByRepoId = new Map(
-		projects.map((project) => [project.githubRepoId, project]),
+		projects.map((project) => [project.repoId, project]),
 	)
 
 	return {
@@ -201,7 +222,7 @@ export async function loader({ context, request }: Route.LoaderArgs) {
 }
 
 export async function action({ context, request }: Route.ActionArgs) {
-	const _db = context.get(dbContext)
+	const db = context.get(dbContext)
 	const env = context.get(envContext)
 
 	const auth = getAuth(env)
@@ -212,16 +233,114 @@ export async function action({ context, request }: Route.ActionArgs) {
 	const intent = formData.get("intent") as ACTION_INTENTS
 
 	if (intent === ACTION_INTENTS.CREATE_PROJECT) {
-		const _repoId = formData.get("repoId") as string
-		const _repoName = formData.get("repoName") as string
-		const _repoOwner = formData.get("repoOwner") as string
-		const _repoHtmlUrl = formData.get("repoHtmlUrl") as string
-		const _installationId = formData.get("installationId") as string
+		const repoId = formData.get("repo_id") as string
+		const repoName = formData.get("repo_name") as string
+		const repoOwner = formData.get("repo_owner") as string
+		const installationId = formData.get("installation_id") as string
 
-		// TODO: validation that the installation belongs to user
-		// TODO: check config path
-		// TODO: insert project
-		// TODO: redirect to /dashboard
+		const installation = await db.query.githubInstallation.findFirst({
+			where: eq(githubInstallation.id, installationId),
+		})
+
+		if (!installation)
+			// TODO: throw with an error so it can be shown on the frontend
+			throw redirect(PATHS.SETUP)
+
+		if (installation?.deletedAt || installation?.suspendedAt)
+			// TODO: throw with an error so it can be shown on the frontend
+			throw redirect(PATHS.SETUP)
+
+		const repos = await listGithubInstallationRepositories(
+			env,
+			installation.githubInstallationId,
+		)
+
+		const selectedRepo = repos.find((repo) => String(repo.id) === repoId)
+
+		// TODO: throw with an error so it can be shown on the frontend
+		if (!selectedRepo) throw redirect(PATHS.SETUP)
+
+		const CONFIG_PATHS = [".kobun.json", ".kobun.yml"]
+		let config:
+			| ({ sha: string; path: string; content: string } & {
+					error: string | null
+					status: ConfigStatus
+			  })
+			| { path?: string; status: ConfigStatus; error?: string | null } = {
+			status: ConfigStatus.MISSING,
+		}
+		for (const configPath of CONFIG_PATHS) {
+			try {
+				const configFile = await getGithubFileContent(
+					env,
+					installation.githubInstallationId,
+					repoOwner,
+					repoName,
+					configPath,
+				)
+				config = { ...configFile, error: null, status: ConfigStatus.PRESENT }
+				break
+			} catch (error) {
+				if (
+					error instanceof Error &&
+					"status" in error &&
+					error.status === 404
+				) {
+					continue
+				}
+				config = {
+					status: ConfigStatus.ERROR,
+					error: error instanceof Error ? error.message : String(error),
+				}
+				break
+			}
+		}
+
+		const existingProject = await db.query.project.findFirst({
+			where: and(
+				eq(project.userId, session.user.id),
+				eq(project.repoId, String(repoId)),
+			),
+		})
+
+		// upsert to githubInstallation table
+		const id = existingProject?.id ?? String(crypto.randomUUID())
+		await db
+			.insert(project)
+			.values({
+				id,
+				userId: session.user.id,
+				installationId: String(installation.id),
+				repoId: String(selectedRepo.id),
+				repoName: selectedRepo.name,
+				repoOwnerLogin: selectedRepo.owner.login,
+				repoHtmlUrl: selectedRepo.html_url,
+				configPath: config?.path ?? ".kobun.json",
+				configStatus: config?.path
+					? ConfigStatus.PRESENT
+					: (config?.status ?? ConfigStatus.UNKNOWN),
+				configCheckedAt: new Date(),
+				configError: config?.error ? String(config.error) : "",
+				status: ProjectStatus.ACTIVE,
+			})
+			.onConflictDoUpdate({
+				target: [project.userId, project.repoId],
+				set: {
+					installationId: String(installation.id),
+					repoName: selectedRepo.name,
+					repoOwnerLogin: selectedRepo.owner.login,
+					repoHtmlUrl: selectedRepo.html_url,
+					configPath: config?.path ?? ".kobun.json",
+					configStatus: config?.path
+						? ConfigStatus.PRESENT
+						: (config?.status ?? ConfigStatus.UNKNOWN),
+					configCheckedAt: new Date(),
+					configError: config?.error ? String(config.error) : "",
+					status: ProjectStatus.ACTIVE,
+				},
+			})
+
+		return redirect(PATHS.BASE)
 	}
 
 	if (intent === ACTION_INTENTS.INSTALL_APP) {
@@ -238,18 +357,25 @@ export async function action({ context, request }: Route.ActionArgs) {
 
 export default function Setup({ loaderData }: Route.ComponentProps) {
 	const installations = loaderData.installations
+	const [activeAvatarUrl, setActiveAvatarUrl] = useState(
+		installations.length > 0
+			? installations[0].installation.targetAvatarUrl
+			: null,
+	)
+	const [activeInstallationId, setActiveInstallationId] = useState(
+		installations.length > 0 ? installations[0].installation.id : null,
+	)
 	const [activeLogin, setActiveLogin] = useState(
 		installations.length > 0 ? installations[0].installation.targetLogin : null,
 	)
 
 	if (installations.length > 0) {
-		const LOGINS = installations.map((item) => {
-			const login = item.installation.targetLogin
-			return {
-				label: login,
-				value: login,
-			}
-		})
+		const LOGINS = installations.map((item) => ({
+			avatarUrl: item.installation.targetAvatarUrl,
+			githubInstallationId: item.installation.githubInstallationId,
+			installationId: item.installation.id,
+			login: item.installation.targetLogin,
+		}))
 		return (
 			<div className="flex w-full flex-col gap-4">
 				<FieldSet>
@@ -261,7 +387,18 @@ export default function Setup({ loaderData }: Route.ComponentProps) {
 						<DropdownMenuTrigger
 							render={<Button className="w-fit" variant="outline" />}
 						>
-							{activeLogin}
+							<div className="flex items-center gap-2">
+								<Avatar className="size-4">
+									<AvatarImage
+										alt={`${activeLogin}'s avatar`}
+										src={String(activeAvatarUrl)}
+									/>
+									<AvatarFallback>
+										{String(activeLogin).charAt(0)}
+									</AvatarFallback>
+								</Avatar>
+								{activeLogin}
+							</div>
 							<ChevronDownIcon className="ml-2" />
 						</DropdownMenuTrigger>
 						<DropdownMenuContent>
@@ -270,11 +407,24 @@ export default function Setup({ loaderData }: Route.ComponentProps) {
 								{LOGINS.map((item) => (
 									<DropdownMenuItem
 										className="justify-between text-xs/relaxed"
-										key={item.value}
-										onClick={() => setActiveLogin(item.value)}
+										key={item.login}
+										onClick={() => {
+											setActiveAvatarUrl(item.avatarUrl)
+											setActiveInstallationId(item.installationId)
+											setActiveLogin(item.login)
+										}}
 									>
-										{item.label}
-										{item.value === activeLogin && <CheckIcon />}
+										<div className="flex items-center gap-2">
+											<Avatar className="size-4">
+												<AvatarImage
+													src={item.avatarUrl}
+													alt={`${item.login}'s avatar`}
+												/>
+												<AvatarFallback>{item.login.charAt(0)}</AvatarFallback>
+											</Avatar>
+											{item.login}
+										</div>
+										{item.login === activeLogin && <CheckIcon />}
 									</DropdownMenuItem>
 								))}
 								<DropdownMenuSeparator />
@@ -304,17 +454,53 @@ export default function Setup({ loaderData }: Route.ComponentProps) {
 							?.repos.map((repo) => {
 								return (
 									<Item
-										className="-my-px rounded-none first:mt-px first:rounded-tl-md first:rounded-tr-md last:mb-px last:rounded-br-md last:rounded-bl-md"
+										className="group -my-px rounded-none first:mt-px first:rounded-tl-md first:rounded-tr-md last:mb-px last:rounded-br-md last:rounded-bl-md"
 										key={repo.full_name}
 										variant="outline"
 									>
 										<ItemContent>
-											<ItemTitle>{repo.name}</ItemTitle>
+											<ItemTitle>
+												{repo.name}
+												<a
+													className="hidden group-hover:flex"
+													href={repo.html_url}
+													rel="noopener noreferrer"
+													target="_blank"
+												>
+													<ExternalLinkIcon className="size-3" />
+												</a>
+											</ItemTitle>
 										</ItemContent>
 										<ItemActions>
-											<Button size="sm" variant="secondary">
-												Create Project
-											</Button>
+											<Form method="POST">
+												<Input name="repo_id" type="hidden" value={repo.id} />
+												<Input
+													name="repo_name"
+													type="hidden"
+													value={repo.name}
+												/>
+												<Input
+													name="repo_owner"
+													type="hidden"
+													value={repo.owner.login}
+												/>
+												{activeInstallationId && (
+													<Input
+														name="installation_id"
+														type="hidden"
+														value={activeInstallationId}
+													/>
+												)}
+												<Button
+													name="intent"
+													size="sm"
+													type="submit"
+													value={ACTION_INTENTS.CREATE_PROJECT}
+													variant="secondary"
+												>
+													Create Project
+												</Button>
+											</Form>
 										</ItemActions>
 									</Item>
 								)
