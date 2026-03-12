@@ -77,7 +77,7 @@ export const project = sqliteTable(
 		installationId: text("installation_id")
 			.notNull()
 			.references(() => githubInstallation.id),
-		githubRepoId: text("github_repo_id").notNull(),
+		repoId: text("repo_id").notNull(),
 		repoName: text("repo_name").notNull(),
 		repoOwnerLogin: text("repo_owner_login").notNull(),
 		repoHtmlUrl: text("repo_html_url").notNull(),
@@ -95,10 +95,7 @@ export const project = sqliteTable(
 			.notNull(),
 	},
 	(table) => [
-		uniqueIndex("project_userId_githubRepoId_idx").on(
-			table.userId,
-			table.githubRepoId,
-		),
+		uniqueIndex("project_userId_repoId_idx").on(table.userId, table.repoId),
 		index("project_userId_idx").on(table.userId),
 		index("project_installationId_idx").on(table.installationId),
 		index("project_status_idx").on(table.status),
