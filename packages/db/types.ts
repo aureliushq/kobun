@@ -1,3 +1,5 @@
+import type { project } from "./schema"
+
 export enum RepositorySelection {
 	ALL = "all",
 	SELECTED = "selected",
@@ -16,3 +18,5 @@ export enum ProjectStatus {
 	DISCONNECTED = "disconnected",
 	ARCHIVED = "archived",
 }
+
+export type Project = typeof project.$inferSelect
