@@ -1,5 +1,6 @@
 import {
 	BookOpenIcon,
+	CheckIcon,
 	ChevronsUpDownIcon,
 	ExternalLinkIcon,
 	HouseIcon,
@@ -11,7 +12,13 @@ import { Form, Link, useLocation } from "react-router"
 
 // import invariant from "tiny-invariant";
 
-import { useState } from "react"
+import type { Project } from "@/db/types"
+// import {
+// 	Avatar,
+// 	AvatarFallback,
+// 	AvatarImage,
+// } from "@/ui/components/base/avatar"
+import { Badge } from "@/ui/components/base/badge"
 import { Button } from "@/ui/components/base/button"
 import {
 	DropdownMenu,
@@ -19,6 +26,7 @@ import {
 	DropdownMenuGroup,
 	DropdownMenuItem,
 	DropdownMenuLabel,
+	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/ui/components/base/dropdown-menu"
 import {
@@ -37,29 +45,20 @@ import {
 import { Logo, LogoDark } from "@/ui/components/logo"
 import { useTheme } from "@/ui/hooks/use-theme"
 import { PATHS } from "@/ui/lib/constants"
+import { DashboardActionIntents } from "@/ui/lib/types"
 
 // import { cn } from "~/lib/utils";
 
 // import { KobunContext, type KobunContextData, useTheme } from "~/providers";
 
-const projects = [
-	{
-		name: "v3.i4o.dev",
-		branch: "main",
-	},
-	{
-		name: "bunko.app",
-		branch: "main",
-	},
-	{
-		name: "kobun.io",
-		branch: "main",
-	},
-]
-
-const DashboardSidebar = () => {
+const DashboardSidebar = ({
+	activeProject,
+	projects,
+}: {
+	activeProject: Project
+	projects: Project[]
+}) => {
 	const { isMobile } = useSidebar()
-	const [activeProject, setActiveProject] = useState(projects[0])
 	// const { config } = useContext<KobunContextData>(KobunContext);
 	// invariant(config, "`config` is required.");
 	// const basePath = config.basePath ?? "";
@@ -69,26 +68,29 @@ const DashboardSidebar = () => {
 
 	const { resolvedTheme } = useTheme()
 
+	const repoSlug = `${activeProject.repoOwnerLogin}/${activeProject.repoName}`
+	const pathname = `/${repoSlug}`
+
 	return (
 		<Sidebar>
 			<SidebarHeader>
-				<Link
-					className="flex h-12 w-full items-center justify-start px-2"
-					to={basePath}
-				>
-					{resolvedTheme === "light" ? <Logo /> : <LogoDark />}
-				</Link>
+				<div className="flex items-center justify-between px-2">
+					<Link
+						className="flex h-12 w-full items-center justify-start"
+						to={basePath}
+					>
+						{resolvedTheme === "light" ? <Logo /> : <LogoDark />}
+					</Link>
+					<Badge className="font-mono text-[0.6rem] uppercase">Alpha</Badge>
+				</div>
 
 				<DropdownMenu>
-					<DropdownMenuTrigger render={<Button variant="outline" />}>
-						<div className="flex-1 text-left leading-tight">
-							<span className="truncate font-medium font-mono">
-								{activeProject.name}
-							</span>
-							{/*<span className="truncate text-xs font-mono">
-                {activeProject.branch}
-              </span>*/}
-						</div>
+					<DropdownMenuTrigger
+						render={
+							<Button className="h-8 justify-between" variant="outline" />
+						}
+					>
+						{repoSlug}
 						<ChevronsUpDownIcon />
 					</DropdownMenuTrigger>
 					<DropdownMenuContent
@@ -100,14 +102,33 @@ const DashboardSidebar = () => {
 						<DropdownMenuGroup>
 							<DropdownMenuLabel>Projects</DropdownMenuLabel>
 							{projects.map((project, _index) => (
-								<DropdownMenuItem
-									className="font-mono"
-									onClick={() => setActiveProject(project)}
-									key={project.name}
-								>
-									{project.name}
+								<DropdownMenuItem key={project.id}>
+									<Link
+										className="flex w-full items-center justify-between"
+										to={`/${project.repoOwnerLogin}/${project.repoName}`}
+									>
+										<div className="flex items-center gap-2">
+											{/*<Avatar className="size-4">
+                        <AvatarImage
+                          src={account.avatarUrl}
+                          alt={`${account.login}'s avatar`}
+                        />
+                        <AvatarFallback>
+                          {account.login.charAt(0)}
+                        </AvatarFallback>
+                      </Avatar>*/}
+											{`${project.repoOwnerLogin}/${project.repoName}`}
+										</div>
+										{activeProject.id === project.id && <CheckIcon />}
+									</Link>
 								</DropdownMenuItem>
 							))}
+							<DropdownMenuSeparator />
+						</DropdownMenuGroup>
+						<DropdownMenuGroup>
+							<DropdownMenuItem>
+								<Link to={PATHS.SETUP}>Create New Project</Link>
+							</DropdownMenuItem>
 						</DropdownMenuGroup>
 					</DropdownMenuContent>
 				</DropdownMenu>
@@ -118,9 +139,9 @@ const DashboardSidebar = () => {
 						<SidebarMenu>
 							<SidebarMenuItem>
 								<SidebarMenuButton
-									isActive={location.pathname === PATHS.BASE}
+									isActive={location.pathname === `/${repoSlug}`}
 									render={
-										<Link className="sidebar-menu-button" to={PATHS.BASE} />
+										<Link className="sidebar-menu-button" to={pathname} />
 									}
 								>
 									<HouseIcon />
@@ -257,7 +278,7 @@ const DashboardSidebar = () => {
 									className="sidebar-menu-button"
 									name="intent"
 									type="submit"
-									value="logout"
+									value={DashboardActionIntents.LOGOUT}
 								>
 									<LogOutIcon />
 									<span>Logout</span>

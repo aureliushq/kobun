@@ -1,9 +1,11 @@
-export const BASE_PATH = "/dashboard"
-
 export const PATHS = {
-	BASE: BASE_PATH,
+	BASE: "/",
 	COLLECTIONS: "collections",
 	EDITOR: "editor/collections",
-	SETTINGS: "settings",
+	LOGIN: "/login",
+	SETTINGS: "/settings",
+	SETUP: "/setup",
 	SINGLETONS: "editor/singletons",
 }
+
+export const CONFIG_PATHS = [".kobun.json", ".kobun.yml"]

@@ -1,0 +1,14 @@
+# Base URL of your app
+BETTER_AUTH_URL=http://localhost:5173
+# Generate a secure secret: openssl rand -base64 32
+BETTER_AUTH_SECRET=
+
+# Github
+GITHUB_CLIENT_ID=
+GITHUB_CLIENT_SECRET=
+GITHUB_APP_ID=
+# Convert the PEM file to a single-line value
+# awk 'NR==1{printf "%s",$0; next}{printf "\\n%s",$0}' ~/path-to/kobun.private-key.pem | pbcopy
+GITHUB_APP_PRIVATE_KEY=
+GITHUB_APP_WEBHOOK_SECRET=
+GITHUB_APP_SLUG=
