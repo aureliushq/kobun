@@ -56,12 +56,8 @@ import {
 } from "@/ui/components/base/item"
 import { ScrollArea } from "@/ui/components/base/scroll-area"
 import { PATHS } from "@/ui/lib/constants"
+import { SetupActionIntents } from "@/ui/lib/types"
 import type { Route } from "./+types/setup"
-
-enum ACTION_INTENTS {
-	CREATE_PROJECT = "create-project",
-	INSTALL_APP = "install-app",
-}
 
 export async function loader({ context, request }: Route.LoaderArgs) {
 	const db = context.get(dbContext)
@@ -242,9 +238,9 @@ export async function action({ context, request }: Route.ActionArgs) {
 	if (!session?.user) throw redirect(PATHS.LOGIN)
 
 	const formData = await request.formData()
-	const intent = formData.get("intent") as ACTION_INTENTS
+	const intent = formData.get("intent") as SetupActionIntents
 
-	if (intent === ACTION_INTENTS.CREATE_PROJECT) {
+	if (intent === SetupActionIntents.CREATE_PROJECT) {
 		const repoId = formData.get("repo_id") as string
 		const repoName = formData.get("repo_name") as string
 		const repoOwner = formData.get("repo_owner") as string
@@ -355,7 +351,7 @@ export async function action({ context, request }: Route.ActionArgs) {
 		return redirect(`/${selectedRepo.owner.login}/${selectedRepo.name}`)
 	}
 
-	if (intent === ACTION_INTENTS.INSTALL_APP) {
+	if (intent === SetupActionIntents.INSTALL_APP) {
 		const state = crypto.randomUUID()
 		const installUrl = getGithubAppInstallUrl(env, state)
 
@@ -474,7 +470,7 @@ export default function Setup({ loaderData }: Route.ComponentProps) {
 												className="w-full justify-start font-normal! text-xs/relaxed! hover:bg-accent! hover:text-accent-foreground!"
 												name="intent"
 												type="submit"
-												value={ACTION_INTENTS.INSTALL_APP}
+												value={SetupActionIntents.INSTALL_APP}
 												variant="ghost"
 											/>
 										}
@@ -536,7 +532,7 @@ export default function Setup({ loaderData }: Route.ComponentProps) {
 													name="intent"
 													size="sm"
 													type="submit"
-													value={ACTION_INTENTS.CREATE_PROJECT}
+													value={SetupActionIntents.CREATE_PROJECT}
 													variant="secondary"
 												>
 													Create Project
@@ -573,7 +569,7 @@ export function NoInstallations() {
 					<Button
 						name="intent"
 						type="submit"
-						value={ACTION_INTENTS.INSTALL_APP}
+						value={SetupActionIntents.INSTALL_APP}
 					>
 						Install Github App
 					</Button>
