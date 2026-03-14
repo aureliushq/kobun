@@ -55,7 +55,7 @@ import {
 	ItemTitle,
 } from "@/ui/components/base/item"
 import { ScrollArea } from "@/ui/components/base/scroll-area"
-import { PATHS } from "@/ui/lib/constants"
+import { CONFIG_PATHS, PATHS } from "@/ui/lib/constants"
 import { SetupActionIntents } from "@/ui/lib/types"
 import type { Route } from "./+types/setup"
 
@@ -268,7 +268,6 @@ export async function action({ context, request }: Route.ActionArgs) {
 		// TODO: throw with an error so it can be shown on the frontend
 		if (!selectedRepo) throw redirect(PATHS.SETUP)
 
-		const CONFIG_PATHS = [".kobun.json", ".kobun.yml"]
 		let config:
 			| ({ sha: string; path: string; content: string } & {
 					error: string | null
@@ -375,42 +374,44 @@ export default function Setup({ loaderData }: Route.ComponentProps) {
 	if (accounts.length > 0) {
 		return (
 			<div className="flex w-full flex-col gap-8">
-				<FieldSet>
-					<FieldLegend>Recent Projects</FieldLegend>
-					<FieldDescription>
-						Select a repository to create a new project from.
-					</FieldDescription>
-					<div className="w-full">
-						{recentProjects.map((project) => (
-							<Item
-								className="group -my-px rounded-none first:mt-px first:rounded-tl-md first:rounded-tr-md last:mb-px last:rounded-br-md last:rounded-bl-md"
-								key={project.id}
-								variant="outline"
-							>
-								<ItemContent>
-									<ItemTitle>
-										{`${project.repoOwnerLogin}/${project.repoName}`}
-										<a
-											className="hidden group-hover:flex"
-											href={project.repoHtmlUrl}
-											rel="noopener noreferrer"
-											target="_blank"
-										>
-											<ExternalLinkIcon className="size-3" />
-										</a>
-									</ItemTitle>
-								</ItemContent>
-								<ItemActions>
-									<Link to={`/${project.repoOwnerLogin}/${project.repoName}`}>
-										<Button size="sm" variant="secondary">
-											Open
-										</Button>
-									</Link>
-								</ItemActions>
-							</Item>
-						))}
-					</div>
-				</FieldSet>
+				{recentProjects.length > 0 && (
+					<FieldSet>
+						<FieldLegend>Recent Projects</FieldLegend>
+						<FieldDescription>
+							Select a repository to create a new project from.
+						</FieldDescription>
+						<div className="w-full">
+							{recentProjects.map((project) => (
+								<Item
+									className="group -my-px rounded-none first:mt-px first:rounded-tl-md first:rounded-tr-md last:mb-px last:rounded-br-md last:rounded-bl-md"
+									key={project.id}
+									variant="outline"
+								>
+									<ItemContent>
+										<ItemTitle>
+											{`${project.repoOwnerLogin}/${project.repoName}`}
+											<a
+												className="hidden group-hover:flex"
+												href={project.repoHtmlUrl}
+												rel="noopener noreferrer"
+												target="_blank"
+											>
+												<ExternalLinkIcon className="size-3" />
+											</a>
+										</ItemTitle>
+									</ItemContent>
+									<ItemActions>
+										<Link to={`/${project.repoOwnerLogin}/${project.repoName}`}>
+											<Button size="sm" variant="secondary">
+												Open
+											</Button>
+										</Link>
+									</ItemActions>
+								</Item>
+							))}
+						</div>
+					</FieldSet>
+				)}
 				<FieldSet>
 					<FieldLegend>Create a Project</FieldLegend>
 					<FieldDescription>
@@ -434,7 +435,7 @@ export default function Setup({ loaderData }: Route.ComponentProps) {
 							</div>
 							<ChevronDownIcon className="ml-2" />
 						</DropdownMenuTrigger>
-						<DropdownMenuContent>
+						<DropdownMenuContent className="w-40">
 							<DropdownMenuGroup>
 								<DropdownMenuLabel>Accounts</DropdownMenuLabel>
 								{accounts.map((account) => (
