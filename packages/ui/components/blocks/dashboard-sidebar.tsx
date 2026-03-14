@@ -7,10 +7,7 @@ import {
 	LogOutIcon,
 	SettingsIcon,
 } from "lucide-react"
-// import { useContext } from "react";
 import { Form, Link, useLocation } from "react-router"
-
-// import invariant from "tiny-invariant";
 
 import type { ProjectWithGithubInstallation } from "@/db/types"
 import {
@@ -47,10 +44,6 @@ import { useTheme } from "@/ui/hooks/use-theme"
 import { PATHS } from "@/ui/lib/constants"
 import { DashboardActionIntents } from "@/ui/lib/types"
 
-// import { cn } from "~/lib/utils";
-
-// import { KobunContext, type KobunContextData, useTheme } from "~/providers";
-
 const DashboardSidebar = ({
 	activeProject,
 	projects,
@@ -59,9 +52,6 @@ const DashboardSidebar = ({
 	projects: ProjectWithGithubInstallation[]
 }) => {
 	const { isMobile } = useSidebar()
-	// const { config } = useContext<KobunContextData>(KobunContext);
-	// invariant(config, "`config` is required.");
-	// const basePath = config.basePath ?? "";
 	const basePath = ""
 
 	const location = useLocation()
@@ -164,90 +154,10 @@ const DashboardSidebar = ({
 				</SidebarGroup>
 				<SidebarGroup>
 					<SidebarGroupLabel>Collections</SidebarGroupLabel>
-					{/*{Object.keys(config.collections).map((key, index) => {
-            const collection = config.collections[key];
-            const link = `${basePath}/${PATHS.COLLECTIONS}/${key}`;
-            const addTitle = `Add ${collection.label}`;
-
-            return (
-              <section
-                className={cn(
-                  Object.keys(config.collections).length - 1 !== index &&
-                    "mb-4",
-                )}
-                key={key}
-              >
-                <SidebarMenu>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={
-                        location.pathname === link && location.search === ""
-                      }
-                    >
-                      <Link to={link}>{`${collection.label}`}</Link>
-                    </SidebarMenuButton>
-                    <SidebarMenuAction asChild title={addTitle}>
-                      <Link to={`${basePath}/${PATHS.EDITOR}/${key}`}>
-                        <PlusIcon />{" "}
-                        <span className="sr-only">{addTitle}</span>
-                      </Link>
-                    </SidebarMenuAction>
-                  </SidebarMenuItem>
-                  {collection.features?.publish && (
-                    <>
-                      <SidebarMenuItem>
-                        <SidebarMenuButton
-                          asChild
-                          isActive={
-                            location.pathname === link &&
-                            location.search === "?status=published"
-                          }
-                        >
-                          <Link to={`${link}?status=published`}>Published</Link>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                      <SidebarMenuItem>
-                        <SidebarMenuButton
-                          asChild
-                          isActive={
-                            location.pathname === link &&
-                            location.search === "?status=draft"
-                          }
-                        >
-                          <Link to={`${link}?status=draft`}>Drafts</Link>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    </>
-                  )}
-                </SidebarMenu>
-              </section>
-            );
-          })}*/}
 				</SidebarGroup>
-				{/*{config.singletons && (
-          <SidebarGroup>
-            <SidebarGroupLabel>Singletons</SidebarGroupLabel>
-            <SidebarMenu>
-              {Object.keys(config.singletons).map((key) => {
-                const singleton = config.singletons?.[key];
-                const link = `${basePath}/${PATHS.SINGLETONS}/${key}`;
-                return (
-                  <SidebarMenuItem key={key}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={
-                        location.pathname === link && location.search === ""
-                      }
-                    >
-                      <Link to={link}>{`${singleton?.label}`}</Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
-            </SidebarMenu>
-          </SidebarGroup>
-        )}*/}
+				<SidebarGroup>
+					<SidebarGroupLabel>Singletons</SidebarGroupLabel>
+				</SidebarGroup>
 			</SidebarContent>
 			<SidebarFooter>
 				<SidebarGroup>

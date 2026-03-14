@@ -19,9 +19,6 @@ import { SIDEBAR_WIDTH } from "@/ui/components/base/sidebar"
 import { useTheme } from "@/ui/hooks/use-theme"
 
 const DashboardHeader = () => {
-	// const { config, params } = useContext<KobunContextData>(KobunContext);
-	// invariant(config, "`config` is required.");
-	// const basePath = config.basePath ?? "";
 	const basePath = ""
 	const { theme, setTheme } = useTheme()
 
@@ -31,39 +28,11 @@ const DashboardHeader = () => {
 		>
 			<Breadcrumb>
 				<BreadcrumbList>
-					<BreadcrumbItem className="font-mono uppercase">
-						{/*{params?.section === "root" ? (*/}
-						{/*<BreadcrumbPage>
-                <BreadcrumbLink >
-                  <Link to={basePath}>Home</Link>
-                </BreadcrumbLink>
-              </BreadcrumbPage>
-            ) : (*/}
+					<BreadcrumbItem>
 						<BreadcrumbLink>
 							<Link to={basePath}>Home</Link>
 						</BreadcrumbLink>
-						{/*)}*/}
 					</BreadcrumbItem>
-					{/*{params?.section === "collections" && (
-            <>
-              <BreadcrumbSeparator />
-              <BreadcrumbItem>Collections</BreadcrumbItem>
-              <BreadcrumbSeparator />
-              <BreadcrumbItem>
-                <BreadcrumbPage>
-                  {config?.collections[params?.collectionSlug].label}
-                </BreadcrumbPage>
-              </BreadcrumbItem>
-            </>
-          )}
-          {params?.section === "settings" && (
-            <>
-              <BreadcrumbSeparator />
-              <BreadcrumbItem>
-                <BreadcrumbPage>Settings</BreadcrumbPage>
-              </BreadcrumbItem>
-            </>
-          )}*/}
 				</BreadcrumbList>
 			</Breadcrumb>
 			<section className="flex items-center gap-2">

@@ -58,7 +58,7 @@ const DashboardLayout = ({ loaderData }: Route.ComponentProps) => {
 				}
 				projects={loaderData.projects}
 			/>
-			<main className="flex h-screen w-screen flex-col gap-4">
+			<main className="flex h-screen w-screen flex-col divide-y">
 				<DashboardHeader />
 				<ScrollArea className="z-10 h-full w-full p-8">
 					<section className="flex w-full justify-center">

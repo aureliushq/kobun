@@ -70,7 +70,7 @@ export default function IndexRoute({ loaderData }: Route.ComponentProps) {
 
 	if (config.status === ConfigStatus.MISSING) {
 		return (
-			<div>
+			<div className="pt-3">
 				<Alert variant="destructive" className="w-full">
 					<AlertCircleIcon />
 					<AlertTitle>Configuration file missing</AlertTitle>
