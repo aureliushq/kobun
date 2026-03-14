@@ -12,12 +12,12 @@ import { Form, Link, useLocation } from "react-router"
 
 // import invariant from "tiny-invariant";
 
-import type { Project } from "@/db/types"
-// import {
-// 	Avatar,
-// 	AvatarFallback,
-// 	AvatarImage,
-// } from "@/ui/components/base/avatar"
+import type { ProjectWithGithubInstallation } from "@/db/types"
+import {
+	Avatar,
+	AvatarFallback,
+	AvatarImage,
+} from "@/ui/components/base/avatar"
 import { Badge } from "@/ui/components/base/badge"
 import { Button } from "@/ui/components/base/button"
 import {
@@ -55,8 +55,8 @@ const DashboardSidebar = ({
 	activeProject,
 	projects,
 }: {
-	activeProject: Project
-	projects: Project[]
+	activeProject: ProjectWithGithubInstallation
+	projects: ProjectWithGithubInstallation[]
 }) => {
 	const { isMobile } = useSidebar()
 	// const { config } = useContext<KobunContextData>(KobunContext);
@@ -90,7 +90,18 @@ const DashboardSidebar = ({
 							<Button className="h-8 justify-between" variant="outline" />
 						}
 					>
-						{repoSlug}
+						<div className="flex items-center gap-2">
+							<Avatar className="size-4">
+								<AvatarImage
+									src={activeProject.githubInstallation.targetAvatarUrl}
+									alt={`${activeProject.githubInstallation.targetLogin}'s avatar`}
+								/>
+								<AvatarFallback>
+									{activeProject.githubInstallation.targetLogin.charAt(0)}
+								</AvatarFallback>
+							</Avatar>
+							{repoSlug}
+						</div>
 						<ChevronsUpDownIcon />
 					</DropdownMenuTrigger>
 					<DropdownMenuContent
@@ -108,15 +119,15 @@ const DashboardSidebar = ({
 										to={`/${project.repoOwnerLogin}/${project.repoName}`}
 									>
 										<div className="flex items-center gap-2">
-											{/*<Avatar className="size-4">
-                        <AvatarImage
-                          src={account.avatarUrl}
-                          alt={`${account.login}'s avatar`}
-                        />
-                        <AvatarFallback>
-                          {account.login.charAt(0)}
-                        </AvatarFallback>
-                      </Avatar>*/}
+											<Avatar className="size-4">
+												<AvatarImage
+													src={project.githubInstallation.targetAvatarUrl}
+													alt={`${project.githubInstallation.targetLogin}'s avatar`}
+												/>
+												<AvatarFallback>
+													{project.githubInstallation.targetLogin.charAt(0)}
+												</AvatarFallback>
+											</Avatar>
 											{`${project.repoOwnerLogin}/${project.repoName}`}
 										</div>
 										{activeProject.id === project.id && <CheckIcon />}
