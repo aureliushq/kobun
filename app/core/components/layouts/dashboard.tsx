@@ -62,7 +62,7 @@ const DashboardLayout = ({ loaderData }: Route.ComponentProps) => {
 				<DashboardHeader />
 				<ScrollArea className="z-10 h-full w-full p-8">
 					<section className="flex w-full justify-center">
-						<div className="flex w-full max-w-6xl flex-col gap-4">
+						<div className="flex w-full max-w-4xl flex-col gap-4">
 							<Outlet />
 						</div>
 					</section>

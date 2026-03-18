@@ -1,5 +1,5 @@
 import { and, eq } from "drizzle-orm"
-import { AlertCircleIcon } from "lucide-react"
+import { AlertCircleIcon, ExternalLinkIcon } from "lucide-react"
 import { redirect } from "react-router"
 import { getAuth } from "@/auth/auth.server"
 import { envContext } from "@/core/context"
@@ -73,20 +73,22 @@ export default function IndexRoute({ loaderData }: Route.ComponentProps) {
 			<div className="pt-3">
 				<Alert variant="destructive" className="w-full">
 					<AlertCircleIcon />
-					<AlertTitle>Configuration file missing</AlertTitle>
+					<AlertTitle>Let's set up your project</AlertTitle>
 					<AlertDescription>
-						Kobun needs a{" "}
-						<code className="relative inline break-words rounded-md bg-muted px-[0.3rem] py-[0.2rem] font-mono text-[0.8rem] outline-none">
+						Add a{" "}
+						<code className="wrap-break-words relative inline rounded-md bg-muted px-[0.3rem] py-[0.2rem] font-mono text-[0.8rem] outline-none">
 							.kobun.json
 						</code>{" "}
-						or a{" "}
-						<code className="relative inline break-words rounded-md bg-muted px-[0.3rem] py-[0.2rem] font-mono text-[0.8rem] outline-none">
+						or{" "}
+						<code className="wrap-break-words relative inline rounded-md bg-muted px-[0.3rem] py-[0.2rem] font-mono text-[0.8rem] outline-none">
 							.kobun.yml
 						</code>{" "}
-						to work. Please add it in your project root. Once the configuration
-						file is in your main branch, come back here and refresh this page.{" "}
-						<a href="https://kobun.io/docs/configuration">
-							Learn more about configuring Kobun.
+						file to your repository root to get started.{" "}
+						<a
+							className="inline-flex items-center gap-1"
+							href="https://kobun.io/docs/configuration"
+						>
+							Learn more <ExternalLinkIcon className="size-3.5" />{" "}
 						</a>
 					</AlertDescription>
 				</Alert>
