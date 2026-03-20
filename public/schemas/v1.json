@@ -1,0 +1,467 @@
+{
+	"type": "object",
+	"properties": {
+		"basePath": {
+			"type": "string"
+		},
+		"collections": {
+			"type": "object",
+			"propertyNames": {
+				"type": "string"
+			},
+			"additionalProperties": {
+				"type": "object",
+				"properties": {
+					"features": {
+						"type": "object",
+						"properties": {
+							"featured": {
+								"type": "object",
+								"properties": {
+									"limit": {
+										"type": "number"
+									}
+								},
+								"required": ["limit"],
+								"additionalProperties": false
+							},
+							"publish": {
+								"type": "boolean"
+							},
+							"timestamps": {
+								"type": "object",
+								"properties": {
+									"createdAt": {
+										"type": "string"
+									},
+									"updatedAt": {
+										"type": "string"
+									}
+								},
+								"additionalProperties": false
+							}
+						},
+						"required": ["timestamps"],
+						"additionalProperties": false
+					},
+					"format": {
+						"type": "string",
+						"enum": ["json", "md", "mdx", "yaml"]
+					},
+					"label": {
+						"type": "string"
+					},
+					"schema": {
+						"type": "object",
+						"propertyNames": {
+							"type": "string"
+						},
+						"additionalProperties": {
+							"$ref": "#/$defs/__schema0"
+						}
+					}
+				},
+				"required": ["format", "label", "schema"],
+				"additionalProperties": false
+			}
+		},
+		"singletons": {
+			"type": "object",
+			"propertyNames": {
+				"type": "string"
+			},
+			"additionalProperties": {
+				"type": "object",
+				"properties": {
+					"features": {
+						"type": "object",
+						"properties": {
+							"featured": {
+								"type": "object",
+								"properties": {
+									"limit": {
+										"type": "number"
+									}
+								},
+								"required": ["limit"],
+								"additionalProperties": false
+							},
+							"publish": {
+								"type": "boolean"
+							},
+							"timestamps": {
+								"type": "object",
+								"properties": {
+									"createdAt": {
+										"type": "string"
+									},
+									"updatedAt": {
+										"type": "string"
+									}
+								},
+								"additionalProperties": false
+							}
+						},
+						"required": ["timestamps"],
+						"additionalProperties": false
+					},
+					"format": {
+						"type": "string",
+						"enum": ["json", "md", "mdx", "yaml"]
+					},
+					"label": {
+						"type": "string"
+					},
+					"schema": {
+						"type": "object",
+						"propertyNames": {
+							"type": "string"
+						},
+						"additionalProperties": {
+							"$ref": "#/$defs/__schema0"
+						}
+					}
+				},
+				"required": ["format", "label", "schema"],
+				"additionalProperties": false
+			}
+		},
+		"version": {
+			"type": "integer",
+			"minimum": -9007199254740991,
+			"maximum": 9007199254740991
+		}
+	},
+	"required": ["collections", "singletons", "version"],
+	"additionalProperties": false,
+	"$defs": {
+		"__schema0": {
+			"oneOf": [
+				{
+					"type": "object",
+					"properties": {
+						"description": {
+							"type": "string"
+						},
+						"label": {
+							"type": "string"
+						},
+						"required": {
+							"type": "boolean"
+						},
+						"itemLabel": {
+							"type": "string"
+						},
+						"items": {
+							"$ref": "#/$defs/__schema0"
+						},
+						"type": {
+							"type": "string",
+							"const": "array"
+						}
+					},
+					"required": ["label", "items", "type"],
+					"additionalProperties": false
+				},
+				{
+					"type": "object",
+					"properties": {
+						"description": {
+							"type": "string"
+						},
+						"label": {
+							"type": "string"
+						},
+						"required": {
+							"type": "boolean"
+						},
+						"componentType": {
+							"type": "string",
+							"enum": ["checkbox", "switch"]
+						},
+						"defaultValue": {
+							"type": "boolean"
+						},
+						"type": {
+							"type": "string",
+							"const": "boolean"
+						}
+					},
+					"required": ["label", "type"],
+					"additionalProperties": false
+				},
+				{
+					"type": "object",
+					"properties": {
+						"description": {
+							"type": "string"
+						},
+						"label": {
+							"type": "string"
+						},
+						"required": {
+							"type": "boolean"
+						},
+						"type": {
+							"type": "string",
+							"const": "date"
+						}
+					},
+					"required": ["label", "type"],
+					"additionalProperties": false
+				},
+				{
+					"type": "object",
+					"properties": {
+						"description": {
+							"type": "string"
+						},
+						"label": {
+							"type": "string"
+						},
+						"required": {
+							"type": "boolean"
+						},
+						"type": {
+							"type": "string",
+							"const": "document"
+						}
+					},
+					"required": ["label", "type"],
+					"additionalProperties": false
+				},
+				{
+					"type": "object",
+					"properties": {
+						"description": {
+							"type": "string"
+						},
+						"label": {
+							"type": "string"
+						},
+						"required": {
+							"type": "boolean"
+						},
+						"type": {
+							"type": "string",
+							"const": "image"
+						}
+					},
+					"required": ["label", "type"],
+					"additionalProperties": false
+				},
+				{
+					"type": "object",
+					"properties": {
+						"description": {
+							"type": "string"
+						},
+						"label": {
+							"type": "string"
+						},
+						"required": {
+							"type": "boolean"
+						},
+						"defaultSelected": {
+							"type": "array",
+							"items": {
+								"type": "object",
+								"properties": {
+									"label": {
+										"type": "string"
+									},
+									"value": {
+										"type": "string"
+									}
+								},
+								"required": ["label", "value"],
+								"additionalProperties": false
+							}
+						},
+						"options": {
+							"type": "array",
+							"items": {
+								"type": "object",
+								"properties": {
+									"label": {
+										"type": "string"
+									},
+									"value": {
+										"type": "string"
+									}
+								},
+								"required": ["label", "value"],
+								"additionalProperties": false
+							}
+						},
+						"placeholder": {
+							"type": "string"
+						},
+						"type": {
+							"type": "string",
+							"const": "multi_select"
+						}
+					},
+					"required": ["label", "options", "type"],
+					"additionalProperties": false
+				},
+				{
+					"type": "object",
+					"properties": {
+						"description": {
+							"type": "string"
+						},
+						"label": {
+							"type": "string"
+						},
+						"required": {
+							"type": "boolean"
+						},
+						"fields": {
+							"type": "object",
+							"propertyNames": {
+								"type": "string"
+							},
+							"additionalProperties": {
+								"$ref": "#/$defs/__schema0"
+							}
+						},
+						"type": {
+							"type": "string",
+							"const": "object"
+						}
+					},
+					"required": ["label", "fields", "type"],
+					"additionalProperties": false
+				},
+				{
+					"type": "object",
+					"properties": {
+						"description": {
+							"type": "string"
+						},
+						"label": {
+							"type": "string"
+						},
+						"required": {
+							"type": "boolean"
+						},
+						"defaultSelected": {
+							"type": "object",
+							"properties": {
+								"label": {
+									"type": "string"
+								},
+								"value": {
+									"type": "string"
+								}
+							},
+							"required": ["label", "value"],
+							"additionalProperties": false
+						},
+						"options": {
+							"type": "array",
+							"items": {
+								"type": "object",
+								"properties": {
+									"label": {
+										"type": "string"
+									},
+									"value": {
+										"type": "string"
+									}
+								},
+								"required": ["label", "value"],
+								"additionalProperties": false
+							}
+						},
+						"placeholder": {
+							"type": "string"
+						},
+						"type": {
+							"type": "string",
+							"const": "select"
+						}
+					},
+					"required": ["label", "options", "type"],
+					"additionalProperties": false
+				},
+				{
+					"type": "object",
+					"properties": {
+						"description": {
+							"type": "string"
+						},
+						"label": {
+							"type": "string"
+						},
+						"required": {
+							"type": "boolean"
+						},
+						"from": {
+							"type": "string"
+						},
+						"type": {
+							"type": "string",
+							"const": "slug"
+						}
+					},
+					"required": ["label", "from", "type"],
+					"additionalProperties": false
+				},
+				{
+					"type": "object",
+					"properties": {
+						"description": {
+							"type": "string"
+						},
+						"label": {
+							"type": "string"
+						},
+						"required": {
+							"type": "boolean"
+						},
+						"defaultValue": {
+							"type": "string"
+						},
+						"multiline": {
+							"type": "boolean"
+						},
+						"placeholder": {
+							"type": "string"
+						},
+						"type": {
+							"type": "string",
+							"const": "text"
+						}
+					},
+					"required": ["label", "type"],
+					"additionalProperties": false
+				},
+				{
+					"type": "object",
+					"properties": {
+						"description": {
+							"type": "string"
+						},
+						"label": {
+							"type": "string"
+						},
+						"required": {
+							"type": "boolean"
+						},
+						"placeholder": {
+							"type": "string"
+						},
+						"type": {
+							"type": "string",
+							"const": "url"
+						}
+					},
+					"required": ["label", "type"],
+					"additionalProperties": false
+				}
+			]
+		}
+	}
+}
