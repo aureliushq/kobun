@@ -293,14 +293,14 @@ const singletonSchema = z
 	.superRefine((data, ctx) => validateContentSchema(data, ctx, false))
 
 ////////////////////// CONFIGURATION //////////////////////
-const kobunConfigSchema = z.object({
+export const kobunConfigSchema = z.object({
 	basePath: z.string().optional(),
 	collections: z.record(z.string(), collectionSchema),
 	singletons: z.record(z.string(), singletonSchema),
 	version: z.int(),
 })
 
-////////////////////// INPUT FIELD TYPES //////////////////////
+////////////////////// FIELD TYPES //////////////////////
 export type ArrayField = z.infer<typeof arrayFieldSchema>
 export type BooleanField = z.infer<typeof booleanFieldSchema>
 export type DateField = z.infer<typeof dateFieldSchema>
