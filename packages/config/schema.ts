@@ -292,10 +292,12 @@ export const singletonSchema = z
 	})
 	.superRefine((data, ctx) => validateContentSchema(data, ctx, false))
 
+export const versionSchema = z.int()
+
 ////////////////////// CONFIGURATION //////////////////////
 export const kobunConfigSchema = z.object({
 	basePath: z.string().optional(),
 	collections: z.record(z.string(), collectionSchema),
 	singletons: z.record(z.string(), singletonSchema),
-	version: z.int(),
+	version: versionSchema,
 })
