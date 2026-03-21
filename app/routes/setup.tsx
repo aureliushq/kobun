@@ -9,13 +9,13 @@ import {
 import { useState } from "react"
 import { Form, Link, redirect } from "react-router"
 import { getAuth } from "@/auth/auth.server"
+import { deriveConfigStatus, fetchAndParseConfig } from "@/config/github.server"
 import { envContext } from "@/core/context"
 import { dbContext } from "@/db/context"
 import { githubInstallation, project, userInstallation } from "@/db/schema"
-import { ConfigStatus, ProjectStatus } from "@/db/types"
+import { ProjectStatus } from "@/db/types"
 import {
 	getGithubAppInstallUrl,
-	getGithubFileContent,
 	getGithubInstallation,
 	listGithubInstallationRepositories,
 } from "@/github/octokit.server"
@@ -55,7 +55,7 @@ import {
 	ItemTitle,
 } from "@/ui/components/base/item"
 import { ScrollArea } from "@/ui/components/base/scroll-area"
-import { CONFIG_PATHS, PATHS } from "@/ui/lib/constants"
+import { PATHS } from "@/ui/lib/constants"
 import { SetupActionIntents } from "@/ui/lib/types"
 import type { Route } from "./+types/setup"
 
@@ -268,40 +268,13 @@ export async function action({ context, request }: Route.ActionArgs) {
 		// TODO: throw with an error so it can be shown on the frontend
 		if (!selectedRepo) throw redirect(PATHS.SETUP)
 
-		let config:
-			| ({ sha: string; path: string; content: string } & {
-					error: string | null
-					status: ConfigStatus
-			  })
-			| { path?: string; status: ConfigStatus; error?: string | null } = {
-			status: ConfigStatus.MISSING,
-		}
-		for (const configPath of CONFIG_PATHS) {
-			try {
-				const configFile = await getGithubFileContent(
-					env,
-					installation.githubInstallationId,
-					repoOwner,
-					repoName,
-					configPath,
-				)
-				config = { ...configFile, error: null, status: ConfigStatus.PRESENT }
-				break
-			} catch (error) {
-				if (
-					error instanceof Error &&
-					"status" in error &&
-					error.status === 404
-				) {
-					continue
-				}
-				config = {
-					status: ConfigStatus.ERROR,
-					error: error instanceof Error ? error.message : String(error),
-				}
-				break
-			}
-		}
+		const configResult = await fetchAndParseConfig(
+			env,
+			installation.githubInstallationId,
+			repoOwner,
+			repoName,
+		)
+		const configStatus = deriveConfigStatus(configResult)
 
 		const existingProject = await db.query.project.findFirst({
 			where: and(
@@ -322,12 +295,13 @@ export async function action({ context, request }: Route.ActionArgs) {
 				repoName: selectedRepo.name,
 				repoOwnerLogin: selectedRepo.owner.login,
 				repoHtmlUrl: selectedRepo.html_url,
-				configPath: config?.path ?? ".kobun.json",
-				configStatus: config?.path
-					? ConfigStatus.PRESENT
-					: (config?.status ?? ConfigStatus.UNKNOWN),
+				configPath: configResult.filePath ?? ".kobun.json",
+				configStatus,
 				configCheckedAt: new Date(),
-				configError: config?.error ? String(config.error) : "",
+				configError:
+					configResult.errors.length > 0
+						? JSON.stringify(configResult.errors)
+						: "",
 				status: ProjectStatus.ACTIVE,
 			})
 			.onConflictDoUpdate({
@@ -337,12 +311,13 @@ export async function action({ context, request }: Route.ActionArgs) {
 					repoName: selectedRepo.name,
 					repoOwnerLogin: selectedRepo.owner.login,
 					repoHtmlUrl: selectedRepo.html_url,
-					configPath: config?.path ?? ".kobun.json",
-					configStatus: config?.path
-						? ConfigStatus.PRESENT
-						: (config?.status ?? ConfigStatus.UNKNOWN),
+					configPath: configResult.filePath ?? ".kobun.json",
+					configStatus,
 					configCheckedAt: new Date(),
-					configError: config?.error ? String(config.error) : "",
+					configError:
+						configResult.errors.length > 0
+							? JSON.stringify(configResult.errors)
+							: "",
 					status: ProjectStatus.ACTIVE,
 				},
 			})

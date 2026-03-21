@@ -1,14 +1,20 @@
 import { and, eq } from "drizzle-orm"
-import { AlertCircleIcon, ExternalLinkIcon } from "lucide-react"
+import {
+	AlertCircleIcon,
+	ExternalLinkIcon,
+	TriangleAlertIcon,
+} from "lucide-react"
 import { redirect } from "react-router"
 import { getAuth } from "@/auth/auth.server"
+import {
+	type ConfigFetchResult,
+	fetchAndParseConfig,
+} from "@/config/github.server"
 import { envContext } from "@/core/context"
 import { dbContext } from "@/db/context"
 import { project } from "@/db/schema"
-import { ConfigStatus } from "@/db/types"
-import { getGithubFileContent } from "@/github/octokit.server"
 import { Alert, AlertDescription, AlertTitle } from "@/ui/components/base/alert"
-import { CONFIG_PATHS, PATHS } from "@/ui/lib/constants"
+import { PATHS } from "@/ui/lib/constants"
 import type { Route } from "./+types/dashboard"
 
 export async function loader({ context, params, request }: Route.LoaderArgs) {
@@ -31,67 +37,115 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
 
 	if (!currentProject) throw redirect(PATHS.SETUP)
 
-	let config:
-		| ({ sha: string; path: string; content: string } & {
-				error: string | null
-				status: ConfigStatus
-		  })
-		| { path?: string; status: ConfigStatus; error?: string | null } = {
-		status: ConfigStatus.MISSING,
-	}
-	for (const configPath of CONFIG_PATHS) {
-		try {
-			const configFile = await getGithubFileContent(
-				env,
-				currentProject?.githubInstallation?.githubInstallationId,
-				owner,
-				name,
-				configPath,
-			)
-			config = { ...configFile, error: null, status: ConfigStatus.PRESENT }
-			break
-		} catch (error) {
-			if (error instanceof Error && "status" in error && error.status === 404) {
-				continue
-			}
-			config = {
-				status: ConfigStatus.ERROR,
-				error: error instanceof Error ? error.message : String(error),
-			}
-			break
-		}
-	}
+	const config = await fetchAndParseConfig(
+		env,
+		currentProject.githubInstallation.githubInstallationId,
+		owner,
+		name,
+	)
 
 	return { config }
 }
 
-export default function IndexRoute({ loaderData }: Route.ComponentProps) {
-	const config = loaderData.config
+function NoConfigAlert() {
+	return (
+		<Alert variant="destructive">
+			<AlertCircleIcon />
+			<AlertTitle>Let's set up your project</AlertTitle>
+			<AlertDescription>
+				Add a{" "}
+				<code className="wrap-break-words relative inline rounded-md bg-muted px-[0.3rem] py-[0.2rem] font-mono text-[0.8rem] outline-none">
+					.kobun.json
+				</code>{" "}
+				or{" "}
+				<code className="wrap-break-words relative inline rounded-md bg-muted px-[0.3rem] py-[0.2rem] font-mono text-[0.8rem] outline-none">
+					.kobun.yml
+				</code>{" "}
+				file to your repository root to get started.{" "}
+				<a
+					className="inline-flex items-center gap-1"
+					href="https://kobun.io/docs/configuration"
+				>
+					Learn more <ExternalLinkIcon className="size-3.5" />{" "}
+				</a>
+			</AlertDescription>
+		</Alert>
+	)
+}
 
-	if (config.status === ConfigStatus.MISSING) {
+function ParseErrorAlert({
+	filePath,
+	message,
+}: {
+	filePath: string
+	message: string
+}) {
+	return (
+		<Alert variant="destructive">
+			<AlertCircleIcon />
+			<AlertTitle>Failed to parse config</AlertTitle>
+			<AlertDescription>
+				Could not parse{" "}
+				<code className="wrap-break-words relative inline rounded-md bg-muted px-[0.3rem] py-[0.2rem] font-mono text-[0.8rem] outline-none">
+					{filePath}
+				</code>
+				: {message}
+			</AlertDescription>
+		</Alert>
+	)
+}
+
+function ValidationErrorAlert({
+	path,
+	message,
+}: {
+	path: string
+	message: string
+}) {
+	return (
+		<Alert variant="destructive">
+			<TriangleAlertIcon />
+			<AlertTitle>Invalid config</AlertTitle>
+			<AlertDescription>
+				{path && (
+					<code className="wrap-break-words relative mr-1 inline rounded-md bg-muted px-[0.3rem] py-[0.2rem] font-mono text-[0.8rem] outline-none">
+						{path}
+					</code>
+				)}
+				{message}
+			</AlertDescription>
+		</Alert>
+	)
+}
+
+function ConfigAlert({
+	error,
+}: {
+	error: ConfigFetchResult["errors"][number]
+}) {
+	switch (error.code) {
+		case "no_config":
+			return <NoConfigAlert />
+		case "parse_error":
+			return <ParseErrorAlert filePath={error.path} message={error.message} />
+		default:
+			return <ValidationErrorAlert path={error.path} message={error.message} />
+	}
+}
+
+export default function IndexRoute({ loaderData }: Route.ComponentProps) {
+	const { config } = loaderData
+
+	if (config.errors.length > 0) {
 		return (
-			<div className="pt-3">
-				<Alert variant="destructive" className="w-full">
-					<AlertCircleIcon />
-					<AlertTitle>Let's set up your project</AlertTitle>
-					<AlertDescription>
-						Add a{" "}
-						<code className="wrap-break-words relative inline rounded-md bg-muted px-[0.3rem] py-[0.2rem] font-mono text-[0.8rem] outline-none">
-							.kobun.json
-						</code>{" "}
-						or{" "}
-						<code className="wrap-break-words relative inline rounded-md bg-muted px-[0.3rem] py-[0.2rem] font-mono text-[0.8rem] outline-none">
-							.kobun.yml
-						</code>{" "}
-						file to your repository root to get started.{" "}
-						<a
-							className="inline-flex items-center gap-1"
-							href="https://kobun.io/docs/configuration"
-						>
-							Learn more <ExternalLinkIcon className="size-3.5" />{" "}
-						</a>
-					</AlertDescription>
-				</Alert>
+			<div className="flex flex-col gap-3 pt-3">
+				{config.errors.map((error, i) => (
+					<ConfigAlert
+						error={error}
+						// biome-ignore lint/suspicious/noArrayIndexKey: it's fine
+						key={i}
+					/>
+				))}
 			</div>
 		)
 	}
