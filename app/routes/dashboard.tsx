@@ -47,21 +47,13 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
 	return { config }
 }
 
-function NoConfigAlert() {
+function NoConfigAlert({ message }: { message: string }) {
 	return (
 		<Alert variant="destructive">
 			<AlertCircleIcon />
-			<AlertTitle>Let's set up your project</AlertTitle>
+			<AlertTitle>Configuration file missing</AlertTitle>
 			<AlertDescription>
-				Add a{" "}
-				<code className="wrap-break-words relative inline rounded-md bg-muted px-[0.3rem] py-[0.2rem] font-mono text-[0.8rem] outline-none">
-					.kobun.json
-				</code>{" "}
-				or{" "}
-				<code className="wrap-break-words relative inline rounded-md bg-muted px-[0.3rem] py-[0.2rem] font-mono text-[0.8rem] outline-none">
-					.kobun.yml
-				</code>{" "}
-				file to your repository root to get started.{" "}
+				{message}{" "}
 				<a
 					className="inline-flex items-center gap-1"
 					href="https://kobun.io/docs/configuration"
@@ -125,7 +117,7 @@ function ConfigAlert({
 }) {
 	switch (error.code) {
 		case "no_config":
-			return <NoConfigAlert />
+			return <NoConfigAlert message={error.message} />
 		case "parse_error":
 			return <ParseErrorAlert filePath={error.path} message={error.message} />
 		default:

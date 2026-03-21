@@ -56,7 +56,7 @@ export const fetchAndParseConfig = async (
 			{
 				code: "no_config",
 				message:
-					"No configuration file found. Expected .kobun.json, .kobun.yml, or .kobun.yaml at repo root",
+					"No configuration file found at repository root. Expected .kobun.json, .kobun.yml, or .kobun.yaml.",
 				path: "",
 			},
 		],
