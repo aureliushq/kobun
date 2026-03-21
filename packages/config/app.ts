@@ -2,7 +2,7 @@ import type { AppConfig } from "@/types/config"
 
 // export const userRoles = ["premium", "elite"] as const
 
-const config: AppConfig = {
+const appConfig: AppConfig = {
 	core: {
 		supportEmail: "support@kobun.io",
 		websiteUrl: "https://kobun.io",
@@ -12,4 +12,4 @@ const config: AppConfig = {
 	},
 }
 
-export default config
+export default appConfig
