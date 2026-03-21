@@ -37,14 +37,14 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
 
 	if (!currentProject) throw redirect(PATHS.SETUP)
 
-	const config = await fetchAndParseConfig(
+	const configResult = await fetchAndParseConfig(
 		env,
 		currentProject.githubInstallation.githubInstallationId,
 		owner,
 		name,
 	)
 
-	return { config }
+	return { configResult }
 }
 
 function NoConfigAlert({ message }: { message: string }) {
@@ -125,13 +125,13 @@ function ConfigAlert({
 	}
 }
 
-export default function IndexRoute({ loaderData }: Route.ComponentProps) {
-	const { config } = loaderData
+export default function Dashboard({ loaderData }: Route.ComponentProps) {
+	const { config: _config, errors } = loaderData.configResult
 
-	if (config.errors.length > 0) {
+	if (errors.length > 0) {
 		return (
 			<div className="flex flex-col gap-3 pt-3">
-				{config.errors.map((error, i) => (
+				{errors.map((error, i) => (
 					<ConfigAlert
 						error={error}
 						// biome-ignore lint/suspicious/noArrayIndexKey: it's fine

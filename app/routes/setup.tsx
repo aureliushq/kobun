@@ -337,6 +337,50 @@ export async function action({ context, request }: Route.ActionArgs) {
 	}
 }
 
+function NoInstallations() {
+	return (
+		<Empty>
+			<EmptyHeader>
+				<EmptyMedia variant="icon">
+					<FolderGit2Icon />
+				</EmptyMedia>
+				<EmptyTitle>Get started</EmptyTitle>
+				<EmptyDescription>
+					Install the Github App and choose which repositories to grant access
+					to.
+				</EmptyDescription>
+			</EmptyHeader>
+			<EmptyContent className="flex-row justify-center gap-2">
+				<Form method="POST">
+					<Button
+						name="intent"
+						type="submit"
+						value={SetupActionIntents.INSTALL_APP}
+					>
+						Install Github App
+					</Button>
+				</Form>
+			</EmptyContent>
+			<Button
+				variant="link"
+				className="text-muted-foreground"
+				size="sm"
+				nativeButton={false}
+				render={
+					<a
+						// TODO: update this link when website and docs are ready
+						href="https://kobun.io/docs/configuration/getting-started"
+						rel="noopener noreferrer"
+						target="_blank"
+					>
+						Learn More <ArrowUpRightIcon />
+					</a>
+				}
+			/>
+		</Empty>
+	)
+}
+
 export default function Setup({ loaderData }: Route.ComponentProps) {
 	const { accounts, repos, recentProjects, projectRepoIds } = loaderData
 	const [activeInstallationId, setActiveInstallationId] = useState(
@@ -525,48 +569,4 @@ export default function Setup({ loaderData }: Route.ComponentProps) {
 	}
 
 	return <NoInstallations />
-}
-
-export function NoInstallations() {
-	return (
-		<Empty>
-			<EmptyHeader>
-				<EmptyMedia variant="icon">
-					<FolderGit2Icon />
-				</EmptyMedia>
-				<EmptyTitle>Get started</EmptyTitle>
-				<EmptyDescription>
-					Install the Github App and choose which repositories to grant access
-					to.
-				</EmptyDescription>
-			</EmptyHeader>
-			<EmptyContent className="flex-row justify-center gap-2">
-				<Form method="POST">
-					<Button
-						name="intent"
-						type="submit"
-						value={SetupActionIntents.INSTALL_APP}
-					>
-						Install Github App
-					</Button>
-				</Form>
-			</EmptyContent>
-			<Button
-				variant="link"
-				className="text-muted-foreground"
-				size="sm"
-				nativeButton={false}
-				render={
-					<a
-						// TODO: update this link when website and docs are ready
-						href="https://kobun.io/docs/configuration/getting-started"
-						rel="noopener noreferrer"
-						target="_blank"
-					>
-						Learn More <ArrowUpRightIcon />
-					</a>
-				}
-			/>
-		</Empty>
-	)
 }
