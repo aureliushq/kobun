@@ -90,7 +90,7 @@ const baseFieldSchema = z.object({
 	required: z.boolean().optional(),
 })
 
-const booleanFieldSchema = baseFieldSchema.extend({
+export const booleanFieldSchema = baseFieldSchema.extend({
 	componentType: z
 		.enum([BooleanComponentType.CHECKBOX, BooleanComponentType.SWITCH])
 		.optional(),
@@ -98,50 +98,50 @@ const booleanFieldSchema = baseFieldSchema.extend({
 	type: z.literal(FieldType.BOOLEAN),
 })
 
-const dateFieldSchema = baseFieldSchema.extend({
+export const dateFieldSchema = baseFieldSchema.extend({
 	type: z.literal(FieldType.DATE),
 })
 
-const documentFieldSchema = baseFieldSchema.extend({
+export const documentFieldSchema = baseFieldSchema.extend({
 	type: z.literal(FieldType.DOCUMENT),
 })
 
-const imageFieldSchema = baseFieldSchema.extend({
+export const imageFieldSchema = baseFieldSchema.extend({
 	type: z.literal(FieldType.IMAGE),
 })
 
-const multiSelectFieldSchema = baseFieldSchema.extend({
+export const multiSelectFieldSchema = baseFieldSchema.extend({
 	defaultSelected: z.array(selectOptionSchema).optional(),
 	options: z.array(selectOptionSchema),
 	placeholder: z.string().optional(),
 	type: z.literal(FieldType.MULTI_SELECT),
 })
 
-const selectFieldSchema = baseFieldSchema.extend({
+export const selectFieldSchema = baseFieldSchema.extend({
 	defaultSelected: selectOptionSchema.optional(),
 	options: z.array(selectOptionSchema),
 	placeholder: z.string().optional(),
 	type: z.literal(FieldType.SELECT),
 })
 
-const slugFieldSchema = baseFieldSchema.extend({
+export const slugFieldSchema = baseFieldSchema.extend({
 	from: z.string(),
 	type: z.literal(FieldType.SLUG),
 })
 
-const textFieldSchema = baseFieldSchema.extend({
+export const textFieldSchema = baseFieldSchema.extend({
 	defaultValue: z.string().optional(),
 	multiline: z.boolean().optional(),
 	placeholder: z.string().optional(),
 	type: z.literal(FieldType.TEXT),
 })
 
-const urlFieldSchema = baseFieldSchema.extend({
+export const urlFieldSchema = baseFieldSchema.extend({
 	placeholder: z.string().optional(),
 	type: z.literal(FieldType.URL),
 })
 
-const fieldSchema: z.ZodType<IField> = z.lazy(() =>
+export const fieldSchema: z.ZodType<IField> = z.lazy(() =>
 	z.discriminatedUnion("type", [
 		arrayFieldSchema,
 		booleanFieldSchema,
@@ -157,19 +157,19 @@ const fieldSchema: z.ZodType<IField> = z.lazy(() =>
 	]),
 )
 
-const arrayFieldSchema = baseFieldSchema.extend({
+export const arrayFieldSchema = baseFieldSchema.extend({
 	itemLabel: z.string().optional(),
 	items: fieldSchema,
 	type: z.literal(FieldType.ARRAY),
 })
 
-const objectFieldSchema = baseFieldSchema.extend({
+export const objectFieldSchema = baseFieldSchema.extend({
 	fields: z.record(z.string(), fieldSchema),
 	type: z.literal(FieldType.OBJECT),
 })
 
 ////////////////////// FEATURES //////////////////////
-const featureSchema = z.object({
+export const featureSchema = z.object({
 	featured: z.object({ limit: z.number() }).optional(),
 	publish: z.boolean().optional(),
 	timestamps: z.object({
@@ -274,7 +274,7 @@ function validateContentSchema(
 	}
 }
 
-const collectionSchema = z
+export const collectionSchema = z
 	.object({
 		features: featureSchema.optional(),
 		format: z.enum([Format.JSON, Format.MD, Format.MDX, Format.YAML]),
@@ -283,7 +283,7 @@ const collectionSchema = z
 	})
 	.superRefine((data, ctx) => validateContentSchema(data, ctx, true))
 
-const singletonSchema = z
+export const singletonSchema = z
 	.object({
 		features: featureSchema.optional(),
 		format: z.enum([Format.JSON, Format.MD, Format.MDX, Format.YAML]),
@@ -299,23 +299,3 @@ export const kobunConfigSchema = z.object({
 	singletons: z.record(z.string(), singletonSchema),
 	version: z.int(),
 })
-
-////////////////////// FIELD TYPES //////////////////////
-export type ArrayField = z.infer<typeof arrayFieldSchema>
-export type BooleanField = z.infer<typeof booleanFieldSchema>
-export type DateField = z.infer<typeof dateFieldSchema>
-export type DocumentField = z.infer<typeof documentFieldSchema>
-export type ImageField = z.infer<typeof imageFieldSchema>
-export type MultiSelectField = z.infer<typeof multiSelectFieldSchema>
-export type ObjectField = z.infer<typeof objectFieldSchema>
-export type SelectField = z.infer<typeof selectFieldSchema>
-export type SlugField = z.infer<typeof slugFieldSchema>
-export type TextField = z.infer<typeof textFieldSchema>
-export type UrlField = z.infer<typeof urlFieldSchema>
-export type Field = z.infer<typeof fieldSchema>
-
-////////////////////// CONFIGURATION TYPES //////////////////////
-export type Collection = z.infer<typeof collectionSchema>
-export type Features = z.infer<typeof featureSchema>
-export type KobunConfig = z.infer<typeof kobunConfigSchema>
-export type Singleton = z.infer<typeof singletonSchema>
