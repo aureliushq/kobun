@@ -173,8 +173,8 @@ export const featureSchema = z.object({
 	featured: z.object({ limit: z.number() }).optional(),
 	publish: z.boolean().optional(),
 	timestamps: z.object({
-		createdAt: z.string().optional(),
-		updatedAt: z.string().optional(),
+		createdAt: z.boolean().optional(),
+		updatedAt: z.boolean().optional(),
 	}),
 })
 
@@ -298,6 +298,6 @@ export const versionSchema = z.int()
 export const kobunConfigSchema = z.object({
 	basePath: z.string().optional(),
 	collections: z.record(z.string(), collectionSchema),
-	singletons: z.record(z.string(), singletonSchema),
+	singletons: z.record(z.string(), singletonSchema).optional(),
 	version: versionSchema,
 })
