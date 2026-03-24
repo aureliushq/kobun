@@ -63,6 +63,9 @@ jobs:
       - name: 📋 Copy environment variables
         run: bun run setup:env
 
+      - name: 🔧 Generate schema
+        run: bun run generate:schema
+
       - name: ʦ Types check
         run: bun run check:types
         env:
@@ -204,6 +207,9 @@ jobs:
 
       - name: 📦 Install dependencies
         run: bun install --frozen-lockfile
+
+      - name: 🔧 Generate schema
+        run: bun run generate:schema
 
       - name: 🛠️ Build
         run: CLOUDFLARE_ENV=${{ env.APP_ENV }} bun run build
