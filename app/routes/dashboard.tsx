@@ -16,6 +16,7 @@ import { project } from "@/db/schema"
 import { Alert, AlertDescription, AlertTitle } from "@/ui/components/base/alert"
 import { PATHS } from "@/ui/lib/constants"
 import type { Route } from "./+types/dashboard"
+import { H2 } from "@/ui/components/base/typegraphy"
 
 export async function loader({ context, params, request }: Route.LoaderArgs) {
 	const db = context.get(dbContext)
@@ -44,7 +45,7 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
 		name,
 	)
 
-	return { configResult }
+	return { configResult, user: session.user }
 }
 
 function NoConfigAlert({ message }: { message: string }) {
@@ -126,6 +127,7 @@ function ConfigAlert({
 }
 
 export default function Dashboard({ loaderData }: Route.ComponentProps) {
+	const { user } = loaderData
 	const { config: _config, errors } = loaderData.configResult
 
 	if (errors.length > 0) {
@@ -142,5 +144,5 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
 		)
 	}
 
-	return <div>Welcome!</div>
+	return <H2>{`Welcome ${user.name}!`}</H2>
 }
