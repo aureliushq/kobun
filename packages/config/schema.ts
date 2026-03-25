@@ -35,7 +35,7 @@ type BaseField = {
 type IField =
 	| (BaseField & {
 			itemLabel?: string
-			items: IField
+			items: IField[]
 			type: FieldType.ARRAY
 	  })
 	| (BaseField & {
@@ -159,7 +159,7 @@ export const fieldSchema: z.ZodType<IField> = z.lazy(() =>
 
 export const arrayFieldSchema = baseFieldSchema.extend({
 	itemLabel: z.string().optional(),
-	items: fieldSchema,
+	items: z.array(fieldSchema),
 	type: z.literal(FieldType.ARRAY),
 })
 
