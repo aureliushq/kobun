@@ -1,4 +1,4 @@
-import { GithubIcon, Moon, Sun } from "lucide-react"
+import { Moon, Sun } from "lucide-react"
 import { Link } from "react-router"
 
 import {
@@ -36,15 +36,6 @@ const DashboardHeader = () => {
 				</BreadcrumbList>
 			</Breadcrumb>
 			<section className="flex items-center gap-2">
-				<a
-					href="https://github.com/aureliushq/kobun"
-					rel="noreferrer"
-					target="_blank"
-				>
-					<Button size="icon" variant="ghost">
-						<GithubIcon />
-					</Button>
-				</a>
 				<DropdownMenu>
 					<DropdownMenuTrigger render={<Button variant="ghost" size="icon" />}>
 						<Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />

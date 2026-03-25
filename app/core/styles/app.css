@@ -167,4 +167,7 @@
 	body {
 		@apply bg-background text-foreground;
 	}
+	.sidebar-menu-button {
+		@apply cursor-pointer;
+	}
 }

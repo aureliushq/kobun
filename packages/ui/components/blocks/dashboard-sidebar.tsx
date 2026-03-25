@@ -3,7 +3,9 @@ import {
 	CheckIcon,
 	ChevronsUpDownIcon,
 	ExternalLinkIcon,
+	GithubIcon,
 	HouseIcon,
+	InfoIcon,
 	LogOutIcon,
 	SettingsIcon,
 } from "lucide-react"
@@ -37,6 +39,7 @@ import {
 	SidebarMenu,
 	SidebarMenuButton,
 	SidebarMenuItem,
+	SidebarSeparator,
 	useSidebar,
 } from "@/ui/components/base/sidebar"
 import { Logo, LogoDark } from "@/ui/components/logo"
@@ -134,7 +137,7 @@ const DashboardSidebar = ({
 					</DropdownMenuContent>
 				</DropdownMenu>
 			</SidebarHeader>
-			<SidebarContent>
+			<SidebarContent className="py-2">
 				<SidebarGroup>
 					<SidebarGroupContent>
 						<SidebarMenu>
@@ -158,10 +161,25 @@ const DashboardSidebar = ({
 				<SidebarGroup>
 					<SidebarGroupLabel>Singletons</SidebarGroupLabel>
 				</SidebarGroup>
-			</SidebarContent>
-			<SidebarFooter>
-				<SidebarGroup>
+				<SidebarGroup className="mt-auto">
 					<SidebarMenu>
+						<SidebarMenuItem>
+							<SidebarMenuButton
+								render={
+									// biome-ignore lint/a11y/useAnchorContent: it's fine
+									<a
+										className="group/docs sidebar-menu-button"
+										href="https://github.com/aureliushq/kobun"
+										rel="noreferrer"
+										target="_blank"
+									/>
+								}
+							>
+								<GithubIcon />
+								<span className="grow">Github</span>
+								<ExternalLinkIcon className="hidden transition-all duration-100 group-hover/docs:inline" />
+							</SidebarMenuButton>
+						</SidebarMenuItem>
 						<SidebarMenuItem>
 							<SidebarMenuButton
 								render={
@@ -180,13 +198,25 @@ const DashboardSidebar = ({
 							</SidebarMenuButton>
 						</SidebarMenuItem>
 						<SidebarMenuItem>
+							<SidebarMenuButton className="sidebar-menu-button">
+								<InfoIcon />
+								<span className="grow">About</span>
+								<span className="font-mono text-[0.6rem]">v0.1.0</span>
+								<span className="h-2 w-2 rounded-full bg-green-500" />
+							</SidebarMenuButton>
+						</SidebarMenuItem>
+					</SidebarMenu>
+				</SidebarGroup>
+			</SidebarContent>
+			<SidebarSeparator className="ml-0" />
+			<SidebarFooter className="px-0">
+				<SidebarGroup>
+					<SidebarMenu>
+						<SidebarMenuItem>
 							<SidebarMenuButton
-								isActive={location.pathname === `${basePath}/${PATHS.SETTINGS}`}
+								isActive={location.pathname === PATHS.SETTINGS}
 								render={
-									<Link
-										className="sidebar-menu-button"
-										to={`${basePath}/${PATHS.SETTINGS}`}
-									/>
+									<Link className="sidebar-menu-button" to={PATHS.SETTINGS} />
 								}
 							>
 								<SettingsIcon />
