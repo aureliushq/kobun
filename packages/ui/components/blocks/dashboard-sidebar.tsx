@@ -224,7 +224,7 @@ const DashboardSidebar = ({
 							</SidebarMenuButton>
 						</SidebarMenuItem>
 						<SidebarMenuItem>
-							<Form method="POST" action={PATHS.BASE}>
+							<Form method="POST" action="/api/dashboard-actions">
 								<SidebarMenuButton
 									className="sidebar-menu-button"
 									name="intent"

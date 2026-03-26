@@ -1,5 +1,5 @@
-import { Moon, Sun } from "lucide-react"
-import { Link } from "react-router"
+import { Moon, RefreshCcwIcon, Sun } from "lucide-react"
+import { Form, Link, useParams } from "react-router"
 
 import {
 	Breadcrumb,
@@ -16,11 +16,18 @@ import {
 	DropdownMenuTrigger,
 } from "@/ui/components/base/dropdown-menu"
 import { SIDEBAR_WIDTH } from "@/ui/components/base/sidebar"
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@/ui/components/base/tooltip"
 import { useTheme } from "@/ui/hooks/use-theme"
+import { DashboardActionIntents } from "@/ui/lib/types"
 
 const DashboardHeader = () => {
 	const basePath = ""
 	const { theme, setTheme } = useTheme()
+	const params = useParams()
 
 	return (
 		<header
@@ -36,6 +43,32 @@ const DashboardHeader = () => {
 				</BreadcrumbList>
 			</Breadcrumb>
 			<section className="flex items-center gap-2">
+				<Tooltip>
+					<TooltipTrigger
+						render={
+							<Form
+								action="/api/dashboard-actions"
+								method="POST"
+								navigate={false}
+							>
+								<input type="hidden" name="owner" value={params.owner} />
+								<input type="hidden" name="name" value={params.name} />
+								<Button
+									name="intent"
+									size="icon"
+									type="submit"
+									value={DashboardActionIntents.REFRESH_CONFIGURATION}
+									variant="ghost"
+								>
+									<RefreshCcwIcon />
+								</Button>
+							</Form>
+						}
+					/>
+					<TooltipContent>
+						<p>Refresh Configuration</p>
+					</TooltipContent>
+				</Tooltip>
 				<DropdownMenu>
 					<DropdownMenuTrigger render={<Button variant="ghost" size="icon" />}>
 						<Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />

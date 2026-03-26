@@ -14,9 +14,9 @@ import { envContext } from "@/core/context"
 import { dbContext } from "@/db/context"
 import { project } from "@/db/schema"
 import { Alert, AlertDescription, AlertTitle } from "@/ui/components/base/alert"
+import { H2 } from "@/ui/components/base/typegraphy"
 import { PATHS } from "@/ui/lib/constants"
 import type { Route } from "./+types/dashboard"
-import { H2 } from "@/ui/components/base/typegraphy"
 
 export async function loader({ context, params, request }: Route.LoaderArgs) {
 	const db = context.get(dbContext)
@@ -130,19 +130,23 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
 	const { user } = loaderData
 	const { config: _config, errors } = loaderData.configResult
 
-	if (errors.length > 0) {
-		return (
-			<div className="flex flex-col gap-3 pt-3">
-				{errors.map((error, i) => (
-					<ConfigAlert
-						error={error}
-						// biome-ignore lint/suspicious/noArrayIndexKey: it's fine
-						key={i}
-					/>
-				))}
-			</div>
-		)
-	}
-
-	return <H2>{`Welcome ${user.name}!`}</H2>
+	return (
+		<>
+			<H2>{`Welcome ${user.name}!`}</H2>
+			{errors.length > 0 && (
+				<>
+					<p>We found the following errors in your configuration:</p>
+					<div className="flex flex-col gap-3 pt-3">
+						{errors.map((error, i) => (
+							<ConfigAlert
+								error={error}
+								// biome-ignore lint/suspicious/noArrayIndexKey: it's fine
+								key={i}
+							/>
+						))}
+					</div>
+				</>
+			)}
+		</>
+	)
 }
