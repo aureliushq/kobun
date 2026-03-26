@@ -18,6 +18,7 @@ export default [
 	]),
 	...prefix("api", [
 		route("auth/*", "routes/api.auth.$.ts"),
+		route("dashboard-actions", "routes/api.dashboard-actions.ts"),
 		route("set-theme", "routes/api.set-theme.ts"),
 	]),
 	route("/component-examples", "routes/example.tsx"),
