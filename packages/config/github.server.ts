@@ -1,4 +1,8 @@
-import { ConfigStatus } from "@/db/types"
+import { eq } from "drizzle-orm"
+import type { DrizzleD1Database } from "drizzle-orm/d1"
+import invariant from "tiny-invariant"
+import * as schema from "@/db/schema"
+import { ConfigStatus, type Project, ProjectStatus } from "@/db/types"
 import { getGithubFileContent } from "@/github/octokit.server"
 import type { InstallationID } from "@/types/github"
 import { CONFIG_PATHS } from "@/ui/lib/constants"
@@ -63,4 +67,44 @@ export const fetchAndParseConfig = async (
 		filePath: null,
 		sha: null,
 	}
+}
+
+export const syncProjectConfig = async (
+	db: DrizzleD1Database<typeof schema>,
+	env: Env,
+	project: Project,
+): Promise<Project> => {
+	const installation = await db.query.githubInstallation.findFirst({
+		where: eq(schema.githubInstallation.id, project.installationId),
+	})
+	invariant(installation, "installation not found")
+
+	const configResult = await fetchAndParseConfig(
+		env,
+		installation.githubInstallationId,
+		project.repoOwnerLogin,
+		project.repoName,
+	)
+	const configStatus = deriveConfigStatus(configResult)
+
+	invariant(project.id, "project id is required")
+
+	const [updatedProject] = await db
+		.update(schema.project)
+		.set({
+			configCheckedAt: new Date(),
+			configData: JSON.stringify(configResult.config),
+			configError:
+				configResult.errors.length > 0
+					? JSON.stringify(configResult.errors)
+					: "",
+			configPath: configResult.filePath ?? ".kobun.json",
+			configSha: configResult.sha,
+			configStatus,
+			status: ProjectStatus.ACTIVE,
+		})
+		.where(eq(schema.project.id, project.id))
+		.returning()
+
+	return updatedProject
 }
