@@ -48,7 +48,12 @@
 		"test:e2e": "playwright test --project=e2e",
 		"test:e2e:ui": "playwright test --ui --project=e2e",
 		"test:smoke": "playwright test --project=smoke",
-		"test:watch": "bun run db:export && vitest watch"
+		"test:watch": "bun run db:export && vitest watch",
+		"changeset": "changeset",
+		"version:release": "changeset version",
+		"release:status": "changeset status",
+		"release:prepare": "./scripts/release-prepare.sh",
+		"release:publish": "./scripts/release-publish.sh"
 	},
 	"dependencies": {
 		"@base-ui/react": "1.2.0",
@@ -72,6 +77,7 @@
 	"devDependencies": {
 		"@better-auth/cli": "1.4.21",
 		"@biomejs/biome": "2.3.10",
+		"@changesets/cli": "2.30.0",
 		"@cloudflare/vite-plugin": "1.17.1",
 		"@dotenvx/dotenvx": "1.51.4",
 		"@faker-js/faker": "10.1.0",
