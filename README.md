@@ -1,158 +1,136 @@
-# PageZERO
+# Kobun
 
-An open-source TypeScript starter for full-stack web applications built for Cloudflare.
+**Git-based CMS for content and static sites.**
 
-Guiding principles:
+[Website](https://kobun.io) · [Hosted App](https://app.kobun.io) · [GitHub](https://github.com/aureliushq/kobun)
 
-- Easy to learn
-- Fast to build with
-- Pleasure to work with
-- Cheap to maintain
+---
 
-## 🔧 Prerequisites
+## How It Works
 
-Before getting started, make sure you have the following installed:
+1. **Sign in** with GitHub.
+2. **Install** the Kobun GitHub App on your user or organization account.
+3. Kobun **lists** the repositories you've granted access to.
+4. **Select a repository** to create a project.
+5. Kobun looks for a **config file** (`.kobun.json` or `.kobun.yml`) in the repository root.
 
-- [**Node.js**](https://nodejs.org/): Version >= 24
-- [**Bun**](https://bun.com/): Version >= 1.3
+## Tech Stack
 
-> [!TIP]
-> For PageZERO, [asdf](https://asdf-vm.com/) is the recommended runtime version manager.
-> After asdf setup, to automatically install proper asdf plugins and versions of Node.js and Bun, run in your project directory:
-> ```sh
-> asdf plugin add nodejs && asdf plugin add bun && asdf install
-> ``` 
-> Alternatively, if you are in a rush and have Node.js already installed, you can quickly install Bun with `npm install -g bun`.
+- **Framework** — React Router v7 + Vite + React 19 + TypeScript
+- **Runtime** — Cloudflare Workers + D1 (SQLite)
+- **Auth** — Better Auth with GitHub OAuth
+- **GitHub Integration** — Octokit + GitHub App
+- **ORM** — Drizzle ORM
+- **UI** — Tailwind CSS v4 + shadcn/ui + Base UI
+- **Tooling** — Bun + Biome + Vitest + Playwright
 
+## Prerequisites
 
-## ⚡️ Quick start
-
-In 4 steps:
-
-1. `bun create pagezero-dev/pagezero <your-project-name>`
-1. `cd <your-project-name>`
-1. `bun run setup`
-1. `bun run dev`
-
-You should be able to access the http://localhost:3000/ development page now.
+- Node.js >= 24.13.0
+- Bun >= 1.3.8
 
 > [!NOTE]
-> `bun create` will:
-> - download the template
-> - execute `bun install`
-> - initialize a fresh Git repo
+> A `.tool-versions` file is included for use with [mise](https://mise.jdx.dev/) or [asdf](https://asdf-vm.com/). Run `mise install` or `asdf install` to install the correct versions.
 
-## 🧑‍💻 The stack
+## Quick Start
 
-Building on strong foundations:
-
-_Core:_
-
-- 🚀 [Vite](https://vite.dev/) + [React](https://react.dev/) + [React Router v7](https://reactrouter.com/)
-- ☁️ [Cloudflare Workers](https://workers.cloudflare.com/) (hosting) + [Cloudflare D1](https://www.cloudflare.com/en-au/developer-platform/products/d1/) (database)
-- 🏗️ [TypeScript](https://www.typescriptlang.org/) + [TailwindCSS](https://tailwindcss.com/) + [Drizzle ORM](https://orm.drizzle.team/)
-
-_Tooling:_
-
-- ⚡ [Bun](https://bun.com/) (package manager)
-- ✨ [Biome](https://biomejs.dev/) (code quality)
-- ✅ [GitHub Actions](https://github.com/features/actions) (CI/CD)
-- 🧪 [Vitest](https://vitest.dev/) + [Playwright](https://playwright.dev/) (testing)
-- 📖 [Shadcn](https://ui.shadcn.com/) + [Storybook](https://storybook.js.org/) (UI)
-
-## ✨ Scripts
-
-Essential bun scripts:
-
-- `bun run setup` - performs bun install, sets up basic env vars, database and Playwright browser drivers
-- `bun run dev` - boots the development server
-- `bun run preview` - builds the app and boots the compiled version
-- `bun run test` - executes unit tests
-- `bun run test:watch` - run unit tests in watch mode
-- `bun run test:e2e:ui` - executes browser tests in UI mode, perfect for development
-- `bun run check` - code quality check (linting and formatting)
-- `bun run check:types` - TypeScript types check
-- `bun run check:fix` - fix linting and formatting issues
-- `bun run storybook` - boots Storybook
-- `bun run doctor` - runs all basic sanity checks: format, lint, types check and unit tests
-
-## 🚀 Deployment
-
-Deployment in PageZERO happens through the GitHub Actions CI/CD pipeline. That means once the pipeline is set,
-every merge to the `main` branch will automatically trigger deployment to Cloudflare Workers and database
-migration for Cloudflare D1.
-
-Additionally, every PR will trigger "preview deployment", so you can access the version of your app for every PR. More about preview urls: https://developers.cloudflare.com/workers/configuration/previews/.
-
-The database for preview deployments is shared. If you wish to reset it, you can manually trigger the "Reset preview database" workflow in GitHub Actions.
-
-OK, now to make it all work, we must go through a few setup steps...
-
-### Cloudflare configuration
+```bash
+bun install
+cp .env.example .env
+cp .dev.vars.example .dev.vars
+bun run db:setup
+bun run dev
+```
 
 > [!IMPORTANT]
-> Steps below require a [Cloudflare](https://www.cloudflare.com/) account.
+> Fill in the values in `.env` and `.dev.vars` before using authentication or GitHub features. See the [Environment Variables](#environment-variables) section below.
 
-1. Login through `bunx wrangler login`
+The local app runs at [http://localhost:5173](http://localhost:5173).
 
-1. Create production and preview database:
-   ```sh
-   bunx wrangler d1 create <project-name>-production
-   bunx wrangler d1 create <project-name>-preview
-   ```
+## Environment Variables
 
-1. Update `wrangler.json` with: project name, database names and returned `database_id`s
+### `.env` — Local scripts and remote DB migrations
 
-1. Perform manual deployments to create Cloudflare Workers:
-   ```sh
-   bun run deploy:production
-   bun run deploy:preview
-   ```
+| Variable | Description |
+| --- | --- |
+| `BETTER_AUTH_URL` | Base URL of the app (default: `http://localhost:5173`) |
+| `BETTER_AUTH_SECRET` | Auth secret. Generate with `openssl rand -base64 32` |
+| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare account ID (needed for remote DB operations) |
+| `CLOUDFLARE_DATABASE_ID` | Cloudflare D1 database ID (needed for remote DB operations) |
+| `CLOUDFLARE_API_TOKEN` | Cloudflare API token (needed for remote DB operations) |
 
-### Github configuration
+### `.dev.vars` — Runtime secrets for the local Wrangler dev server
 
-> [!IMPORTANT]
-> Steps below require [GitHub CLI](https://cli.github.com/).
-> For Mac, you can set it up with: `brew install gh`.
+| Variable | Description |
+| --- | --- |
+| `BETTER_AUTH_URL` | Base URL (`http://localhost:5173`) |
+| `BETTER_AUTH_SECRET` | Auth secret (same as `.env`) |
+| `GITHUB_CLIENT_ID` | GitHub App client ID |
+| `GITHUB_CLIENT_SECRET` | GitHub App client secret |
+| `GITHUB_APP_ID` | GitHub App ID |
+| `GITHUB_APP_PRIVATE_KEY` | GitHub App private key (single-line PEM) |
+| `GITHUB_APP_WEBHOOK_SECRET` | GitHub App webhook secret |
+| `GITHUB_APP_SLUG` | GitHub App slug (URL-friendly name) |
 
-1.  Login through `gh auth login`
+> [!TIP]
+> GitHub App private keys are multi-line PEM files. Convert to a single-line string for `.dev.vars`:
+>
+> ```bash
+> awk 'NR==1{printf "%s",$0; next}{printf "\\n%s",$0}' ~/path-to/your-app.private-key.pem | pbcopy
+> ```
 
-1.  Create a GitHub repo for the project and push all changes
+## Scripts
 
-    ```sh
-    cd <project-name>
-    gh repo create <project-name> --private --source=. --remote=origin --push
-    ```
+### Development
 
-1.  Add the following repository variable:
+| Command | Description |
+| --- | --- |
+| `bun run dev` | Start the development server |
+| `bun run preview` | Build and preview the production build |
+| `bun run storybook` | Start Storybook |
 
-    ```sh
-    gh variable set CLOUDFLARE_ACCOUNT_ID --body "<your-cloudflare-account-id>"
-    ```
+### Quality
 
-    > Cloudflare account ID can be obtained through `bunx wrangler whoami` command.
+| Command | Description |
+| --- | --- |
+| `bun run check` | Lint and format check (Biome) |
+| `bun run check:fix` | Auto-fix lint and format issues |
+| `bun run check:types` | TypeScript type check |
+| `bun run doctor` | Run all checks + tests |
 
-    > You can browse variables by going to the GitHub UI "Settings / Secrets and variables / Actions" for your repo
-    > or by executing `gh variable list`.
+### Database
 
-1.  Obtain Cloudflare API token
+| Command | Description |
+| --- | --- |
+| `bun run db:setup` | Reset and reinitialize local database |
+| `bun run db:generate` | Generate Drizzle migrations after schema changes |
+| `bun run db:migrate` | Apply migrations locally |
+| `bun run db:studio` | Open Drizzle Studio |
 
-    > Cloudflare API token can be obtained through the Cloudflare dashboard under "Manage account / Account API Tokens". You have to create the token there. The token will require the following permissions: D1:Edit, Workers Scripts:Edit.
+### Deployment
 
-1.  Add the following repository secret:
+| Command | Description |
+| --- | --- |
+| `bun run deploy:preview` | Deploy to preview environment |
+| `bun run deploy:production` | Deploy to production |
 
-    ```sh
-    gh secret set CLOUDFLARE_API_TOKEN
-    gh secret set CLOUDFLARE_API_TOKEN --app dependabot
-    ```
+## Self-Hosting
 
-    > Secret for Dependabot needs to be set separately. Otherwise Dependabot PRs will not perform preview deploys.
+Kobun is designed to run on Cloudflare Workers with D1. Self-hosting requires a Cloudflare account, a GitHub App, and some configuration. See [DEPLOYMENT.md](./DEPLOYMENT.md) for the full guide.
 
-    > You can browse secrets by going to the GitHub UI "Settings / Secrets and variables / Actions" for your repo
-    > or by executing `gh secret list`.
+## Bug Reports and Feature Requests
 
-### All done! 🎉
+Use [GitHub Issues](https://github.com/aureliushq/kobun/issues) for bug reports and feature requests. Outside pull requests are not accepted at this time.
 
-Now, you can test everything out. Create a PR in your project GitHub repository. You should notice an action in the "Actions" section being triggered. If the basic checks pass, the workflow will perform preview deployment to Cloudflare workers and database migration on your preview database. After deployment, the "View deployment" button should appear in your PR, with a link to your PR "preview" deployment.
+## License
 
-When you merge PR to "main", production deployment will happen, and database migration will be performed on your production DB.
+[FSL-1.1-MIT](./LICENSE) (Functional Source License, Version 1.1, MIT Future License).
+
+- Source-available and free to use, modify, and self-host.
+- Competing hosted services are not permitted.
+- Each version converts to MIT after 2 years.
+- See [LICENSE](./LICENSE) for full terms.
+
+---
+
+Built by [Ilango Rajagopal](https://github.com/i4o-oss).
