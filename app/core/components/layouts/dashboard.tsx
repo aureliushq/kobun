@@ -31,7 +31,46 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
 		(project) => project.repoOwnerLogin === owner && project.repoName === name,
 	)
 
-	return { activeProject, projects, user: session.user }
+	const currentVersion = KOBUN_VERSION
+	const requestUrl = new URL(request.url)
+	const isHosted = requestUrl.hostname === new URL(env.KOBUN_APP_URL).hostname
+
+	let latestVersion = currentVersion
+	let hasUpdate = false
+	let releaseUrl = ""
+	let changelogUrl = ""
+
+	try {
+		const manifestRes = await fetch(`${env.KOBUN_APP_URL}/manifest.json`)
+		if (manifestRes.ok) {
+			const manifest = (await manifestRes.json()) as {
+				version: string
+				releaseUrl: string
+				changelogUrl: string
+			}
+			latestVersion = manifest.version
+			hasUpdate = manifest.version !== currentVersion
+			releaseUrl = manifest.releaseUrl
+			changelogUrl = manifest.changelogUrl
+		}
+	} catch {
+		// Manifest fetch failed — silently continue with defaults
+	}
+
+	return {
+		activeProject,
+		projects,
+		user: session.user,
+		versionInfo: {
+			currentVersion,
+			latestVersion,
+			hasUpdate,
+			isHosted,
+			releaseUrl,
+			changelogUrl,
+			homeUrl: env.KOBUN_HOME_URL,
+		},
+	}
 }
 
 export async function action({ context, request }: Route.ActionArgs) {
@@ -57,6 +96,7 @@ const DashboardLayout = ({ loaderData }: Route.ComponentProps) => {
 					loaderData.activeProject as ProjectWithGithubInstallation
 				}
 				projects={loaderData.projects}
+				versionInfo={loaderData.versionInfo}
 			/>
 			<main className="flex h-screen w-screen flex-col divide-y">
 				<DashboardHeader />

@@ -9,6 +9,7 @@ import {
 	LogOutIcon,
 	SettingsIcon,
 } from "lucide-react"
+import { useState } from "react"
 import { Form, Link, useLocation } from "react-router"
 
 import type { ProjectWithGithubInstallation } from "@/db/types"
@@ -42,6 +43,9 @@ import {
 	SidebarSeparator,
 	useSidebar,
 } from "@/ui/components/base/sidebar"
+import AboutDialog, {
+	type VersionInfo,
+} from "@/ui/components/blocks/about-dialog"
 import { Logo, LogoDark } from "@/ui/components/logo"
 import { useTheme } from "@/ui/hooks/use-theme"
 import { PATHS } from "@/ui/lib/constants"
@@ -50,11 +54,14 @@ import { DashboardActionIntents } from "@/ui/lib/types"
 const DashboardSidebar = ({
 	activeProject,
 	projects,
+	versionInfo,
 }: {
 	activeProject: ProjectWithGithubInstallation
 	projects: ProjectWithGithubInstallation[]
+	versionInfo: VersionInfo
 }) => {
 	const { isMobile } = useSidebar()
+	const [aboutOpen, setAboutOpen] = useState(false)
 	const basePath = ""
 
 	const location = useLocation()
@@ -65,181 +72,195 @@ const DashboardSidebar = ({
 	const pathname = `/${repoSlug}`
 
 	return (
-		<Sidebar>
-			<SidebarHeader>
-				<div className="flex items-center justify-between px-2">
-					<Link
-						className="flex h-12 w-full items-center justify-start"
-						to={basePath}
-					>
-						{resolvedTheme === "light" ? <Logo /> : <LogoDark />}
-					</Link>
-					<Badge className="font-mono text-[0.6rem] uppercase">Alpha</Badge>
-				</div>
+		<>
+			<Sidebar>
+				<SidebarHeader>
+					<div className="flex items-center justify-between px-2">
+						<Link
+							className="flex h-12 w-full items-center justify-start"
+							to={basePath}
+						>
+							{resolvedTheme === "light" ? <Logo /> : <LogoDark />}
+						</Link>
+						<Badge className="font-mono text-[0.6rem] uppercase">Alpha</Badge>
+					</div>
 
-				<DropdownMenu>
-					<DropdownMenuTrigger
-						render={
-							<Button className="h-8 justify-between" variant="outline" />
-						}
-					>
-						<div className="flex items-center gap-2">
-							<Avatar className="size-4">
-								<AvatarImage
-									src={activeProject.githubInstallation.targetAvatarUrl}
-									alt={`${activeProject.githubInstallation.targetLogin}'s avatar`}
-								/>
-								<AvatarFallback>
-									{activeProject.githubInstallation.targetLogin.charAt(0)}
-								</AvatarFallback>
-							</Avatar>
-							{repoSlug}
-						</div>
-						<ChevronsUpDownIcon />
-					</DropdownMenuTrigger>
-					<DropdownMenuContent
-						align="start"
-						className="w-52"
-						side={isMobile ? "bottom" : "right"}
-						sideOffset={4}
-					>
-						<DropdownMenuGroup>
-							<DropdownMenuLabel>Projects</DropdownMenuLabel>
-							{projects.map((project, _index) => (
-								<DropdownMenuItem key={project.id}>
-									<Link
-										className="flex w-full items-center justify-between"
-										to={`/${project.repoOwnerLogin}/${project.repoName}`}
-									>
-										<div className="flex items-center gap-2">
-											<Avatar className="size-4">
-												<AvatarImage
-													src={project.githubInstallation.targetAvatarUrl}
-													alt={`${project.githubInstallation.targetLogin}'s avatar`}
-												/>
-												<AvatarFallback>
-													{project.githubInstallation.targetLogin.charAt(0)}
-												</AvatarFallback>
-											</Avatar>
-											{`${project.repoOwnerLogin}/${project.repoName}`}
-										</div>
-										{activeProject.id === project.id && <CheckIcon />}
-									</Link>
+					<DropdownMenu>
+						<DropdownMenuTrigger
+							render={
+								<Button className="h-8 justify-between" variant="outline" />
+							}
+						>
+							<div className="flex items-center gap-2">
+								<Avatar className="size-4">
+									<AvatarImage
+										src={activeProject.githubInstallation.targetAvatarUrl}
+										alt={`${activeProject.githubInstallation.targetLogin}'s avatar`}
+									/>
+									<AvatarFallback>
+										{activeProject.githubInstallation.targetLogin.charAt(0)}
+									</AvatarFallback>
+								</Avatar>
+								{repoSlug}
+							</div>
+							<ChevronsUpDownIcon />
+						</DropdownMenuTrigger>
+						<DropdownMenuContent
+							align="start"
+							className="w-52"
+							side={isMobile ? "bottom" : "right"}
+							sideOffset={4}
+						>
+							<DropdownMenuGroup>
+								<DropdownMenuLabel>Projects</DropdownMenuLabel>
+								{projects.map((project, _index) => (
+									<DropdownMenuItem key={project.id}>
+										<Link
+											className="flex w-full items-center justify-between"
+											to={`/${project.repoOwnerLogin}/${project.repoName}`}
+										>
+											<div className="flex items-center gap-2">
+												<Avatar className="size-4">
+													<AvatarImage
+														src={project.githubInstallation.targetAvatarUrl}
+														alt={`${project.githubInstallation.targetLogin}'s avatar`}
+													/>
+													<AvatarFallback>
+														{project.githubInstallation.targetLogin.charAt(0)}
+													</AvatarFallback>
+												</Avatar>
+												{`${project.repoOwnerLogin}/${project.repoName}`}
+											</div>
+											{activeProject.id === project.id && <CheckIcon />}
+										</Link>
+									</DropdownMenuItem>
+								))}
+								<DropdownMenuSeparator />
+							</DropdownMenuGroup>
+							<DropdownMenuGroup>
+								<DropdownMenuItem>
+									<Link to={PATHS.SETUP}>Create New Project</Link>
 								</DropdownMenuItem>
-							))}
-							<DropdownMenuSeparator />
-						</DropdownMenuGroup>
-						<DropdownMenuGroup>
-							<DropdownMenuItem>
-								<Link to={PATHS.SETUP}>Create New Project</Link>
-							</DropdownMenuItem>
-						</DropdownMenuGroup>
-					</DropdownMenuContent>
-				</DropdownMenu>
-			</SidebarHeader>
-			<SidebarContent className="py-2">
-				<SidebarGroup>
-					<SidebarGroupContent>
+							</DropdownMenuGroup>
+						</DropdownMenuContent>
+					</DropdownMenu>
+				</SidebarHeader>
+				<SidebarContent className="py-2">
+					<SidebarGroup>
+						<SidebarGroupContent>
+							<SidebarMenu>
+								<SidebarMenuItem>
+									<SidebarMenuButton
+										isActive={location.pathname === `/${repoSlug}`}
+										render={
+											<Link className="sidebar-menu-button" to={pathname} />
+										}
+									>
+										<HouseIcon />
+										Dashboard
+									</SidebarMenuButton>
+								</SidebarMenuItem>
+							</SidebarMenu>
+						</SidebarGroupContent>
+					</SidebarGroup>
+					<SidebarGroup>
+						<SidebarGroupLabel>Collections</SidebarGroupLabel>
+					</SidebarGroup>
+					<SidebarGroup>
+						<SidebarGroupLabel>Singletons</SidebarGroupLabel>
+					</SidebarGroup>
+					<SidebarGroup className="mt-auto">
 						<SidebarMenu>
 							<SidebarMenuItem>
 								<SidebarMenuButton
-									isActive={location.pathname === `/${repoSlug}`}
 									render={
-										<Link className="sidebar-menu-button" to={pathname} />
+										// biome-ignore lint/a11y/useAnchorContent: it's fine
+										<a
+											className="group/docs sidebar-menu-button"
+											href="https://github.com/aureliushq/kobun"
+											rel="noreferrer"
+											target="_blank"
+										/>
 									}
 								>
-									<HouseIcon />
-									Dashboard
+									<GithubIcon />
+									<span className="grow">Github</span>
+									<ExternalLinkIcon className="hidden transition-all duration-100 group-hover/docs:inline" />
+								</SidebarMenuButton>
+							</SidebarMenuItem>
+							<SidebarMenuItem>
+								<SidebarMenuButton
+									render={
+										// biome-ignore lint/a11y/useAnchorContent: it's fine
+										<a
+											className="group/docs sidebar-menu-button"
+											href="https://kobun.dev/docs"
+											rel="noreferrer"
+											target="_blank"
+										/>
+									}
+								>
+									<BookOpenIcon />
+									<span className="grow">Documentation</span>
+									<ExternalLinkIcon className="hidden transition-all duration-100 group-hover/docs:inline" />
+								</SidebarMenuButton>
+							</SidebarMenuItem>
+							<SidebarMenuItem>
+								<SidebarMenuButton
+									className="sidebar-menu-button"
+									onClick={() => setAboutOpen(true)}
+								>
+									<InfoIcon />
+									<span className="grow">About</span>
+									<span className="font-mono text-[0.6rem]">
+										v{versionInfo.currentVersion}
+									</span>
+									{versionInfo.hasUpdate && (
+										<span className="h-2 w-2 rounded-full bg-blue-500" />
+									)}
 								</SidebarMenuButton>
 							</SidebarMenuItem>
 						</SidebarMenu>
-					</SidebarGroupContent>
-				</SidebarGroup>
-				<SidebarGroup>
-					<SidebarGroupLabel>Collections</SidebarGroupLabel>
-				</SidebarGroup>
-				<SidebarGroup>
-					<SidebarGroupLabel>Singletons</SidebarGroupLabel>
-				</SidebarGroup>
-				<SidebarGroup className="mt-auto">
-					<SidebarMenu>
-						<SidebarMenuItem>
-							<SidebarMenuButton
-								render={
-									// biome-ignore lint/a11y/useAnchorContent: it's fine
-									<a
-										className="group/docs sidebar-menu-button"
-										href="https://github.com/aureliushq/kobun"
-										rel="noreferrer"
-										target="_blank"
-									/>
-								}
-							>
-								<GithubIcon />
-								<span className="grow">Github</span>
-								<ExternalLinkIcon className="hidden transition-all duration-100 group-hover/docs:inline" />
-							</SidebarMenuButton>
-						</SidebarMenuItem>
-						<SidebarMenuItem>
-							<SidebarMenuButton
-								render={
-									// biome-ignore lint/a11y/useAnchorContent: it's fine
-									<a
-										className="group/docs sidebar-menu-button"
-										href="https://kobun.dev/docs"
-										rel="noreferrer"
-										target="_blank"
-									/>
-								}
-							>
-								<BookOpenIcon />
-								<span className="grow">Documentation</span>
-								<ExternalLinkIcon className="hidden transition-all duration-100 group-hover/docs:inline" />
-							</SidebarMenuButton>
-						</SidebarMenuItem>
-						<SidebarMenuItem>
-							<SidebarMenuButton className="sidebar-menu-button">
-								<InfoIcon />
-								<span className="grow">About</span>
-								<span className="font-mono text-[0.6rem]">v0.1.0</span>
-								<span className="h-2 w-2 rounded-full bg-green-500" />
-							</SidebarMenuButton>
-						</SidebarMenuItem>
-					</SidebarMenu>
-				</SidebarGroup>
-			</SidebarContent>
-			<SidebarSeparator className="ml-0" />
-			<SidebarFooter className="px-0">
-				<SidebarGroup>
-					<SidebarMenu>
-						<SidebarMenuItem>
-							<SidebarMenuButton
-								isActive={location.pathname === PATHS.SETTINGS}
-								render={
-									<Link className="sidebar-menu-button" to={PATHS.SETTINGS} />
-								}
-							>
-								<SettingsIcon />
-								<span>Settings</span>
-							</SidebarMenuButton>
-						</SidebarMenuItem>
-						<SidebarMenuItem>
-							<Form method="POST" action="/api/dashboard-actions">
+					</SidebarGroup>
+				</SidebarContent>
+				<SidebarSeparator className="ml-0" />
+				<SidebarFooter className="px-0">
+					<SidebarGroup>
+						<SidebarMenu>
+							<SidebarMenuItem>
 								<SidebarMenuButton
-									className="sidebar-menu-button"
-									name="intent"
-									type="submit"
-									value={DashboardActionIntents.LOGOUT}
+									isActive={location.pathname === PATHS.SETTINGS}
+									render={
+										<Link className="sidebar-menu-button" to={PATHS.SETTINGS} />
+									}
 								>
-									<LogOutIcon />
-									<span>Logout</span>
+									<SettingsIcon />
+									<span>Settings</span>
 								</SidebarMenuButton>
-							</Form>
-						</SidebarMenuItem>
-					</SidebarMenu>
-				</SidebarGroup>
-			</SidebarFooter>
-		</Sidebar>
+							</SidebarMenuItem>
+							<SidebarMenuItem>
+								<Form method="POST" action="/api/dashboard-actions">
+									<SidebarMenuButton
+										className="sidebar-menu-button"
+										name="intent"
+										type="submit"
+										value={DashboardActionIntents.LOGOUT}
+									>
+										<LogOutIcon />
+										<span>Logout</span>
+									</SidebarMenuButton>
+								</Form>
+							</SidebarMenuItem>
+						</SidebarMenu>
+					</SidebarGroup>
+				</SidebarFooter>
+			</Sidebar>
+			<AboutDialog
+				open={aboutOpen}
+				onOpenChange={setAboutOpen}
+				versionInfo={versionInfo}
+			/>
+		</>
 	)
 }
 
