@@ -9,13 +9,13 @@ import {
 import { useState } from "react"
 import { Form, Link, redirect } from "react-router"
 import { getAuth } from "@/auth/auth.server"
+import { deriveConfigStatus, fetchAndParseConfig } from "@/config/github.server"
 import { envContext } from "@/core/context"
 import { dbContext } from "@/db/context"
 import { githubInstallation, project, userInstallation } from "@/db/schema"
-import { ConfigStatus, ProjectStatus } from "@/db/types"
+import { ProjectStatus } from "@/db/types"
 import {
 	getGithubAppInstallUrl,
-	getGithubFileContent,
 	getGithubInstallation,
 	listGithubInstallationRepositories,
 } from "@/github/octokit.server"
@@ -268,41 +268,13 @@ export async function action({ context, request }: Route.ActionArgs) {
 		// TODO: throw with an error so it can be shown on the frontend
 		if (!selectedRepo) throw redirect(PATHS.SETUP)
 
-		const CONFIG_PATHS = [".kobun.json", ".kobun.yml"]
-		let config:
-			| ({ sha: string; path: string; content: string } & {
-					error: string | null
-					status: ConfigStatus
-			  })
-			| { path?: string; status: ConfigStatus; error?: string | null } = {
-			status: ConfigStatus.MISSING,
-		}
-		for (const configPath of CONFIG_PATHS) {
-			try {
-				const configFile = await getGithubFileContent(
-					env,
-					installation.githubInstallationId,
-					repoOwner,
-					repoName,
-					configPath,
-				)
-				config = { ...configFile, error: null, status: ConfigStatus.PRESENT }
-				break
-			} catch (error) {
-				if (
-					error instanceof Error &&
-					"status" in error &&
-					error.status === 404
-				) {
-					continue
-				}
-				config = {
-					status: ConfigStatus.ERROR,
-					error: error instanceof Error ? error.message : String(error),
-				}
-				break
-			}
-		}
+		const configResult = await fetchAndParseConfig(
+			env,
+			installation.githubInstallationId,
+			repoOwner,
+			repoName,
+		)
+		const configStatus = deriveConfigStatus(configResult)
 
 		const existingProject = await db.query.project.findFirst({
 			where: and(
@@ -323,12 +295,13 @@ export async function action({ context, request }: Route.ActionArgs) {
 				repoName: selectedRepo.name,
 				repoOwnerLogin: selectedRepo.owner.login,
 				repoHtmlUrl: selectedRepo.html_url,
-				configPath: config?.path ?? ".kobun.json",
-				configStatus: config?.path
-					? ConfigStatus.PRESENT
-					: (config?.status ?? ConfigStatus.UNKNOWN),
+				configPath: configResult.filePath ?? ".kobun.json",
+				configStatus,
 				configCheckedAt: new Date(),
-				configError: config?.error ? String(config.error) : "",
+				configError:
+					configResult.errors.length > 0
+						? JSON.stringify(configResult.errors)
+						: "",
 				status: ProjectStatus.ACTIVE,
 			})
 			.onConflictDoUpdate({
@@ -338,12 +311,13 @@ export async function action({ context, request }: Route.ActionArgs) {
 					repoName: selectedRepo.name,
 					repoOwnerLogin: selectedRepo.owner.login,
 					repoHtmlUrl: selectedRepo.html_url,
-					configPath: config?.path ?? ".kobun.json",
-					configStatus: config?.path
-						? ConfigStatus.PRESENT
-						: (config?.status ?? ConfigStatus.UNKNOWN),
+					configPath: configResult.filePath ?? ".kobun.json",
+					configStatus,
 					configCheckedAt: new Date(),
-					configError: config?.error ? String(config.error) : "",
+					configError:
+						configResult.errors.length > 0
+							? JSON.stringify(configResult.errors)
+							: "",
 					status: ProjectStatus.ACTIVE,
 				},
 			})
@@ -363,6 +337,50 @@ export async function action({ context, request }: Route.ActionArgs) {
 	}
 }
 
+function NoInstallations() {
+	return (
+		<Empty>
+			<EmptyHeader>
+				<EmptyMedia variant="icon">
+					<FolderGit2Icon />
+				</EmptyMedia>
+				<EmptyTitle>Get started</EmptyTitle>
+				<EmptyDescription>
+					Install the Github App and choose which repositories to grant access
+					to.
+				</EmptyDescription>
+			</EmptyHeader>
+			<EmptyContent className="flex-row justify-center gap-2">
+				<Form method="POST">
+					<Button
+						name="intent"
+						type="submit"
+						value={SetupActionIntents.INSTALL_APP}
+					>
+						Install Github App
+					</Button>
+				</Form>
+			</EmptyContent>
+			<Button
+				variant="link"
+				className="text-muted-foreground"
+				size="sm"
+				nativeButton={false}
+				render={
+					<a
+						// TODO: update this link when website and docs are ready
+						href="https://kobun.io/docs/configuration/getting-started"
+						rel="noopener noreferrer"
+						target="_blank"
+					>
+						Learn More <ArrowUpRightIcon />
+					</a>
+				}
+			/>
+		</Empty>
+	)
+}
+
 export default function Setup({ loaderData }: Route.ComponentProps) {
 	const { accounts, repos, recentProjects, projectRepoIds } = loaderData
 	const [activeInstallationId, setActiveInstallationId] = useState(
@@ -375,42 +393,44 @@ export default function Setup({ loaderData }: Route.ComponentProps) {
 	if (accounts.length > 0) {
 		return (
 			<div className="flex w-full flex-col gap-8">
-				<FieldSet>
-					<FieldLegend>Recent Projects</FieldLegend>
-					<FieldDescription>
-						Select a repository to create a new project from.
-					</FieldDescription>
-					<div className="w-full">
-						{recentProjects.map((project) => (
-							<Item
-								className="group -my-px rounded-none first:mt-px first:rounded-tl-md first:rounded-tr-md last:mb-px last:rounded-br-md last:rounded-bl-md"
-								key={project.id}
-								variant="outline"
-							>
-								<ItemContent>
-									<ItemTitle>
-										{`${project.repoOwnerLogin}/${project.repoName}`}
-										<a
-											className="hidden group-hover:flex"
-											href={project.repoHtmlUrl}
-											rel="noopener noreferrer"
-											target="_blank"
-										>
-											<ExternalLinkIcon className="size-3" />
-										</a>
-									</ItemTitle>
-								</ItemContent>
-								<ItemActions>
-									<Link to={`/${project.repoOwnerLogin}/${project.repoName}`}>
-										<Button size="sm" variant="secondary">
-											Open
-										</Button>
-									</Link>
-								</ItemActions>
-							</Item>
-						))}
-					</div>
-				</FieldSet>
+				{recentProjects.length > 0 && (
+					<FieldSet>
+						<FieldLegend>Recent Projects</FieldLegend>
+						<FieldDescription>
+							Select a repository to create a new project from.
+						</FieldDescription>
+						<div className="w-full">
+							{recentProjects.map((project) => (
+								<Item
+									className="group -my-px rounded-none first:mt-px first:rounded-tl-md first:rounded-tr-md last:mb-px last:rounded-br-md last:rounded-bl-md"
+									key={project.id}
+									variant="outline"
+								>
+									<ItemContent>
+										<ItemTitle>
+											{`${project.repoOwnerLogin}/${project.repoName}`}
+											<a
+												className="hidden group-hover:flex"
+												href={project.repoHtmlUrl}
+												rel="noopener noreferrer"
+												target="_blank"
+											>
+												<ExternalLinkIcon className="size-3" />
+											</a>
+										</ItemTitle>
+									</ItemContent>
+									<ItemActions>
+										<Link to={`/${project.repoOwnerLogin}/${project.repoName}`}>
+											<Button size="sm" variant="secondary">
+												Open
+											</Button>
+										</Link>
+									</ItemActions>
+								</Item>
+							))}
+						</div>
+					</FieldSet>
+				)}
 				<FieldSet>
 					<FieldLegend>Create a Project</FieldLegend>
 					<FieldDescription>
@@ -434,7 +454,7 @@ export default function Setup({ loaderData }: Route.ComponentProps) {
 							</div>
 							<ChevronDownIcon className="ml-2" />
 						</DropdownMenuTrigger>
-						<DropdownMenuContent>
+						<DropdownMenuContent className="w-40">
 							<DropdownMenuGroup>
 								<DropdownMenuLabel>Accounts</DropdownMenuLabel>
 								{accounts.map((account) => (
@@ -549,48 +569,4 @@ export default function Setup({ loaderData }: Route.ComponentProps) {
 	}
 
 	return <NoInstallations />
-}
-
-export function NoInstallations() {
-	return (
-		<Empty>
-			<EmptyHeader>
-				<EmptyMedia variant="icon">
-					<FolderGit2Icon />
-				</EmptyMedia>
-				<EmptyTitle>Get started</EmptyTitle>
-				<EmptyDescription>
-					Install the Github App and choose which repositories to grant access
-					to.
-				</EmptyDescription>
-			</EmptyHeader>
-			<EmptyContent className="flex-row justify-center gap-2">
-				<Form method="POST">
-					<Button
-						name="intent"
-						type="submit"
-						value={SetupActionIntents.INSTALL_APP}
-					>
-						Install Github App
-					</Button>
-				</Form>
-			</EmptyContent>
-			<Button
-				variant="link"
-				className="text-muted-foreground"
-				size="sm"
-				nativeButton={false}
-				render={
-					<a
-						// TODO: update this link when website and docs are ready
-						href="https://kobun.io/docs/configuration/getting-started"
-						rel="noopener noreferrer"
-						target="_blank"
-					>
-						Learn More <ArrowUpRightIcon />
-					</a>
-				}
-			/>
-		</Empty>
-	)
 }

@@ -19,5 +19,9 @@ node_modules
 /.env
 /.dev.vars
 
+# Generated
+/workers/generated/
+/public/schemas/v1.*.json
+
 # Storybook
 *storybook.log

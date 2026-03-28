@@ -1,4 +1,4 @@
-import type { project } from "./schema"
+import type { githubInstallation, project } from "./schema"
 
 export enum RepositorySelection {
 	ALL = "all",
@@ -19,4 +19,9 @@ export enum ProjectStatus {
 	ARCHIVED = "archived",
 }
 
+export type GithubInstallation = typeof githubInstallation.$inferSelect
 export type Project = typeof project.$inferSelect
+
+export type ProjectWithGithubInstallation = Project & {
+	githubInstallation: GithubInstallation
+}

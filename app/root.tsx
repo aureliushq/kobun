@@ -14,7 +14,7 @@ import { ThemeContext } from "@/ui/hooks/use-theme"
 import { getThemeFromRequest, type Theme } from "@/ui/theme.server"
 import type { Route } from "./+types/root"
 import "@/core/styles/app.css"
-import config from "@/config"
+import appConfig from "@/config/app"
 
 export const links: Route.LinksFunction = () => [
 	{ rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -31,9 +31,9 @@ export const links: Route.LinksFunction = () => [
 
 export function meta() {
 	return [
-		{ title: config.core.appTitle },
-		{ name: "description", content: config.core.appDescription },
-		{ name: "keywords", content: config.core.appKeywords },
+		{ title: appConfig.core.appTitle },
+		{ name: "description", content: appConfig.core.appDescription },
+		{ name: "keywords", content: appConfig.core.appKeywords },
 	]
 }
 
@@ -44,7 +44,7 @@ export async function loader({ request }: Route.LoaderArgs) {
 
 function getThemeClass(theme: Theme) {
 	if (theme === "dark") return "dark"
-	return config.core.darkMode ? "dark" : ""
+	return appConfig.core.darkMode ? "dark" : ""
 }
 
 const themeScript = `
@@ -75,7 +75,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 				<meta name="viewport" content="width=device-width, initial-scale=1" />
 				<Meta />
 				<link rel="icon" href="/favicon.svg" type="image/svg+xml"></link>
-				<link rel="canonical" href={config.core.websiteUrl} />
+				<link rel="canonical" href={appConfig.core.websiteUrl} />
 				<Links />
 				<script dangerouslySetInnerHTML={{ __html: themeScript }} />
 			</head>

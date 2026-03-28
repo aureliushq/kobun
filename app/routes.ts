@@ -1,4 +1,5 @@
 import {
+	index,
 	layout,
 	prefix,
 	type RouteConfig,
@@ -6,6 +7,7 @@ import {
 } from "@react-router/dev/routes"
 
 export default [
+	index("routes/index.tsx"),
 	layout("core/components/layouts/dashboard.tsx", [
 		// route("/:owner/:repo", "routes/dashboard.tsx"),
 		route("/:owner/:name", "routes/dashboard.tsx"),
@@ -16,6 +18,7 @@ export default [
 	]),
 	...prefix("api", [
 		route("auth/*", "routes/api.auth.$.ts"),
+		route("dashboard-actions", "routes/api.dashboard-actions.ts"),
 		route("set-theme", "routes/api.set-theme.ts"),
 	]),
 	route("/component-examples", "routes/example.tsx"),

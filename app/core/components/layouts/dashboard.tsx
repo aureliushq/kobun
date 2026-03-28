@@ -1,10 +1,10 @@
-import { desc, eq } from "drizzle-orm"
+import { eq } from "drizzle-orm"
 import { Outlet, redirect } from "react-router"
 import { getAuth } from "@/auth/auth.server"
 import { envContext } from "@/core/context"
 import { dbContext } from "@/db/context"
 import { project } from "@/db/schema/app-schema"
-import type { Project } from "@/db/types"
+import type { ProjectWithGithubInstallation } from "@/db/types"
 import { ScrollArea } from "@/ui/components/base/scroll-area"
 import { SidebarProvider } from "@/ui/components/base/sidebar"
 import DashboardHeader from "@/ui/components/blocks/dashboard-header"
@@ -25,7 +25,7 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
 
 	const projects = await db.query.project.findMany({
 		where: eq(project.userId, session.user.id),
-		orderBy: desc(project.updatedAt),
+		with: { githubInstallation: true },
 	})
 	const activeProject = projects.find(
 		(project) => project.repoOwnerLogin === owner && project.repoName === name,
@@ -53,14 +53,16 @@ const DashboardLayout = ({ loaderData }: Route.ComponentProps) => {
 	return (
 		<SidebarProvider>
 			<DashboardSidebar
-				activeProject={loaderData.activeProject as Project}
+				activeProject={
+					loaderData.activeProject as ProjectWithGithubInstallation
+				}
 				projects={loaderData.projects}
 			/>
-			<main className="flex h-screen w-screen flex-col gap-4">
+			<main className="flex h-screen w-screen flex-col divide-y">
 				<DashboardHeader />
 				<ScrollArea className="z-10 h-full w-full p-8">
 					<section className="flex w-full justify-center">
-						<div className="flex w-full max-w-6xl flex-col gap-4">
+						<div className="flex w-full max-w-4xl flex-col gap-4">
 							<Outlet />
 						</div>
 					</section>

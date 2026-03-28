@@ -1,8 +1,7 @@
 import { createPrivateKey } from "node:crypto"
 import { createAppAuth } from "@octokit/auth-app"
 import { Octokit } from "@octokit/rest"
-
-type InstallationID = string | number
+import type { InstallationID } from "@/types/github"
 
 const GITHUB_HEADERS = {
 	accept: "application/vnd.github+json",

@@ -8,4 +8,4 @@ export const PATHS = {
 	SINGLETONS: "editor/singletons",
 }
 
-export const CONFIG_PATHS = [".kobun.json", ".kobun.yml"]
+export const CONFIG_PATHS = [".kobun.json", ".kobun.yml", ".kobun.yaml"]

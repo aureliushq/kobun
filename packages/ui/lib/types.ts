@@ -5,4 +5,5 @@ export enum SetupActionIntents {
 
 export enum DashboardActionIntents {
 	LOGOUT = "logout",
+	REFRESH_CONFIGURATION = "refresh-configuration",
 }

@@ -3,21 +3,20 @@ import {
 	CheckIcon,
 	ChevronsUpDownIcon,
 	ExternalLinkIcon,
+	GithubIcon,
 	HouseIcon,
+	InfoIcon,
 	LogOutIcon,
 	SettingsIcon,
 } from "lucide-react"
-// import { useContext } from "react";
 import { Form, Link, useLocation } from "react-router"
 
-// import invariant from "tiny-invariant";
-
-import type { Project } from "@/db/types"
-// import {
-// 	Avatar,
-// 	AvatarFallback,
-// 	AvatarImage,
-// } from "@/ui/components/base/avatar"
+import type { ProjectWithGithubInstallation } from "@/db/types"
+import {
+	Avatar,
+	AvatarFallback,
+	AvatarImage,
+} from "@/ui/components/base/avatar"
 import { Badge } from "@/ui/components/base/badge"
 import { Button } from "@/ui/components/base/button"
 import {
@@ -40,6 +39,7 @@ import {
 	SidebarMenu,
 	SidebarMenuButton,
 	SidebarMenuItem,
+	SidebarSeparator,
 	useSidebar,
 } from "@/ui/components/base/sidebar"
 import { Logo, LogoDark } from "@/ui/components/logo"
@@ -47,21 +47,14 @@ import { useTheme } from "@/ui/hooks/use-theme"
 import { PATHS } from "@/ui/lib/constants"
 import { DashboardActionIntents } from "@/ui/lib/types"
 
-// import { cn } from "~/lib/utils";
-
-// import { KobunContext, type KobunContextData, useTheme } from "~/providers";
-
 const DashboardSidebar = ({
 	activeProject,
 	projects,
 }: {
-	activeProject: Project
-	projects: Project[]
+	activeProject: ProjectWithGithubInstallation
+	projects: ProjectWithGithubInstallation[]
 }) => {
 	const { isMobile } = useSidebar()
-	// const { config } = useContext<KobunContextData>(KobunContext);
-	// invariant(config, "`config` is required.");
-	// const basePath = config.basePath ?? "";
 	const basePath = ""
 
 	const location = useLocation()
@@ -90,7 +83,18 @@ const DashboardSidebar = ({
 							<Button className="h-8 justify-between" variant="outline" />
 						}
 					>
-						{repoSlug}
+						<div className="flex items-center gap-2">
+							<Avatar className="size-4">
+								<AvatarImage
+									src={activeProject.githubInstallation.targetAvatarUrl}
+									alt={`${activeProject.githubInstallation.targetLogin}'s avatar`}
+								/>
+								<AvatarFallback>
+									{activeProject.githubInstallation.targetLogin.charAt(0)}
+								</AvatarFallback>
+							</Avatar>
+							{repoSlug}
+						</div>
 						<ChevronsUpDownIcon />
 					</DropdownMenuTrigger>
 					<DropdownMenuContent
@@ -108,15 +112,15 @@ const DashboardSidebar = ({
 										to={`/${project.repoOwnerLogin}/${project.repoName}`}
 									>
 										<div className="flex items-center gap-2">
-											{/*<Avatar className="size-4">
-                        <AvatarImage
-                          src={account.avatarUrl}
-                          alt={`${account.login}'s avatar`}
-                        />
-                        <AvatarFallback>
-                          {account.login.charAt(0)}
-                        </AvatarFallback>
-                      </Avatar>*/}
+											<Avatar className="size-4">
+												<AvatarImage
+													src={project.githubInstallation.targetAvatarUrl}
+													alt={`${project.githubInstallation.targetLogin}'s avatar`}
+												/>
+												<AvatarFallback>
+													{project.githubInstallation.targetLogin.charAt(0)}
+												</AvatarFallback>
+											</Avatar>
 											{`${project.repoOwnerLogin}/${project.repoName}`}
 										</div>
 										{activeProject.id === project.id && <CheckIcon />}
@@ -133,7 +137,7 @@ const DashboardSidebar = ({
 					</DropdownMenuContent>
 				</DropdownMenu>
 			</SidebarHeader>
-			<SidebarContent>
+			<SidebarContent className="py-2">
 				<SidebarGroup>
 					<SidebarGroupContent>
 						<SidebarMenu>
@@ -153,94 +157,29 @@ const DashboardSidebar = ({
 				</SidebarGroup>
 				<SidebarGroup>
 					<SidebarGroupLabel>Collections</SidebarGroupLabel>
-					{/*{Object.keys(config.collections).map((key, index) => {
-            const collection = config.collections[key];
-            const link = `${basePath}/${PATHS.COLLECTIONS}/${key}`;
-            const addTitle = `Add ${collection.label}`;
-
-            return (
-              <section
-                className={cn(
-                  Object.keys(config.collections).length - 1 !== index &&
-                    "mb-4",
-                )}
-                key={key}
-              >
-                <SidebarMenu>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={
-                        location.pathname === link && location.search === ""
-                      }
-                    >
-                      <Link to={link}>{`${collection.label}`}</Link>
-                    </SidebarMenuButton>
-                    <SidebarMenuAction asChild title={addTitle}>
-                      <Link to={`${basePath}/${PATHS.EDITOR}/${key}`}>
-                        <PlusIcon />{" "}
-                        <span className="sr-only">{addTitle}</span>
-                      </Link>
-                    </SidebarMenuAction>
-                  </SidebarMenuItem>
-                  {collection.features?.publish && (
-                    <>
-                      <SidebarMenuItem>
-                        <SidebarMenuButton
-                          asChild
-                          isActive={
-                            location.pathname === link &&
-                            location.search === "?status=published"
-                          }
-                        >
-                          <Link to={`${link}?status=published`}>Published</Link>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                      <SidebarMenuItem>
-                        <SidebarMenuButton
-                          asChild
-                          isActive={
-                            location.pathname === link &&
-                            location.search === "?status=draft"
-                          }
-                        >
-                          <Link to={`${link}?status=draft`}>Drafts</Link>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    </>
-                  )}
-                </SidebarMenu>
-              </section>
-            );
-          })}*/}
 				</SidebarGroup>
-				{/*{config.singletons && (
-          <SidebarGroup>
-            <SidebarGroupLabel>Singletons</SidebarGroupLabel>
-            <SidebarMenu>
-              {Object.keys(config.singletons).map((key) => {
-                const singleton = config.singletons?.[key];
-                const link = `${basePath}/${PATHS.SINGLETONS}/${key}`;
-                return (
-                  <SidebarMenuItem key={key}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={
-                        location.pathname === link && location.search === ""
-                      }
-                    >
-                      <Link to={link}>{`${singleton?.label}`}</Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
-            </SidebarMenu>
-          </SidebarGroup>
-        )}*/}
-			</SidebarContent>
-			<SidebarFooter>
 				<SidebarGroup>
+					<SidebarGroupLabel>Singletons</SidebarGroupLabel>
+				</SidebarGroup>
+				<SidebarGroup className="mt-auto">
 					<SidebarMenu>
+						<SidebarMenuItem>
+							<SidebarMenuButton
+								render={
+									// biome-ignore lint/a11y/useAnchorContent: it's fine
+									<a
+										className="group/docs sidebar-menu-button"
+										href="https://github.com/aureliushq/kobun"
+										rel="noreferrer"
+										target="_blank"
+									/>
+								}
+							>
+								<GithubIcon />
+								<span className="grow">Github</span>
+								<ExternalLinkIcon className="hidden transition-all duration-100 group-hover/docs:inline" />
+							</SidebarMenuButton>
+						</SidebarMenuItem>
 						<SidebarMenuItem>
 							<SidebarMenuButton
 								render={
@@ -259,13 +198,25 @@ const DashboardSidebar = ({
 							</SidebarMenuButton>
 						</SidebarMenuItem>
 						<SidebarMenuItem>
+							<SidebarMenuButton className="sidebar-menu-button">
+								<InfoIcon />
+								<span className="grow">About</span>
+								<span className="font-mono text-[0.6rem]">v0.1.0</span>
+								<span className="h-2 w-2 rounded-full bg-green-500" />
+							</SidebarMenuButton>
+						</SidebarMenuItem>
+					</SidebarMenu>
+				</SidebarGroup>
+			</SidebarContent>
+			<SidebarSeparator className="ml-0" />
+			<SidebarFooter className="px-0">
+				<SidebarGroup>
+					<SidebarMenu>
+						<SidebarMenuItem>
 							<SidebarMenuButton
-								isActive={location.pathname === `${basePath}/${PATHS.SETTINGS}`}
+								isActive={location.pathname === PATHS.SETTINGS}
 								render={
-									<Link
-										className="sidebar-menu-button"
-										to={`${basePath}/${PATHS.SETTINGS}`}
-									/>
+									<Link className="sidebar-menu-button" to={PATHS.SETTINGS} />
 								}
 							>
 								<SettingsIcon />
@@ -273,7 +224,7 @@ const DashboardSidebar = ({
 							</SidebarMenuButton>
 						</SidebarMenuItem>
 						<SidebarMenuItem>
-							<Form method="POST" action={PATHS.BASE}>
+							<Form method="POST" action="/api/dashboard-actions">
 								<SidebarMenuButton
 									className="sidebar-menu-button"
 									name="intent"

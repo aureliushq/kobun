@@ -1,4 +1,4 @@
-export type CoreConfig = {
+export type AppConfig = {
 	core: {
 		supportEmail: string
 		websiteUrl: string
