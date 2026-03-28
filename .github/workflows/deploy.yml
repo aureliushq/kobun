@@ -66,6 +66,9 @@ jobs:
       - name: 🔧 Generate schema
         run: bun run generate:schema
 
+      - name: 📋 Generate manifest
+        run: bun run generate:manifest
+
       - name: ʦ Types check
         run: bun run check:types
         env:
@@ -142,6 +145,9 @@ jobs:
       - name: 🔧 Generate schema
         run: bun run generate:schema
 
+      - name: 📋 Generate manifest
+        run: bun run generate:manifest
+
       - name: 🛠️ Build
         run: CLOUDFLARE_ENV=test NODE_ENV=test bun run build
 
@@ -213,6 +219,9 @@ jobs:
 
       - name: 🔧 Generate schema
         run: bun run generate:schema
+
+      - name: 📋 Generate manifest
+        run: bun run generate:manifest
 
       - name: 🛠️ Build
         run: CLOUDFLARE_ENV=${{ env.APP_ENV }} bun run build
