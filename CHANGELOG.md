@@ -1,5 +1,11 @@
 # kobun
 
+## 0.2.3
+
+### Patch Changes
+
+- 6a074a7: Add manifest for getting latest app version, changelog/release notes link, etc
+
 ## 0.2.2
 
 ### Patch Changes
