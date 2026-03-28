@@ -1,5 +1,11 @@
 # kobun
 
+## 0.2.2
+
+### Patch Changes
+
+- Fix more CI type issues
+
 ## 0.2.1
 
 ### Patch Changes
