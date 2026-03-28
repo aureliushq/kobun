@@ -5,10 +5,14 @@ import tailwindcss from "@tailwindcss/vite"
 import { visualizer } from "rollup-plugin-visualizer"
 import { defineConfig } from "vite"
 import tsconfigPaths from "vite-tsconfig-paths"
+import packageJson from "./package.json" with { type: "json" }
 
 const isStorybook = process.argv[1]?.includes("storybook")
 
 export default defineConfig({
+	define: {
+		KOBUN_VERSION: JSON.stringify(packageJson.version),
+	},
 	build: {
 		sourcemap: true,
 		rollupOptions: {

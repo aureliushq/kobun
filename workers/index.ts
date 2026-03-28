@@ -3,6 +3,7 @@ import { createRequestHandler, RouterContextProvider } from "react-router"
 import { envContext } from "@/core/context"
 import { dbContext } from "@/db/context"
 import * as schema from "@/db/schema"
+import { manifestHash } from "./generated/manifest-map"
 import { schemaHash } from "./generated/schema-map"
 
 const requestHandler = createRequestHandler(
@@ -13,6 +14,13 @@ const requestHandler = createRequestHandler(
 export default {
 	async fetch(request, env) {
 		const url = new URL(request.url)
+
+		if (url.pathname === "/manifest.json") {
+			return Response.redirect(
+				`${url.origin}/manifest/manifest.${manifestHash}.json`,
+				302,
+			)
+		}
 
 		if (url.pathname === "/schemas/v1.json") {
 			return Response.redirect(
