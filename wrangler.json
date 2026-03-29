@@ -34,7 +34,7 @@
 				{
 					"binding": "DB",
 					"database_name": "kobun-production",
-					"database_id": "fb48c6f7-9eae-429f-8023-f457b9ad964d"
+					"database_id": "97ff3659-f488-4522-b4d4-4d16a0b325ec"
 				}
 			],
 			"vars": {
@@ -50,7 +50,7 @@
 				{
 					"binding": "DB",
 					"database_name": "kobun-preview",
-					"database_id": "427b809e-6340-422f-8189-2c27dd39c9bf"
+					"database_id": "faa93bcf-9d7c-4351-9d49-cba75f6e572e"
 				}
 			],
 			"vars": {
