@@ -1,5 +1,11 @@
 # kobun
 
+## 0.2.4
+
+### Patch Changes
+
+- bc2e139: Update D1 IDs
+
 ## 0.2.3
 
 ### Patch Changes
