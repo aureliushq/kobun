@@ -1,0 +1,38 @@
+.ProseMirror p.is-editor-empty:first-child::before {
+	color: var(--color-muted-foreground);
+	content: attr(data-placeholder);
+	float: left;
+	height: 0;
+	pointer-events: none;
+}
+
+.ProseMirror [data-placeholder]::before {
+	color: var(--color-muted-foreground);
+	content: attr(data-placeholder);
+	float: left;
+	height: 0;
+	pointer-events: none;
+}
+
+.ProseMirror:focus {
+	outline: none;
+}
+
+.ProseMirror code {
+	background-color: var(--color-muted);
+	border-radius: 0.25rem;
+	padding: 0.125rem 0.375rem;
+	font-size: 0.875em;
+}
+
+.ProseMirror hr {
+	border: none;
+	border-top: 1px solid var(--color-border);
+	margin: 1.5rem 0;
+}
+
+.ProseMirror .ProseMirror-selectednode {
+	outline: 2px solid var(--color-primary);
+	outline-offset: 2px;
+	border-radius: 0.25rem;
+}
