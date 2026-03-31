@@ -7,7 +7,7 @@ export const MarkdownClipboardExtension = Extension.create({
 			new Plugin({
 				key: new PluginKey("markdownClipboard"),
 				props: {
-					clipboardTextSerializer: (slice) => {
+					clipboardTextSerializer: (_slice) => {
 						return this.editor.getMarkdown()
 					},
 				},
