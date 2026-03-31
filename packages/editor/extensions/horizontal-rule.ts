@@ -1,5 +1,5 @@
-import HorizontalRule from "@tiptap/extension-horizontal-rule"
 import { nodeInputRule } from "@tiptap/core"
+import HorizontalRule from "@tiptap/extension-horizontal-rule"
 
 export const CustomHorizontalRuleExtension = HorizontalRule.extend({
 	addInputRules() {

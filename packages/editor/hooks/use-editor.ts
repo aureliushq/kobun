@@ -1,4 +1,4 @@
-import { useEditor as useTiptapEditor, type Editor } from "@tiptap/react"
+import { type Editor, useEditor as useTiptapEditor } from "@tiptap/react"
 import { getEditorExtensions } from "../extensions"
 import type { ImageUploadAdapter } from "../types"
 
@@ -16,6 +16,7 @@ export function useEditor(options: UseEditorOptions): Editor | null {
 
 	const editor = useTiptapEditor({
 		content: initialContent ?? "",
+		immediatelyRender: false,
 		editable: !readOnly,
 		editorProps: {
 			attributes: {
