@@ -12,6 +12,9 @@ export default [
 		// route("/:owner/:repo", "routes/dashboard.tsx"),
 		route("/:owner/:name", "routes/dashboard.tsx"),
 	]),
+	layout("core/components/layouts/editor.tsx", [
+		route("/editor", "routes/editor.tsx"),
+	]),
 	layout("core/components/layouts/minimal.tsx", [
 		route("/login", "routes/login.tsx"),
 		route("/setup", "routes/setup.tsx"),
