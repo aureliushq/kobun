@@ -5,9 +5,10 @@ import {
 	ChevronDownIcon,
 	ExternalLinkIcon,
 	FolderGit2Icon,
+	LoaderIcon,
 } from "lucide-react"
 import { useState } from "react"
-import { Form, Link, redirect } from "react-router"
+import { Form, Link, redirect, useNavigation } from "react-router"
 import { getAuth } from "@/auth/auth.server"
 import { deriveConfigStatus, fetchAndParseConfig } from "@/config/github.server"
 import { envContext } from "@/core/context"
@@ -383,6 +384,7 @@ function NoInstallations() {
 
 export default function Setup({ loaderData }: Route.ComponentProps) {
 	const { accounts, repos, recentProjects, projectRepoIds } = loaderData
+	const navigation = useNavigation()
 	const [activeInstallationId, setActiveInstallationId] = useState(
 		accounts.length > 0 ? accounts[0].id : null,
 	)
@@ -420,7 +422,10 @@ export default function Setup({ loaderData }: Route.ComponentProps) {
 										</ItemTitle>
 									</ItemContent>
 									<ItemActions>
-										<Link to={`/${project.repoOwnerLogin}/${project.repoName}`}>
+										<Link
+											prefetch="intent"
+											to={`/${project.repoOwnerLogin}/${project.repoName}`}
+										>
 											<Button size="sm" variant="secondary">
 												Open
 											</Button>
@@ -525,7 +530,10 @@ export default function Setup({ loaderData }: Route.ComponentProps) {
 									</ItemContent>
 									<ItemActions>
 										{projectRepoIdSet.has(String(repo.id)) ? (
-											<Link to={`/${repo.ownerLogin}/${repo.name}`}>
+											<Link
+												prefetch="intent"
+												to={`/${repo.ownerLogin}/${repo.name}`}
+											>
 												<Button size="sm" variant="secondary">
 													Open
 												</Button>
@@ -549,12 +557,26 @@ export default function Setup({ loaderData }: Route.ComponentProps) {
 													value={repo.installationId}
 												/>
 												<Button
+													disabled={
+														navigation.state === "submitting" &&
+														navigation.formData?.get("intent") ===
+															SetupActionIntents.CREATE_PROJECT &&
+														navigation.formData?.get("repo_id") ===
+															String(repo.id)
+													}
 													name="intent"
 													size="sm"
 													type="submit"
 													value={SetupActionIntents.CREATE_PROJECT}
 													variant="secondary"
 												>
+													{navigation.state === "submitting" &&
+													navigation.formData?.get("intent") ===
+														SetupActionIntents.CREATE_PROJECT &&
+													navigation.formData?.get("repo_id") ===
+														String(repo.id) ? (
+														<LoaderIcon className="animate-spin" />
+													) : null}
 													Create Project
 												</Button>
 											</Form>

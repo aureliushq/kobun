@@ -117,6 +117,7 @@ const DashboardSidebar = ({
 									<DropdownMenuItem key={project.id}>
 										<Link
 											className="flex w-full items-center justify-between"
+											prefetch="intent"
 											to={`/${project.repoOwnerLogin}/${project.repoName}`}
 										>
 											<div className="flex items-center gap-2">
@@ -139,7 +140,9 @@ const DashboardSidebar = ({
 							</DropdownMenuGroup>
 							<DropdownMenuGroup>
 								<DropdownMenuItem>
-									<Link to={PATHS.SETUP}>Create New Project</Link>
+									<Link prefetch="intent" to={PATHS.SETUP}>
+										Create New Project
+									</Link>
 								</DropdownMenuItem>
 							</DropdownMenuGroup>
 						</DropdownMenuContent>
