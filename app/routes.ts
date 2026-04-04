@@ -9,7 +9,6 @@ import {
 export default [
 	index("routes/index.tsx"),
 	layout("core/components/layouts/dashboard.tsx", [
-		// route("/:owner/:repo", "routes/dashboard.tsx"),
 		route("/:owner/:name", "routes/dashboard.tsx"),
 	]),
 	layout("core/components/layouts/minimal.tsx", [
