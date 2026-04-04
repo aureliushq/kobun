@@ -1,5 +1,6 @@
 import { and, desc, eq, or } from "drizzle-orm"
 import {
+	AlertCircleIcon,
 	ArrowUpRightIcon,
 	CheckIcon,
 	ChevronDownIcon,
@@ -8,7 +9,14 @@ import {
 	LoaderIcon,
 } from "lucide-react"
 import { useState } from "react"
-import { Form, Link, redirect, useNavigation } from "react-router"
+import {
+	data,
+	Form,
+	Link,
+	redirect,
+	useActionData,
+	useNavigation,
+} from "react-router"
 import { getAuth } from "@/auth/auth.server"
 import { deriveConfigStatus, fetchAndParseConfig } from "@/config/github.server"
 import { envContext } from "@/core/context"
@@ -20,6 +28,7 @@ import {
 	getGithubInstallation,
 	listGithubInstallationRepositories,
 } from "@/github/octokit.server"
+import { Alert, AlertDescription, AlertTitle } from "@/ui/components/base/alert"
 import {
 	Avatar,
 	AvatarFallback,
@@ -57,7 +66,11 @@ import {
 } from "@/ui/components/base/item"
 import { ScrollArea } from "@/ui/components/base/scroll-area"
 import { PATHS } from "@/ui/lib/constants"
-import { SetupActionIntents } from "@/ui/lib/types"
+import {
+	SetupActionErrorMessages,
+	SetupActionErrors,
+	SetupActionIntents,
+} from "@/ui/lib/types"
 import type { Route } from "./+types/setup"
 
 export async function loader({ context, request }: Route.LoaderArgs) {
@@ -252,12 +265,16 @@ export async function action({ context, request }: Route.ActionArgs) {
 		})
 
 		if (!installation)
-			// TODO: throw with an error so it can be shown on the frontend
-			throw redirect(PATHS.SETUP)
+			return data(
+				{ error: SetupActionErrors.INSTALLATION_NOT_FOUND },
+				{ status: 400 },
+			)
 
 		if (installation?.deletedAt || installation?.suspendedAt)
-			// TODO: throw with an error so it can be shown on the frontend
-			throw redirect(PATHS.SETUP)
+			return data(
+				{ error: SetupActionErrors.INSTALLATION_SUSPENDED },
+				{ status: 400 },
+			)
 
 		const repos = await listGithubInstallationRepositories(
 			env,
@@ -266,8 +283,8 @@ export async function action({ context, request }: Route.ActionArgs) {
 
 		const selectedRepo = repos.find((repo) => String(repo.id) === repoId)
 
-		// TODO: throw with an error so it can be shown on the frontend
-		if (!selectedRepo) throw redirect(PATHS.SETUP)
+		if (!selectedRepo)
+			return data({ error: SetupActionErrors.REPO_NOT_FOUND }, { status: 400 })
 
 		const configResult = await fetchAndParseConfig(
 			env,
@@ -384,6 +401,7 @@ function NoInstallations() {
 
 export default function Setup({ loaderData }: Route.ComponentProps) {
 	const { accounts, repos, recentProjects, projectRepoIds } = loaderData
+	const actionData = useActionData()
 	const navigation = useNavigation()
 	const [activeInstallationId, setActiveInstallationId] = useState(
 		accounts.length > 0 ? accounts[0].id : null,
@@ -395,6 +413,20 @@ export default function Setup({ loaderData }: Route.ComponentProps) {
 	if (accounts.length > 0) {
 		return (
 			<div className="flex w-full flex-col gap-8">
+				{actionData?.error &&
+					Object.values(SetupActionErrors).includes(actionData.error) && (
+						<Alert variant="destructive">
+							<AlertCircleIcon />
+							<AlertTitle>Something went wrong</AlertTitle>
+							<AlertDescription>
+								{
+									SetupActionErrorMessages[
+										actionData.error as SetupActionErrors
+									]
+								}
+							</AlertDescription>
+						</Alert>
+					)}
 				{recentProjects.length > 0 && (
 					<FieldSet>
 						<FieldLegend>Recent Projects</FieldLegend>
