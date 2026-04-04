@@ -1,0 +1,5 @@
+---
+"kobun": patch
+---
+
+Dependabot updates
