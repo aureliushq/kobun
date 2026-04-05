@@ -17,7 +17,7 @@ const GITHUB_HEADERS = {
  * Convert automatically when needed.
  */
 function getGithubAppPrivateKey(env: Env) {
-	const pem = env.GITHUB_APP_PRIVATE_KEY.replace(/\\n/g, "\n")
+	const pem = env.GITHUB_APP_PRIVATE_KEY!.replace(/\\n/g, "\n")
 
 	if (pem.includes("BEGIN RSA PRIVATE KEY")) {
 		const key = createPrivateKey(pem)
