@@ -1,10 +1,9 @@
-/// <reference types="vitest/config" />
 import { cloudflare } from "@cloudflare/vite-plugin"
 import { reactRouter } from "@react-router/dev/vite"
 import tailwindcss from "@tailwindcss/vite"
 import { visualizer } from "rollup-plugin-visualizer"
-import { defineConfig } from "vite"
 import tsconfigPaths from "vite-tsconfig-paths"
+import { defineConfig } from "vitest/config"
 import packageJson from "./package.json" with { type: "json" }
 
 const isStorybook = process.argv[1]?.includes("storybook")

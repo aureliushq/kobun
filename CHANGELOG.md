@@ -1,5 +1,11 @@
 # kobun
 
+## 0.2.5
+
+### Patch Changes
+
+- 99bfec6: Dependabot updates
+
 ## 0.2.4
 
 ### Patch Changes
