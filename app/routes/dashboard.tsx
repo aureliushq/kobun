@@ -1,52 +1,13 @@
-import { and, eq } from "drizzle-orm"
 import {
 	AlertCircleIcon,
 	ExternalLinkIcon,
 	TriangleAlertIcon,
 } from "lucide-react"
-import { redirect } from "react-router"
-import { getAuth } from "@/auth/auth.server"
-import {
-	type ConfigFetchResult,
-	fetchAndParseConfig,
-} from "@/config/github.server"
-import { envContext } from "@/core/context"
-import { dbContext } from "@/db/context"
-import { project } from "@/db/schema"
+import { useRouteLoaderData } from "react-router"
+import type { ConfigFetchResult } from "@/config/github.server"
+import type { loader as dashboardLayoutLoader } from "@/core/components/layouts/dashboard"
 import { Alert, AlertDescription, AlertTitle } from "@/ui/components/base/alert"
 import { H2 } from "@/ui/components/base/typegraphy"
-import { PATHS } from "@/ui/lib/constants"
-import type { Route } from "./+types/dashboard"
-
-export async function loader({ context, params, request }: Route.LoaderArgs) {
-	const db = context.get(dbContext)
-	const env = context.get(envContext)
-
-	const auth = getAuth(env)
-	const session = await auth.api.getSession({ headers: request.headers })
-	if (!session?.user) throw redirect(PATHS.LOGIN)
-
-	const { owner, name } = params
-	const currentProject = await db.query.project.findFirst({
-		where: and(
-			eq(project.userId, session.user.id),
-			eq(project.repoOwnerLogin, owner),
-			eq(project.repoName, name),
-		),
-		with: { githubInstallation: true },
-	})
-
-	if (!currentProject) throw redirect(PATHS.SETUP)
-
-	const configResult = await fetchAndParseConfig(
-		env,
-		currentProject.githubInstallation.githubInstallationId,
-		owner,
-		name,
-	)
-
-	return { configResult, user: session.user }
-}
 
 function NoConfigAlert({ message }: { message: string }) {
 	return (
@@ -126,13 +87,17 @@ function ConfigAlert({
 	}
 }
 
-export default function Dashboard({ loaderData }: Route.ComponentProps) {
-	const { user } = loaderData
-	const { config: _config, errors } = loaderData.configResult
+export default function Dashboard() {
+	const layoutData = useRouteLoaderData<typeof dashboardLayoutLoader>(
+		"core/components/layouts/dashboard",
+	)
+	const user = layoutData?.user
+	const _config = layoutData?.configResult?.config
+	const errors = layoutData?.configResult?.errors ?? []
 
 	return (
 		<>
-			<H2>{`Welcome ${user.name}!`}</H2>
+			<H2>{`Welcome ${user?.name}!`}</H2>
 			{errors.length > 0 && (
 				<>
 					<p>We found the following errors in your configuration:</p>

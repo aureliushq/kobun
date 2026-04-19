@@ -11,7 +11,8 @@ import {
 } from "lucide-react"
 import { useState } from "react"
 import { Form, Link, useLocation } from "react-router"
-
+import invariant from "tiny-invariant"
+import type { NormalizedConfig } from "@/config"
 import type { ProjectWithGithubInstallation } from "@/db/types"
 import {
 	Avatar,
@@ -53,13 +54,17 @@ import { DashboardActionIntents } from "@/ui/lib/types"
 
 const DashboardSidebar = ({
 	activeProject,
+	config,
 	projects,
 	versionInfo,
 }: {
 	activeProject: ProjectWithGithubInstallation
+	config: NormalizedConfig | null
 	projects: ProjectWithGithubInstallation[]
 	versionInfo: VersionInfo
 }) => {
+	invariant(config, "config is required")
+
 	const { isMobile } = useSidebar()
 	const [aboutOpen, setAboutOpen] = useState(false)
 	const basePath = ""
@@ -166,12 +171,61 @@ const DashboardSidebar = ({
 							</SidebarMenu>
 						</SidebarGroupContent>
 					</SidebarGroup>
-					<SidebarGroup>
-						<SidebarGroupLabel>Collections</SidebarGroupLabel>
-					</SidebarGroup>
-					<SidebarGroup>
-						<SidebarGroupLabel>Singletons</SidebarGroupLabel>
-					</SidebarGroup>
+					{Object.keys(config.collections).length > 0 && (
+						<SidebarGroup>
+							<SidebarGroupLabel>Collections</SidebarGroupLabel>
+							<SidebarGroupContent>
+								<SidebarMenu>
+									{Object.entries(config.collections).map(
+										([key, collection]) => (
+											<SidebarMenuItem key={key}>
+												<SidebarMenuButton
+													isActive={
+														location.pathname ===
+														`${pathname}/collections/${key}`
+													}
+													render={
+														<Link
+															className="sidebar-menu-button"
+															to={`${pathname}/collections/${key}`}
+														/>
+													}
+												>
+													{collection.label}
+												</SidebarMenuButton>
+											</SidebarMenuItem>
+										),
+									)}
+								</SidebarMenu>
+							</SidebarGroupContent>
+						</SidebarGroup>
+					)}
+					{Object.keys(config.singletons).length > 0 && (
+						<SidebarGroup>
+							<SidebarGroupLabel>Singletons</SidebarGroupLabel>
+							<SidebarGroupContent>
+								<SidebarMenu>
+									{Object.entries(config.singletons).map(([key, singleton]) => (
+										<SidebarMenuItem key={key}>
+											<SidebarMenuButton
+												isActive={
+													location.pathname === `${pathname}/singletons/${key}`
+												}
+												render={
+													<Link
+														className="sidebar-menu-button"
+														to={`${pathname}/singletons/${key}`}
+													/>
+												}
+											>
+												{singleton.label}
+											</SidebarMenuButton>
+										</SidebarMenuItem>
+									))}
+								</SidebarMenu>
+							</SidebarGroupContent>
+						</SidebarGroup>
+					)}
 					<SidebarGroup className="mt-auto">
 						<SidebarMenu>
 							<SidebarMenuItem>
