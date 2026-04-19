@@ -10,6 +10,11 @@ export default [
 	index("routes/index.tsx"),
 	layout("core/components/layouts/dashboard.tsx", [
 		route("/:owner/:name", "routes/dashboard.tsx"),
+		route(
+			"/:owner/:name/collections/:collection_slug",
+			"routes/collection.tsx",
+		),
+		route("/:owner/:name/singletons/:singleton_slug", "routes/singleton.tsx"),
 	]),
 	layout("core/components/layouts/minimal.tsx", [
 		route("/login", "routes/login.tsx"),
