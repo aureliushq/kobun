@@ -112,7 +112,7 @@ const DashboardLayout = ({ loaderData }: Route.ComponentProps) => {
 				projects={loaderData.projects}
 				versionInfo={loaderData.versionInfo}
 			/>
-			<main className="flex h-screen w-screen overflow-hidden flex-col divide-y pb-16">
+			<main className="flex h-screen w-screen flex-col divide-y overflow-hidden pb-16">
 				<DashboardHeader />
 				<ScrollArea className="z-10 h-full w-full p-8">
 					<section className="flex w-full justify-center">
