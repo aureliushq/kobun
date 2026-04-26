@@ -21,3 +21,8 @@ export enum DashboardActionIntents {
 	LOGOUT = "logout",
 	REFRESH_CONFIGURATION = "refresh-configuration",
 }
+
+export enum EditorActionIntents {
+	SAVE = "save",
+	PUBLISH = "publish",
+}

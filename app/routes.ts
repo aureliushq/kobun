@@ -16,6 +16,12 @@ export default [
 		),
 		route("/:owner/:name/singletons/:singleton_slug", "routes/singleton.tsx"),
 	]),
+	layout("core/components/layouts/editor.tsx", [
+		route(
+			"/:owner/:name/collections/:collection_slug/editor/:collection_item_slug",
+			"routes/collection-editor.tsx",
+		),
+	]),
 	layout("core/components/layouts/minimal.tsx", [
 		route("/login", "routes/login.tsx"),
 		route("/setup", "routes/setup.tsx"),
