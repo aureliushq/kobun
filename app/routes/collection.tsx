@@ -22,7 +22,7 @@ import {
 	ChevronsUpDown,
 } from "lucide-react"
 import { useMemo, useState } from "react"
-import { redirect } from "react-router"
+import { Link, redirect, useParams } from "react-router"
 import invariant from "tiny-invariant"
 import { getAuth } from "@/auth/auth.server"
 import { fetchAndParseConfig } from "@/config/github.server"
@@ -134,6 +134,7 @@ type Status = "DRAFT" | "PUBLISHED" | "SCHEDULED"
 type Row = {
 	id: string
 	title: string
+	slug: string
 	status: Status
 	createdAt: number | null
 	createdAtRaw: unknown
@@ -190,30 +191,44 @@ const SORT_LABELS: Record<string, string> = {
 	"title:desc": "Sort by: Title (Z→A)",
 }
 
+function singularize(s: string): string {
+	return s.endsWith("s") ? s.slice(0, -1) : s
+}
+
 export default function Collection({ loaderData }: Route.ComponentProps) {
-	const { collection, items } = loaderData
+	const { collection, items, collectionSlug } = loaderData
+	const params = useParams()
+	const owner = params.owner ?? ""
+	const name = params.name ?? ""
+	const editorBase = `/${owner}/${name}/collections/${collectionSlug}/editor`
 
 	const schemaEntries = Object.entries(collection.schema)
 	const slugEntry = schemaEntries.find(([, f]) => f.type === "slug")
+	const slugFieldKey = slugEntry?.[0]
 	const titleFieldKey =
 		slugEntry && slugEntry[1].type === "slug" ? slugEntry[1].from : undefined
 
 	const rows = useMemo<Row[]>(
 		() =>
 			items.map((item) => {
+				const filenameSlug = item.name.replace(/\.mdx?$/, "")
 				const title = titleFieldKey
-					? String(item.data[titleFieldKey] ?? item.name.replace(/\.mdx?$/, ""))
-					: item.name.replace(/\.mdx?$/, "")
+					? String(item.data[titleFieldKey] ?? filenameSlug)
+					: filenameSlug
+				const slug = slugFieldKey
+					? String(item.data[slugFieldKey] ?? filenameSlug)
+					: filenameSlug
 				const created = deriveCreatedAt(item.data)
 				return {
 					id: item.path,
 					title,
+					slug,
 					status: deriveStatus(item.data),
 					createdAt: created.timestamp,
 					createdAtRaw: created.raw,
 				}
 			}),
-		[items, titleFieldKey],
+		[items, titleFieldKey, slugFieldKey],
 	)
 
 	const [sorting, setSorting] = useState<SortingState>([
@@ -235,7 +250,12 @@ export default function Collection({ loaderData }: Route.ComponentProps) {
 				),
 				cell: ({ row }) => (
 					<div className="flex flex-col gap-0.5 p-0">
-						<div className="font-medium text-sm">{row.original.title}</div>
+						<Link
+							to={`${editorBase}/${row.original.slug}`}
+							className="font-medium text-sm hover:underline"
+						>
+							{row.original.title}
+						</Link>
 						<div className="text-muted-foreground text-xs">
 							{formatRelative(row.original.createdAt)}
 						</div>
@@ -278,7 +298,7 @@ export default function Collection({ loaderData }: Route.ComponentProps) {
 				},
 			},
 		],
-		[],
+		[editorBase],
 	)
 
 	const table = useReactTable({
@@ -366,7 +386,9 @@ export default function Collection({ loaderData }: Route.ComponentProps) {
 							))}
 						</SelectContent>
 					</Select>
-					<Button>New Post</Button>
+					<Button render={<Link to={`${editorBase}/new`} />}>
+						New {singularize(collection.label)}
+					</Button>
 				</div>
 			</div>
 
@@ -405,7 +427,7 @@ export default function Collection({ loaderData }: Route.ComponentProps) {
 							table.getRowModel().rows.map((row) => (
 								<TableRow key={row.id}>
 									{row.getVisibleCells().map((cell) => (
-										<TableCell className="h-16 pl-0" key={cell.id}>
+										<TableCell className="h-16" key={cell.id}>
 											{flexRender(
 												cell.column.columnDef.cell,
 												cell.getContext(),
