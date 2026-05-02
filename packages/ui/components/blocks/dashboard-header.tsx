@@ -31,7 +31,7 @@ const DashboardHeader = () => {
 
 	return (
 		<header
-			className={`sticky w-[calc(100vw-${SIDEBAR_WIDTH})] z-20 flex h-16 items-center justify-between px-4`}
+			className={`sticky w-[calc(100vw-${SIDEBAR_WIDTH})] z-20 flex h-16 shrink-0 items-center justify-between px-4`}
 		>
 			<Breadcrumb>
 				<BreadcrumbList>

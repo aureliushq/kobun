@@ -1,13 +1,22 @@
 import { and, desc, eq, or } from "drizzle-orm"
 import {
+	AlertCircleIcon,
 	ArrowUpRightIcon,
 	CheckIcon,
 	ChevronDownIcon,
 	ExternalLinkIcon,
 	FolderGit2Icon,
+	LoaderIcon,
 } from "lucide-react"
 import { useState } from "react"
-import { Form, Link, redirect } from "react-router"
+import {
+	data,
+	Form,
+	Link,
+	redirect,
+	useActionData,
+	useNavigation,
+} from "react-router"
 import { getAuth } from "@/auth/auth.server"
 import { deriveConfigStatus, fetchAndParseConfig } from "@/config/github.server"
 import { envContext } from "@/core/context"
@@ -19,6 +28,7 @@ import {
 	getGithubInstallation,
 	listGithubInstallationRepositories,
 } from "@/github/octokit.server"
+import { Alert, AlertDescription, AlertTitle } from "@/ui/components/base/alert"
 import {
 	Avatar,
 	AvatarFallback,
@@ -56,7 +66,11 @@ import {
 } from "@/ui/components/base/item"
 import { ScrollArea } from "@/ui/components/base/scroll-area"
 import { PATHS } from "@/ui/lib/constants"
-import { SetupActionIntents } from "@/ui/lib/types"
+import {
+	SetupActionErrorMessages,
+	SetupActionErrors,
+	SetupActionIntents,
+} from "@/ui/lib/types"
 import type { Route } from "./+types/setup"
 
 export async function loader({ context, request }: Route.LoaderArgs) {
@@ -251,12 +265,16 @@ export async function action({ context, request }: Route.ActionArgs) {
 		})
 
 		if (!installation)
-			// TODO: throw with an error so it can be shown on the frontend
-			throw redirect(PATHS.SETUP)
+			return data(
+				{ error: SetupActionErrors.INSTALLATION_NOT_FOUND },
+				{ status: 400 },
+			)
 
 		if (installation?.deletedAt || installation?.suspendedAt)
-			// TODO: throw with an error so it can be shown on the frontend
-			throw redirect(PATHS.SETUP)
+			return data(
+				{ error: SetupActionErrors.INSTALLATION_SUSPENDED },
+				{ status: 400 },
+			)
 
 		const repos = await listGithubInstallationRepositories(
 			env,
@@ -265,8 +283,8 @@ export async function action({ context, request }: Route.ActionArgs) {
 
 		const selectedRepo = repos.find((repo) => String(repo.id) === repoId)
 
-		// TODO: throw with an error so it can be shown on the frontend
-		if (!selectedRepo) throw redirect(PATHS.SETUP)
+		if (!selectedRepo)
+			return data({ error: SetupActionErrors.REPO_NOT_FOUND }, { status: 400 })
 
 		const configResult = await fetchAndParseConfig(
 			env,
@@ -383,6 +401,8 @@ function NoInstallations() {
 
 export default function Setup({ loaderData }: Route.ComponentProps) {
 	const { accounts, repos, recentProjects, projectRepoIds } = loaderData
+	const actionData = useActionData()
+	const navigation = useNavigation()
 	const [activeInstallationId, setActiveInstallationId] = useState(
 		accounts.length > 0 ? accounts[0].id : null,
 	)
@@ -393,6 +413,20 @@ export default function Setup({ loaderData }: Route.ComponentProps) {
 	if (accounts.length > 0) {
 		return (
 			<div className="flex w-full flex-col gap-8">
+				{actionData?.error &&
+					Object.values(SetupActionErrors).includes(actionData.error) && (
+						<Alert variant="destructive">
+							<AlertCircleIcon />
+							<AlertTitle>Something went wrong</AlertTitle>
+							<AlertDescription>
+								{
+									SetupActionErrorMessages[
+										actionData.error as SetupActionErrors
+									]
+								}
+							</AlertDescription>
+						</Alert>
+					)}
 				{recentProjects.length > 0 && (
 					<FieldSet>
 						<FieldLegend>Recent Projects</FieldLegend>
@@ -420,7 +454,10 @@ export default function Setup({ loaderData }: Route.ComponentProps) {
 										</ItemTitle>
 									</ItemContent>
 									<ItemActions>
-										<Link to={`/${project.repoOwnerLogin}/${project.repoName}`}>
+										<Link
+											prefetch="intent"
+											to={`/${project.repoOwnerLogin}/${project.repoName}`}
+										>
 											<Button size="sm" variant="secondary">
 												Open
 											</Button>
@@ -525,7 +562,10 @@ export default function Setup({ loaderData }: Route.ComponentProps) {
 									</ItemContent>
 									<ItemActions>
 										{projectRepoIdSet.has(String(repo.id)) ? (
-											<Link to={`/${repo.ownerLogin}/${repo.name}`}>
+											<Link
+												prefetch="intent"
+												to={`/${repo.ownerLogin}/${repo.name}`}
+											>
 												<Button size="sm" variant="secondary">
 													Open
 												</Button>
@@ -549,12 +589,26 @@ export default function Setup({ loaderData }: Route.ComponentProps) {
 													value={repo.installationId}
 												/>
 												<Button
+													disabled={
+														navigation.state === "submitting" &&
+														navigation.formData?.get("intent") ===
+															SetupActionIntents.CREATE_PROJECT &&
+														navigation.formData?.get("repo_id") ===
+															String(repo.id)
+													}
 													name="intent"
 													size="sm"
 													type="submit"
 													value={SetupActionIntents.CREATE_PROJECT}
 													variant="secondary"
 												>
+													{navigation.state === "submitting" &&
+													navigation.formData?.get("intent") ===
+														SetupActionIntents.CREATE_PROJECT &&
+													navigation.formData?.get("repo_id") ===
+														String(repo.id) ? (
+														<LoaderIcon className="animate-spin" />
+													) : null}
 													Create Project
 												</Button>
 											</Form>

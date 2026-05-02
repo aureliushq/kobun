@@ -127,6 +127,97 @@ export async function listGithubInstallationRepositories(
  * Read a single file's content from a repository.
  * Returns the decoded UTF-8 content, SHA, and path.
  */
+/**
+ * List files in a directory and fetch all of their contents in a single
+ * GraphQL request, avoiding N+1 REST calls and rate-limit pressure on
+ * directories with many files.
+ *
+ * Returns text-blob entries only. Subdirectories and binary blobs are skipped.
+ */
+export async function listGithubDirectoryFiles(
+	env: Env,
+	installationId: InstallationID,
+	owner: string,
+	repo: string,
+	path: string,
+	ref = "HEAD",
+) {
+	const octokit = getGithubInstallationOctokit(env, installationId)
+
+	const expression = `${ref}:${path}`
+
+	type GraphqlResponse = {
+		repository: {
+			object: {
+				entries: Array<{
+					name: string
+					path: string
+					oid: string
+					type: string
+					object:
+						| {
+								__typename: "Blob"
+								text: string | null
+								isBinary: boolean | null
+						  }
+						| { __typename: string }
+						| null
+				}>
+			} | null
+		} | null
+	}
+
+	const data = await octokit.graphql<GraphqlResponse>(
+		`query($owner: String!, $repo: String!, $expression: String!) {
+			repository(owner: $owner, name: $repo) {
+				object(expression: $expression) {
+					... on Tree {
+						entries {
+							name
+							path
+							oid
+							type
+							object {
+								__typename
+								... on Blob {
+									text
+									isBinary
+								}
+							}
+						}
+					}
+				}
+			}
+		}`,
+		{ owner, repo, expression },
+	)
+
+	const entries = data.repository?.object?.entries ?? []
+
+	return entries
+		.filter(
+			(
+				e,
+			): e is typeof e & {
+				object: {
+					__typename: "Blob"
+					text: string | null
+					isBinary: boolean | null
+				}
+			} =>
+				e.type === "blob" &&
+				!!e.object &&
+				e.object.__typename === "Blob" &&
+				!(e.object as { isBinary: boolean | null }).isBinary,
+		)
+		.map((e) => ({
+			name: e.name,
+			path: e.path,
+			sha: e.oid,
+			content: e.object.text ?? "",
+		}))
+}
+
 export async function getGithubFileContent(
 	env: Env,
 	installationId: InstallationID,

@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm"
 import { Outlet, redirect } from "react-router"
 import { getAuth } from "@/auth/auth.server"
+import { fetchAndParseConfig } from "@/config/github.server"
 import { envContext } from "@/core/context"
 import { dbContext } from "@/db/context"
 import { project } from "@/db/schema/app-schema"
@@ -31,6 +32,15 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
 		(project) => project.repoOwnerLogin === owner && project.repoName === name,
 	)
 
+	if (!activeProject) throw redirect(PATHS.SETUP)
+
+	const configResult = await fetchAndParseConfig(
+		env,
+		activeProject.githubInstallation.githubInstallationId,
+		owner,
+		name,
+	)
+
 	const currentVersion = KOBUN_VERSION
 	const requestUrl = new URL(request.url)
 	const isHosted = requestUrl.hostname === new URL(env.KOBUN_APP_URL).hostname
@@ -59,6 +69,7 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
 
 	return {
 		activeProject,
+		configResult,
 		projects,
 		user: session.user,
 		versionInfo: {
@@ -89,16 +100,19 @@ export async function action({ context, request }: Route.ActionArgs) {
 }
 
 const DashboardLayout = ({ loaderData }: Route.ComponentProps) => {
+	const config = loaderData?.configResult?.config
+
 	return (
 		<SidebarProvider>
 			<DashboardSidebar
 				activeProject={
 					loaderData.activeProject as ProjectWithGithubInstallation
 				}
+				config={config}
 				projects={loaderData.projects}
 				versionInfo={loaderData.versionInfo}
 			/>
-			<main className="flex h-screen w-screen flex-col divide-y">
+			<main className="flex h-screen w-screen flex-col divide-y overflow-hidden pb-16">
 				<DashboardHeader />
 				<ScrollArea className="z-10 h-full w-full p-8">
 					<section className="flex w-full justify-center">
