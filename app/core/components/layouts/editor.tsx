@@ -20,8 +20,11 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
 	const session = await auth.api.getSession({ headers: request.headers })
 	if (!session?.user) throw redirect(PATHS.LOGIN)
 
-	const { owner, name, collection_slug } = params
-	invariant(collection_slug, "collection_slug is required")
+	const { owner, name, collection_slug, singleton_slug } = params
+	invariant(
+		collection_slug || singleton_slug,
+		"collection_slug or singleton_slug is required",
+	)
 
 	const projects = await db.query.project.findMany({
 		where: eq(project.userId, session.user.id),
@@ -41,30 +44,36 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
 	const config = configResult.config
 	invariant(config, "config is required")
 
+	if (singleton_slug) {
+		const singleton = config.singletons[singleton_slug]
+		invariant(singleton, "singleton is required")
+		return {
+			parentLabel: singleton.label,
+			parentPath: `/${owner}/${name}/singletons/${singleton_slug}`,
+		}
+	}
+
+	invariant(collection_slug, "collection_slug is required")
 	const collection = config.collections[collection_slug]
 	invariant(collection, "collection is required")
 
 	return {
-		collectionLabel: collection.label,
-		collectionPath: `/${owner}/${name}/collections/${collection_slug}`,
+		parentLabel: collection.label,
+		parentPath: `/${owner}/${name}/collections/${collection_slug}`,
 	}
 }
 
 const EditorLayout = ({ loaderData }: Route.ComponentProps) => {
-	const { collectionLabel, collectionPath } = loaderData
+	const { parentLabel, parentPath } = loaderData
 
 	return (
 		<main className="flex h-screen w-screen flex-col divide-y">
 			<header className="flex h-14 shrink-0 items-center justify-between gap-4 px-6">
 				<div className="flex items-center gap-2">
-					<Button
-						variant="ghost"
-						size="icon"
-						render={<Link to={collectionPath} />}
-					>
+					<Button variant="ghost" size="icon" render={<Link to={parentPath} />}>
 						<ChevronLeft className="size-4" />
 					</Button>
-					<span className="font-medium text-sm">{collectionLabel}</span>
+					<span className="font-medium text-sm">{parentLabel}</span>
 				</div>
 				<Form method="post" className="flex items-center gap-2">
 					<Button
