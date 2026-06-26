@@ -30,9 +30,6 @@ export default [
 			"routes/singleton-item-editor.tsx",
 		),
 	]),
-	layout("core/components/layouts/editor.tsx", [
-		route("/editor", "routes/editor.tsx"),
-	]),
 	layout("core/components/layouts/minimal.tsx", [
 		route("/login", "routes/login.tsx"),
 		route("/setup", "routes/setup.tsx"),
