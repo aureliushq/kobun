@@ -20,8 +20,7 @@ export function useEditor(options: UseEditorOptions): Editor | null {
 		editable: !readOnly,
 		editorProps: {
 			attributes: {
-				class:
-					"prose prose-sm sm:prose-base max-w-none focus:outline-none min-h-[200px] px-4 py-3",
+				class: "prose dark:prose-invert max-w-none focus:outline-none",
 			},
 		},
 		extensions: getEditorExtensions({ placeholder, imageUpload }),

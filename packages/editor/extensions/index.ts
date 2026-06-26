@@ -10,6 +10,7 @@ import { CustomKeymapExtension } from "./keymap"
 import { CustomLinkExtension } from "./link"
 import { MarkdownClipboardExtension } from "./markdown-clipboard"
 import { CustomPlaceholderExtension } from "./placeholder"
+import { SlashCommandsExtension } from "./slash-commands/extension"
 import { configuredStarterKit } from "./starter-kit"
 import { CustomTypographyExtension } from "./typography"
 
@@ -37,6 +38,7 @@ export function getEditorExtensions(options: ExtensionOptions): Extensions {
 			},
 		}),
 		MarkdownClipboardExtension,
+		SlashCommandsExtension,
 		TextStyle,
 		Underline,
 	]
