@@ -1,3 +1,4 @@
+// biome-ignore-all lint/suspicious/noExplicitAny: it's fine
 import { ReactRenderer } from "@tiptap/react"
 import tippy, { type Instance } from "tippy.js"
 import {
