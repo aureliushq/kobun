@@ -26,6 +26,7 @@ export interface EditorRefApi {
 export interface RichTextEditorProps {
 	autosaveDelay?: number
 	className?: string
+	dragHandle?: boolean
 	imageUpload?: ImageUploadAdapter
 	initialContent?: string
 	onChange?: (markdown: string) => void

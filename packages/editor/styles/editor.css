@@ -12,7 +12,7 @@
 /* Focused writing column */
 .editor-wrapper {
 	width: 100%;
-	max-width: 42rem; /* max-w-2xl */
+	max-width: 48rem; /* widened to leave room for the side-menu gutter */
 	margin-left: auto;
 	margin-right: auto;
 }

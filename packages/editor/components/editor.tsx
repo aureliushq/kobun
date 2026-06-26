@@ -1,9 +1,10 @@
 import { EditorContent } from "@tiptap/react"
-import { forwardRef, useImperativeHandle } from "react"
+import { forwardRef, useImperativeHandle, useRef } from "react"
 import { cn } from "@/ui/lib/utils"
 import { useEditor } from "../hooks/use-editor"
 import type { EditorRefApi, RichTextEditorProps } from "../types"
 import { EditorBubbleMenu } from "./menus/bubble-menu/bubble-menu"
+import { SideMenu } from "./menus/side-menu/side-menu"
 
 export const RichTextEditor = forwardRef<EditorRefApi, RichTextEditorProps>(
 	function RichTextEditor(props, ref) {
@@ -13,8 +14,11 @@ export const RichTextEditor = forwardRef<EditorRefApi, RichTextEditorProps>(
 			imageUpload,
 			onChange,
 			readOnly = false,
+			dragHandle = true,
 			className,
 		} = props
+
+		const containerRef = useRef<HTMLDivElement>(null)
 
 		const editor = useEditor({
 			initialContent,
@@ -60,9 +64,19 @@ export const RichTextEditor = forwardRef<EditorRefApi, RichTextEditorProps>(
 		if (!editor) return null
 
 		return (
-			<div className={cn("group/editor relative", className)}>
+			<div
+				ref={containerRef}
+				className={cn(
+					"group/editor relative",
+					!readOnly && dragHandle && "pl-12",
+					className,
+				)}
+			>
 				<EditorContent editor={editor} />
 				{!readOnly && <EditorBubbleMenu editor={editor} />}
+				{!readOnly && dragHandle && (
+					<SideMenu editor={editor} containerRef={containerRef} />
+				)}
 			</div>
 		)
 	},
