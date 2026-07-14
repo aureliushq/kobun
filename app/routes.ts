@@ -18,7 +18,7 @@ export default [
 	]),
 	layout("core/components/layouts/editor.tsx", [
 		route(
-			"/:owner/:name/collections/:collection_slug/editor/:collection_item_slug",
+			"/:owner/:name/collections/:collection_slug/editor/:editor_mode/:collection_item_slug?",
 			"routes/collection-editor.tsx",
 		),
 		route(
@@ -37,6 +37,10 @@ export default [
 	...prefix("api", [
 		route("auth/*", "routes/api.auth.$.ts"),
 		route("dashboard-actions", "routes/api.dashboard-actions.ts"),
+		route(
+			"editor/:owner/:name/collections/:collection_slug/editor/:editor_mode/:collection_item_slug?",
+			"routes/api.collection-editor.ts",
+		),
 		route("repo-asset/:owner/:name/*", "routes/api.repo-asset.ts"),
 		route("set-theme", "routes/api.set-theme.ts"),
 	]),
