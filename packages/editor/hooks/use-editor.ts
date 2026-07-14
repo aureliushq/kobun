@@ -16,6 +16,7 @@ export function useEditor(options: UseEditorOptions): Editor | null {
 
 	const editor = useTiptapEditor({
 		content: initialContent ?? "",
+		contentType: "markdown",
 		immediatelyRender: false,
 		editable: !readOnly,
 		editorProps: {

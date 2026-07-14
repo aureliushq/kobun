@@ -1,5 +1,11 @@
 import type { Editor, JSONContent } from "@tiptap/core"
 
+export interface AutosaveState {
+	isDirty: boolean
+	isSaving: boolean
+	lastSavedAt: Date | null
+}
+
 export interface ImageUploadAdapter {
 	allowedMimeTypes?: string[]
 	maxFileSize?: number
@@ -20,6 +26,8 @@ export interface EditorRefApi {
 	getJSON: () => JSONContent
 	getMarkdown: () => string
 	hasUnsavedChanges: () => boolean
+	publish: () => Promise<void>
+	save: () => Promise<void>
 	setMarkdown: (markdown: string) => void
 }
 
@@ -30,6 +38,7 @@ export interface RichTextEditorProps {
 	imageUpload?: ImageUploadAdapter
 	initialContent?: string
 	onChange?: (markdown: string) => void
+	onAutosaveStateChange?: (state: AutosaveState) => void
 	persistence?: PersistenceAdapter
 	placeholder?: string
 	readOnly?: boolean
