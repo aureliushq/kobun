@@ -1,4 +1,5 @@
 import {
+	BadgeInfo,
 	Code,
 	Heading1,
 	Heading2,
@@ -10,6 +11,7 @@ import {
 	ListOrdered,
 	Minus,
 	Quote,
+	Smile,
 	// ImageIcon,
 	Type,
 } from "lucide-react"
@@ -137,6 +139,20 @@ export const defaultSlashCommands: SlashCommandItem[] = [
 		},
 	},
 	{
+		title: "Callout",
+		description: "Highlight important information.",
+		icon: BadgeInfo,
+		searchTerms: ["aside", "alert", "info", "warning", "error", "success"],
+		command: ({ editor, range }) => {
+			editor
+				.chain()
+				.focus()
+				.deleteRange(range)
+				.wrapIn("callout", { type: "info" })
+				.run()
+		},
+	},
+	{
 		title: "Code",
 		description: "Insert a code block.",
 		icon: Code,
@@ -152,6 +168,15 @@ export const defaultSlashCommands: SlashCommandItem[] = [
 		searchTerms: ["hr", "divider", "horizontal", "rule", "separator"],
 		command: ({ editor, range }) => {
 			editor.chain().focus().deleteRange(range).setHorizontalRule().run()
+		},
+	},
+	{
+		title: "Emoji",
+		description: "Insert an emoji by shortcode.",
+		icon: Smile,
+		searchTerms: ["emoji", "emoticon", "smiley", "shortcode"],
+		command: ({ editor, range }) => {
+			editor.chain().focus().insertContentAt(range, ":").run()
 		},
 	},
 ]

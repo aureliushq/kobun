@@ -102,6 +102,55 @@
 	position: relative;
 }
 
+/* Callouts */
+.ProseMirror .callout-node-view {
+	margin: 1.25em 0;
+	border: 1px solid var(--color-border);
+	border-left-width: 4px;
+	border-radius: 0.5rem;
+	padding: 0.75rem 1rem;
+	background-color: color-mix(in oklab, var(--color-accent) 25%, transparent);
+}
+
+.ProseMirror .callout-node-view[data-callout="info"] {
+	border-left-color: var(--color-primary);
+}
+
+.ProseMirror .callout-node-view[data-callout="warning"] {
+	border-left-color: var(--color-chart-4);
+}
+
+.ProseMirror .callout-node-view[data-callout="error"] {
+	border-left-color: var(--color-destructive);
+}
+
+.ProseMirror .callout-node-view[data-callout="success"] {
+	border-left-color: var(--color-chart-2);
+}
+
+.ProseMirror .callout-toolbar {
+	display: flex;
+	margin-bottom: 0.5rem;
+}
+
+.ProseMirror .callout-type-selector {
+	border-color: transparent;
+	background-color: transparent;
+	font-weight: 600;
+}
+
+.ProseMirror .callout-content > :last-child {
+	margin-bottom: 0;
+}
+
+/* Emoji */
+.ProseMirror span[data-type="emoji"] {
+	display: inline !important;
+	font-size: 1em;
+	line-height: 1;
+	white-space: nowrap;
+}
+
 .ProseMirror .code-block-toolbar {
 	position: absolute;
 	top: 0.5rem;

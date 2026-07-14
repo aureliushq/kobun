@@ -57,4 +57,17 @@ describe("markdown utilities", () => {
 			["```javascript", "console.log(1)", "```"].join("\n"),
 		)
 	})
+
+	it("roundtrips callouts as raw HTML and emoji as Unicode", () => {
+		const markdown =
+			'<div data-callout="error"><p>Failed <strong>badly</strong> 😱</p></div>'
+
+		const html = markdownToHtml(markdown)
+		const serialized = htmlToMarkdown(html)
+
+		expect(html).toContain('data-callout="error"')
+		expect(serialized).toContain('data-callout="error"')
+		expect(serialized).toContain("<strong>badly</strong> 😱")
+		expect(markdownToHtml(serialized)).toContain("<strong>badly</strong> 😱")
+	})
 })

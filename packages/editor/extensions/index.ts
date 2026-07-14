@@ -1,12 +1,14 @@
-import type { Extensions } from "@tiptap/core"
+import { type Extensions, generateHTML } from "@tiptap/core"
 import CharacterCount from "@tiptap/extension-character-count"
 import { TextStyle } from "@tiptap/extension-text-style"
 import Underline from "@tiptap/extension-underline"
 import { Markdown } from "@tiptap/markdown"
 import type { ImageUploadAdapter } from "../types"
 import { CustomBlockquoteExtension } from "./blockquote"
+import { createCustomCalloutExtension } from "./callout/extension"
 import { CustomCodeBlockExtension } from "./code-block/extension"
 import { DragHandleExtension } from "./drag-handle"
+import { CustomEmojiExtension } from "./emoji/extension"
 import { CustomHorizontalRuleExtension } from "./horizontal-rule"
 import { CustomKeymapExtension } from "./keymap"
 import { CustomLinkExtension } from "./link"
@@ -33,12 +35,19 @@ const MarkdownUnderlineExtension = Underline.extend({
 })
 
 export function getEditorExtensions(options: ExtensionOptions): Extensions {
-	return [
+	const extensions: Extensions = []
+	const calloutExtension = createCustomCalloutExtension((content) =>
+		generateHTML({ type: "doc", content }, extensions),
+	)
+
+	extensions.push(
 		configuredStarterKit(),
 		CharacterCount,
 		CustomBlockquoteExtension,
+		calloutExtension,
 		CustomCodeBlockExtension,
 		DragHandleExtension,
+		CustomEmojiExtension,
 		CustomHorizontalRuleExtension,
 		CustomLinkExtension,
 		CustomKeymapExtension,
@@ -53,5 +62,7 @@ export function getEditorExtensions(options: ExtensionOptions): Extensions {
 		SlashCommandsExtension,
 		TextStyle,
 		MarkdownUnderlineExtension,
-	]
+	)
+
+	return extensions
 }
