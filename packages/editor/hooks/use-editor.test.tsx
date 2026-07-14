@@ -14,4 +14,22 @@ describe("useEditor", () => {
 		expect(result.current?.getHTML()).toContain('href="https://example.com"')
 		expect(result.current?.getMarkdown()).toBe(markdown)
 	})
+
+	it("preserves GFM and raw HTML after editing loaded Markdown", async () => {
+		const markdown = "Text with ~~strike~~ and <u>underline</u>."
+		const { result } = renderHook(() => useEditor({ initialContent: markdown }))
+
+		await waitFor(() => expect(result.current).not.toBeNull())
+
+		const editor = result.current
+		expect(editor?.getHTML()).toContain("<s>strike</s>")
+		expect(editor?.getHTML()).toContain("<u>underline</u>")
+
+		editor?.commands.insertContentAt(
+			editor.state.doc.content.size - 1,
+			" Edited",
+		)
+
+		expect(editor?.getMarkdown()).toBe(`${markdown} Edited`)
+	})
 })

@@ -11,6 +11,7 @@ export function configuredStarterKit() {
 			levels: [1, 2, 3, 4, 5, 6],
 		},
 		horizontalRule: false,
+		link: false,
 		listItem: {
 			HTMLAttributes: { class: "leading-normal" },
 		},
@@ -20,6 +21,7 @@ export function configuredStarterKit() {
 		paragraph: {
 			HTMLAttributes: { class: "leading-relaxed" },
 		},
+		underline: false,
 		undoRedo: {},
 	})
 }

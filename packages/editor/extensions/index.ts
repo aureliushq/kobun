@@ -20,6 +20,17 @@ interface ExtensionOptions {
 	placeholder?: string
 }
 
+export const editorMarkdownOptions = {
+	breaks: true,
+	gfm: true,
+}
+
+const MarkdownUnderlineExtension = Underline.extend({
+	renderMarkdown(node, helpers) {
+		return `<u>${helpers.renderChildren(node)}</u>`
+	},
+})
+
 export function getEditorExtensions(options: ExtensionOptions): Extensions {
 	return [
 		configuredStarterKit(),
@@ -34,14 +45,11 @@ export function getEditorExtensions(options: ExtensionOptions): Extensions {
 		}),
 		CustomTypographyExtension,
 		Markdown.configure({
-			markedOptions: {
-				gfm: true,
-				breaks: true,
-			},
+			markedOptions: editorMarkdownOptions,
 		}),
 		MarkdownClipboardExtension,
 		SlashCommandsExtension,
 		TextStyle,
-		Underline,
+		MarkdownUnderlineExtension,
 	]
 }
