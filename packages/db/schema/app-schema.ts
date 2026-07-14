@@ -104,6 +104,43 @@ export const project = sqliteTable(
 	],
 )
 
+export const editorDraft = sqliteTable(
+	"editor_draft",
+	{
+		id: text("id").primaryKey(),
+		projectId: text("project_id")
+			.notNull()
+			.references(() => project.id, { onDelete: "cascade" }),
+		collectionSlug: text("collection_slug").notNull(),
+		itemSlug: text("item_slug"),
+		sourcePath: text("source_path"),
+		sourceSha: text("source_sha"),
+		markdown: text("markdown").notNull().default(""),
+		revision: integer("revision").notNull().default(0),
+		publishedRevision: integer("published_revision"),
+		publishedAt: integer("published_at", { mode: "timestamp_ms" }),
+		createdAt: integer("created_at", { mode: "timestamp_ms" })
+			.default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+			.notNull(),
+		updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+			.default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+			.$onUpdate(() => /* @__PURE__ */ new Date())
+			.notNull(),
+	},
+	(table) => [
+		index("editor_draft_projectId_idx").on(table.projectId),
+		index("editor_draft_projectId_collectionSlug_idx").on(
+			table.projectId,
+			table.collectionSlug,
+		),
+		uniqueIndex("editor_draft_projectId_sourcePath_idx").on(
+			table.projectId,
+			table.sourcePath,
+		),
+		index("editor_draft_publishedAt_idx").on(table.publishedAt),
+	],
+)
+
 export const githubInstallationRelations = relations(
 	githubInstallation,
 	({ many }) => ({
@@ -126,7 +163,7 @@ export const userInstallationRelations = relations(
 	}),
 )
 
-export const projectRelations = relations(project, ({ one }) => ({
+export const projectRelations = relations(project, ({ many, one }) => ({
 	user: one(user, {
 		fields: [project.userId],
 		references: [user.id],
@@ -134,5 +171,13 @@ export const projectRelations = relations(project, ({ one }) => ({
 	githubInstallation: one(githubInstallation, {
 		fields: [project.installationId],
 		references: [githubInstallation.id],
+	}),
+	editorDrafts: many(editorDraft),
+}))
+
+export const editorDraftRelations = relations(editorDraft, ({ one }) => ({
+	project: one(project, {
+		fields: [editorDraft.projectId],
+		references: [project.id],
 	}),
 }))

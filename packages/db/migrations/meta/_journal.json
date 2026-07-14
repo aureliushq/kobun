@@ -15,6 +15,13 @@
       "when": 1774185214002,
       "tag": "0001_swift_bromley",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1784002754890,
+      "tag": "0002_editor_drafts",
+      "breakpoints": true
     }
   ]
 }
