@@ -157,8 +157,10 @@ export async function listGithubDirectoryFiles(
 					object:
 						| {
 								__typename: "Blob"
-								text: string | null
+								byteSize: number
 								isBinary: boolean | null
+								isTruncated: boolean
+								text: string | null
 						  }
 						| { __typename: string }
 						| null
@@ -180,8 +182,10 @@ export async function listGithubDirectoryFiles(
 							object {
 								__typename
 								... on Blob {
+									byteSize
 									text
 									isBinary
+									isTruncated
 								}
 							}
 						}
@@ -201,8 +205,10 @@ export async function listGithubDirectoryFiles(
 			): e is typeof e & {
 				object: {
 					__typename: "Blob"
-					text: string | null
+					byteSize: number
 					isBinary: boolean | null
+					isTruncated: boolean
+					text: string | null
 				}
 			} =>
 				e.type === "blob" &&
@@ -210,12 +216,19 @@ export async function listGithubDirectoryFiles(
 				e.object.__typename === "Blob" &&
 				!(e.object as { isBinary: boolean | null }).isBinary,
 		)
-		.map((e) => ({
-			name: e.name,
-			path: e.path,
-			sha: e.oid,
-			content: e.object.text ?? "",
-		}))
+		.map((e) => {
+			if (e.object.isTruncated || e.object.text === null) {
+				throw new Error(
+					`Cannot safely read ${owner}/${repo}:${e.path} (${e.object.byteSize} bytes)`,
+				)
+			}
+			return {
+				name: e.name,
+				path: e.path,
+				sha: e.oid,
+				content: e.object.text,
+			}
+		})
 }
 
 export async function getGithubFileContent(
@@ -244,5 +257,38 @@ export async function getGithubFileContent(
 		sha: data.sha,
 		path: data.path,
 		content: atob(data.content),
+	}
+}
+
+export async function createOrUpdateGithubTextFile(
+	env: Env,
+	installationId: InstallationID,
+	owner: string,
+	repo: string,
+	options: {
+		content: string
+		message: string
+		path: string
+		sha?: string
+	},
+) {
+	const octokit = getGithubInstallationOctokit(env, installationId)
+	const { data } = await octokit.repos.createOrUpdateFileContents({
+		owner,
+		repo,
+		path: options.path,
+		message: options.message,
+		content: Buffer.from(options.content, "utf8").toString("base64"),
+		sha: options.sha,
+		headers: GITHUB_HEADERS,
+	})
+	const contentSha =
+		data.content?.sha ??
+		(await getGithubFileContent(env, installationId, owner, repo, options.path))
+			.sha
+
+	return {
+		commitSha: data.commit.sha,
+		contentSha,
 	}
 }
