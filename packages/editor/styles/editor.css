@@ -98,6 +98,34 @@
 }
 
 /* Code blocks */
+.ProseMirror .code-block-node-view {
+	position: relative;
+}
+
+.ProseMirror .code-block-toolbar {
+	position: absolute;
+	top: 0.5rem;
+	right: 0.5rem;
+	z-index: 1;
+	display: flex;
+	align-items: center;
+	gap: 0.25rem;
+}
+
+.ProseMirror .code-block-language {
+	max-width: 8rem;
+	border-color: transparent;
+	background-color: color-mix(
+		in oklab,
+		var(--color-background) 70%,
+		transparent
+	);
+}
+
+.ProseMirror .code-block-node-view pre {
+	padding-top: 2.75rem !important;
+}
+
 .ProseMirror pre {
 	border-radius: 0.5rem !important;
 	padding: 0.75rem 1rem !important;
@@ -111,6 +139,55 @@
 	background: none !important;
 	padding: 0 !important;
 	font-size: 0.9rem !important;
+}
+
+.ProseMirror .hljs-comment,
+.ProseMirror .hljs-quote {
+	color: var(--color-muted-foreground);
+}
+
+.ProseMirror .hljs-keyword,
+.ProseMirror .hljs-selector-tag,
+.ProseMirror .hljs-type {
+	color: var(--color-destructive);
+}
+
+.ProseMirror .hljs-string,
+.ProseMirror .hljs-regexp,
+.ProseMirror .hljs-template-variable {
+	color: var(--color-chart-2);
+}
+
+.ProseMirror .hljs-number,
+.ProseMirror .hljs-literal,
+.ProseMirror .hljs-variable {
+	color: var(--color-chart-3);
+}
+
+.ProseMirror .hljs-title,
+.ProseMirror .hljs-section,
+.ProseMirror .hljs-built_in {
+	color: var(--color-primary);
+}
+
+.ProseMirror .hljs-attr,
+.ProseMirror .hljs-property,
+.ProseMirror .hljs-symbol {
+	color: var(--color-chart-4);
+}
+
+.ProseMirror .hljs-meta,
+.ProseMirror .hljs-selector-class,
+.ProseMirror .hljs-selector-id {
+	color: var(--color-chart-5);
+}
+
+.ProseMirror .hljs-emphasis {
+	font-style: italic;
+}
+
+.ProseMirror .hljs-strong {
+	font-weight: 600;
 }
 
 /* Inline code */

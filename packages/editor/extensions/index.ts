@@ -5,6 +5,7 @@ import Underline from "@tiptap/extension-underline"
 import { Markdown } from "@tiptap/markdown"
 import type { ImageUploadAdapter } from "../types"
 import { CustomBlockquoteExtension } from "./blockquote"
+import { CustomCodeBlockExtension } from "./code-block/extension"
 import { DragHandleExtension } from "./drag-handle"
 import { CustomHorizontalRuleExtension } from "./horizontal-rule"
 import { CustomKeymapExtension } from "./keymap"
@@ -36,6 +37,7 @@ export function getEditorExtensions(options: ExtensionOptions): Extensions {
 		configuredStarterKit(),
 		CharacterCount,
 		CustomBlockquoteExtension,
+		CustomCodeBlockExtension,
 		DragHandleExtension,
 		CustomHorizontalRuleExtension,
 		CustomLinkExtension,

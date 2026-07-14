@@ -35,4 +35,26 @@ describe("markdown utilities", () => {
 			"This is ~~removed~~.",
 		)
 	})
+
+	it("roundtrips fenced code blocks with their language", () => {
+		const markdown = ["```typescript", 'const greeting = "hello"', "```"].join(
+			"\n",
+		)
+
+		const html = markdownToHtml(markdown)
+
+		expect(html).toContain('<code class="language-typescript">')
+		expect(htmlToMarkdown(html)).toBe(markdown)
+	})
+
+	it("loads tilde-fenced code blocks and serializes canonical fences", () => {
+		const markdown = ["~~~javascript", "console.log(1)", "~~~"].join("\n")
+
+		const html = markdownToHtml(markdown)
+
+		expect(html).toContain('<code class="language-javascript">')
+		expect(htmlToMarkdown(html)).toBe(
+			["```javascript", "console.log(1)", "```"].join("\n"),
+		)
+	})
 })
