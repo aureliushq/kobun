@@ -56,7 +56,7 @@ export default defineConfig({
 		passWithNoTests: true,
 
 		coverage: {
-			include: ["{apps,packages}/**/*.{ts,tsx}"],
+			include: ["{app,packages}/**/*.{ts,tsx}"],
 			exclude: ["**/*.stories.tsx"],
 			reporter: ["text", "text-summary"],
 			reportsDirectory: "./.reports/tests-coverage",
@@ -74,7 +74,7 @@ export default defineConfig({
 				test: {
 					name: "node",
 					environment: "node",
-					include: ["{apps,packages}/**/*.test.ts"],
+					include: ["{app,packages}/**/*.test.ts"],
 				},
 			},
 			{
@@ -82,7 +82,7 @@ export default defineConfig({
 				test: {
 					name: "dom",
 					environment: "happy-dom",
-					include: ["{apps,packages}/**/*.test.tsx"],
+					include: ["{app,packages}/**/*.test.tsx"],
 					setupFiles: ["./setup.dom.vitest.ts"],
 				},
 			},
