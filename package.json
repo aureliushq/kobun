@@ -67,6 +67,7 @@
 		"@tiptap/core": "3.21.0",
 		"@tiptap/extension-character-count": "3.21.0",
 		"@tiptap/extension-code-block-lowlight": "3.21.0",
+		"@tiptap/extension-emoji": "3.21.0",
 		"@tiptap/extension-link": "3.21.0",
 		"@tiptap/extension-placeholder": "3.21.0",
 		"@tiptap/extension-text-style": "3.21.0",
