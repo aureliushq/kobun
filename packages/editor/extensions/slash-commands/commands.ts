@@ -7,12 +7,12 @@ import {
 	Heading4,
 	Heading5,
 	Heading6,
+	ImageIcon,
 	List,
 	ListOrdered,
 	Minus,
 	Quote,
 	Smile,
-	// ImageIcon,
 	Type,
 } from "lucide-react"
 import type { SlashCommandItem } from "./extension"
@@ -168,6 +168,27 @@ export const defaultSlashCommands: SlashCommandItem[] = [
 		searchTerms: ["hr", "divider", "horizontal", "rule", "separator"],
 		command: ({ editor, range }) => {
 			editor.chain().focus().deleteRange(range).setHorizontalRule().run()
+		},
+	},
+	{
+		title: "Image",
+		description: "Upload an image from your device.",
+		icon: ImageIcon,
+		searchTerms: ["image", "photo", "picture", "upload"],
+		command: ({ editor, range }) => {
+			const input = document.createElement("input")
+			input.type = "file"
+			input.accept = "image/*"
+			input.addEventListener(
+				"change",
+				() => {
+					const file = input.files?.[0]
+					if (file) editor.commands.insertImageComponent(file)
+				},
+				{ once: true },
+			)
+			editor.chain().focus().deleteRange(range).run()
+			input.click()
 		},
 	},
 	{

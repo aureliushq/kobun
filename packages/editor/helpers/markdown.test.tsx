@@ -6,18 +6,26 @@ describe("markdown utilities", () => {
 		const markdown = [
 			"# Title",
 			"",
-			"A **bold** paragraph with ~~removed~~ text and [a link](https://example.com).",
+			"A **bold**, *italic*, ~~removed~~ paragraph with `code` and [a link](https://example.com).",
 			"",
 			"- first",
 			"- second",
 			"",
+			"1. ordered first",
+			"2. ordered second",
+			"",
 			"> quoted",
+			"",
+			"---",
+			"",
+			'![Alt text](https://example.com/image.png "Image title")',
 		].join("\n")
 
 		const html = markdownToHtml(markdown)
 
 		expect(html).toContain("<h1>Title</h1>")
 		expect(html).toContain("<s>removed</s>")
+		expect(html).toContain('<img src="https://example.com/image.png"')
 		expect(htmlToMarkdown(html)).toBe(markdown)
 	})
 

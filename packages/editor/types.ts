@@ -1,4 +1,5 @@
 import type { Editor, JSONContent } from "@tiptap/core"
+import type { SlashCommandItem } from "./extensions/slash-commands/extension"
 
 export interface AutosaveState {
 	isDirty: boolean
@@ -9,6 +10,7 @@ export interface AutosaveState {
 export interface ImageUploadAdapter {
 	allowedMimeTypes?: string[]
 	maxFileSize?: number
+	resolveSrc?: (src: string) => string | undefined
 	upload: (file: File) => Promise<string>
 	validate?: (file: File) => string | null
 }
@@ -43,4 +45,5 @@ export interface RichTextEditorProps {
 	placeholder?: string
 	readOnly?: boolean
 	ref?: React.Ref<EditorRefApi>
+	slashCommands?: SlashCommandItem[]
 }

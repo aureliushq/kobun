@@ -26,6 +26,7 @@ export const RichTextEditor = forwardRef<EditorRefApi, RichTextEditorProps>(
 			persistence,
 			autosaveDelay,
 			onAutosaveStateChange,
+			slashCommands,
 		} = props
 
 		const containerRef = useRef<HTMLDivElement>(null)
@@ -43,6 +44,7 @@ export const RichTextEditor = forwardRef<EditorRefApi, RichTextEditorProps>(
 			imageUpload,
 			readOnly,
 			onChange,
+			slashCommands,
 		})
 		const autosave = useAutosave({
 			editor,

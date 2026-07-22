@@ -153,6 +153,25 @@ describe("useAutosave", () => {
 		expect(result.current.hasUnsavedChanges()).toBe(false)
 	})
 
+	it("skips saving when content returns to the saved baseline", async () => {
+		const testEditor = createTestEditor("Initial")
+		const onAutoSave = vi.fn()
+		const { result } = renderHook(() =>
+			useAutosave({
+				editor: testEditor.editor,
+				persistence: { onAutoSave },
+				delay: 100,
+			}),
+		)
+
+		act(() => testEditor.update("Changed"))
+		act(() => testEditor.update("Initial"))
+		await act(async () => vi.advanceTimersByTimeAsync(100))
+
+		expect(onAutoSave).not.toHaveBeenCalled()
+		expect(result.current.isDirty).toBe(false)
+	})
+
 	it("keeps failed content dirty", async () => {
 		const testEditor = createTestEditor("Initial")
 		const error = new Error("save failed")

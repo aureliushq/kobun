@@ -10,17 +10,22 @@ import { CustomCodeBlockExtension } from "./code-block/extension"
 import { DragHandleExtension } from "./drag-handle"
 import { CustomEmojiExtension } from "./emoji/extension"
 import { CustomHorizontalRuleExtension } from "./horizontal-rule"
+import { CustomImageExtension } from "./image/extension"
 import { CustomKeymapExtension } from "./keymap"
 import { CustomLinkExtension } from "./link"
 import { MarkdownClipboardExtension } from "./markdown-clipboard"
+import { MarkdownPasteExtension } from "./markdown-paste"
 import { CustomPlaceholderExtension } from "./placeholder"
+import type { SlashCommandItem } from "./slash-commands/extension"
 import { SlashCommandsExtension } from "./slash-commands/extension"
+import { createSlashSuggestionOptions } from "./slash-commands/suggestions"
 import { configuredStarterKit } from "./starter-kit"
 import { CustomTypographyExtension } from "./typography"
 
 interface ExtensionOptions {
 	imageUpload?: ImageUploadAdapter
 	placeholder?: string
+	slashCommands?: SlashCommandItem[]
 }
 
 export const editorMarkdownOptions = {
@@ -49,6 +54,7 @@ export function getEditorExtensions(options: ExtensionOptions): Extensions {
 		DragHandleExtension,
 		CustomEmojiExtension,
 		CustomHorizontalRuleExtension,
+		CustomImageExtension.configure({ uploadAdapter: options.imageUpload }),
 		CustomLinkExtension,
 		CustomKeymapExtension,
 		CustomPlaceholderExtension.configure({
@@ -59,7 +65,10 @@ export function getEditorExtensions(options: ExtensionOptions): Extensions {
 			markedOptions: editorMarkdownOptions,
 		}),
 		MarkdownClipboardExtension,
-		SlashCommandsExtension,
+		MarkdownPasteExtension,
+		SlashCommandsExtension.configure({
+			suggestion: createSlashSuggestionOptions(options.slashCommands),
+		}),
 		TextStyle,
 		MarkdownUnderlineExtension,
 	)
