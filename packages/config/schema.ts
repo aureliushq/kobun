@@ -195,11 +195,21 @@ function validateContentSchema(
 	const fieldMap = new Map(fields)
 
 	const hasDocument = fields.some(([, f]) => f.type === FieldType.DOCUMENT)
+	const documentCount = fields.filter(
+		([, f]) => f.type === FieldType.DOCUMENT,
+	).length
 	if (hasDocument && data.format !== Format.MD && data.format !== Format.MDX) {
 		ctx.addIssue({
 			code: "custom",
 			message: `Format must be "md" or "mdx" when a "document" field is present`,
 			path: ["format"],
+		})
+	}
+	if (documentCount > 1) {
+		ctx.addIssue({
+			code: "custom",
+			message: `Schema can have at most one "document" field`,
+			path: ["schema"],
 		})
 	}
 

@@ -1,6 +1,7 @@
 import { and, eq, isNull, sql } from "drizzle-orm"
+import { PanelRightClose, PanelRightOpen } from "lucide-react"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { redirect, useLocation } from "react-router"
+import { redirect, useLocation, useNavigate } from "react-router"
 import invariant from "tiny-invariant"
 import { getAuth } from "@/auth/auth.server"
 import { fetchAndParseConfig } from "@/config/github.server"
@@ -12,6 +13,16 @@ import {
 	isMarkdownCollectionFile,
 	serializeCollectionItem,
 } from "@/core/editor/collection-items.server"
+import {
+	applyMetadataDefaults,
+	canonicalMetadata,
+	type FieldRecord,
+	getCollectionEditorFields,
+	getSlugField,
+	updateMetadataField,
+	validateMetadata,
+} from "@/core/editor/collection-metadata"
+import { MetadataField } from "@/core/editor/collection-metadata-fields"
 import { isDraftDirty } from "@/core/editor/drafts"
 import { dbContext } from "@/db/context"
 import { editorDraft, project } from "@/db/schema/app-schema"
@@ -20,6 +31,16 @@ import {
 	createOrUpdateGithubTextFile,
 	listGithubDirectoryFiles,
 } from "@/github/octokit.server"
+import { Button } from "@/ui/components/base/button"
+import { Input } from "@/ui/components/base/input"
+import {
+	Sheet,
+	SheetContent,
+	SheetDescription,
+	SheetHeader,
+	SheetTitle,
+	SheetTrigger,
+} from "@/ui/components/base/sheet"
 import { PATHS } from "@/ui/lib/constants"
 import { EditorActionIntents } from "@/ui/lib/types"
 import type { Route } from "./+types/collection-editor"
@@ -92,6 +113,19 @@ async function resolveExistingItem(
 	resolved: Awaited<ReturnType<typeof resolveCollectionContext>>,
 	slug: string,
 ) {
+	const files = await listCollectionFiles(resolved)
+	const item = findCollectionItemBySlug(
+		resolved.collection,
+		files.filter(isMarkdownCollectionFile),
+		slug,
+	)
+	if (!item) throw new Response("Collection item not found", { status: 404 })
+	return item
+}
+
+async function listCollectionFiles(
+	resolved: Awaited<ReturnType<typeof resolveCollectionContext>>,
+) {
 	let files: Awaited<ReturnType<typeof listGithubDirectoryFiles>> = []
 	try {
 		files = await listGithubDirectoryFiles(
@@ -108,14 +142,7 @@ async function resolveExistingItem(
 			throw error
 		}
 	}
-
-	const item = findCollectionItemBySlug(
-		resolved.collection,
-		files.filter(isMarkdownCollectionFile),
-		slug,
-	)
-	if (!item) throw new Response("Collection item not found", { status: 404 })
-	return item
+	return files
 }
 
 function getEditorMode(params: Route.LoaderArgs["params"]) {
@@ -135,11 +162,13 @@ export async function loader(args: Route.LoaderArgs) {
 		const draftId = url.searchParams.get("draft")
 		if (!draftId) {
 			const id = crypto.randomUUID()
+			const metadata = applyMetadataDefaults(resolved.collection.schema, {})
 			await resolved.db.insert(editorDraft).values({
 				id,
 				projectId: resolved.projectRow.id,
 				collectionSlug: resolved.collectionSlug,
 				markdown: "",
+				metadata: JSON.stringify(metadata),
 				revision: 0,
 			})
 			url.searchParams.set("draft", id)
@@ -157,14 +186,20 @@ export async function loader(args: Route.LoaderArgs) {
 		if (!draft) throw new Response("Draft not found", { status: 404 })
 
 		return {
-			canPublish: false,
+			canPublish: true,
 			draftId: draft.id,
 			draftRevision: draft.revision,
 			initialContent: draft.markdown,
+			initialFields: draft.metadata
+				? (JSON.parse(draft.metadata) as FieldRecord)
+				: applyMetadataDefaults(resolved.collection.schema, {}),
+			originalFields: {} as FieldRecord,
+			owner: resolved.owner,
+			name: resolved.name,
+			schema: resolved.collection.schema,
 			itemSlug: null,
 			mode,
-			publishDisabledReason:
-				"Add collection metadata before publishing this new item.",
+			publishDisabledReason: null,
 		}
 	}
 
@@ -187,6 +222,7 @@ export async function loader(args: Route.LoaderArgs) {
 			.update(editorDraft)
 			.set({
 				markdown: item.body,
+				metadata: null,
 				publishedRevision: nextRevision,
 				revision: nextRevision,
 				sourceSha: item.sha,
@@ -212,6 +248,14 @@ export async function loader(args: Route.LoaderArgs) {
 		draftId: draft?.id ?? null,
 		draftRevision: draft?.revision ?? null,
 		initialContent: draft && isDraftDirty(draft) ? draft.markdown : item.body,
+		initialFields:
+			draft && isDraftDirty(draft) && draft.metadata
+				? (JSON.parse(draft.metadata) as FieldRecord)
+				: item.frontmatter,
+		originalFields: item.frontmatter,
+		owner: resolved.owner,
+		name: resolved.name,
+		schema: resolved.collection.schema,
 		itemSlug: item.itemSlug,
 		mode,
 		publishDisabledReason: null,
@@ -223,6 +267,7 @@ interface EditorActionPayload {
 	expectedRevision: number | null
 	intent: EditorActionIntents
 	markdown: string
+	fields: FieldRecord
 }
 
 async function readActionPayload(
@@ -232,7 +277,10 @@ async function readActionPayload(
 	if (
 		(value.intent !== EditorActionIntents.SAVE &&
 			value.intent !== EditorActionIntents.PUBLISH) ||
-		typeof value.markdown !== "string"
+		typeof value.markdown !== "string" ||
+		!value.fields ||
+		typeof value.fields !== "object" ||
+		Array.isArray(value.fields)
 	) {
 		throw new Response("Invalid editor action", { status: 400 })
 	}
@@ -244,6 +292,7 @@ async function readActionPayload(
 				: null,
 		intent: value.intent,
 		markdown: value.markdown,
+		fields: value.fields as FieldRecord,
 	}
 }
 
@@ -275,7 +324,12 @@ async function saveDraft(
 		if (payload.expectedRevision !== existing.revision) {
 			throw new Response("Draft changed in another session", { status: 409 })
 		}
-		if (existing.markdown === payload.markdown) {
+		if (
+			existing.markdown === payload.markdown &&
+			existing.metadata !== null &&
+			canonicalMetadata(JSON.parse(existing.metadata)) ===
+				canonicalMetadata(payload.fields)
+		) {
 			return existing
 		}
 		const [updated] = await resolved.db
@@ -283,6 +337,7 @@ async function saveDraft(
 			.set({
 				itemSlug: item?.itemSlug ?? existing.itemSlug,
 				markdown: payload.markdown,
+				metadata: JSON.stringify(payload.fields),
 				revision: sql`${editorDraft.revision} + 1`,
 			})
 			.where(
@@ -314,6 +369,7 @@ async function saveDraft(
 				sourcePath: item.path,
 				sourceSha: item.sha,
 				markdown: payload.markdown,
+				metadata: JSON.stringify(payload.fields),
 				revision: 1,
 				publishedRevision: 0,
 			})
@@ -328,43 +384,6 @@ async function saveDraft(
 		}
 		throw error
 	}
-}
-
-async function markDraftSynced(
-	resolved: Awaited<ReturnType<typeof resolveCollectionContext>>,
-	draft: typeof editorDraft.$inferSelect,
-	item: Awaited<ReturnType<typeof resolveExistingItem>>,
-) {
-	if (
-		draft.revision === draft.publishedRevision &&
-		draft.sourceSha === item.sha &&
-		draft.publishedAt !== null
-	) {
-		return draft
-	}
-
-	const [synced] = await resolved.db
-		.update(editorDraft)
-		.set({
-			publishedAt: new Date(),
-			publishedRevision: draft.revision,
-			sourceSha: item.sha,
-		})
-		.where(
-			and(
-				eq(editorDraft.id, draft.id),
-				eq(editorDraft.projectId, resolved.projectRow.id),
-				eq(editorDraft.revision, draft.revision),
-				draft.sourceSha === null
-					? isNull(editorDraft.sourceSha)
-					: eq(editorDraft.sourceSha, draft.sourceSha),
-				draft.publishedRevision === null
-					? isNull(editorDraft.publishedRevision)
-					: eq(editorDraft.publishedRevision, draft.publishedRevision),
-			),
-		)
-		.returning()
-	return synced
 }
 
 async function deleteSyncedDraft(
@@ -399,7 +418,15 @@ export async function action(args: Route.ActionArgs) {
 
 	// Compare against the freshly loaded GitHub body before creating or updating a
 	// draft. This is especially important when an existing item has no D1 draft.
-	if (item && collectionItemBodyMatches(item, payload.markdown)) {
+	const metadataMatches = item
+		? canonicalMetadata(item.frontmatter) === canonicalMetadata(payload.fields)
+		: false
+	if (
+		payload.intent === EditorActionIntents.SAVE &&
+		item &&
+		collectionItemBodyMatches(item, payload.markdown) &&
+		metadataMatches
+	) {
 		const existing = await resolved.db.query.editorDraft.findFirst({
 			where: and(
 				eq(editorDraft.projectId, resolved.projectRow.id),
@@ -413,22 +440,6 @@ export async function action(args: Route.ActionArgs) {
 			throw new Response("Draft changed in another session", { status: 409 })
 		}
 
-		if (payload.intent === EditorActionIntents.PUBLISH && existing) {
-			const synced = await markDraftSynced(resolved, existing, item)
-			if (!synced) {
-				return Response.json(
-					{ ok: false, error: "Draft changed in another session" },
-					{ status: 409 },
-				)
-			}
-			const draftDeleted = await deleteSyncedDraft(resolved, synced)
-			return Response.json({
-				ok: true,
-				commitSha: null,
-				draftDeleted,
-				draftId: existing.id,
-			})
-		}
 		return Response.json({
 			ok: true,
 			commitSha: null,
@@ -445,13 +456,46 @@ export async function action(args: Route.ActionArgs) {
 			revision: draft.revision,
 		})
 	}
-	if (!item) {
+	const validationErrors = validateMetadata(
+		resolved.collection.schema,
+		payload.fields,
+	)
+	if (
+		Object.values(resolved.collection.schema).some(
+			(field) => field.type === "document" && field.required,
+		) &&
+		!payload.markdown.trim()
+	) {
+		validationErrors.push("Document content is required")
+	}
+	const slugField = getSlugField(resolved.collection.schema)
+	const effectiveSlug = slugField
+		? String(payload.fields[slugField] ?? "").trim()
+		: ""
+	if (!effectiveSlug || !/^[a-z0-9][a-z0-9._-]*$/i.test(effectiveSlug))
+		validationErrors.push("Slug must be a valid nonempty filename slug")
+	if (validationErrors.length)
 		return Response.json(
-			{ ok: false, error: "New items require collection metadata to publish." },
+			{ ok: false, error: validationErrors.join("\n") },
 			{ status: 422 },
 		)
-	}
-	if (draft.sourceSha && draft.sourceSha !== item.sha) {
+	const files = await listCollectionFiles(resolved)
+	const duplicate = files.filter(isMarkdownCollectionFile).some((file) => {
+		if (item && file.path === item.path) return false
+		return (
+			findCollectionItemBySlug(resolved.collection, [file], effectiveSlug) !==
+			null
+		)
+	})
+	if (duplicate)
+		return Response.json(
+			{ ok: false, error: `Another item already uses slug “${effectiveSlug}”` },
+			{ status: 409 },
+		)
+	const publishPath =
+		item?.path ??
+		`${resolved.directoryPath}/${effectiveSlug}.${resolved.collection.format}`
+	if (item && draft.sourceSha && draft.sourceSha !== item.sha) {
 		return Response.json(
 			{
 				ok: false,
@@ -460,6 +504,36 @@ export async function action(args: Route.ActionArgs) {
 			},
 			{ status: 409 },
 		)
+	}
+	const editorPath = `/${resolved.owner}/${resolved.name}/collections/${resolved.collectionSlug}/editor/item/${encodeURIComponent(effectiveSlug)}`
+	if (
+		item &&
+		collectionItemBodyMatches(item, payload.markdown) &&
+		metadataMatches
+	) {
+		const [deleted] = await resolved.db
+			.delete(editorDraft)
+			.where(
+				and(
+					eq(editorDraft.id, draft.id),
+					eq(editorDraft.projectId, resolved.projectRow.id),
+					eq(editorDraft.revision, draft.revision),
+				),
+			)
+			.returning({ id: editorDraft.id })
+		if (!deleted) {
+			return Response.json(
+				{ ok: false, error: "Draft changed in another session" },
+				{ status: 409 },
+			)
+		}
+		return Response.json({
+			ok: true,
+			commitSha: null,
+			draftDeleted: true,
+			draftId: draft.id,
+			editorPath,
+		})
 	}
 
 	let published: Awaited<ReturnType<typeof createOrUpdateGithubTextFile>>
@@ -470,10 +544,15 @@ export async function action(args: Route.ActionArgs) {
 			resolved.owner,
 			resolved.name,
 			{
-				path: item.path,
-				sha: item.sha,
-				message: `Update ${item.path} with Kobun`,
-				content: serializeCollectionItem(payload.markdown, item.sourcePrefix),
+				path: publishPath,
+				sha: item?.sha,
+				message: `${item ? "Update" : "Create"} ${publishPath} with Kobun`,
+				content: serializeCollectionItem(
+					payload.markdown,
+					item?.sourcePrefix ?? "",
+					payload.fields,
+					item?.frontmatter ?? {},
+				),
 			},
 		)
 	} catch (error) {
@@ -493,8 +572,10 @@ export async function action(args: Route.ActionArgs) {
 	const [synced] = await resolved.db
 		.update(editorDraft)
 		.set({
+			itemSlug: effectiveSlug,
 			publishedAt: new Date(),
 			publishedRevision: draft.revision,
+			sourcePath: publishPath,
 			sourceSha: published.contentSha,
 		})
 		.where(
@@ -515,12 +596,18 @@ export async function action(args: Route.ActionArgs) {
 	if (!synced) {
 		await resolved.db
 			.update(editorDraft)
-			.set({ sourceSha: published.contentSha })
+			.set({
+				itemSlug: effectiveSlug,
+				sourcePath: publishPath,
+				sourceSha: published.contentSha,
+			})
 			.where(
 				and(
 					eq(editorDraft.id, draft.id),
 					eq(editorDraft.projectId, resolved.projectRow.id),
-					eq(editorDraft.sourceSha, item.sha),
+					item
+						? eq(editorDraft.sourceSha, item.sha)
+						: isNull(editorDraft.sourceSha),
 				),
 			)
 		return Response.json({
@@ -528,6 +615,7 @@ export async function action(args: Route.ActionArgs) {
 			commitSha: published.commitSha,
 			draftId: draft.id,
 			draftSynced: false,
+			editorPath,
 		})
 	}
 	const draftDeleted = await deleteSyncedDraft(resolved, synced)
@@ -538,6 +626,7 @@ export async function action(args: Route.ActionArgs) {
 		draftDeleted,
 		draftId: draft.id,
 		revision: draftDeleted ? null : draft.revision,
+		editorPath,
 	})
 }
 
@@ -547,17 +636,32 @@ export default function CollectionEditor({ loaderData }: Route.ComponentProps) {
 		draftId,
 		draftRevision,
 		initialContent,
-		itemSlug,
-		mode,
+		initialFields,
+		owner,
+		name,
+		schema,
 		publishDisabledReason,
 	} = loaderData
 	const location = useLocation()
+	const navigate = useNavigate()
 	const editorRef = useRef<EditorRefApi>(null)
+	const [fields, setFields] = useState<FieldRecord>(initialFields)
+	const fieldsRef = useRef(fields)
+	const [metadataDirty, setMetadataDirty] = useState(false)
+	const [metadataGeneration, setMetadataGeneration] = useState(0)
+	const [isPublishing, setIsPublishing] = useState(false)
+	const [isPropertiesOpen, setIsPropertiesOpen] = useState(true)
 	const [isEditorReady, setIsEditorReady] = useState(false)
 	const revisionRef = useRef(draftRevision)
 	const mutationQueueRef = useRef<Promise<void>>(Promise.resolve())
 	const [autosaveState, setAutosaveState] =
 		useState<AutosaveState>(initialAutosaveState)
+	const assetBaseUrl = `/api/repo-asset/${encodeURIComponent(owner)}/${encodeURIComponent(name)}`
+	const { documentKey, sidebarFields, titleKey } = useMemo(
+		() => getCollectionEditorFields(schema),
+		[schema],
+	)
+	const titleField = titleKey ? schema[titleKey] : null
 	const registerEditorRef = useCallback((api: EditorRefApi | null) => {
 		editorRef.current = api
 		setIsEditorReady(api !== null)
@@ -565,6 +669,7 @@ export default function CollectionEditor({ loaderData }: Route.ComponentProps) {
 
 	const sendAction = useCallback(
 		(intent: EditorActionIntents, markdown: string) => {
+			const fieldsSnapshot = fieldsRef.current
 			const operation = mutationQueueRef.current
 				.catch(() => undefined)
 				.then(async () => {
@@ -578,6 +683,7 @@ export default function CollectionEditor({ loaderData }: Route.ComponentProps) {
 								expectedRevision: revisionRef.current,
 								intent,
 								markdown,
+								fields: fieldsSnapshot,
 							}),
 						},
 					)
@@ -586,6 +692,7 @@ export default function CollectionEditor({ loaderData }: Route.ComponentProps) {
 						draftDeleted?: boolean
 						error?: string
 						revision?: number | null
+						editorPath?: string
 					} = {}
 					try {
 						result = JSON.parse(responseText) as typeof result
@@ -600,11 +707,31 @@ export default function CollectionEditor({ loaderData }: Route.ComponentProps) {
 					} else if (typeof result.revision === "number") {
 						revisionRef.current = result.revision
 					}
+					if (
+						canonicalMetadata(fieldsRef.current) ===
+						canonicalMetadata(fieldsSnapshot)
+					)
+						setMetadataDirty(false)
+					if (intent === EditorActionIntents.PUBLISH && result.editorPath)
+						navigate(result.editorPath, { replace: true })
 				})
 			mutationQueueRef.current = operation.catch(() => undefined)
 			return operation
 		},
-		[draftId, location.pathname, location.search],
+		[draftId, location.pathname, location.search, navigate],
+	)
+
+	const updateField = useCallback(
+		(key: string, value: unknown) => {
+			setFields((current) => {
+				const next = updateMetadataField(schema, current, key, value)
+				fieldsRef.current = next
+				return next
+			})
+			setMetadataDirty(true)
+			setMetadataGeneration((generation) => generation + 1)
+		},
+		[schema],
 	)
 
 	const save = useCallback(async () => {
@@ -613,7 +740,12 @@ export default function CollectionEditor({ loaderData }: Route.ComponentProps) {
 	}, [])
 
 	const publish = useCallback(async () => {
-		await editorRef.current?.publish()
+		setIsPublishing(true)
+		try {
+			await editorRef.current?.publish()
+		} finally {
+			setIsPublishing(false)
+		}
 	}, [])
 
 	const persistence = useMemo(
@@ -626,19 +758,27 @@ export default function CollectionEditor({ loaderData }: Route.ComponentProps) {
 		[sendAction],
 	)
 
+	const combinedAutosaveState = useMemo(
+		() => ({
+			...autosaveState,
+			isDirty: autosaveState.isDirty || metadataDirty,
+		}),
+		[autosaveState, metadataDirty],
+	)
 	const controls = useMemo(
 		() => ({
-			autosaveState,
-			canPublish: canPublish && isEditorReady,
-			canSave: isEditorReady,
+			autosaveState: combinedAutosaveState,
+			canPublish: canPublish && isEditorReady && !isPublishing,
+			canSave: isEditorReady && !isPublishing,
 			publish,
 			publishDisabledReason: publishDisabledReason ?? undefined,
 			save,
 		}),
 		[
-			autosaveState,
+			combinedAutosaveState,
 			canPublish,
 			isEditorReady,
+			isPublishing,
 			publish,
 			publishDisabledReason,
 			save,
@@ -647,25 +787,134 @@ export default function CollectionEditor({ loaderData }: Route.ComponentProps) {
 	useEditorLayoutControls(controls)
 
 	useEffect(() => {
+		if (
+			metadataGeneration === 0 ||
+			!metadataDirty ||
+			!editorRef.current ||
+			isPublishing
+		)
+			return
+		const timeout = window.setTimeout(() => {
+			void editorRef.current?.save().catch((error: unknown) => {
+				console.error("Metadata autosave failed:", error)
+			})
+		}, 1000)
+		return () => window.clearTimeout(timeout)
+	}, [isPublishing, metadataDirty, metadataGeneration])
+
+	useEffect(() => {
 		const handleBeforeUnload = (event: BeforeUnloadEvent) => {
-			if (!editorRef.current?.hasUnsavedChanges()) return
+			if (!metadataDirty && !editorRef.current?.hasUnsavedChanges()) return
 			event.preventDefault()
 		}
 		window.addEventListener("beforeunload", handleBeforeUnload)
 		return () => window.removeEventListener("beforeunload", handleBeforeUnload)
-	}, [])
+	}, [metadataDirty])
+
+	const properties = sidebarFields.map(([key, field]) => (
+		<MetadataField
+			key={key}
+			field={field}
+			value={fields[key]}
+			onChange={(value) => updateField(key, value)}
+			disabled={isPublishing}
+			assetBaseUrl={assetBaseUrl}
+		/>
+	))
 
 	return (
-		<div className="editor-wrapper p-6">
-			<p className="mb-4 text-muted-foreground text-sm">
-				{mode === "new" ? "New item draft" : `Editing “${itemSlug}”`}
-			</p>
-			<RichTextEditor
-				ref={registerEditorRef}
-				initialContent={initialContent}
-				onAutosaveStateChange={setAutosaveState}
-				persistence={persistence}
-			/>
+		<div className="relative flex h-full min-h-0 overflow-hidden">
+			<div className="min-w-0 flex-1 overflow-y-auto">
+				<div className="editor-wrapper relative space-y-6 px-6 py-10">
+					<div className="absolute top-4 right-4 flex gap-2">
+						{!isPropertiesOpen ? (
+							<Button
+								type="button"
+								variant="ghost"
+								size="icon"
+								className="hidden md:inline-flex"
+								onClick={() => setIsPropertiesOpen(true)}
+								aria-label="Open properties"
+							>
+								<PanelRightOpen />
+							</Button>
+						) : null}
+						<Sheet>
+							<SheetTrigger
+								render={
+									<Button
+										type="button"
+										variant="ghost"
+										size="icon"
+										className="md:hidden"
+										aria-label="Open properties"
+									/>
+								}
+							>
+								<PanelRightOpen />
+							</SheetTrigger>
+							<SheetContent className="w-full max-w-sm">
+								<SheetHeader>
+									<SheetTitle>Properties</SheetTitle>
+									<SheetDescription>
+										Collection metadata for this item.
+									</SheetDescription>
+								</SheetHeader>
+								<div className="flex flex-col gap-6 overflow-y-auto px-6 pb-6">
+									{properties}
+								</div>
+							</SheetContent>
+						</Sheet>
+					</div>
+
+					{titleKey && titleField?.type === "text" ? (
+						<div className="pl-12">
+							<Input
+								value={String(fields[titleKey] ?? "")}
+								placeholder={titleField.placeholder}
+								disabled={isPublishing}
+								aria-label="Title"
+								className="h-auto border-0 bg-transparent px-0 py-2 font-semibold text-4xl shadow-none focus-visible:ring-0 dark:bg-transparent"
+								onChange={(event) => updateField(titleKey, event.target.value)}
+							/>
+						</div>
+					) : null}
+
+					<RichTextEditor
+						key={documentKey ?? "fallback-content"}
+						ref={registerEditorRef}
+						initialContent={initialContent}
+						onAutosaveStateChange={setAutosaveState}
+						persistence={persistence}
+						readOnly={isPublishing}
+					/>
+				</div>
+			</div>
+
+			<aside
+				aria-label="Properties"
+				className={`hidden shrink-0 overflow-hidden bg-muted/10 transition-[width] duration-200 md:flex ${
+					isPropertiesOpen ? "w-80 border-l" : "w-0"
+				}`}
+			>
+				<div className="flex w-80 shrink-0 flex-col">
+					<div className="flex h-12 shrink-0 items-center justify-between border-b px-4">
+						<h2 className="font-medium text-sm">Properties</h2>
+						<Button
+							type="button"
+							variant="ghost"
+							size="icon-sm"
+							onClick={() => setIsPropertiesOpen(false)}
+							aria-label="Close properties"
+						>
+							<PanelRightClose />
+						</Button>
+					</div>
+					<div className="flex flex-col gap-6 overflow-y-auto p-4">
+						{properties}
+					</div>
+				</div>
+			</aside>
 		</div>
 	)
 }

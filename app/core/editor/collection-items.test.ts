@@ -111,4 +111,49 @@ describe("collection item resolution", () => {
 			'---\r\n# keep this comment\r\ntitle: "Hello"\r\ntags: [one, two]\r\n---\r\nUpdated body\n',
 		)
 	})
+
+	it("preserves unknown keys and rewrites frontmatter only when metadata changes", () => {
+		const prefix = "---\ntitle: Old\nunknown: keep\n---\n"
+		expect(
+			serializeCollectionItem(
+				"Body\n",
+				prefix,
+				{ title: "Old", unknown: "keep" },
+				{ unknown: "keep", title: "Old" },
+			),
+		).toBe(`${prefix}Body\n`)
+		const changed = serializeCollectionItem(
+			"Body\n",
+			prefix,
+			{ title: "New", unknown: "keep" },
+			{ title: "Old", unknown: "keep" },
+		)
+		expect(changed).toContain("title: New")
+		expect(changed).toContain("unknown: keep")
+	})
+
+	it("normalizes unquoted YAML dates without rewriting unchanged frontmatter", () => {
+		const prefix = "---\npublished: 2026-07-14\n---\n"
+		const item = findCollectionItemBySlug(
+			collection,
+			[
+				{
+					name: "dated.md",
+					path: "content/posts/dated.md",
+					sha: "sha",
+					content: `${prefix}Body\n`,
+				},
+			],
+			"dated",
+		)
+		expect(item?.frontmatter.published).toBe("2026-07-14")
+		expect(
+			serializeCollectionItem(
+				"Updated\n",
+				item?.sourcePrefix ?? "",
+				item?.frontmatter,
+				item?.frontmatter,
+			),
+		).toBe(`${prefix}Updated\n`)
+	})
 })

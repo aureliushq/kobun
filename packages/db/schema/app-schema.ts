@@ -116,6 +116,7 @@ export const editorDraft = sqliteTable(
 		sourcePath: text("source_path"),
 		sourceSha: text("source_sha"),
 		markdown: text("markdown").notNull().default(""),
+		metadata: text("metadata"),
 		revision: integer("revision").notNull().default(0),
 		publishedRevision: integer("published_revision"),
 		publishedAt: integer("published_at", { mode: "timestamp_ms" }),
