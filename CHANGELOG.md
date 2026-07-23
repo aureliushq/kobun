@@ -1,10 +1,16 @@
 # kobun
 
+## 0.3.1
+
+### Patch Changes
+
+- chore: update deps
+
 ## 0.3.0
 
 ### Minor Changes
 
-- dc367c5: 
+- dc367c5:
   - Add rich-text editor
     - markdown support
     - typography

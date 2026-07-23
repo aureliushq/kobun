@@ -42,7 +42,13 @@ git commit -m "chore: release ${VERSION}"
 echo ""
 echo "📝 Review CHANGELOG.md now if you want to edit before pushing."
 echo ""
-read -r -p "Push and open PR? (y/n) " CONFIRM
+# Read from /dev/tty: bun/changeset leave stdin non-blocking, which makes `read` fail with EAGAIN
+if [ -t 0 ] || [ -e /dev/tty ]; then
+  read -r -p "Push and open PR? (y/n) " CONFIRM < /dev/tty
+else
+  echo "⚠️  No terminal available for confirmation; not pushing."
+  CONFIRM="n"
+fi
 if [ "$CONFIRM" != "y" ]; then
   echo "⏸️  Paused. You're on branch ${BRANCH}."
   echo "   Edit CHANGELOG.md, amend the commit, then run:"
