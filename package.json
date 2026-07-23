@@ -112,7 +112,7 @@
 		"@changesets/cli": "2.30.0",
 		"@cloudflare/vite-plugin": "1.46.0",
 		"@dotenvx/dotenvx": "1.51.4",
-		"@faker-js/faker": "10.4.0",
+		"@faker-js/faker": "10.5.0",
 		"@playwright/test": "1.57.0",
 		"@react-router/dev": "7.18.1",
 		"@storybook/addon-docs": "10.2.15",
