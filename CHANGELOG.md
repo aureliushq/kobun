@@ -1,5 +1,11 @@
 # kobun
 
+## 0.3.3
+
+### Patch Changes
+
+- Fix incomplete React Router v8 migration
+
 ## 0.3.2
 
 ### Patch Changes
