@@ -39,7 +39,7 @@
 			],
 			"vars": {
 				"BETTER_AUTH_URL": "https://app.kobun.io",
-				"GITHUB_APP_ID": "3017755",
+				"GITHUB_APP_ID": "3211939",
 				"GITHUB_APP_SLUG": "kobun-cms",
 				"KOBUN_HOME_URL": "https://kobun.io",
 				"KOBUN_APP_URL": "https://app.kobun.io"
