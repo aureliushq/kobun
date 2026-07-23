@@ -1,0 +1,1 @@
+ALTER TABLE `editor_draft` ADD `metadata` text;

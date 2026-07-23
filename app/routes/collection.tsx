@@ -27,6 +27,7 @@ import invariant from "tiny-invariant"
 import { getAuth } from "@/auth/auth.server"
 import { fetchAndParseConfig } from "@/config/github.server"
 import { envContext } from "@/core/context"
+import { isMarkdownCollectionFile } from "@/core/editor/collection-items.server"
 import { dbContext } from "@/db/context"
 import { project } from "@/db/schema/app-schema"
 import { listGithubDirectoryFiles } from "@/github/octokit.server"
@@ -106,17 +107,15 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
 			dirPath,
 		)
 
-		items = files
-			.filter((f) => f.name.endsWith(".md") || f.name.endsWith(".mdx"))
-			.map((f) => {
-				const parsed = matter(f.content)
-				return {
-					name: f.name,
-					path: f.path,
-					sha: f.sha,
-					data: parsed.data as Record<string, unknown>,
-				}
-			})
+		items = files.filter(isMarkdownCollectionFile).map((f) => {
+			const parsed = matter(f.content)
+			return {
+				name: f.name,
+				path: f.path,
+				sha: f.sha,
+				data: parsed.data as Record<string, unknown>,
+			}
+		})
 	} catch (error) {
 		// Empty / missing directory → just show no items.
 		if (
@@ -251,7 +250,7 @@ export default function Collection({ loaderData }: Route.ComponentProps) {
 				cell: ({ row }) => (
 					<div className="flex flex-col gap-0.5 p-0">
 						<Link
-							to={`${editorBase}/${row.original.slug}`}
+							to={`${editorBase}/item/${encodeURIComponent(row.original.slug)}`}
 							className="font-medium text-sm hover:underline"
 						>
 							{row.original.title}

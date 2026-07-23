@@ -17,12 +17,15 @@ export function getAuth(env: Env) {
 
 		secret: env.BETTER_AUTH_SECRET as string,
 
-		socialProviders: {
-			github: {
-				clientId: env.GITHUB_CLIENT_ID as string,
-				clientSecret: env.GITHUB_CLIENT_SECRET as string,
-			},
-		},
+		socialProviders:
+			env.GITHUB_CLIENT_ID && env.GITHUB_CLIENT_SECRET
+				? {
+						github: {
+							clientId: env.GITHUB_CLIENT_ID as string,
+							clientSecret: env.GITHUB_CLIENT_SECRET as string,
+						},
+					}
+				: undefined,
 	})
 }
 

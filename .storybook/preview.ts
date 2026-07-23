@@ -1,7 +1,7 @@
 import { withThemeByClassName } from "@storybook/addon-themes"
 import type { Preview } from "@storybook/react-vite"
 
-import "../apps/core/styles/index.css"
+import "../app/core/styles/app.css"
 
 export const decorators = [
 	withThemeByClassName({

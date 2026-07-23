@@ -2,7 +2,6 @@ import { cloudflare } from "@cloudflare/vite-plugin"
 import { reactRouter } from "@react-router/dev/vite"
 import tailwindcss from "@tailwindcss/vite"
 import { visualizer } from "rollup-plugin-visualizer"
-import tsconfigPaths from "vite-tsconfig-paths"
 import { defineConfig } from "vitest/config"
 import packageJson from "./package.json" with { type: "json" }
 
@@ -11,6 +10,9 @@ const isStorybook = process.argv[1]?.includes("storybook")
 export default defineConfig({
 	define: {
 		KOBUN_VERSION: JSON.stringify(packageJson.version),
+	},
+	resolve: {
+		tsconfigPaths: true,
 	},
 	build: {
 		sourcemap: true,
@@ -30,7 +32,6 @@ export default defineConfig({
 		},
 	},
 	plugins: [
-		tsconfigPaths(),
 		tailwindcss(),
 		...(!process.env.VITEST && !isStorybook
 			? [cloudflare({ viteEnvironment: { name: "ssr" } }), reactRouter()]
@@ -56,7 +57,7 @@ export default defineConfig({
 		passWithNoTests: true,
 
 		coverage: {
-			include: ["{apps,packages}/**/*.{ts,tsx}"],
+			include: ["{app,packages}/**/*.{ts,tsx}"],
 			exclude: ["**/*.stories.tsx"],
 			reporter: ["text", "text-summary"],
 			reportsDirectory: "./.reports/tests-coverage",
@@ -74,7 +75,7 @@ export default defineConfig({
 				test: {
 					name: "node",
 					environment: "node",
-					include: ["{apps,packages}/**/*.test.ts"],
+					include: ["{app,packages}/**/*.test.ts"],
 				},
 			},
 			{
@@ -82,7 +83,7 @@ export default defineConfig({
 				test: {
 					name: "dom",
 					environment: "happy-dom",
-					include: ["{apps,packages}/**/*.test.tsx"],
+					include: ["{app,packages}/**/*.test.tsx"],
 					setupFiles: ["./setup.dom.vitest.ts"],
 				},
 			},
