@@ -1,5 +1,19 @@
 # kobun
 
+## 0.3.0
+
+### Minor Changes
+
+- dc367c5: 
+  - Add rich-text editor
+    - markdown support
+    - typography
+    - images
+    - emojis
+    - callouts
+  - Add save and publish workflow
+  - Persist drafts to D1.
+
 ## 0.2.5
 
 ### Patch Changes
