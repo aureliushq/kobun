@@ -117,7 +117,7 @@
 		"@react-router/dev": "7.18.1",
 		"@storybook/addon-docs": "10.2.15",
 		"@storybook/addon-themes": "10.2.15",
-		"@storybook/react-vite": "10.2.15",
+		"@storybook/react-vite": "10.5.3",
 		"@tailwindcss/typography": "0.5.20",
 		"@tailwindcss/vite": "4.2.2",
 		"@testing-library/jest-dom": "6.9.1",
