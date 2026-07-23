@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: 📥 Checkout repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: ⎔ Setup node
         uses: actions/setup-node@v6
@@ -45,7 +45,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: 📥 Checkout repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: ⎔ Setup node
         uses: actions/setup-node@v6
@@ -79,7 +79,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: 📥 Checkout repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: ⎔ Setup node
         uses: actions/setup-node@v6
@@ -110,7 +110,7 @@ jobs:
     needs: [check, types, unit-tests]
     steps:
       - name: 📥 Checkout repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: ⎔ Setup node
         uses: actions/setup-node@v6
@@ -168,7 +168,7 @@ jobs:
       CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
     steps:
       - name: 📥 Checkout repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: ⎔ Setup node
         uses: actions/setup-node@v6
@@ -202,7 +202,7 @@ jobs:
       deployments: write
     steps:
       - name: 📥 Checkout repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: ⎔ Setup node
         uses: actions/setup-node@v6
@@ -242,7 +242,7 @@ jobs:
     if: ${{ vars.CLOUDFLARE_ACCESS_CLIENT_ID }}
     steps:
       - name: 📥 Checkout repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: ⎔ Setup node
         uses: actions/setup-node@v6
