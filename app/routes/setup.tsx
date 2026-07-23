@@ -73,7 +73,7 @@ import {
 } from "@/ui/lib/types"
 import type { Route } from "./+types/setup"
 
-export async function loader({ context, request }: Route.LoaderArgs) {
+export async function loader({ context, request, url }: Route.LoaderArgs) {
 	const db = context.get(dbContext)
 	const env = context.get(envContext)
 
@@ -81,7 +81,7 @@ export async function loader({ context, request }: Route.LoaderArgs) {
 	const session = await auth.api.getSession({ headers: request.headers })
 	if (!session?.user) throw redirect(PATHS.LOGIN)
 
-	const url = new URL(request.url)
+	// `url` is React Router's normalized URL arg (no `.data`/index params).
 	const githubInstallationId = url.searchParams.get("installation_id")
 	const receivedState = url.searchParams.get("state")
 

@@ -14,7 +14,12 @@ import { PATHS } from "@/ui/lib/constants"
 import { DashboardActionIntents } from "@/ui/lib/types"
 import type { Route } from "./+types/dashboard"
 
-export async function loader({ context, params, request }: Route.LoaderArgs) {
+export async function loader({
+	context,
+	params,
+	request,
+	url,
+}: Route.LoaderArgs) {
 	const db = context.get(dbContext)
 	const env = context.get(envContext)
 
@@ -42,8 +47,7 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
 	)
 
 	const currentVersion = KOBUN_VERSION
-	const requestUrl = new URL(request.url)
-	const isHosted = requestUrl.hostname === new URL(env.KOBUN_APP_URL).hostname
+	const isHosted = url.hostname === new URL(env.KOBUN_APP_URL).hostname
 
 	let latestVersion = currentVersion
 	let hasUpdate = false

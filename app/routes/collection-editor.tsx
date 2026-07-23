@@ -158,7 +158,9 @@ export async function loader(args: Route.LoaderArgs) {
 	const mode = getEditorMode(args.params)
 
 	if (mode === "new") {
-		const url = new URL(args.request.url)
+		// `args.url` is React Router's normalized URL (no `.data` suffix or
+		// index/_routes params); clone it so we can mutate searchParams safely.
+		const url = new URL(args.url)
 		const draftId = url.searchParams.get("draft")
 		if (!draftId) {
 			const id = crypto.randomUUID()
