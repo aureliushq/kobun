@@ -1,3 +1,7 @@
+# AutoSend Email
+AUTOSEND_API_KEY=
+AUTOSEND_LIST_ID=
+
 # Base URL of your app
 BETTER_AUTH_URL=http://localhost:5173
 # Generate a secure secret: openssl rand -base64 32
