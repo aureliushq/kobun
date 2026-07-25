@@ -87,6 +87,21 @@ Dirty --> Published : publishDraft → commit → sync
 Published --> Deleted : body matches source
 ```
 
+## Decisions (grilled 2026-07-24)
+
+All open questions below were resolved in a grilling session. The load-bearing decision — the module owns the publish commit behind a `SourceStore` port, with outcomes as typed result unions — is recorded as [ADR-0001](../adr/0001-drafts-module-owns-publish-via-sourcestore-port.md).
+
+1. **Seam shape** — a factory, `createDrafts({db, sourceStore, project, collection, collectionSlug, directoryPath})`, built once per request, returning `{open, save, publish}`. GitHub identity (`env`, `installationId`, `owner`, `name`) is absorbed into the `SourceStore` adapter's closure — the drafts module never sees it.
+2. **GitHub boundary** — the module owns the commit, through an injected narrow **`SourceStore`** port (`list`, `write(path, content, expectedSha)`); production adapter wraps `createOrUpdateGithubTextFile` / `listGithubDirectoryFiles`. The full commit → sync → fallback-sync → delete chain stays inside one testable unit.
+3. **Validation** — `publish` owns all gates (metadata, slug regex, required document, duplicate-slug scan). `serializeCollectionItem` is called as-is behind the boundary; Candidate 02 later deepens it *inside* the seam.
+4. **Errors** — typed result unions: `{ok: false, code: 'revision-conflict' | 'stale-source' | 'duplicate-slug' | 'validation' | 'not-found'}`. The route owns a single code → HTTP status map. Throwing is reserved for genuine bugs.
+5. **`drafts.ts` fate** — folded in as the module's pure core; `isDraftDirty` and `getDraftEditorPath` stay exported (dashboard uses them). `isPublishedDraftSynced` is deleted (only its own test uses it).
+6. **`open` scope** — owns mint, rebase (including the re-read fallback), and the dirty-vs-clean **effective content** decision. Redirects and view-model shaping stay in the route.
+7. **Singleton generality** — core transitions take a resolved `source` (`{path, sha, body, frontmatter} | null`), not a slug; slug resolution + duplicate gate are a collection-specific layer inside the module. No `SourceLocator` strategy until the singleton editor exists.
+8. **Naming** — module `app/core/editor/drafts/`, factory `createDrafts`, glossary noun **Draft** (see root `CONTEXT.md`).
+9. **Sequencing** — 01 ships first, standalone, against today's serializer. Candidate 02 becomes an internal refactor of the module.
+10. **Tests** — Drizzle over in-memory `better-sqlite3` with the real `editorDraft` schema (the `UPDATE ... WHERE` guard semantics *are* the subject under test) + a Map-backed fake `SourceStore`. Cases: revision-conflict on save, no-op short-circuit, first-save insert, unique-race conflict, mint, rebase, rebase race → re-read, dirty-not-rebased, effective content both ways, all publish refusals, publish → sync → delete, the never-before-exercised fallback-sync branch, and delete-when-body-matches.
+
 ## Open questions for the grilling session
 
 1. **Where does the seam go?** A pure function over injected `db`/`github`, or a class holding `ctx`? What exactly is in `ctx` (db, env, installationId, owner, name, collection, projectRow)? (Overlaps Candidate 03.)

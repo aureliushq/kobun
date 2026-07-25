@@ -1,11 +1,12 @@
-# Candidate 03 — One way in: the authenticated repo context
+# Candidate 03 — One way in: the authenticated project context
 
 **Strength:** Worth exploring · Do after 01/02; partly mechanical.
+**Status:** Grilled 2026-07-24 — all open questions resolved; design settled below. Cache policy recorded as [ADR 0003](../adr/0003-config-served-from-d1-cache-with-ttl-revalidation.md); `Project` and `Config` added to `CONTEXT.md`.
 
 > One-line: every content route repeats the same ~30-line auth → project → config preamble
 > (and the ownership check has already drifted). Promote the existing private
-> `resolveCollectionContext` into a shared **RepoContext** seam — and let it own the config
-> cache decision that the hot path currently ignores.
+> `resolveCollectionContext` into a shared **ProjectContext** seam — and let it own the
+> config cache decision that the hot path currently ignores.
 
 ---
 
@@ -37,33 +38,62 @@ So config is fetched + validated from GitHub redundantly on the hot path while a
 - **Locality of the security check.** "Does this user own this repo?" is copy-pasted and has _already drifted_ (`api.repo-asset` differs). A single seam removes a class of authz bugs.
 - **Deletion test: moderate.** Thinner than 01/02 — it mostly _moves_ complexity rather than concentrating deep logic. The strength here is leverage + the config-cache fix, not depth. That's why it's "Worth exploring," not "Strong."
 
-## Proposed deepening (starting point — grill this)
+## Settled design (grilled 2026-07-24)
 
-Promote `resolveCollectionContext` to a shared seam:
+The domain noun is **Project**, not repo — "repo" stays GitHub-side vocabulary, the same way
+ADR 0001's `SourceStore` absorbs GitHub identity. The seam lives in
+`app/core/project-context/` alongside all of its policy; `packages/config` keeps
+`fetchAndParseConfig` as the dumb fetch it is.
 
 ```ts
-requireRepoContext(args, opts?) → {
-  session, project, projectRow, installationId, config, env, db,
-  owner, name,
-}
-// plus thin helpers that narrow to a specific entity:
-requireCollection(ctx, slug) → collection
-requireSingleton(ctx, slug) → singleton
+// core resolver — returns a discriminated union, never throws:
+resolveProjectContext(args, opts?: { config?: false })
+  → { ok: true, session, projectRow, installationId, config, configStatus, owner, name, db, env }
+  | { ok: false, reason: "anonymous" | "no-project" | "config-missing" | "config-invalid" }
+
+// thin translators own the HTTP map (mirrors ADR 0001's typed-results philosophy):
+requirePageContext(args, opts?)  // redirects: anonymous → PATHS.LOGIN, others → PATHS.SETUP
+requireApiContext(args, opts?)   // throws Response: 401 / 404 / 422
+
+// pure narrowing helpers derive entity + paths; not part of the core:
+requireCollection(ctx, slug) → { collection, directoryPath }
+requireSingleton(ctx, slug)  → { singleton, filePath }
 ```
 
-- Owns the config-cache decision: read `project.configData` when `configSha` is fresh, fall
-  back to `fetchAndParseConfig` (and opportunistically refresh the cache).
-- Callers choose the failure mode (redirect for pages, 401/404 for APIs) via `opts`, so
-  `api.repo-asset` can adopt it without changing behavior.
+Decisions, one per original open question:
 
-## Open questions for the grilling session
+1. **Redirect vs. throw** → typed-union core + two thin wrappers. No mode flag; the core
+   never encodes HTTP policy.
+2. **Returned context** → repo-level facts only (above). Entity narrowing is separate
+   helpers; editor-only rules (md/mdx-only) stay in the editor route on top of
+   `requireCollection`. `{ config: false }` skips config resolution entirely (and narrows
+   the return type) — `api.repo-asset` serves images without ever touching config, even
+   past the cache TTL.
+3. **Config cache** → serve `configData` when `configCheckedAt` is within ~60s; past the
+   TTL, conditionally re-fetch only the cached `configPath` (ETag/sha) and opportunistically
+   rewrite the row. Negative results (`MISSING`/`ERROR`) cache under the same TTL; a 404 at
+   the cached path falls back to the full `CONFIG_PATHS` probe (config renames). There is no
+   webhook, so the TTL *is* the staleness bound. Full trade-off record: ADR 0003.
+4. **Query shape** → scoped `findFirst` (`userId + repoOwnerLogin + repoName` in the WHERE)
+   everywhere; the `findMany`+JS-filter shape dies. Callers that genuinely need the full
+   project list (dashboard's repo switcher) own that as a separate query.
+5. **Layouts** → both layouts adopt `requirePageContext`. The layout/route double-resolve
+   per navigation becomes harmless: within the TTL the second resolve is a D1 row read, not
+   a GitHub call.
+6. **Relation to the Draft module** → a layer above drafts, below route handlers — the
+   composition root's helper. Drafts never sees it; routes use its output to construct the
+   `SourceStore` adapter. ADR 0001 stays intact.
 
-1. **Redirect vs. throw** — pages redirect (`PATHS.LOGIN`/`PATHS.SETUP`), APIs return status codes. One seam with a mode flag, or two thin wrappers over a shared core?
-2. **What's in the returned context?** Superset of all callers' needs, or minimal + per-route follow-up queries? (Interacts with Candidate 01's `ctx`.)
-3. **Config cache correctness** — when is `configData` stale? Trust `configSha` vs. always revalidate? What invalidates it (webhook? TTL? the dashboard sync)? Is stale config a correctness bug (renders wrong schema) or just cosmetic?
-4. **`findMany`+`.find` vs `findFirst`** — the read routes fetch all projects then filter in JS; the editor uses a scoped `findFirst`. Standardize on the scoped query?
-5. **Layouts** — do `dashboard.tsx`/`editor.tsx` share the same seam, or is loader-level config a separate concern from layout-level?
-6. **Does this seam belong in the Draft module's `ctx`** (Candidate 01) or is it a layer below both routes and Draft?
+**Route mapping** (one deliberate behavior change): `singleton`, `collection`, and
+`collection-editor` all use the page wrapper — the editor's 404-on-no-project drift becomes
+a SETUP redirect, on the theory that hitting an editor URL for a repo you don't own should
+land you where every other page does. `api.repo-asset` uses the API wrapper with unchanged
+behavior.
+
+**Implementation note:** two parallel loaders (layout + child route) can both cross the TTL
+and race the opportunistic row rewrite. Last-write-wins on identical data is benign, but the
+rewrite must not clobber a concurrent dashboard sync's richer update (sync also writes
+`configError`/`status`).
 
 ## Dependencies / sequencing
 
