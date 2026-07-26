@@ -1,4 +1,6 @@
 // biome-ignore-all lint/security/noDangerouslySetInnerHtml: it's fine
+
+import { usePostHog } from "@posthog/react"
 import {
 	isRouteErrorResponse,
 	Links,
@@ -15,6 +17,9 @@ import { getThemeFromRequest, type Theme } from "@/ui/theme.server"
 import type { Route } from "./+types/root"
 import "@/core/styles/app.css"
 import appConfig from "@/config/app"
+import { posthogMiddleware } from "./lib/posthog-middleware"
+
+export const middleware: Route.MiddlewareFunction[] = [posthogMiddleware]
 
 export const links: Route.LinksFunction = () => [
 	{ rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -101,6 +106,11 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
 	let message = "Oops!"
 	let details = "An unexpected error occurred."
 	let stack: string | undefined
+
+	const posthog = usePostHog()
+	if (error instanceof Error) {
+		posthog?.captureException(error)
+	}
 
 	if (isRouteErrorResponse(error)) {
 		message = error.status === 404 ? "404" : "Error"

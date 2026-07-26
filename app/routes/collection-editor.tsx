@@ -31,6 +31,7 @@ import {
 	createOrUpdateGithubTextFile,
 	listGithubDirectoryFiles,
 } from "@/github/octokit.server"
+import { posthogContext } from "@/lib/posthog-middleware"
 import { Button } from "@/ui/components/base/button"
 import { Input } from "@/ui/components/base/input"
 import {
@@ -621,6 +622,17 @@ export async function action(args: Route.ActionArgs) {
 		})
 	}
 	const draftDeleted = await deleteSyncedDraft(resolved, synced)
+
+	const posthog = args.context.get(posthogContext)
+	posthog?.capture({
+		event: "content_published",
+		properties: {
+			collection_slug: resolved.collectionSlug,
+			repo_owner: resolved.owner,
+			repo_name: resolved.name,
+			editor_mode: mode,
+		},
+	})
 
 	return Response.json({
 		ok: true,

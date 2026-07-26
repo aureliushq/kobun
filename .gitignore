@@ -26,3 +26,4 @@ node_modules
 
 # Storybook
 *storybook.log
+.env
