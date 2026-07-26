@@ -25,8 +25,8 @@
 		"BETTER_AUTH_URL": "http://localhost:5173",
 		"GITHUB_APP_ID": "3006163",
 		"GITHUB_APP_SLUG": "kobun-local",
-		"KOBUN_HOME_URL": "https://kobun.io",
-		"KOBUN_APP_URL": "http://localhost:5173"
+		"VITE_PUBLIC_KOBUN_HOME_URL": "https://kobun.io",
+		"VITE_PUBLIC_KOBUN_APP_URL": "http://localhost:5173"
 	},
 	"env": {
 		"production": {
@@ -41,8 +41,8 @@
 				"BETTER_AUTH_URL": "https://app.kobun.io",
 				"GITHUB_APP_ID": "3211939",
 				"GITHUB_APP_SLUG": "kobun-cms",
-				"KOBUN_HOME_URL": "https://kobun.io",
-				"KOBUN_APP_URL": "https://app.kobun.io"
+				"VITE_PUBLIC_KOBUN_HOME_URL": "https://kobun.io",
+				"VITE_PUBLIC_KOBUN_APP_URL": "https://app.kobun.io"
 			}
 		},
 		"preview": {
@@ -57,8 +57,8 @@
 				"BETTER_AUTH_URL": "https://dev.app.kobun.io",
 				"GITHUB_APP_ID": "3017727",
 				"GITHUB_APP_SLUG": "kobun-preview",
-				"KOBUN_HOME_URL": "https://kobun.io",
-				"KOBUN_APP_URL": "https://dev.app.kobun.io"
+				"VITE_PUBLIC_KOBUN_HOME_URL": "https://kobun.io",
+				"VITE_PUBLIC_KOBUN_APP_URL": "https://dev.app.kobun.io"
 			}
 		},
 		"test": {
@@ -80,8 +80,8 @@
 				"GITHUB_APP_PRIVATE_KEY": "",
 				"GITHUB_APP_WEBHOOK_SECRET": "",
 				"GITHUB_APP_SLUG": "",
-				"KOBUN_HOME_URL": "",
-				"KOBUN_APP_URL": "",
+				"VITE_PUBLIC_KOBUN_HOME_URL": "",
+				"VITE_PUBLIC_KOBUN_APP_URL": "",
 				"VITE_PUBLIC_POSTHOG_PROJECT_TOKEN": "",
 				"VITE_PUBLIC_POSTHOG_HOST": ""
 			}

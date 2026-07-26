@@ -49,7 +49,8 @@ export async function loader({
 	)
 
 	const currentVersion = KOBUN_VERSION
-	const isHosted = url.hostname === new URL(env.KOBUN_APP_URL).hostname
+	const isHosted =
+		url.hostname === new URL(env.VITE_PUBLIC_KOBUN_APP_URL).hostname
 
 	let latestVersion = currentVersion
 	let hasUpdate = false
@@ -57,7 +58,9 @@ export async function loader({
 	let changelogUrl = ""
 
 	try {
-		const manifestRes = await fetch(`${env.KOBUN_APP_URL}/manifest.json`)
+		const manifestRes = await fetch(
+			`${env.VITE_PUBLIC_KOBUN_APP_URL}/manifest.json`,
+		)
 		if (manifestRes.ok) {
 			const manifest = (await manifestRes.json()) as {
 				version: string
@@ -85,7 +88,7 @@ export async function loader({
 			isHosted,
 			releaseUrl,
 			changelogUrl,
-			homeUrl: env.KOBUN_HOME_URL,
+			homeUrl: env.VITE_PUBLIC_KOBUN_HOME_URL,
 		},
 	}
 }
