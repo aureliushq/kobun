@@ -28,6 +28,7 @@ import {
 	getGithubInstallation,
 	listGithubInstallationRepositories,
 } from "@/github/octokit.server"
+import { posthogContext } from "@/lib/posthog-middleware"
 import { Alert, AlertDescription, AlertTitle } from "@/ui/components/base/alert"
 import {
 	Avatar,
@@ -340,12 +341,24 @@ export async function action({ context, request }: Route.ActionArgs) {
 				},
 			})
 
+		const posthog = context.get(posthogContext)
+		posthog?.capture({
+			event: "project_created",
+			properties: {
+				repo_owner: selectedRepo.owner.login,
+				repo_name: selectedRepo.name,
+			},
+		})
+
 		return redirect(`/${selectedRepo.owner.login}/${selectedRepo.name}`)
 	}
 
 	if (intent === SetupActionIntents.INSTALL_APP) {
 		const state = crypto.randomUUID()
 		const installUrl = getGithubAppInstallUrl(env, state)
+
+		const posthog = context.get(posthogContext)
+		posthog?.capture({ event: "github_app_installed" })
 
 		return redirect(installUrl, {
 			headers: {

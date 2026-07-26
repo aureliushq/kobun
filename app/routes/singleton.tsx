@@ -1,7 +1,6 @@
 import { Accordion as AccordionPrimitive } from "@base-ui/react/accordion"
 import { formatDistanceToNow } from "date-fns"
 import { eq } from "drizzle-orm"
-import matter from "gray-matter"
 import { ChevronDown, FileText } from "lucide-react"
 import { Link, redirect, useParams } from "react-router"
 import invariant from "tiny-invariant"
@@ -12,6 +11,7 @@ import { envContext } from "@/core/context"
 import { dbContext } from "@/db/context"
 import { project } from "@/db/schema/app-schema"
 import { getGithubFileContent } from "@/github/octokit.server"
+import { parseFrontmatter } from "@/lib/frontmatter"
 import {
 	Accordion,
 	AccordionContent,
@@ -117,7 +117,7 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
 		exists = true
 
 		if (singleton.format === "md" || singleton.format === "mdx") {
-			const parsed = matter(file.content)
+			const parsed = parseFrontmatter(file.content)
 			data = parsed.data as Record<string, unknown>
 			body = parsed.content
 		} else if (singleton.format === "json") {

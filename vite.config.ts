@@ -18,6 +18,19 @@ export default defineConfig({
 		sourcemap: true,
 		rollupOptions: {
 			onwarn(warning, warn) {
+				// gray-matter ships an optional JS front-matter engine that uses direct
+				// `eval` (node_modules/gray-matter/lib/engines.js). We disable that engine
+				// at runtime (see app/lib/frontmatter.ts), so the code is dead - but it
+				// still bundles, so Rolldown's eval check flags it. Silence ONLY this
+				// specific warning; the check stays active, so a direct `eval` anywhere
+				// else (our code or any other dependency) is still surfaced.
+				const source = warning.id ?? warning.loc?.file ?? ""
+				if (
+					warning.code === "EVAL" &&
+					source.includes("/node_modules/gray-matter/")
+				) {
+					return
+				}
 				// Third-party packages ship incomplete sourcemaps - nothing we can fix
 				// https://github.com/vitejs/vite/issues/15012
 				if (
@@ -45,6 +58,9 @@ export default defineConfig({
 				]
 			: []),
 	],
+	ssr: {
+		noExternal: ["posthog-js", "@posthog/react"],
+	},
 	test: {
 		// Restores all original implementations on spies created manually
 		restoreMocks: true,

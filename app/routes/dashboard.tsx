@@ -13,6 +13,7 @@ import { envContext } from "@/core/context"
 import { getDraftEditorPath, isDraftDirty } from "@/core/editor/drafts"
 import { dbContext } from "@/db/context"
 import { editorDraft, project } from "@/db/schema/app-schema"
+import { posthogContext } from "@/lib/posthog-middleware"
 import { Alert, AlertDescription, AlertTitle } from "@/ui/components/base/alert"
 import { Badge } from "@/ui/components/base/badge"
 import { Button } from "@/ui/components/base/button"
@@ -84,6 +85,15 @@ export async function action({ context, request }: Route.ActionArgs) {
 		throw new Response("Not Found", { status: 404 })
 	}
 	await db.delete(editorDraft).where(eq(editorDraft.id, draft.id))
+
+	const posthog = context.get(posthogContext)
+	posthog?.capture({
+		event: "draft_discarded",
+		properties: {
+			collection_slug: draft.collectionSlug,
+		},
+	})
+
 	return { ok: true }
 }
 
