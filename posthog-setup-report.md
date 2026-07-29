@@ -15,8 +15,8 @@ The wizard has completed a deep integration of PostHog analytics into Kobun, a G
 - `app/routes/collection-editor.tsx` — Captures `content_published` server-side (with `collection_slug`, `repo_owner`, `repo_name`, `editor_mode`) after a successful GitHub push.
 
 **Environment variables added to `.env`:**
-- `VITE_PUBLIC_POSTHOG_PROJECT_TOKEN`
-- `VITE_PUBLIC_POSTHOG_HOST`
+- `VITE_POSTHOG_PROJECT_TOKEN`
+- `VITE_POSTHOG_HOST`
 
 | Event | Description | File |
 |-------|-------------|------|
@@ -41,7 +41,7 @@ We've built some insights and a dashboard for you to keep an eye on user behavio
 
 - [x] Run a full production build (`bun run build`) and fix any lint or type errors introduced by the generated code.
 - [x] Run the test suite — call sites that were rewritten or instrumented may need updated mocks or fixtures.
-- [x] Add `VITE_PUBLIC_POSTHOG_PROJECT_TOKEN` and `VITE_PUBLIC_POSTHOG_HOST` to `.dev.vars.example` and any CI/deployment scripts so collaborators and production builds know what to set. For Cloudflare Workers deployments, these Vite env vars must also be present as build-time environment variables (e.g. via `wrangler secret` or CI env vars) since they are bundled at build time, not read at worker runtime.
+- [x] Add `VITE_POSTHOG_PROJECT_TOKEN` and `VITE_POSTHOG_HOST` to `.env.example` and the CI Build steps so collaborators and production builds know what to set. These are bundled at build time, not read at worker runtime, so they must be present in the build environment — `wrangler secret` has no effect on them.
 - [ ] Wire source-map upload (`posthog-cli sourcemap` or your bundler's upload step) into CI so production stack traces de-minify.
 - [ ] Confirm the returning-visitor path also calls `identify` — the wizard added it to the dashboard layout loader, which covers every authenticated visit, but verify it fires on hard refreshes and direct navigation to deep links.
 - [ ] This project contains GitHub and Cloudflare data sources that PostHog can import into its data warehouse. Run `npx @posthog/wizard warehouse` to connect them.

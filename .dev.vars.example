@@ -1,3 +1,17 @@
+# Worker runtime secrets.
+#
+# These reach the app as `env.*` bindings (see app/core/context.ts). Locally
+# they come from .dev.vars; in deployed environments they are Cloudflare
+# secrets, set with `wrangler secret put <NAME> --env <production|preview>` or
+# in the dashboard under Workers & Pages -> <worker> -> Settings ->
+# Variables and Secrets.
+#
+# Non-secret runtime config (BETTER_AUTH_URL, GITHUB_APP_ID, GITHUB_APP_SLUG)
+# lives in wrangler.json under `vars` for deployed environments - the copies
+# here only apply to local development.
+#
+# Build-time variables belong in .env instead - see .env.example.
+
 # AutoSend Email
 AUTOSEND_API_KEY=
 AUTOSEND_LIST_ID=
@@ -16,4 +30,3 @@ GITHUB_APP_ID=
 GITHUB_APP_PRIVATE_KEY=
 GITHUB_APP_WEBHOOK_SECRET=
 GITHUB_APP_SLUG=
-

@@ -4,8 +4,8 @@ import { StrictMode, startTransition } from "react"
 import { hydrateRoot } from "react-dom/client"
 import { HydratedRouter } from "react-router/dom"
 
-const token = import.meta.env.VITE_PUBLIC_POSTHOG_PROJECT_TOKEN
-const host = import.meta.env.VITE_PUBLIC_POSTHOG_HOST
+const token = import.meta.env.VITE_POSTHOG_PROJECT_TOKEN
+const host = import.meta.env.VITE_POSTHOG_HOST
 
 if (token && host) {
 	posthog.init(token, {
@@ -15,7 +15,7 @@ if (token && host) {
 	})
 } else if (import.meta.env.DEV) {
 	console.error(
-		"VITE_PUBLIC_POSTHOG_PROJECT_TOKEN variable required by PostHog is missing or un-configured, this causes events to be silently missed. This error stops appearing once VITE_PUBLIC_POSTHOG_PROJECT_TOKEN is configured",
+		"VITE_POSTHOG_PROJECT_TOKEN variable required by PostHog is missing or un-configured, this causes events to be silently missed. This error stops appearing once VITE_POSTHOG_PROJECT_TOKEN is configured",
 	)
 }
 

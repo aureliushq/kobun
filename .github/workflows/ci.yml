@@ -143,6 +143,11 @@ jobs:
 
       - name: 🛠️ Build
         run: CLOUDFLARE_ENV=test NODE_ENV=test bun run build
+        env:
+          # Vite inlines these at build time. PostHog is left unset on purpose
+          # so test runs don't emit analytics.
+          VITE_KOBUN_HOME_URL: https://kobun.io
+          VITE_KOBUN_APP_URL: http://localhost:4173
 
       - name: 🗄️ Database setup
         run: bun run db:setup

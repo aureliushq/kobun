@@ -23,7 +23,8 @@ export type VersionInfo = {
 	isHosted: boolean
 	releaseUrl: string
 	changelogUrl: string
-	homeUrl: string
+	// Unset when VITE_KOBUN_HOME_URL is missing at build time
+	homeUrl?: string
 }
 
 const AboutDialog = ({
@@ -58,19 +59,21 @@ const AboutDialog = ({
 							)}
 						</div>
 					</div>
-					<div className="flex items-center justify-between">
-						<span className="text-muted-foreground text-xs">Homepage</span>
-						<a
-							className="inline-flex items-center gap-1 text-xs hover:underline"
-							href={versionInfo.homeUrl}
-							rel="noreferrer"
-							target="_blank"
-						>
-							<GlobeIcon className="size-3" />
-							kobun.io
-							<ExternalLinkIcon className="size-3" />
-						</a>
-					</div>
+					{versionInfo.homeUrl && (
+						<div className="flex items-center justify-between">
+							<span className="text-muted-foreground text-xs">Homepage</span>
+							<a
+								className="inline-flex items-center gap-1 text-xs hover:underline"
+								href={versionInfo.homeUrl}
+								rel="noreferrer"
+								target="_blank"
+							>
+								<GlobeIcon className="size-3" />
+								kobun.io
+								<ExternalLinkIcon className="size-3" />
+							</a>
+						</div>
+					)}
 					<div className="flex items-center justify-between">
 						<span className="text-muted-foreground text-xs">GitHub</span>
 						<a
