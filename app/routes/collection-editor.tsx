@@ -20,7 +20,7 @@ import {
 	getCollectionItemEditorPath,
 	type SaveInput,
 } from "@/core/editor/drafts"
-import { createDrafts } from "@/core/editor/drafts/create-drafts"
+import { createDrafts } from "@/core/editor/drafts/create-drafts.server"
 import { createGithubSourceStore } from "@/core/editor/drafts/github-source-store.server"
 import { dbContext } from "@/db/context"
 import { project } from "@/db/schema/app-schema"

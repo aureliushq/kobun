@@ -3,11 +3,11 @@
  * row and nothing else can answer — is it Dirty, where is it edited — plus the
  * vocabulary a caller drives the transitions in.
  *
- * The `createDrafts` factory is deliberately not re-exported here. It reaches a
- * database and a repository, so it is imported from `./create-drafts` by server
- * code only; carrying it through this file would drag Drizzle and the source
- * parser into every browser bundle that just wanted to know whether a Draft is
- * Dirty (the dashboard's draft list does exactly that).
+ * The `createDrafts` factory is deliberately not re-exported here. It parses
+ * Sources through a node-only library, so it lives in `./create-drafts.server`
+ * and server code imports it from there; carrying it through this file would
+ * drag that parser into every browser bundle that only wanted to know whether a
+ * Draft is Dirty — which is exactly what the dashboard's draft list wants.
  */
 export { getCollectionItemEditorPath, getDraftEditorPath } from "./draft-paths"
 export { isDraftDirty } from "./draft-state"

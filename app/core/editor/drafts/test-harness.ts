@@ -9,7 +9,7 @@ import {
 } from "@/db/schema/app-schema"
 import { user } from "@/db/schema/auth-schema"
 import { createInMemoryDb } from "@/db/testing"
-import { createDrafts } from "./create-drafts"
+import { createDrafts } from "./create-drafts.server"
 import type {
 	SourceFile,
 	SourceStore,
