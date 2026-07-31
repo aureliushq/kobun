@@ -1,3 +1,4 @@
+import { usePostHog } from "@posthog/react"
 import { GithubIcon } from "lucide-react"
 import { Form, redirect } from "react-router"
 import { getAuth } from "@/auth/auth.server"
@@ -41,6 +42,11 @@ export async function action({ context, request }: Route.ActionArgs) {
 
 export default function LoginPage() {
 	const { resolvedTheme } = useTheme()
+	const posthog = usePostHog()
+
+	const handleLoginSubmit = () => {
+		posthog?.capture("login_initiated")
+	}
 
 	return (
 		<>
@@ -59,7 +65,7 @@ export default function LoginPage() {
 						<CardDescription>Login with your Github account</CardDescription>
 					</CardHeader>
 					<CardContent>
-						<Form method="POST">
+						<Form method="POST" onSubmit={handleLoginSubmit}>
 							<FieldGroup>
 								<Field>
 									<Button type="submit">

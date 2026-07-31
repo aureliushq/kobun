@@ -11,7 +11,6 @@ import {
 } from "@tanstack/react-table"
 import { formatDistanceToNow } from "date-fns"
 import { eq } from "drizzle-orm"
-import matter from "gray-matter"
 import {
 	ArrowDown,
 	ArrowUp,
@@ -31,6 +30,7 @@ import { isMarkdownCollectionFile } from "@/core/editor/collection-items.server"
 import { dbContext } from "@/db/context"
 import { project } from "@/db/schema/app-schema"
 import { listGithubDirectoryFiles } from "@/github/octokit.server"
+import { parseFrontmatter } from "@/lib/frontmatter"
 import { Badge } from "@/ui/components/base/badge"
 import { Button } from "@/ui/components/base/button"
 import { Input } from "@/ui/components/base/input"
@@ -108,7 +108,7 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
 		)
 
 		items = files.filter(isMarkdownCollectionFile).map((f) => {
-			const parsed = matter(f.content)
+			const parsed = parseFrontmatter(f.content)
 			return {
 				name: f.name,
 				path: f.path,

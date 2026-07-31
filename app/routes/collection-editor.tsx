@@ -25,6 +25,7 @@ import { createGithubSourceStore } from "@/core/editor/drafts/github-source-stor
 import { dbContext } from "@/db/context"
 import { project } from "@/db/schema/app-schema"
 import { type AutosaveState, type EditorRefApi, RichTextEditor } from "@/editor"
+import { posthogContext } from "@/lib/posthog-middleware"
 import { Button } from "@/ui/components/base/button"
 import { Input } from "@/ui/components/base/input"
 import {
@@ -298,6 +299,21 @@ export async function action(args: Route.ActionArgs) {
 			editorPath,
 		})
 	}
+	// A publish that reached the repository and reconciled its Draft. The two
+	// outcomes above return before this: one committed nothing, the other lost
+	// the sync race — neither was tracked before the lifecycle moved into the
+	// module, and this merge is not the place to start.
+	const posthog = args.context.get(posthogContext)
+	posthog?.capture({
+		event: "content_published",
+		properties: {
+			collection_slug: resolved.collectionSlug,
+			repo_owner: resolved.owner,
+			repo_name: resolved.name,
+			editor_mode: target.mode,
+		},
+	})
+
 	return Response.json({
 		ok: true,
 		commitSha: published.commitSha,

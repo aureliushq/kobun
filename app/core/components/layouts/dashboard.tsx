@@ -1,4 +1,6 @@
+import { usePostHog } from "@posthog/react"
 import { eq } from "drizzle-orm"
+import { useEffect } from "react"
 import { Outlet, redirect } from "react-router"
 import { getAuth } from "@/auth/auth.server"
 import { fetchAndParseConfig } from "@/config/github.server"
@@ -47,7 +49,14 @@ export async function loader({
 	)
 
 	const currentVersion = KOBUN_VERSION
-	const isHosted = url.hostname === new URL(env.KOBUN_APP_URL).hostname
+	const appUrl = import.meta.env.VITE_KOBUN_APP_URL
+	// Unset or malformed at build time - treat as self-hosted rather than 500ing
+	let isHosted = false
+	try {
+		isHosted = !!appUrl && url.hostname === new URL(appUrl).hostname
+	} catch {
+		isHosted = false
+	}
 
 	let latestVersion = currentVersion
 	let hasUpdate = false
@@ -55,7 +64,7 @@ export async function loader({
 	let changelogUrl = ""
 
 	try {
-		const manifestRes = await fetch(`${env.KOBUN_APP_URL}/manifest.json`)
+		const manifestRes = await fetch(`${appUrl}/manifest.json`)
 		if (manifestRes.ok) {
 			const manifest = (await manifestRes.json()) as {
 				version: string
@@ -83,7 +92,7 @@ export async function loader({
 			isHosted,
 			releaseUrl,
 			changelogUrl,
-			homeUrl: env.KOBUN_HOME_URL,
+			homeUrl: import.meta.env.VITE_KOBUN_HOME_URL,
 		},
 	}
 }
@@ -105,6 +114,14 @@ export async function action({ context, request }: Route.ActionArgs) {
 
 const DashboardLayout = ({ loaderData }: Route.ComponentProps) => {
 	const config = loaderData?.configResult?.config
+	const posthog = usePostHog()
+	const user = loaderData?.user
+
+	useEffect(() => {
+		if (user) {
+			posthog?.identify(user.id, { name: user.name })
+		}
+	}, [user, posthog])
 
 	return (
 		<SidebarProvider>

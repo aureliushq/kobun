@@ -121,12 +121,25 @@ awk 'NR==1{printf "%s",$0; next}{printf "\\n%s",$0}' ~/path-to/your-app.private-
 
 ## Environment Variables
 
-### Production Self-Hosting (Wrangler Secrets)
+Kobun has two kinds of configuration, and they are **not** interchangeable:
 
-These are set via `wrangler secret put` and injected at runtime:
+| Kind | Where it lives | How code reads it |
+| --- | --- | --- |
+| **Worker runtime secrets** | `.dev.vars` locally → Cloudflare secrets when deployed | `env.X` binding |
+| **Worker runtime vars** (non-secret) | `wrangler.json` under `vars` | `env.X` binding |
+| **Build-time** (`VITE_*`) | `.env` locally → CI Build step environment | `import.meta.env.X` |
+| **CLI credentials** | `.env` only | `process.env.X`, drizzle-kit / wrangler |
+
+A build-time variable is inlined into the JavaScript bundle when you run `bun run build`. Setting one as a Cloudflare secret or var does nothing — the Worker never reads it. The reverse is also true: a runtime secret can't be reached through `import.meta.env`.
+
+### Worker Runtime Secrets
+
+Set via `wrangler secret put` and injected at request time:
 
 | Variable | Description |
 | --- | --- |
+| `AUTOSEND_API_KEY` | AutoSend API key |
+| `AUTOSEND_LIST_ID` | AutoSend list ID |
 | `BETTER_AUTH_SECRET` | Auth secret. Generate: `openssl rand -base64 32` |
 | `GITHUB_CLIENT_ID` | GitHub App client ID |
 | `GITHUB_CLIENT_SECRET` | GitHub App client secret |
@@ -136,6 +149,8 @@ These are set via `wrangler secret put` and injected at runtime:
 To set secrets for production:
 
 ```bash
+bunx wrangler secret put AUTOSEND_API_KEY --env production
+bunx wrangler secret put AUTOSEND_LIST_ID --env production
 bunx wrangler secret put BETTER_AUTH_SECRET --env production
 bunx wrangler secret put GITHUB_CLIENT_ID --env production
 bunx wrangler secret put GITHUB_CLIENT_SECRET --env production
@@ -143,9 +158,11 @@ bunx wrangler secret put GITHUB_APP_PRIVATE_KEY --env production
 bunx wrangler secret put GITHUB_APP_WEBHOOK_SECRET --env production
 ```
 
-### Production Non-Secret Variables
+Equivalently, in the dashboard under **Workers & Pages → your worker → Settings → Variables and Secrets**, added as type **Secret**. `wrangler.json` lists these under `secrets.required`, so a deploy fails fast if one is missing.
 
-These are set in `wrangler.json` under `vars`:
+### Worker Runtime Variables (non-secret)
+
+These are set in `wrangler.json` under `vars`, per environment:
 
 | Variable | Description |
 | --- | --- |
@@ -153,9 +170,33 @@ These are set in `wrangler.json` under `vars`:
 | `GITHUB_APP_ID` | GitHub App ID |
 | `GITHUB_APP_SLUG` | GitHub App slug |
 
-> **Development only** — for local development, secrets go in `.dev.vars`:
+> [!IMPORTANT]
+> Don't edit these in the Cloudflare dashboard. Every `wrangler deploy` replaces the Worker's plaintext vars with whatever `wrangler.json` says, so dashboard edits are silently reverted. Secrets are not affected by deploys.
+
+### Build-Time Variables
+
+Inlined into the client bundle by Vite. Public values only — anything here ships to the browser.
+
+| Variable | Description |
+| --- | --- |
+| `VITE_KOBUN_HOME_URL` | Marketing site URL |
+| `VITE_KOBUN_APP_URL` | App URL, used for the self-hosted check and update manifest |
+| `VITE_POSTHOG_PROJECT_TOKEN` | PostHog project token (public by design) |
+| `VITE_POSTHOG_HOST` | PostHog ingestion host |
+
+Locally these come from `.env`. When deploying manually, set them in the environment of the build command:
+
+```bash
+VITE_KOBUN_APP_URL=https://app.kobun.io bun run deploy:production
+```
+
+In CI they're passed to the Build step from GitHub Actions variables — see [Environment Variables](#environment-variables-1) below. Leave the PostHog pair unset to disable analytics entirely.
+
+> **Development only** — for local development, runtime secrets go in `.dev.vars`:
 >
 > ```
+> AUTOSEND_API_KEY=your-api-key
+> AUTOSEND_LIST_ID=your-list-id
 > BETTER_AUTH_URL=http://localhost:5173
 > BETTER_AUTH_SECRET=your-secret
 > GITHUB_CLIENT_ID=your-client-id
@@ -166,14 +207,16 @@ These are set in `wrangler.json` under `vars`:
 > GITHUB_APP_SLUG=your-app-slug
 > ```
 
-> **Development only** — for local scripts and remote DB operations, configure `.env`:
+> **Development only** — build-time variables and CLI credentials go in `.env`:
 >
 > ```
-> BETTER_AUTH_URL=http://localhost:5173
-> BETTER_AUTH_SECRET=your-secret
 > CLOUDFLARE_ACCOUNT_ID=your-account-id
 > CLOUDFLARE_DATABASE_ID=your-database-id
 > CLOUDFLARE_API_TOKEN=your-api-token
+> VITE_KOBUN_HOME_URL=https://kobun.io
+> VITE_KOBUN_APP_URL=http://localhost:5173
+> VITE_POSTHOG_PROJECT_TOKEN=your-project-token
+> VITE_POSTHOG_HOST=https://us.i.posthog.com
 > ```
 
 ---
@@ -234,10 +277,16 @@ Set via GitHub UI (Settings → Secrets and variables → Actions) or `gh` CLI:
 gh variable set CLOUDFLARE_ACCOUNT_ID --body "your-account-id"
 ```
 
-| Variable | Required | Description |
-| --- | --- | --- |
-| `CLOUDFLARE_ACCOUNT_ID` | Yes | Cloudflare account ID |
-| `CLOUDFLARE_ACCESS_CLIENT_ID` | No | For smoke tests behind Cloudflare Access |
+| Variable | Required | Scope | Description |
+| --- | --- | --- | --- |
+| `CLOUDFLARE_ACCOUNT_ID` | Yes | Repository | Cloudflare account ID |
+| `CLOUDFLARE_ACCESS_CLIENT_ID` | No | Repository | For smoke tests behind Cloudflare Access |
+| `VITE_KOBUN_HOME_URL` | Yes | Environment | Build-time. Same for both environments. |
+| `VITE_KOBUN_APP_URL` | Yes | Environment | Build-time. Differs per environment — this is why it's environment-scoped. |
+| `VITE_POSTHOG_PROJECT_TOKEN` | No | Environment | Build-time. Public token; omit to disable analytics. |
+| `VITE_POSTHOG_HOST` | No | Environment | Build-time. |
+
+The `VITE_*` variables are scoped to the `production` and `preview` GitHub Environments (Settings → Environments), since the deploy jobs declare `environment:` and resolve `${{ vars.* }}` against it. They must be Variables rather than Secrets on the build step — but that's fine, none of them are secret.
 
 ### Repository Secrets
 

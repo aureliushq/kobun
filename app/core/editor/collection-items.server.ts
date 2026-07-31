@@ -1,4 +1,4 @@
-import matter from "gray-matter"
+import { parseFrontmatter, stringifyFrontmatter } from "@/lib/frontmatter"
 import { canonicalMetadata, normalizeMetadata } from "./collection-metadata"
 
 interface CollectionConfig {
@@ -48,7 +48,7 @@ export function findCollectionItemBySlug(
 	slug: string,
 ): ResolvedCollectionItem | null {
 	const matches = files.flatMap((file) => {
-		const parsed = matter(file.content)
+		const parsed = parseFrontmatter(file.content)
 		const frontmatter = normalizeMetadata(parsed.data) as Record<
 			string,
 			unknown
@@ -90,7 +90,7 @@ export function serializeCollectionItem(
 		originalFrontmatter &&
 		canonicalMetadata(frontmatter) !== canonicalMetadata(originalFrontmatter)
 	) {
-		return matter.stringify(markdown, frontmatter)
+		return stringifyFrontmatter(markdown, frontmatter)
 	}
 	return `${sourcePrefix}${markdown}`
 }
