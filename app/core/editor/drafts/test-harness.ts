@@ -1,4 +1,7 @@
+import { eq } from "drizzle-orm"
 import invariant from "tiny-invariant"
+import { collectionSchema } from "@/config/schema"
+import type { Collection } from "@/config/types"
 import {
 	editorDraft,
 	githubInstallation,
@@ -93,12 +96,28 @@ export interface DraftsTestHarness {
 	db: DraftsDatabase
 	drafts: ReturnType<typeof createDrafts>
 	projectId: string
+	/** The Draft as it now stands, for asserting on what a transition wrote. */
+	readDraft(id: string): Promise<DraftRow | undefined>
 	seedDraft(values: Partial<DraftRow>): DraftRow
 	sourceStore: FakeSourceStore
 }
 
 export const TEST_COLLECTION_SLUG = "posts"
 export const TEST_DIRECTORY_PATH = "content/posts"
+
+/**
+ * A minimal collection: a title, a slug derived from it, and a body. Parsed
+ * through the real schema so the fixture cannot drift from a legal config.
+ */
+export const TEST_COLLECTION: Collection = collectionSchema.parse({
+	format: "md",
+	label: "Posts",
+	schema: {
+		content: { label: "Content", type: "document" },
+		slug: { from: "title", label: "Slug", type: "slug" },
+		title: { label: "Title", type: "text" },
+	},
+})
 
 export function createDraftsTestHarness(
 	options: { files?: SourceFile[] } = {},
@@ -148,12 +167,16 @@ export function createDraftsTestHarness(
 		close,
 		db,
 		drafts: createDrafts({
+			collection: TEST_COLLECTION,
 			collectionSlug: TEST_COLLECTION_SLUG,
 			db,
+			directoryPath: TEST_DIRECTORY_PATH,
 			project: { id: projectId },
 			sourceStore,
 		}),
 		projectId,
+		readDraft: (id: string) =>
+			db.query.editorDraft.findFirst({ where: eq(editorDraft.id, id) }),
 		seedDraft: (values: Partial<DraftRow>) => {
 			const [row] = sqliteDb
 				.insert(editorDraft)

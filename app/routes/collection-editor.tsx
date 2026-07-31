@@ -14,7 +14,6 @@ import {
 	serializeCollectionItem,
 } from "@/core/editor/collection-items.server"
 import {
-	applyMetadataDefaults,
 	canonicalMetadata,
 	type FieldRecord,
 	getCollectionEditorFields,
@@ -23,9 +22,9 @@ import {
 	validateMetadata,
 } from "@/core/editor/collection-metadata"
 import { MetadataField } from "@/core/editor/collection-metadata-fields"
-import { isDraftDirty } from "@/core/editor/drafts"
 import { createDrafts } from "@/core/editor/drafts/create-drafts"
 import { createGithubSourceStore } from "@/core/editor/drafts/github-source-store.server"
+import type { OpenResult } from "@/core/editor/drafts/types"
 import { dbContext } from "@/db/context"
 import { editorDraft, project } from "@/db/schema/app-schema"
 import { type AutosaveState, type EditorRefApi, RichTextEditor } from "@/editor"
@@ -108,6 +107,24 @@ async function resolveCollectionContext({
 	}
 }
 
+function createDraftsFor(
+	resolved: Awaited<ReturnType<typeof resolveCollectionContext>>,
+) {
+	return createDrafts({
+		collection: resolved.collection,
+		collectionSlug: resolved.collectionSlug,
+		db: resolved.db,
+		directoryPath: resolved.directoryPath,
+		project: { id: resolved.projectRow.id },
+		sourceStore: resolved.sourceStore,
+	})
+}
+
+/**
+ * Transitional: the loader resolves its Source inside the drafts module, but
+ * the action still needs one for `writeDraft` and the publish chain. It goes
+ * away with the rest of the publish path (aureliushq/kobun#55).
+ */
 async function resolveExistingItem(
 	resolved: Awaited<ReturnType<typeof resolveCollectionContext>>,
 	slug: string,
@@ -142,109 +159,43 @@ function getEditorMode(params: Route.LoaderArgs["params"]) {
 export async function loader(args: Route.LoaderArgs) {
 	const resolved = await resolveCollectionContext(args)
 	const mode = getEditorMode(args.params)
+	const drafts = createDraftsFor(resolved)
 
+	// `args.url` is React Router's normalized URL (no `.data` suffix or
+	// index/_routes params); clone it so we can mutate searchParams safely.
+	const url = new URL(args.url)
+	let opened: OpenResult
 	if (mode === "new") {
-		// `args.url` is React Router's normalized URL (no `.data` suffix or
-		// index/_routes params); clone it so we can mutate searchParams safely.
-		const url = new URL(args.url)
-		const draftId = url.searchParams.get("draft")
-		if (!draftId) {
-			const id = crypto.randomUUID()
-			const metadata = applyMetadataDefaults(resolved.collection.schema, {})
-			await resolved.db.insert(editorDraft).values({
-				id,
-				projectId: resolved.projectRow.id,
-				collectionSlug: resolved.collectionSlug,
-				markdown: "",
-				metadata: JSON.stringify(metadata),
-				revision: 0,
-			})
-			url.searchParams.set("draft", id)
-			throw redirect(`${url.pathname}${url.search}`)
-		}
-
-		const draft = await resolved.db.query.editorDraft.findFirst({
-			where: and(
-				eq(editorDraft.id, draftId),
-				eq(editorDraft.projectId, resolved.projectRow.id),
-				eq(editorDraft.collectionSlug, resolved.collectionSlug),
-				isNull(editorDraft.sourcePath),
-			),
-		})
-		if (!draft) throw new Response("Draft not found", { status: 404 })
-
-		return {
-			canPublish: true,
-			draftId: draft.id,
-			draftRevision: draft.revision,
-			initialContent: draft.markdown,
-			initialFields: draft.metadata
-				? (JSON.parse(draft.metadata) as FieldRecord)
-				: applyMetadataDefaults(resolved.collection.schema, {}),
-			originalFields: {} as FieldRecord,
-			owner: resolved.owner,
-			name: resolved.name,
-			schema: resolved.collection.schema,
-			itemSlug: null,
-			mode,
-			publishDisabledReason: null,
-		}
+		opened = await drafts.open({ draftId: url.searchParams.get("draft"), mode })
+	} else {
+		const slug = args.params.collection_item_slug
+		invariant(slug, "collection_item_slug is required")
+		opened = await drafts.open({ mode, slug })
 	}
-
-	const slug = args.params.collection_item_slug
-	invariant(slug, "collection_item_slug is required")
-	const item = await resolveExistingItem(resolved, slug)
-	let draft = await resolved.db.query.editorDraft.findFirst({
-		where: and(
-			eq(editorDraft.projectId, resolved.projectRow.id),
-			eq(editorDraft.sourcePath, item.path),
-		),
-	})
-	if (draft && !isDraftDirty(draft) && draft.sourceSha !== item.sha) {
-		invariant(
-			draft.publishedRevision !== null,
-			"A synchronized draft must have a published revision",
+	if (!opened.ok) {
+		// The only thing `open` can fail to find is what the route asked it for:
+		// the Draft named by `?draft=` for a new item, the item itself otherwise.
+		throw new Response(
+			mode === "new" ? "Draft not found" : "Collection item not found",
+			{ status: 404 },
 		)
-		const nextRevision = draft.revision + 1
-		const [rebased] = await resolved.db
-			.update(editorDraft)
-			.set({
-				markdown: item.body,
-				metadata: null,
-				publishedRevision: nextRevision,
-				revision: nextRevision,
-				sourceSha: item.sha,
-			})
-			.where(
-				and(
-					eq(editorDraft.id, draft.id),
-					eq(editorDraft.projectId, resolved.projectRow.id),
-					eq(editorDraft.revision, draft.revision),
-					eq(editorDraft.publishedRevision, draft.publishedRevision),
-				),
-			)
-			.returning()
-		draft =
-			rebased ??
-			(await resolved.db.query.editorDraft.findFirst({
-				where: eq(editorDraft.id, draft.id),
-			}))
+	}
+	if (opened.created) {
+		url.searchParams.set("draft", opened.draftId)
+		throw redirect(`${url.pathname}${url.search}`)
 	}
 
 	return {
 		canPublish: true,
-		draftId: draft?.id ?? null,
-		draftRevision: draft?.revision ?? null,
-		initialContent: draft && isDraftDirty(draft) ? draft.markdown : item.body,
-		initialFields:
-			draft && isDraftDirty(draft) && draft.metadata
-				? (JSON.parse(draft.metadata) as FieldRecord)
-				: item.frontmatter,
-		originalFields: item.frontmatter,
+		draftId: opened.draftId,
+		draftRevision: opened.revision,
+		initialContent: opened.content,
+		initialFields: opened.fields,
+		originalFields: opened.source?.frontmatter ?? ({} as FieldRecord),
 		owner: resolved.owner,
 		name: resolved.name,
 		schema: resolved.collection.schema,
-		itemSlug: item.itemSlug,
+		itemSlug: opened.source?.itemSlug ?? null,
 		mode,
 		publishDisabledReason: null,
 	}
@@ -314,12 +265,7 @@ export async function action(args: Route.ActionArgs) {
 				)
 			: null
 
-	const drafts = createDrafts({
-		collectionSlug: resolved.collectionSlug,
-		db: resolved.db,
-		project: { id: resolved.projectRow.id },
-		sourceStore: resolved.sourceStore,
-	})
+	const drafts = createDraftsFor(resolved)
 	// The freshly loaded source is what the draft transitions reconcile against.
 	const saveInput = {
 		draftId: payload.draftId ?? null,

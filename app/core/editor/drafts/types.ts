@@ -1,4 +1,5 @@
 import type { DrizzleD1Database } from "drizzle-orm/d1"
+import type { Collection } from "@/config/types"
 import type { FieldRecord } from "@/core/editor/collection-metadata"
 import type * as schema from "@/db/schema"
 import type { editorDraft } from "@/db/schema/app-schema"
@@ -23,11 +24,34 @@ export interface ResolvedSource {
 }
 
 export interface DraftsContext {
+	collection: Collection
 	collectionSlug: string
 	db: DraftsDatabase
+	/** Where this collection's Source files live in the repository. */
+	directoryPath: string
 	project: { id: string }
 	sourceStore: SourceStore
 }
+
+export type OpenInput =
+	| { draftId: string | null; mode: "new" }
+	| { mode: "item"; slug: string }
+
+export type OpenResult =
+	/** A Draft was minted; the caller sends the writer to it to open it. */
+	| { created: true; draftId: string; ok: true }
+	/** What the editor opens with, Effective Content already decided. */
+	| {
+			content: string
+			created: false
+			draftId: string | null
+			fields: FieldRecord
+			ok: true
+			revision: number | null
+			/** Absent for a new item, which has no Source until it is published. */
+			source: ResolvedSource | null
+	  }
+	| { code: "not-found"; ok: false }
 
 export interface SaveInput {
 	draftId: string | null

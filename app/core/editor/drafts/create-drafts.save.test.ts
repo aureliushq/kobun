@@ -1,4 +1,3 @@
-import { eq } from "drizzle-orm"
 import { afterEach, expect, test, vi } from "vitest"
 import { editorDraft } from "@/db/schema/app-schema"
 import {
@@ -49,12 +48,6 @@ function seedSourceBackedDraft(
 	})
 }
 
-function readDraft(id: string) {
-	return harness.db.query.editorDraft.findFirst({
-		where: eq(editorDraft.id, id),
-	})
-}
-
 afterEach(() => {
 	harness?.close()
 })
@@ -68,7 +61,7 @@ test("refuses a save carrying a stale expected revision", async () => {
 	)
 
 	expect(result).toEqual({ code: "revision-conflict", ok: false })
-	const row = await readDraft(seeded.id)
+	const row = await harness.readDraft(seeded.id)
 	expect(row).toMatchObject({ markdown: "a", revision: 3 })
 })
 
@@ -88,7 +81,7 @@ test("refuses a save whose draft moved between the read and the write", async ()
 	)
 
 	expect(result).toEqual({ code: "revision-conflict", ok: false })
-	const row = await readDraft(seeded.id)
+	const row = await harness.readDraft(seeded.id)
 	expect(row).toMatchObject({ markdown: "a", revision: 3 })
 })
 
@@ -122,7 +115,7 @@ test("keeps an existing draft when the content catches up to the source", async 
 		outcome: "matches-source",
 		revision: 3,
 	})
-	const row = await readDraft(seeded.id)
+	const row = await harness.readDraft(seeded.id)
 	expect(row).toMatchObject({ markdown: "a", revision: 3 })
 })
 
@@ -145,7 +138,7 @@ test("leaves the revision alone when the draft already holds the content", async
 	)
 
 	expect(result).toMatchObject({ ok: true, outcome: "unchanged" })
-	const row = await readDraft(seeded.id)
+	const row = await harness.readDraft(seeded.id)
 	expect(row).toMatchObject({ markdown: "x", revision: 4 })
 })
 
@@ -204,7 +197,7 @@ test("saves a new item's draft by id", async () => {
 	)
 
 	expect(result).toMatchObject({ ok: true, outcome: "saved" })
-	const row = await readDraft(seeded.id)
+	const row = await harness.readDraft(seeded.id)
 	expect(row).toMatchObject({
 		markdown: "Draft body",
 		revision: 1,

@@ -1,9 +1,22 @@
 import { and, eq, isNull, sql } from "drizzle-orm"
 import invariant from "tiny-invariant"
-import { canonicalMetadata } from "@/core/editor/collection-metadata"
+import {
+	findCollectionItemBySlug,
+	isMarkdownCollectionFile,
+} from "@/core/editor/collection-items.server"
+import {
+	applyMetadataDefaults,
+	canonicalMetadata,
+	type FieldRecord,
+} from "@/core/editor/collection-metadata"
+import { isDraftDirty } from "@/core/editor/drafts"
 import { editorDraft } from "@/db/schema/app-schema"
 import type {
+	DraftRow,
 	DraftsContext,
+	OpenInput,
+	OpenResult,
+	ResolvedSource,
 	SaveInput,
 	SaveResult,
 	WriteDraftResult,
@@ -16,28 +29,47 @@ import type {
  * them (ADR-0001).
  */
 export function createDrafts(context: DraftsContext) {
-	const { collectionSlug, db, project } = context
+	const {
+		collection,
+		collectionSlug,
+		db,
+		directoryPath,
+		project,
+		sourceStore,
+	} = context
 
-	function findDraft(input: SaveInput) {
-		// An existing item's Draft is identified by the Source it tracks; a new
-		// item's Draft has no Source yet, so the caller carries its id.
-		if (input.source) {
-			return db.query.editorDraft.findFirst({
-				where: and(
-					eq(editorDraft.projectId, project.id),
-					eq(editorDraft.sourcePath, input.source.path),
-				),
-			})
-		}
-		if (!input.draftId) return undefined
+	function findDraftBySourcePath(sourcePath: string) {
 		return db.query.editorDraft.findFirst({
 			where: and(
-				eq(editorDraft.id, input.draftId),
+				eq(editorDraft.projectId, project.id),
+				eq(editorDraft.sourcePath, sourcePath),
+			),
+		})
+	}
+
+	function findNewItemDraft(draftId: string) {
+		return db.query.editorDraft.findFirst({
+			where: and(
+				eq(editorDraft.id, draftId),
 				eq(editorDraft.projectId, project.id),
 				eq(editorDraft.collectionSlug, collectionSlug),
 				isNull(editorDraft.sourcePath),
 			),
 		})
+	}
+
+	function findDraft(input: SaveInput) {
+		// An existing item's Draft is identified by the Source it tracks; a new
+		// item's Draft has no Source yet, so the caller carries its id.
+		if (input.source) return findDraftBySourcePath(input.source.path)
+		if (!input.draftId) return undefined
+		return findNewItemDraft(input.draftId)
+	}
+
+	function draftFields(draft: DraftRow, fallback: FieldRecord): FieldRecord {
+		return draft.metadata
+			? (JSON.parse(draft.metadata) as FieldRecord)
+			: fallback
 	}
 
 	function matchesSource(input: SaveInput) {
@@ -155,5 +187,129 @@ export function createDrafts(context: DraftsContext) {
 		return writeDraft(input)
 	}
 
-	return { save, writeDraft }
+	/**
+	 * The Source a Slug names, or null when this collection holds no such item.
+	 * Matching a Slug against a directory listing is collection-specific — the
+	 * transition below is not.
+	 */
+	async function resolveSource(slug: string): Promise<ResolvedSource | null> {
+		const files = await sourceStore.list(directoryPath)
+		return findCollectionItemBySlug(
+			collection,
+			files.filter(isMarkdownCollectionFile),
+			slug,
+		)
+	}
+
+	/**
+	 * Bring a Clean Draft up to a Source that moved underneath it. The guard
+	 * carries both Revisions, so a session that saved between our read and our
+	 * write keeps its work — we re-read to see what it left rather than
+	 * reporting a conflict the writer can do nothing about.
+	 */
+	async function rebase(draft: DraftRow, source: ResolvedSource) {
+		invariant(
+			draft.publishedRevision !== null,
+			"A synchronized draft must have a published revision",
+		)
+		const nextRevision = draft.revision + 1
+		const [rebased] = await db
+			.update(editorDraft)
+			.set({
+				markdown: source.body,
+				metadata: null,
+				publishedRevision: nextRevision,
+				revision: nextRevision,
+				sourceSha: source.sha,
+			})
+			.where(
+				and(
+					eq(editorDraft.id, draft.id),
+					eq(editorDraft.projectId, project.id),
+					eq(editorDraft.revision, draft.revision),
+					eq(editorDraft.publishedRevision, draft.publishedRevision),
+				),
+			)
+			.returning()
+		if (rebased) return rebased
+		return db.query.editorDraft.findFirst({
+			where: eq(editorDraft.id, draft.id),
+		})
+	}
+
+	async function openNewItem(draftId: string | null): Promise<OpenResult> {
+		const defaults = applyMetadataDefaults(collection.schema, {})
+		if (!draftId) {
+			// A new item's Draft is minted on sight so that autosave has somewhere
+			// to land from the writer's first keystroke.
+			const [created] = await db
+				.insert(editorDraft)
+				.values({
+					collectionSlug,
+					id: crypto.randomUUID(),
+					markdown: "",
+					metadata: JSON.stringify(defaults),
+					projectId: project.id,
+					revision: 0,
+				})
+				.returning()
+			// Nothing to display yet: the caller sends the writer to the new Draft,
+			// which opens it for real.
+			return { created: true, draftId: created.id, ok: true }
+		}
+
+		const draft = await findNewItemDraft(draftId)
+		if (!draft) return { code: "not-found", ok: false }
+		return {
+			content: draft.markdown,
+			created: false,
+			draftId: draft.id,
+			fields: draftFields(draft, defaults),
+			ok: true,
+			revision: draft.revision,
+			source: null,
+		}
+	}
+
+	/**
+	 * Reconcile the Draft tracking a Source with that Source. Takes the Source
+	 * already resolved, so whatever located it — a Slug here, a fixed path for a
+	 * singleton — stays outside the transition.
+	 */
+	async function openSource(source: ResolvedSource): Promise<OpenResult> {
+		let draft = await findDraftBySourcePath(source.path)
+		if (draft && !isDraftDirty(draft) && draft.sourceSha !== source.sha) {
+			draft = await rebase(draft, source)
+		}
+
+		// Effective Content: only a Dirty Draft holds anything the Source lacks.
+		const dirty = draft && isDraftDirty(draft) ? draft : null
+		return {
+			content: dirty ? dirty.markdown : source.body,
+			created: false,
+			draftId: draft?.id ?? null,
+			fields: dirty
+				? draftFields(dirty, source.frontmatter)
+				: source.frontmatter,
+			ok: true,
+			revision: draft?.revision ?? null,
+			source,
+		}
+	}
+
+	/**
+	 * Hand the editor everything it opens with. A new item's Draft is minted
+	 * here; an existing item's is reconciled against its Source — rebased when
+	 * the Source moved under a Clean Draft, left alone when the Draft is Dirty —
+	 * and the content is already the Effective Content, so callers never
+	 * interpret dirtiness themselves.
+	 */
+	async function open(input: OpenInput): Promise<OpenResult> {
+		if (input.mode === "new") return openNewItem(input.draftId)
+		const source = await resolveSource(input.slug)
+		if (!source) return { code: "not-found", ok: false }
+		return openSource(source)
+	}
+
+	return { open, save, writeDraft }
 }
