@@ -1,4 +1,4 @@
-import { and, eq, isNull } from "drizzle-orm"
+import { and, eq } from "drizzle-orm"
 import { PanelRightClose, PanelRightOpen } from "lucide-react"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { redirect, useLocation, useNavigate } from "react-router"
@@ -8,25 +8,21 @@ import { fetchAndParseConfig } from "@/config/github.server"
 import { useEditorLayoutControls } from "@/core/components/layouts/editor-context"
 import { envContext } from "@/core/context"
 import {
-	collectionItemBodyMatches,
 	findCollectionItemBySlug,
 	isMarkdownCollectionFile,
-	serializeCollectionItem,
 } from "@/core/editor/collection-items.server"
 import {
 	canonicalMetadata,
 	type FieldRecord,
 	getCollectionEditorFields,
-	getSlugField,
 	updateMetadataField,
-	validateMetadata,
 } from "@/core/editor/collection-metadata"
 import { MetadataField } from "@/core/editor/collection-metadata-fields"
 import { createDrafts } from "@/core/editor/drafts/create-drafts"
 import { createGithubSourceStore } from "@/core/editor/drafts/github-source-store.server"
-import type { OpenResult } from "@/core/editor/drafts/types"
+import type { OpenResult, PublishRefusal } from "@/core/editor/drafts/types"
 import { dbContext } from "@/db/context"
-import { editorDraft, project } from "@/db/schema/app-schema"
+import { project } from "@/db/schema/app-schema"
 import { type AutosaveState, type EditorRefApi, RichTextEditor } from "@/editor"
 import { Button } from "@/ui/components/base/button"
 import { Input } from "@/ui/components/base/input"
@@ -122,8 +118,8 @@ function createDraftsFor(
 
 /**
  * Transitional: the loader resolves its Source inside the drafts module, but
- * the action still needs one for `writeDraft` and the publish chain. It goes
- * away with the rest of the publish path (aureliushq/kobun#55).
+ * `save` still takes one already resolved. It goes away when save joins `open`
+ * and `publish` in taking a Slug (aureliushq/kobun#56).
  */
 async function resolveExistingItem(
 	resolved: Awaited<ReturnType<typeof resolveCollectionContext>>,
@@ -146,6 +142,48 @@ function draftFailureResponse(failure: {
 		return new Response("Draft not found", { status: 404 })
 	}
 	return new Response("Draft changed in another session", { status: 409 })
+}
+
+const STALE_SOURCE_MESSAGE =
+	"This item changed on GitHub. Copy your draft or discard it before reloading."
+
+/**
+ * The publish path's refusal code -> HTTP map (ADR-0001). Every refusal answers
+ * in the same shape, so the editor reads one error the same way whichever gate
+ * produced it. `draftFailureResponse` above is save's half of the map; the two
+ * become one when save joins this call shape (aureliushq/kobun#56).
+ */
+function publishRefusalResponse(refusal: PublishRefusal) {
+	switch (refusal.code) {
+		case "duplicate-slug":
+			return Response.json(
+				{
+					ok: false,
+					error: `Another item already uses slug “${refusal.slug}”`,
+				},
+				{ status: 409 },
+			)
+		case "not-found":
+			return Response.json(
+				{ ok: false, error: "Draft not found" },
+				{ status: 404 },
+			)
+		case "revision-conflict":
+			return Response.json(
+				{ ok: false, error: "Draft changed in another session" },
+				{ status: 409 },
+			)
+		case "stale-source":
+			return Response.json(
+				{ ok: false, error: STALE_SOURCE_MESSAGE },
+				{ status: 409 },
+			)
+		case "validation":
+			return Response.json(
+				{ ok: false, error: refusal.errors.join("\n") },
+				{ status: 422 },
+			)
+	}
 }
 
 function getEditorMode(params: Route.LoaderArgs["params"]) {
@@ -235,24 +273,6 @@ async function readActionPayload(
 	}
 }
 
-async function deleteSyncedDraft(
-	resolved: Awaited<ReturnType<typeof resolveCollectionContext>>,
-	draft: typeof editorDraft.$inferSelect,
-) {
-	const [deleted] = await resolved.db
-		.delete(editorDraft)
-		.where(
-			and(
-				eq(editorDraft.id, draft.id),
-				eq(editorDraft.projectId, resolved.projectRow.id),
-				eq(editorDraft.revision, draft.revision),
-				eq(editorDraft.publishedRevision, draft.revision),
-			),
-		)
-		.returning({ id: editorDraft.id })
-	return deleted !== undefined
-}
-
 export async function action(args: Route.ActionArgs) {
 	const resolved = await resolveCollectionContext(args)
 	const mode = getEditorMode(args.params)
@@ -293,172 +313,34 @@ export async function action(args: Route.ActionArgs) {
 		})
 	}
 
-	const metadataMatches = item
-		? canonicalMetadata(item.frontmatter) === canonicalMetadata(payload.fields)
-		: false
-	const written = await drafts.writeDraft(saveInput)
-	if (!written.ok) throw draftFailureResponse(written)
-	const draft = written.draft
+	const published = await drafts.publish(saveInput)
+	if (!published.ok) return publishRefusalResponse(published)
 
-	const validationErrors = validateMetadata(
-		resolved.collection.schema,
-		payload.fields,
-	)
-	if (
-		Object.values(resolved.collection.schema).some(
-			(field) => field.type === "document" && field.required,
-		) &&
-		!payload.markdown.trim()
-	) {
-		validationErrors.push("Document content is required")
-	}
-	const slugField = getSlugField(resolved.collection.schema)
-	const effectiveSlug = slugField
-		? String(payload.fields[slugField] ?? "").trim()
-		: ""
-	if (!effectiveSlug || !/^[a-z0-9][a-z0-9._-]*$/i.test(effectiveSlug))
-		validationErrors.push("Slug must be a valid nonempty filename slug")
-	if (validationErrors.length)
-		return Response.json(
-			{ ok: false, error: validationErrors.join("\n") },
-			{ status: 422 },
-		)
-	const files = await resolved.sourceStore.list(resolved.directoryPath)
-	const duplicate = files.filter(isMarkdownCollectionFile).some((file) => {
-		if (item && file.path === item.path) return false
-		return (
-			findCollectionItemBySlug(resolved.collection, [file], effectiveSlug) !==
-			null
-		)
-	})
-	if (duplicate)
-		return Response.json(
-			{ ok: false, error: `Another item already uses slug “${effectiveSlug}”` },
-			{ status: 409 },
-		)
-	const publishPath =
-		item?.path ??
-		`${resolved.directoryPath}/${effectiveSlug}.${resolved.collection.format}`
-	if (item && draft.sourceSha && draft.sourceSha !== item.sha) {
-		return Response.json(
-			{
-				ok: false,
-				error:
-					"This item changed on GitHub. Copy your draft or discard it before reloading.",
-			},
-			{ status: 409 },
-		)
-	}
-	const editorPath = `/${resolved.owner}/${resolved.name}/collections/${resolved.collectionSlug}/editor/item/${encodeURIComponent(effectiveSlug)}`
-	if (
-		item &&
-		collectionItemBodyMatches(item, payload.markdown) &&
-		metadataMatches
-	) {
-		const [deleted] = await resolved.db
-			.delete(editorDraft)
-			.where(
-				and(
-					eq(editorDraft.id, draft.id),
-					eq(editorDraft.projectId, resolved.projectRow.id),
-					eq(editorDraft.revision, draft.revision),
-				),
-			)
-			.returning({ id: editorDraft.id })
-		if (!deleted) {
-			return Response.json(
-				{ ok: false, error: "Draft changed in another session" },
-				{ status: 409 },
-			)
-		}
+	const editorPath = `/${resolved.owner}/${resolved.name}/collections/${resolved.collectionSlug}/editor/item/${encodeURIComponent(published.itemSlug)}`
+	if (published.outcome === "matches-source") {
 		return Response.json({
 			ok: true,
 			commitSha: null,
 			draftDeleted: true,
-			draftId: draft.id,
+			draftId: published.draftId,
 			editorPath,
 		})
 	}
-
-	const published = await resolved.sourceStore.write({
-		content: serializeCollectionItem(
-			payload.markdown,
-			item?.sourcePrefix ?? "",
-			payload.fields,
-			item?.frontmatter ?? {},
-		),
-		expectedSha: item?.sha,
-		message: `${item ? "Update" : "Create"} ${publishPath} with Kobun`,
-		path: publishPath,
-	})
-	if (!published.ok) {
-		return Response.json(
-			{
-				ok: false,
-				error:
-					"This item changed on GitHub. Copy your draft or discard it before reloading.",
-			},
-			{ status: 409 },
-		)
-	}
-
-	const [synced] = await resolved.db
-		.update(editorDraft)
-		.set({
-			itemSlug: effectiveSlug,
-			publishedAt: new Date(),
-			publishedRevision: draft.revision,
-			sourcePath: publishPath,
-			sourceSha: published.contentSha,
-		})
-		.where(
-			and(
-				eq(editorDraft.id, draft.id),
-				eq(editorDraft.projectId, resolved.projectRow.id),
-				eq(editorDraft.revision, draft.revision),
-				draft.sourceSha === null
-					? isNull(editorDraft.sourceSha)
-					: eq(editorDraft.sourceSha, draft.sourceSha),
-				draft.publishedRevision === null
-					? isNull(editorDraft.publishedRevision)
-					: eq(editorDraft.publishedRevision, draft.publishedRevision),
-			),
-		)
-		.returning()
-
-	if (!synced) {
-		await resolved.db
-			.update(editorDraft)
-			.set({
-				itemSlug: effectiveSlug,
-				sourcePath: publishPath,
-				sourceSha: published.contentSha,
-			})
-			.where(
-				and(
-					eq(editorDraft.id, draft.id),
-					eq(editorDraft.projectId, resolved.projectRow.id),
-					item
-						? eq(editorDraft.sourceSha, item.sha)
-						: isNull(editorDraft.sourceSha),
-				),
-			)
+	if (published.outcome === "published-unsynced") {
 		return Response.json({
 			ok: true,
 			commitSha: published.commitSha,
-			draftId: draft.id,
+			draftId: published.draftId,
 			draftSynced: false,
 			editorPath,
 		})
 	}
-	const draftDeleted = await deleteSyncedDraft(resolved, synced)
-
 	return Response.json({
 		ok: true,
 		commitSha: published.commitSha,
-		draftDeleted,
-		draftId: draft.id,
-		revision: draftDeleted ? null : draft.revision,
+		draftDeleted: published.draftDeleted,
+		draftId: published.draftId,
+		revision: published.revision,
 		editorPath,
 	})
 }

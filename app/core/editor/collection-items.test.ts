@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest"
 import {
-	collectionItemBodyMatches,
 	findCollectionItemBySlug,
 	isMarkdownCollectionFile,
 	serializeCollectionItem,
@@ -15,10 +14,6 @@ const collection = {
 }
 
 describe("collection item resolution", () => {
-	it("detects an unchanged Markdown body without involving its source prefix", () => {
-		expect(collectionItemBodyMatches({ body: "Hello\n" }, "Hello\n")).toBe(true)
-		expect(collectionItemBodyMatches({ body: "Hello\n" }, "Hello")).toBe(false)
-	})
 	it("accepts both Markdown extensions", () => {
 		expect(isMarkdownCollectionFile({ name: "post.md" })).toBe(true)
 		expect(isMarkdownCollectionFile({ name: "post.mdx" })).toBe(true)

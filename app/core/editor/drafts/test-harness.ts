@@ -120,7 +120,7 @@ export const TEST_COLLECTION: Collection = collectionSchema.parse({
 })
 
 export function createDraftsTestHarness(
-	options: { files?: SourceFile[] } = {},
+	options: { collection?: Collection; files?: SourceFile[] } = {},
 ): DraftsTestHarness {
 	const { close, db: sqliteDb } = createInMemoryDb()
 	const projectId = "project-1"
@@ -167,7 +167,7 @@ export function createDraftsTestHarness(
 		close,
 		db,
 		drafts: createDrafts({
-			collection: TEST_COLLECTION,
+			collection: options.collection ?? TEST_COLLECTION,
 			collectionSlug: TEST_COLLECTION_SLUG,
 			db,
 			directoryPath: TEST_DIRECTORY_PATH,

@@ -21,6 +21,11 @@ export interface ResolvedSource {
 	itemSlug: string
 	path: string
 	sha: string
+	/**
+	 * The bytes preceding the Body — today's serializer re-emits them verbatim
+	 * when the Data is unchanged. Leaves with the serializer (ADR-0002).
+	 */
+	sourcePrefix: string
 }
 
 export interface DraftsContext {
@@ -72,4 +77,43 @@ export type SaveResult =
 			ok: true
 			outcome: "matches-source"
 			revision: number | null
+	  }
+
+/** Publishing carries the same content a save does; only the intent differs. */
+export type PublishInput = SaveInput
+
+/**
+ * A publish the module refused. Every gate reports itself, so the caller can
+ * tell a writer what to fix without re-deriving it.
+ */
+export type PublishRefusal =
+	| { code: "duplicate-slug"; ok: false; slug: string }
+	| { code: "not-found" | "revision-conflict" | "stale-source"; ok: false }
+	| { code: "validation"; errors: string[]; ok: false }
+
+export type PublishResult =
+	| PublishRefusal
+	/** The content already matched the Source: the Draft is gone, nothing was committed. */
+	| { draftId: string; itemSlug: string; ok: true; outcome: "matches-source" }
+	/** Committed and synced; the Draft is deleted unless a later save left it Dirty. */
+	| {
+			commitSha?: string
+			draftDeleted: boolean
+			draftId: string
+			itemSlug: string
+			ok: true
+			outcome: "published"
+			revision: number | null
+	  }
+	/**
+	 * Committed, but another session moved the Draft while we were committing, so
+	 * the guarded sync missed it. The Draft survives, re-pointed at the Source the
+	 * commit created, so the writer's next save doesn't conflict on a stale sha.
+	 */
+	| {
+			commitSha?: string
+			draftId: string
+			itemSlug: string
+			ok: true
+			outcome: "published-unsynced"
 	  }

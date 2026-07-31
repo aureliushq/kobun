@@ -15,6 +15,7 @@ const SOURCE: ResolvedSource = {
 	itemSlug: "hello",
 	path: `${TEST_DIRECTORY_PATH}/hello.md`,
 	sha: "sha-source",
+	sourcePrefix: "---\ntitle: Hello\n---\n",
 }
 
 let harness: DraftsTestHarness
