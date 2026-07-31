@@ -7,7 +7,7 @@ import {
 	type DraftsTestHarness,
 	TEST_DIRECTORY_PATH,
 } from "./test-harness"
-import type { PublishInput, ResolvedSource } from "./types"
+import type { DraftContent, PublishInput } from "./types"
 
 const FIELDS = { slug: "hello", title: "Hello" }
 const SOURCE_PATH = `${TEST_DIRECTORY_PATH}/hello.md`
@@ -20,30 +20,28 @@ let harness: DraftsTestHarness
 /** A collection holding one item, `hello`, and the Source the writer publishes over. */
 function setup(options: Parameters<typeof createDraftsTestHarness>[0] = {}) {
 	harness = createDraftsTestHarness(options)
-	const file = harness.sourceStore.put({
+	const source = harness.sourceStore.put({
 		content: SOURCE_CONTENT,
 		path: SOURCE_PATH,
 	})
-	const source: ResolvedSource = {
-		body: SOURCE_BODY,
-		frontmatter: FIELDS,
-		itemSlug: "hello",
-		path: SOURCE_PATH,
-		sha: file.sha,
-		sourcePrefix: SOURCE_PREFIX,
-	}
 	return { ...harness, source }
 }
 
-function publishInput(overrides: Partial<PublishInput> = {}): PublishInput {
-	return {
-		draftId: null,
-		expectedRevision: null,
-		fields: FIELDS,
-		markdown: "Published body",
-		source: null,
-		...overrides,
-	}
+const CONTENT: DraftContent = {
+	expectedRevision: null,
+	fields: FIELDS,
+	markdown: "Published body",
+}
+
+function publishItem(overrides: Partial<DraftContent> = {}): PublishInput {
+	return { ...CONTENT, ...overrides, mode: "item", slug: "hello" }
+}
+
+function publishNewItem(
+	draftId: string | null,
+	overrides: Partial<DraftContent> = {},
+): PublishInput {
+	return { ...CONTENT, ...overrides, draftId, mode: "new" }
 }
 
 function seedSourceBackedDraft(
@@ -71,10 +69,9 @@ test("refuses a publish whose metadata is invalid, keeping the draft", async () 
 	})
 
 	const result = await drafts.publish(
-		publishInput({
+		publishItem({
 			expectedRevision: 2,
 			fields: { slug: "hello", title: 42 },
-			source,
 		}),
 	)
 
@@ -91,7 +88,7 @@ test("refuses a publish whose metadata is invalid, keeping the draft", async () 
 })
 
 test("refuses a publish with no body when the document is required", async () => {
-	const { drafts, source } = setup({
+	const { drafts } = setup({
 		collection: collectionSchema.parse({
 			format: "md",
 			label: "Posts",
@@ -103,9 +100,7 @@ test("refuses a publish with no body when the document is required", async () =>
 		}),
 	})
 
-	const result = await drafts.publish(
-		publishInput({ markdown: "  \n ", source }),
-	)
+	const result = await drafts.publish(publishItem({ markdown: "  \n " }))
 
 	expect(result).toEqual({
 		code: "validation",
@@ -117,10 +112,10 @@ test("refuses a publish with no body when the document is required", async () =>
 const BAD_SLUG_ERRORS = ["Slug must be a valid nonempty filename slug"]
 
 test("refuses a publish whose slug is empty", async () => {
-	const { drafts, source } = setup()
+	const { drafts } = setup()
 
 	const result = await drafts.publish(
-		publishInput({ fields: { slug: "  ", title: "Hello" }, source }),
+		publishItem({ fields: { slug: "  ", title: "Hello" } }),
 	)
 
 	expect(result).toEqual({
@@ -131,10 +126,10 @@ test("refuses a publish whose slug is empty", async () => {
 })
 
 test("refuses a publish whose slug would not survive as a filename", async () => {
-	const { drafts, source } = setup()
+	const { drafts } = setup()
 
 	const result = await drafts.publish(
-		publishInput({ fields: { slug: "../secrets", title: "Hello" }, source }),
+		publishItem({ fields: { slug: "../secrets", title: "Hello" } }),
 	)
 
 	expect(result).toEqual({
@@ -149,7 +144,7 @@ test("refuses a publish whose slug another item already uses", async () => {
 	const seeded = harness.seedDraft({ markdown: "Draft body", revision: 1 })
 
 	const result = await drafts.publish(
-		publishInput({ draftId: seeded.id, expectedRevision: 1 }),
+		publishNewItem(seeded.id, { expectedRevision: 1 }),
 	)
 
 	expect(result).toEqual({ code: "duplicate-slug", ok: false, slug: "hello" })
@@ -164,9 +159,7 @@ test("refuses a publish whose source moved on github", async () => {
 		sourceSha: "sha-the-draft-was-built-on",
 	})
 
-	const result = await drafts.publish(
-		publishInput({ expectedRevision: 2, source }),
-	)
+	const result = await drafts.publish(publishItem({ expectedRevision: 2 }))
 
 	expect(result).toEqual({ code: "stale-source", ok: false })
 	expect(harness.sourceStore.get(SOURCE_PATH)?.sha).toBe(source.sha)
@@ -184,9 +177,7 @@ test("refuses a publish the source store reports as stale", async () => {
 	// pre-check can close, so the store is the one that reports it.
 	sourceStore.setStale(SOURCE_PATH)
 
-	const result = await drafts.publish(
-		publishInput({ expectedRevision: 2, source }),
-	)
+	const result = await drafts.publish(publishItem({ expectedRevision: 2 }))
 
 	expect(result).toEqual({ code: "stale-source", ok: false })
 })
@@ -200,9 +191,7 @@ test("commits a dirty draft, syncs it, and deletes it", async () => {
 		sourceSha: source.sha,
 	})
 
-	const result = await drafts.publish(
-		publishInput({ expectedRevision: 2, source }),
-	)
+	const result = await drafts.publish(publishItem({ expectedRevision: 2 }))
 
 	expect(result).toMatchObject({
 		draftDeleted: true,
@@ -224,7 +213,7 @@ test("creates the source file when publishing a new item", async () => {
 	const fields = { slug: "new-post", title: "New post" }
 
 	const result = await drafts.publish(
-		publishInput({ draftId: seeded.id, expectedRevision: 1, fields }),
+		publishNewItem(seeded.id, { expectedRevision: 1, fields }),
 	)
 
 	expect(result).toMatchObject({
@@ -249,9 +238,7 @@ test("refuses a publish carrying a stale expected revision", async () => {
 		sourceSha: source.sha,
 	})
 
-	const result = await drafts.publish(
-		publishInput({ expectedRevision: 1, source }),
-	)
+	const result = await drafts.publish(publishItem({ expectedRevision: 1 }))
 
 	expect(result).toEqual({ code: "revision-conflict", ok: false })
 	expect(await harness.readDraft(seeded.id)).toMatchObject({
@@ -260,10 +247,22 @@ test("refuses a publish carrying a stale expected revision", async () => {
 	})
 })
 
+test("reports not-found when the slug names no item", async () => {
+	const { drafts } = setup()
+
+	const result = await drafts.publish({
+		...CONTENT,
+		mode: "item",
+		slug: "nothing-here",
+	})
+
+	expect(result).toEqual({ code: "not-found", ok: false })
+})
+
 test("reports not-found when a new item's draft is gone", async () => {
 	const { drafts } = setup()
 
-	const result = await drafts.publish(publishInput({ draftId: "missing" }))
+	const result = await drafts.publish(publishNewItem("missing"))
 
 	expect(result).toEqual({ code: "not-found", ok: false })
 })
@@ -278,7 +277,7 @@ test("deletes the draft without committing when the content matches the source",
 	})
 
 	const result = await drafts.publish(
-		publishInput({ expectedRevision: 2, markdown: SOURCE_BODY, source }),
+		publishItem({ expectedRevision: 2, markdown: SOURCE_BODY }),
 	)
 
 	expect(result).toEqual({
@@ -302,18 +301,22 @@ test("refuses a matching publish whose draft moved before the delete", async () 
 	})
 	// The other session saves while we are scanning the directory for a duplicate
 	// slug — the draft we were about to drop now holds work of its own, and only
-	// the guarded delete can say so.
+	// the guarded delete can say so. The first listing is the one that resolves
+	// the source, so the race belongs to the second.
 	const list = sourceStore.list
-	vi.spyOn(sourceStore, "list").mockImplementationOnce(async (path) => {
-		await db
-			.update(editorDraft)
-			.set({ markdown: "Later work", revision: 3 })
-			.where(eq(editorDraft.id, seeded.id))
+	let listings = 0
+	vi.spyOn(sourceStore, "list").mockImplementation(async (path) => {
+		if (++listings === 2) {
+			await db
+				.update(editorDraft)
+				.set({ markdown: "Later work", revision: 3 })
+				.where(eq(editorDraft.id, seeded.id))
+		}
 		return list(path)
 	})
 
 	const result = await drafts.publish(
-		publishInput({ expectedRevision: 2, markdown: SOURCE_BODY, source }),
+		publishItem({ expectedRevision: 2, markdown: SOURCE_BODY }),
 	)
 
 	expect(result).toEqual({ code: "revision-conflict", ok: false })
@@ -342,9 +345,7 @@ test("repoints the draft at the new source when the sync loses the race", async 
 		return write(input)
 	})
 
-	const result = await drafts.publish(
-		publishInput({ expectedRevision: 2, source }),
-	)
+	const result = await drafts.publish(publishItem({ expectedRevision: 2 }))
 
 	const committed = sourceStore.get(SOURCE_PATH)
 	expect(result).toEqual({

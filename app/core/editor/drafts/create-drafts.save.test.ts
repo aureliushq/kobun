@@ -5,46 +5,57 @@ import {
 	type DraftsTestHarness,
 	TEST_DIRECTORY_PATH,
 } from "./test-harness"
-import type { ResolvedSource, SaveInput } from "./types"
+import type { DraftContent, SaveInput } from "./types"
 
 const FIELDS = { title: "Hello" }
-
-const SOURCE: ResolvedSource = {
-	body: "Source body",
-	frontmatter: FIELDS,
-	itemSlug: "hello",
-	path: `${TEST_DIRECTORY_PATH}/hello.md`,
-	sha: "sha-source",
-	sourcePrefix: "---\ntitle: Hello\n---\n",
-}
+const SOURCE_PATH = `${TEST_DIRECTORY_PATH}/hello.md`
+const SOURCE_PREFIX = "---\ntitle: Hello\n---\n"
+const SOURCE_BODY = "Source body"
+const SOURCE_SHA = "sha-source"
 
 let harness: DraftsTestHarness
 
+/** A collection holding one item, `hello`, which the Draft under test tracks. */
 function setup() {
-	harness = createDraftsTestHarness()
+	harness = createDraftsTestHarness({
+		files: [
+			{
+				content: `${SOURCE_PREFIX}${SOURCE_BODY}`,
+				name: "hello.md",
+				path: SOURCE_PATH,
+				sha: SOURCE_SHA,
+			},
+		],
+	})
 	return harness
 }
 
-function saveInput(overrides: Partial<SaveInput> = {}): SaveInput {
-	return {
-		draftId: null,
-		expectedRevision: null,
-		fields: FIELDS,
-		markdown: "Draft body",
-		source: SOURCE,
-		...overrides,
-	}
+const CONTENT: DraftContent = {
+	expectedRevision: null,
+	fields: FIELDS,
+	markdown: "Draft body",
+}
+
+function saveItem(overrides: Partial<DraftContent> = {}): SaveInput {
+	return { ...CONTENT, ...overrides, mode: "item", slug: "hello" }
+}
+
+function saveNewItem(
+	draftId: string | null,
+	overrides: Partial<DraftContent> = {},
+): SaveInput {
+	return { ...CONTENT, ...overrides, draftId, mode: "new" }
 }
 
 function seedSourceBackedDraft(
 	values: Parameters<DraftsTestHarness["seedDraft"]>[0],
 ) {
 	return harness.seedDraft({
-		itemSlug: SOURCE.itemSlug,
+		itemSlug: "hello",
 		metadata: JSON.stringify(FIELDS),
 		publishedRevision: 0,
-		sourcePath: SOURCE.path,
-		sourceSha: SOURCE.sha,
+		sourcePath: SOURCE_PATH,
+		sourceSha: SOURCE_SHA,
 		...values,
 	})
 }
@@ -58,7 +69,7 @@ test("refuses a save carrying a stale expected revision", async () => {
 	const seeded = seedSourceBackedDraft({ markdown: "a", revision: 3 })
 
 	const result = await drafts.save(
-		saveInput({ expectedRevision: 2, markdown: "b" }),
+		saveItem({ expectedRevision: 2, markdown: "b" }),
 	)
 
 	expect(result).toEqual({ code: "revision-conflict", ok: false })
@@ -78,7 +89,7 @@ test("refuses a save whose draft moved between the read and the write", async ()
 	})
 
 	const result = await drafts.save(
-		saveInput({ expectedRevision: 4, markdown: "b" }),
+		saveItem({ expectedRevision: 4, markdown: "b" }),
 	)
 
 	expect(result).toEqual({ code: "revision-conflict", ok: false })
@@ -89,9 +100,7 @@ test("refuses a save whose draft moved between the read and the write", async ()
 test("short-circuits a save whose content already matches the source", async () => {
 	const { db, drafts } = setup()
 
-	const result = await drafts.save(
-		saveInput({ markdown: SOURCE.body, source: SOURCE }),
-	)
+	const result = await drafts.save(saveItem({ markdown: SOURCE_BODY }))
 
 	expect(result).toEqual({
 		draftId: null,
@@ -107,7 +116,7 @@ test("keeps an existing draft when the content catches up to the source", async 
 	const seeded = seedSourceBackedDraft({ markdown: "a", revision: 3 })
 
 	const result = await drafts.save(
-		saveInput({ expectedRevision: 3, markdown: SOURCE.body }),
+		saveItem({ expectedRevision: 3, markdown: SOURCE_BODY }),
 	)
 
 	expect(result).toEqual({
@@ -124,7 +133,7 @@ test("refuses a source-matching save that expects a draft revision", async () =>
 	const { drafts } = setup()
 
 	const result = await drafts.save(
-		saveInput({ expectedRevision: 0, markdown: SOURCE.body }),
+		saveItem({ expectedRevision: 0, markdown: SOURCE_BODY }),
 	)
 
 	expect(result).toEqual({ code: "revision-conflict", ok: false })
@@ -135,7 +144,7 @@ test("leaves the revision alone when the draft already holds the content", async
 	const seeded = seedSourceBackedDraft({ markdown: "x", revision: 4 })
 
 	const result = await drafts.save(
-		saveInput({ expectedRevision: 4, markdown: "x" }),
+		saveItem({ expectedRevision: 4, markdown: "x" }),
 	)
 
 	expect(result).toMatchObject({ ok: true, outcome: "unchanged" })
@@ -143,24 +152,24 @@ test("leaves the revision alone when the draft already holds the content", async
 	expect(row).toMatchObject({ markdown: "x", revision: 4 })
 })
 
-test("inserts a draft on the first save of an existing item", async () => {
+test("inserts a draft on the first save of an existing item, tracking the source its slug names", async () => {
 	const { drafts, projectId } = setup()
 
-	const result = await drafts.save(saveInput())
+	const result = await drafts.save(saveItem())
 
 	expect(result).toMatchObject({ ok: true, outcome: "saved" })
 	const rows = await harness.db.select().from(editorDraft)
 	expect(rows).toHaveLength(1)
 	expect(rows[0]).toMatchObject({
 		collectionSlug: "posts",
-		itemSlug: SOURCE.itemSlug,
+		itemSlug: "hello",
 		markdown: "Draft body",
 		metadata: JSON.stringify(FIELDS),
 		projectId,
 		publishedRevision: 0,
 		revision: 1,
-		sourcePath: SOURCE.path,
-		sourceSha: SOURCE.sha,
+		sourcePath: SOURCE_PATH,
+		sourceSha: SOURCE_SHA,
 	})
 })
 
@@ -171,7 +180,7 @@ test("maps a first-save unique-constraint race to a revision conflict", async ()
 	// index on (projectId, sourcePath) is what actually reports the race.
 	vi.spyOn(db.query.editorDraft, "findFirst").mockResolvedValueOnce(undefined)
 
-	const result = await drafts.save(saveInput({ markdown: "b" }))
+	const result = await drafts.save(saveItem({ markdown: "b" }))
 
 	expect(result).toEqual({ code: "revision-conflict", ok: false })
 	const rows = await db.select().from(editorDraft)
@@ -179,12 +188,22 @@ test("maps a first-save unique-constraint race to a revision conflict", async ()
 	expect(rows[0]).toMatchObject({ id: seeded.id, revision: 3 })
 })
 
+test("reports not-found when the slug names no item", async () => {
+	const { drafts } = setup()
+
+	const result = await drafts.save({
+		...CONTENT,
+		mode: "item",
+		slug: "nothing-here",
+	})
+
+	expect(result).toEqual({ code: "not-found", ok: false })
+})
+
 test("reports not-found when a new item's draft is gone", async () => {
 	const { drafts } = setup()
 
-	const result = await drafts.save(
-		saveInput({ draftId: "missing", source: null }),
-	)
+	const result = await drafts.save(saveNewItem("missing"))
 
 	expect(result).toEqual({ code: "not-found", ok: false })
 })
@@ -194,7 +213,7 @@ test("saves a new item's draft by id", async () => {
 	const seeded = harness.seedDraft({ markdown: "", revision: 0 })
 
 	const result = await drafts.save(
-		saveInput({ draftId: seeded.id, expectedRevision: 0, source: null }),
+		saveNewItem(seeded.id, { expectedRevision: 0 }),
 	)
 
 	expect(result).toMatchObject({ ok: true, outcome: "saved" })

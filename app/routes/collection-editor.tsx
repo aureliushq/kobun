@@ -8,19 +8,20 @@ import { fetchAndParseConfig } from "@/config/github.server"
 import { useEditorLayoutControls } from "@/core/components/layouts/editor-context"
 import { envContext } from "@/core/context"
 import {
-	findCollectionItemBySlug,
-	isMarkdownCollectionFile,
-} from "@/core/editor/collection-items.server"
-import {
 	canonicalMetadata,
 	type FieldRecord,
 	getCollectionEditorFields,
 	updateMetadataField,
 } from "@/core/editor/collection-metadata"
 import { MetadataField } from "@/core/editor/collection-metadata-fields"
+import {
+	type DraftRefusal,
+	type DraftTarget,
+	getCollectionItemEditorPath,
+	type SaveInput,
+} from "@/core/editor/drafts"
 import { createDrafts } from "@/core/editor/drafts/create-drafts"
 import { createGithubSourceStore } from "@/core/editor/drafts/github-source-store.server"
-import type { OpenResult, PublishRefusal } from "@/core/editor/drafts/types"
 import { dbContext } from "@/db/context"
 import { project } from "@/db/schema/app-schema"
 import { type AutosaveState, type EditorRefApi, RichTextEditor } from "@/editor"
@@ -116,44 +117,15 @@ function createDraftsFor(
 	})
 }
 
-/**
- * Transitional: the loader resolves its Source inside the drafts module, but
- * `save` still takes one already resolved. It goes away when save joins `open`
- * and `publish` in taking a Slug (aureliushq/kobun#56).
- */
-async function resolveExistingItem(
-	resolved: Awaited<ReturnType<typeof resolveCollectionContext>>,
-	slug: string,
-) {
-	const files = await resolved.sourceStore.list(resolved.directoryPath)
-	const item = findCollectionItemBySlug(
-		resolved.collection,
-		files.filter(isMarkdownCollectionFile),
-		slug,
-	)
-	if (!item) throw new Response("Collection item not found", { status: 404 })
-	return item
-}
-
-function draftFailureResponse(failure: {
-	code: "not-found" | "revision-conflict"
-}) {
-	if (failure.code === "not-found") {
-		return new Response("Draft not found", { status: 404 })
-	}
-	return new Response("Draft changed in another session", { status: 409 })
-}
-
 const STALE_SOURCE_MESSAGE =
 	"This item changed on GitHub. Copy your draft or discard it before reloading."
 
 /**
- * The publish path's refusal code -> HTTP map (ADR-0001). Every refusal answers
- * in the same shape, so the editor reads one error the same way whichever gate
- * produced it. `draftFailureResponse` above is save's half of the map; the two
- * become one when save joins this call shape (aureliushq/kobun#56).
+ * The module's refusal code -> HTTP map (ADR-0001), the only one the route
+ * owns. Every refusal answers in the same shape, so the editor reads one error
+ * the same way whichever intent and whichever gate produced it.
  */
-function publishRefusalResponse(refusal: PublishRefusal) {
+function draftRefusalResponse(refusal: DraftRefusal) {
 	switch (refusal.code) {
 		case "duplicate-slug":
 			return Response.json(
@@ -186,38 +158,35 @@ function publishRefusalResponse(refusal: PublishRefusal) {
 	}
 }
 
-function getEditorMode(params: Route.LoaderArgs["params"]) {
-	if (params.editor_mode === "new") return "new" as const
+/**
+ * What the request addressed: a new item's Draft, carried in the URL or the
+ * payload because nothing in the repository names it yet, or an existing item's
+ * Slug. Locating the Source behind that Slug is the module's business.
+ */
+function getDraftTarget(
+	params: Route.LoaderArgs["params"],
+	draftId: string | null,
+): DraftTarget {
+	if (params.editor_mode === "new") return { draftId, mode: "new" }
 	if (params.editor_mode === "item" && params.collection_item_slug) {
-		return "item" as const
+		return { mode: "item", slug: params.collection_item_slug }
 	}
 	throw new Response("Not Found", { status: 404 })
 }
 
 export async function loader(args: Route.LoaderArgs) {
 	const resolved = await resolveCollectionContext(args)
-	const mode = getEditorMode(args.params)
 	const drafts = createDraftsFor(resolved)
 
 	// `args.url` is React Router's normalized URL (no `.data` suffix or
 	// index/_routes params); clone it so we can mutate searchParams safely.
 	const url = new URL(args.url)
-	let opened: OpenResult
-	if (mode === "new") {
-		opened = await drafts.open({ draftId: url.searchParams.get("draft"), mode })
-	} else {
-		const slug = args.params.collection_item_slug
-		invariant(slug, "collection_item_slug is required")
-		opened = await drafts.open({ mode, slug })
-	}
-	if (!opened.ok) {
-		// The only thing `open` can fail to find is what the route asked it for:
-		// the Draft named by `?draft=` for a new item, the item itself otherwise.
-		throw new Response(
-			mode === "new" ? "Draft not found" : "Collection item not found",
-			{ status: 404 },
-		)
-	}
+	const target = getDraftTarget(args.params, url.searchParams.get("draft"))
+	const mode = target.mode
+	const opened = await drafts.open(target)
+	// The only thing `open` can fail to find is what the route asked it for: the
+	// Draft named by `?draft=` for a new item, the item itself otherwise.
+	if (!opened.ok) throw draftRefusalResponse(opened)
 	if (opened.created) {
 		url.searchParams.set("draft", opened.draftId)
 		throw redirect(`${url.pathname}${url.search}`)
@@ -275,29 +244,19 @@ async function readActionPayload(
 
 export async function action(args: Route.ActionArgs) {
 	const resolved = await resolveCollectionContext(args)
-	const mode = getEditorMode(args.params)
 	const payload = await readActionPayload(args.request)
-	const item =
-		mode === "item"
-			? await resolveExistingItem(
-					resolved,
-					args.params.collection_item_slug as string,
-				)
-			: null
-
+	const target = getDraftTarget(args.params, payload.draftId ?? null)
 	const drafts = createDraftsFor(resolved)
-	// The freshly loaded source is what the draft transitions reconcile against.
-	const saveInput = {
-		draftId: payload.draftId ?? null,
+	const input: SaveInput = {
+		...target,
 		expectedRevision: payload.expectedRevision,
 		fields: payload.fields,
 		markdown: payload.markdown,
-		source: item,
 	}
 
 	if (payload.intent === EditorActionIntents.SAVE) {
-		const saved = await drafts.save(saveInput)
-		if (!saved.ok) throw draftFailureResponse(saved)
+		const saved = await drafts.save(input)
+		if (!saved.ok) return draftRefusalResponse(saved)
 		if (saved.outcome === "matches-source") {
 			return Response.json({
 				ok: true,
@@ -313,10 +272,14 @@ export async function action(args: Route.ActionArgs) {
 		})
 	}
 
-	const published = await drafts.publish(saveInput)
-	if (!published.ok) return publishRefusalResponse(published)
+	const published = await drafts.publish(input)
+	if (!published.ok) return draftRefusalResponse(published)
 
-	const editorPath = `/${resolved.owner}/${resolved.name}/collections/${resolved.collectionSlug}/editor/item/${encodeURIComponent(published.itemSlug)}`
+	const editorPath = getCollectionItemEditorPath(
+		{ repoName: resolved.name, repoOwnerLogin: resolved.owner },
+		resolved.collectionSlug,
+		published.itemSlug,
+	)
 	if (published.outcome === "matches-source") {
 		return Response.json({
 			ok: true,

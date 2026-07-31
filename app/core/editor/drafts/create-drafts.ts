@@ -13,8 +13,8 @@ import {
 	getSlugField,
 	validateMetadata,
 } from "@/core/editor/collection-metadata"
-import { isDraftDirty } from "@/core/editor/drafts"
 import { editorDraft } from "@/db/schema/app-schema"
+import { isDraftDirty } from "./draft-state"
 import type {
 	DraftRow,
 	DraftsContext,
@@ -22,6 +22,7 @@ import type {
 	OpenResult,
 	PublishInput,
 	PublishResult,
+	ResolvedSaveInput,
 	ResolvedSource,
 	SaveInput,
 	SaveResult,
@@ -83,7 +84,7 @@ export function createDrafts(context: DraftsContext) {
 		})
 	}
 
-	function findDraft(input: SaveInput) {
+	function findDraft(input: ResolvedSaveInput) {
 		// An existing item's Draft is identified by the Source it tracks; a new
 		// item's Draft has no Source yet, so the caller carries its id.
 		if (input.source) return findDraftBySourcePath(input.source.path)
@@ -97,7 +98,7 @@ export function createDrafts(context: DraftsContext) {
 			: fallback
 	}
 
-	function matchesSource(input: SaveInput) {
+	function matchesSource(input: ResolvedSaveInput) {
 		return (
 			input.source !== null &&
 			input.source.body === input.markdown &&
@@ -116,7 +117,9 @@ export function createDrafts(context: DraftsContext) {
 	 * transition to it: each has its own answer for content that already matches
 	 * the Source.
 	 */
-	async function writeDraft(input: SaveInput): Promise<WriteDraftResult> {
+	async function writeDraft(
+		input: ResolvedSaveInput,
+	): Promise<WriteDraftResult> {
 		const existing = await findDraft(input)
 		if (!input.source && !existing) return { code: "not-found", ok: false }
 
@@ -194,7 +197,7 @@ export function createDrafts(context: DraftsContext) {
 	 * Source needs no Draft at all: short-circuiting keeps a no-op autosave from
 	 * inflating the Revision and triggering spurious conflicts elsewhere.
 	 */
-	async function save(input: SaveInput): Promise<SaveResult> {
+	async function saveResolved(input: ResolvedSaveInput): Promise<SaveResult> {
 		if (matchesSource(input)) {
 			const existing = await findDraft(input)
 			const expected = existing?.revision ?? null
@@ -222,7 +225,7 @@ export function createDrafts(context: DraftsContext) {
 	 * together so the writer sees every problem at once rather than one per
 	 * attempt.
 	 */
-	function validatePublish(input: PublishInput, slug: string) {
+	function validatePublish(input: ResolvedSaveInput, slug: string) {
 		const errors = validateMetadata(collection.schema, input.fields)
 		const documentRequired = Object.values(collection.schema).some(
 			(field) => field.type === "document" && field.required,
@@ -344,7 +347,7 @@ export function createDrafts(context: DraftsContext) {
 	 * not come apart — commit, sync, delete-when-Synced (ADR-0001).
 	 */
 	async function commit(
-		input: PublishInput,
+		input: ResolvedSaveInput,
 		draft: DraftRow,
 		itemSlug: string,
 	): Promise<PublishResult> {
@@ -402,7 +405,9 @@ export function createDrafts(context: DraftsContext) {
 	 * a seam: commit, sync the Draft to what landed, and delete it once the Source
 	 * has caught up.
 	 */
-	async function publish(input: PublishInput): Promise<PublishResult> {
+	async function publishResolved(
+		input: ResolvedSaveInput,
+	): Promise<PublishResult> {
 		// The writer's content is persisted before any gate runs: a publish we
 		// refuse must still keep what they typed.
 		const written = await writeDraft(input)
@@ -564,6 +569,44 @@ export function createDrafts(context: DraftsContext) {
 		const source = await resolveSource(input.slug)
 		if (!source) return { code: "not-found", ok: false }
 		return openSource(source)
+	}
+
+	/**
+	 * Locate what the caller addressed. A new item has no Source until it is
+	 * published; an existing one is named by a Slug this collection may no longer
+	 * hold, which is the one thing resolution can fail at.
+	 */
+	async function resolveTarget(
+		input: SaveInput,
+	): Promise<ResolvedSaveInput | null> {
+		const content = {
+			expectedRevision: input.expectedRevision,
+			fields: input.fields,
+			markdown: input.markdown,
+		}
+		if (input.mode === "new") {
+			return { ...content, draftId: input.draftId, source: null }
+		}
+		const source = await resolveSource(input.slug)
+		return source ? { ...content, draftId: null, source } : null
+	}
+
+	/**
+	 * Persist the writer's content as the Draft for the item they addressed. The
+	 * Source is resolved here rather than by the caller, so the transition always
+	 * reconciles against the version of the Source that is there now.
+	 */
+	async function save(input: SaveInput): Promise<SaveResult> {
+		const resolved = await resolveTarget(input)
+		if (!resolved) return { code: "not-found", ok: false }
+		return saveResolved(resolved)
+	}
+
+	/** Commit the Draft for the item the caller addressed to its Source. */
+	async function publish(input: PublishInput): Promise<PublishResult> {
+		const resolved = await resolveTarget(input)
+		if (!resolved) return { code: "not-found", ok: false }
+		return publishResolved(resolved)
 	}
 
 	return { open, publish, save }
