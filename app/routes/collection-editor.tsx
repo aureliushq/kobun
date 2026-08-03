@@ -1,4 +1,4 @@
-import { and, eq, isNull, sql } from "drizzle-orm"
+import { and, eq } from "drizzle-orm"
 import { PanelRightClose, PanelRightOpen } from "lucide-react"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { redirect, useLocation, useNavigate } from "react-router"
@@ -8,29 +8,23 @@ import { fetchAndParseConfig } from "@/config/github.server"
 import { useEditorLayoutControls } from "@/core/components/layouts/editor-context"
 import { envContext } from "@/core/context"
 import {
-	collectionItemBodyMatches,
-	findCollectionItemBySlug,
-	isMarkdownCollectionFile,
-	serializeCollectionItem,
-} from "@/core/editor/collection-items.server"
-import {
-	applyMetadataDefaults,
 	canonicalMetadata,
 	type FieldRecord,
 	getCollectionEditorFields,
-	getSlugField,
 	updateMetadataField,
-	validateMetadata,
 } from "@/core/editor/collection-metadata"
 import { MetadataField } from "@/core/editor/collection-metadata-fields"
-import { isDraftDirty } from "@/core/editor/drafts"
-import { dbContext } from "@/db/context"
-import { editorDraft, project } from "@/db/schema/app-schema"
-import { type AutosaveState, type EditorRefApi, RichTextEditor } from "@/editor"
 import {
-	createOrUpdateGithubTextFile,
-	listGithubDirectoryFiles,
-} from "@/github/octokit.server"
+	type DraftRefusal,
+	type DraftTarget,
+	getCollectionItemEditorPath,
+	type SaveInput,
+} from "@/core/editor/drafts"
+import { createDrafts } from "@/core/editor/drafts/create-drafts.server"
+import { createGithubSourceStore } from "@/core/editor/drafts/github-source-store.server"
+import { dbContext } from "@/db/context"
+import { project } from "@/db/schema/app-schema"
+import { type AutosaveState, type EditorRefApi, RichTextEditor } from "@/editor"
 import { posthogContext } from "@/lib/posthog-middleware"
 import { Button } from "@/ui/components/base/button"
 import { Input } from "@/ui/components/base/input"
@@ -107,159 +101,109 @@ async function resolveCollectionContext({
 		name,
 		owner,
 		projectRow,
+		sourceStore: createGithubSourceStore({ env, installationId, name, owner }),
 	}
 }
 
-async function resolveExistingItem(
+function createDraftsFor(
 	resolved: Awaited<ReturnType<typeof resolveCollectionContext>>,
-	slug: string,
 ) {
-	const files = await listCollectionFiles(resolved)
-	const item = findCollectionItemBySlug(
-		resolved.collection,
-		files.filter(isMarkdownCollectionFile),
-		slug,
-	)
-	if (!item) throw new Response("Collection item not found", { status: 404 })
-	return item
+	return createDrafts({
+		collection: resolved.collection,
+		collectionSlug: resolved.collectionSlug,
+		db: resolved.db,
+		directoryPath: resolved.directoryPath,
+		project: { id: resolved.projectRow.id },
+		sourceStore: resolved.sourceStore,
+	})
 }
 
-async function listCollectionFiles(
-	resolved: Awaited<ReturnType<typeof resolveCollectionContext>>,
-) {
-	let files: Awaited<ReturnType<typeof listGithubDirectoryFiles>> = []
-	try {
-		files = await listGithubDirectoryFiles(
-			resolved.env,
-			resolved.installationId,
-			resolved.owner,
-			resolved.name,
-			resolved.directoryPath,
-		)
-	} catch (error) {
-		if (
-			!(error instanceof Error && "status" in error && error.status === 404)
-		) {
-			throw error
-		}
+const STALE_SOURCE_MESSAGE =
+	"This item changed on GitHub. Copy your draft or discard it before reloading."
+
+/**
+ * The module's refusal code -> HTTP map (ADR-0001), the only one the route
+ * owns. Every refusal answers in the same shape, so the editor reads one error
+ * the same way whichever intent and whichever gate produced it.
+ */
+function draftRefusalResponse(refusal: DraftRefusal) {
+	switch (refusal.code) {
+		case "duplicate-slug":
+			return Response.json(
+				{
+					ok: false,
+					error: `Another item already uses slug “${refusal.slug}”`,
+				},
+				{ status: 409 },
+			)
+		case "not-found":
+			return Response.json(
+				{ ok: false, error: "Draft not found" },
+				{ status: 404 },
+			)
+		case "revision-conflict":
+			return Response.json(
+				{ ok: false, error: "Draft changed in another session" },
+				{ status: 409 },
+			)
+		case "stale-source":
+			return Response.json(
+				{ ok: false, error: STALE_SOURCE_MESSAGE },
+				{ status: 409 },
+			)
+		case "validation":
+			return Response.json(
+				{ ok: false, error: refusal.errors.join("\n") },
+				{ status: 422 },
+			)
 	}
-	return files
 }
 
-function getEditorMode(params: Route.LoaderArgs["params"]) {
-	if (params.editor_mode === "new") return "new" as const
+/**
+ * What the request addressed: a new item's Draft, carried in the URL or the
+ * payload because nothing in the repository names it yet, or an existing item's
+ * Slug. Locating the Source behind that Slug is the module's business.
+ */
+function getDraftTarget(
+	params: Route.LoaderArgs["params"],
+	draftId: string | null,
+): DraftTarget {
+	if (params.editor_mode === "new") return { draftId, mode: "new" }
 	if (params.editor_mode === "item" && params.collection_item_slug) {
-		return "item" as const
+		return { mode: "item", slug: params.collection_item_slug }
 	}
 	throw new Response("Not Found", { status: 404 })
 }
 
 export async function loader(args: Route.LoaderArgs) {
 	const resolved = await resolveCollectionContext(args)
-	const mode = getEditorMode(args.params)
+	const drafts = createDraftsFor(resolved)
 
-	if (mode === "new") {
-		// `args.url` is React Router's normalized URL (no `.data` suffix or
-		// index/_routes params); clone it so we can mutate searchParams safely.
-		const url = new URL(args.url)
-		const draftId = url.searchParams.get("draft")
-		if (!draftId) {
-			const id = crypto.randomUUID()
-			const metadata = applyMetadataDefaults(resolved.collection.schema, {})
-			await resolved.db.insert(editorDraft).values({
-				id,
-				projectId: resolved.projectRow.id,
-				collectionSlug: resolved.collectionSlug,
-				markdown: "",
-				metadata: JSON.stringify(metadata),
-				revision: 0,
-			})
-			url.searchParams.set("draft", id)
-			throw redirect(`${url.pathname}${url.search}`)
-		}
-
-		const draft = await resolved.db.query.editorDraft.findFirst({
-			where: and(
-				eq(editorDraft.id, draftId),
-				eq(editorDraft.projectId, resolved.projectRow.id),
-				eq(editorDraft.collectionSlug, resolved.collectionSlug),
-				isNull(editorDraft.sourcePath),
-			),
-		})
-		if (!draft) throw new Response("Draft not found", { status: 404 })
-
-		return {
-			canPublish: true,
-			draftId: draft.id,
-			draftRevision: draft.revision,
-			initialContent: draft.markdown,
-			initialFields: draft.metadata
-				? (JSON.parse(draft.metadata) as FieldRecord)
-				: applyMetadataDefaults(resolved.collection.schema, {}),
-			originalFields: {} as FieldRecord,
-			owner: resolved.owner,
-			name: resolved.name,
-			schema: resolved.collection.schema,
-			itemSlug: null,
-			mode,
-			publishDisabledReason: null,
-		}
-	}
-
-	const slug = args.params.collection_item_slug
-	invariant(slug, "collection_item_slug is required")
-	const item = await resolveExistingItem(resolved, slug)
-	let draft = await resolved.db.query.editorDraft.findFirst({
-		where: and(
-			eq(editorDraft.projectId, resolved.projectRow.id),
-			eq(editorDraft.sourcePath, item.path),
-		),
-	})
-	if (draft && !isDraftDirty(draft) && draft.sourceSha !== item.sha) {
-		invariant(
-			draft.publishedRevision !== null,
-			"A synchronized draft must have a published revision",
-		)
-		const nextRevision = draft.revision + 1
-		const [rebased] = await resolved.db
-			.update(editorDraft)
-			.set({
-				markdown: item.body,
-				metadata: null,
-				publishedRevision: nextRevision,
-				revision: nextRevision,
-				sourceSha: item.sha,
-			})
-			.where(
-				and(
-					eq(editorDraft.id, draft.id),
-					eq(editorDraft.projectId, resolved.projectRow.id),
-					eq(editorDraft.revision, draft.revision),
-					eq(editorDraft.publishedRevision, draft.publishedRevision),
-				),
-			)
-			.returning()
-		draft =
-			rebased ??
-			(await resolved.db.query.editorDraft.findFirst({
-				where: eq(editorDraft.id, draft.id),
-			}))
+	// `args.url` is React Router's normalized URL (no `.data` suffix or
+	// index/_routes params); clone it so we can mutate searchParams safely.
+	const url = new URL(args.url)
+	const target = getDraftTarget(args.params, url.searchParams.get("draft"))
+	const mode = target.mode
+	const opened = await drafts.open(target)
+	// The only thing `open` can fail to find is what the route asked it for: the
+	// Draft named by `?draft=` for a new item, the item itself otherwise.
+	if (!opened.ok) throw draftRefusalResponse(opened)
+	if (opened.created) {
+		url.searchParams.set("draft", opened.draftId)
+		throw redirect(`${url.pathname}${url.search}`)
 	}
 
 	return {
 		canPublish: true,
-		draftId: draft?.id ?? null,
-		draftRevision: draft?.revision ?? null,
-		initialContent: draft && isDraftDirty(draft) ? draft.markdown : item.body,
-		initialFields:
-			draft && isDraftDirty(draft) && draft.metadata
-				? (JSON.parse(draft.metadata) as FieldRecord)
-				: item.frontmatter,
-		originalFields: item.frontmatter,
+		draftId: opened.draftId,
+		draftRevision: opened.revision,
+		initialContent: opened.content,
+		initialFields: opened.fields,
+		originalFields: opened.source?.frontmatter ?? ({} as FieldRecord),
 		owner: resolved.owner,
 		name: resolved.name,
 		schema: resolved.collection.schema,
-		itemSlug: item.itemSlug,
+		itemSlug: opened.source?.itemSlug ?? null,
 		mode,
 		publishDisabledReason: null,
 	}
@@ -299,330 +243,66 @@ async function readActionPayload(
 	}
 }
 
-async function saveDraft(
-	resolved: Awaited<ReturnType<typeof resolveCollectionContext>>,
-	payload: EditorActionPayload,
-	item: Awaited<ReturnType<typeof resolveExistingItem>> | null,
-) {
-	const existing = item
-		? await resolved.db.query.editorDraft.findFirst({
-				where: and(
-					eq(editorDraft.projectId, resolved.projectRow.id),
-					eq(editorDraft.sourcePath, item.path),
-				),
-			})
-		: payload.draftId
-			? await resolved.db.query.editorDraft.findFirst({
-					where: and(
-						eq(editorDraft.id, payload.draftId),
-						eq(editorDraft.projectId, resolved.projectRow.id),
-						eq(editorDraft.collectionSlug, resolved.collectionSlug),
-						isNull(editorDraft.sourcePath),
-					),
-				})
-			: null
-
-	if (!item && !existing) throw new Response("Draft not found", { status: 404 })
-	if (existing) {
-		if (payload.expectedRevision !== existing.revision) {
-			throw new Response("Draft changed in another session", { status: 409 })
-		}
-		if (
-			existing.markdown === payload.markdown &&
-			existing.metadata !== null &&
-			canonicalMetadata(JSON.parse(existing.metadata)) ===
-				canonicalMetadata(payload.fields)
-		) {
-			return existing
-		}
-		const [updated] = await resolved.db
-			.update(editorDraft)
-			.set({
-				itemSlug: item?.itemSlug ?? existing.itemSlug,
-				markdown: payload.markdown,
-				metadata: JSON.stringify(payload.fields),
-				revision: sql`${editorDraft.revision} + 1`,
-			})
-			.where(
-				and(
-					eq(editorDraft.id, existing.id),
-					eq(editorDraft.projectId, resolved.projectRow.id),
-					eq(editorDraft.revision, payload.expectedRevision),
-				),
-			)
-			.returning()
-		if (!updated) {
-			throw new Response("Draft changed in another session", { status: 409 })
-		}
-		return updated
-	}
-
-	invariant(item, "item is required when creating an existing-item draft")
-	if (payload.expectedRevision !== null) {
-		throw new Response("Draft changed in another session", { status: 409 })
-	}
-	try {
-		const [created] = await resolved.db
-			.insert(editorDraft)
-			.values({
-				id: crypto.randomUUID(),
-				projectId: resolved.projectRow.id,
-				collectionSlug: resolved.collectionSlug,
-				itemSlug: item.itemSlug,
-				sourcePath: item.path,
-				sourceSha: item.sha,
-				markdown: payload.markdown,
-				metadata: JSON.stringify(payload.fields),
-				revision: 1,
-				publishedRevision: 0,
-			})
-			.returning()
-		return created
-	} catch (error) {
-		if (
-			error instanceof Error &&
-			error.message.toLowerCase().includes("unique")
-		) {
-			throw new Response("Draft changed in another session", { status: 409 })
-		}
-		throw error
-	}
-}
-
-async function deleteSyncedDraft(
-	resolved: Awaited<ReturnType<typeof resolveCollectionContext>>,
-	draft: typeof editorDraft.$inferSelect,
-) {
-	const [deleted] = await resolved.db
-		.delete(editorDraft)
-		.where(
-			and(
-				eq(editorDraft.id, draft.id),
-				eq(editorDraft.projectId, resolved.projectRow.id),
-				eq(editorDraft.revision, draft.revision),
-				eq(editorDraft.publishedRevision, draft.revision),
-			),
-		)
-		.returning({ id: editorDraft.id })
-	return deleted !== undefined
-}
-
 export async function action(args: Route.ActionArgs) {
 	const resolved = await resolveCollectionContext(args)
-	const mode = getEditorMode(args.params)
 	const payload = await readActionPayload(args.request)
-	const item =
-		mode === "item"
-			? await resolveExistingItem(
-					resolved,
-					args.params.collection_item_slug as string,
-				)
-			: null
-
-	// Compare against the freshly loaded GitHub body before creating or updating a
-	// draft. This is especially important when an existing item has no D1 draft.
-	const metadataMatches = item
-		? canonicalMetadata(item.frontmatter) === canonicalMetadata(payload.fields)
-		: false
-	if (
-		payload.intent === EditorActionIntents.SAVE &&
-		item &&
-		collectionItemBodyMatches(item, payload.markdown) &&
-		metadataMatches
-	) {
-		const existing = await resolved.db.query.editorDraft.findFirst({
-			where: and(
-				eq(editorDraft.projectId, resolved.projectRow.id),
-				eq(editorDraft.sourcePath, item.path),
-			),
-		})
-		if (existing && payload.expectedRevision !== existing.revision) {
-			throw new Response("Draft changed in another session", { status: 409 })
-		}
-		if (!existing && payload.expectedRevision !== null) {
-			throw new Response("Draft changed in another session", { status: 409 })
-		}
-
-		return Response.json({
-			ok: true,
-			commitSha: null,
-			draftId: existing?.id ?? null,
-			revision: existing?.revision ?? null,
-		})
+	const target = getDraftTarget(args.params, payload.draftId ?? null)
+	const drafts = createDraftsFor(resolved)
+	const input: SaveInput = {
+		...target,
+		expectedRevision: payload.expectedRevision,
+		fields: payload.fields,
+		markdown: payload.markdown,
 	}
-	const draft = await saveDraft(resolved, payload, item)
 
 	if (payload.intent === EditorActionIntents.SAVE) {
+		const saved = await drafts.save(input)
+		if (!saved.ok) return draftRefusalResponse(saved)
+		if (saved.outcome === "matches-source") {
+			return Response.json({
+				ok: true,
+				commitSha: null,
+				draftId: saved.draftId,
+				revision: saved.revision,
+			})
+		}
 		return Response.json({
 			ok: true,
-			draftId: draft.id,
-			revision: draft.revision,
+			draftId: saved.draft.id,
+			revision: saved.draft.revision,
 		})
 	}
-	const validationErrors = validateMetadata(
-		resolved.collection.schema,
-		payload.fields,
+
+	const published = await drafts.publish(input)
+	if (!published.ok) return draftRefusalResponse(published)
+
+	const editorPath = getCollectionItemEditorPath(
+		{ repoName: resolved.name, repoOwnerLogin: resolved.owner },
+		resolved.collectionSlug,
+		published.itemSlug,
 	)
-	if (
-		Object.values(resolved.collection.schema).some(
-			(field) => field.type === "document" && field.required,
-		) &&
-		!payload.markdown.trim()
-	) {
-		validationErrors.push("Document content is required")
-	}
-	const slugField = getSlugField(resolved.collection.schema)
-	const effectiveSlug = slugField
-		? String(payload.fields[slugField] ?? "").trim()
-		: ""
-	if (!effectiveSlug || !/^[a-z0-9][a-z0-9._-]*$/i.test(effectiveSlug))
-		validationErrors.push("Slug must be a valid nonempty filename slug")
-	if (validationErrors.length)
-		return Response.json(
-			{ ok: false, error: validationErrors.join("\n") },
-			{ status: 422 },
-		)
-	const files = await listCollectionFiles(resolved)
-	const duplicate = files.filter(isMarkdownCollectionFile).some((file) => {
-		if (item && file.path === item.path) return false
-		return (
-			findCollectionItemBySlug(resolved.collection, [file], effectiveSlug) !==
-			null
-		)
-	})
-	if (duplicate)
-		return Response.json(
-			{ ok: false, error: `Another item already uses slug “${effectiveSlug}”` },
-			{ status: 409 },
-		)
-	const publishPath =
-		item?.path ??
-		`${resolved.directoryPath}/${effectiveSlug}.${resolved.collection.format}`
-	if (item && draft.sourceSha && draft.sourceSha !== item.sha) {
-		return Response.json(
-			{
-				ok: false,
-				error:
-					"This item changed on GitHub. Copy your draft or discard it before reloading.",
-			},
-			{ status: 409 },
-		)
-	}
-	const editorPath = `/${resolved.owner}/${resolved.name}/collections/${resolved.collectionSlug}/editor/item/${encodeURIComponent(effectiveSlug)}`
-	if (
-		item &&
-		collectionItemBodyMatches(item, payload.markdown) &&
-		metadataMatches
-	) {
-		const [deleted] = await resolved.db
-			.delete(editorDraft)
-			.where(
-				and(
-					eq(editorDraft.id, draft.id),
-					eq(editorDraft.projectId, resolved.projectRow.id),
-					eq(editorDraft.revision, draft.revision),
-				),
-			)
-			.returning({ id: editorDraft.id })
-		if (!deleted) {
-			return Response.json(
-				{ ok: false, error: "Draft changed in another session" },
-				{ status: 409 },
-			)
-		}
+	if (published.outcome === "matches-source") {
 		return Response.json({
 			ok: true,
 			commitSha: null,
 			draftDeleted: true,
-			draftId: draft.id,
+			draftId: published.draftId,
 			editorPath,
 		})
 	}
-
-	let published: Awaited<ReturnType<typeof createOrUpdateGithubTextFile>>
-	try {
-		published = await createOrUpdateGithubTextFile(
-			resolved.env,
-			resolved.installationId,
-			resolved.owner,
-			resolved.name,
-			{
-				path: publishPath,
-				sha: item?.sha,
-				message: `${item ? "Update" : "Create"} ${publishPath} with Kobun`,
-				content: serializeCollectionItem(
-					payload.markdown,
-					item?.sourcePrefix ?? "",
-					payload.fields,
-					item?.frontmatter ?? {},
-				),
-			},
-		)
-	} catch (error) {
-		if (error instanceof Error && "status" in error && error.status === 409) {
-			return Response.json(
-				{
-					ok: false,
-					error:
-						"This item changed on GitHub. Copy your draft or discard it before reloading.",
-				},
-				{ status: 409 },
-			)
-		}
-		throw error
-	}
-
-	const [synced] = await resolved.db
-		.update(editorDraft)
-		.set({
-			itemSlug: effectiveSlug,
-			publishedAt: new Date(),
-			publishedRevision: draft.revision,
-			sourcePath: publishPath,
-			sourceSha: published.contentSha,
-		})
-		.where(
-			and(
-				eq(editorDraft.id, draft.id),
-				eq(editorDraft.projectId, resolved.projectRow.id),
-				eq(editorDraft.revision, draft.revision),
-				draft.sourceSha === null
-					? isNull(editorDraft.sourceSha)
-					: eq(editorDraft.sourceSha, draft.sourceSha),
-				draft.publishedRevision === null
-					? isNull(editorDraft.publishedRevision)
-					: eq(editorDraft.publishedRevision, draft.publishedRevision),
-			),
-		)
-		.returning()
-
-	if (!synced) {
-		await resolved.db
-			.update(editorDraft)
-			.set({
-				itemSlug: effectiveSlug,
-				sourcePath: publishPath,
-				sourceSha: published.contentSha,
-			})
-			.where(
-				and(
-					eq(editorDraft.id, draft.id),
-					eq(editorDraft.projectId, resolved.projectRow.id),
-					item
-						? eq(editorDraft.sourceSha, item.sha)
-						: isNull(editorDraft.sourceSha),
-				),
-			)
+	if (published.outcome === "published-unsynced") {
 		return Response.json({
 			ok: true,
 			commitSha: published.commitSha,
-			draftId: draft.id,
+			draftId: published.draftId,
 			draftSynced: false,
 			editorPath,
 		})
 	}
-	const draftDeleted = await deleteSyncedDraft(resolved, synced)
-
+	// A publish that reached the repository and reconciled its Draft. The two
+	// outcomes above return before this: one committed nothing, the other lost
+	// the sync race — neither was tracked before the lifecycle moved into the
+	// module, and this merge is not the place to start.
 	const posthog = args.context.get(posthogContext)
 	posthog?.capture({
 		event: "content_published",
@@ -630,16 +310,16 @@ export async function action(args: Route.ActionArgs) {
 			collection_slug: resolved.collectionSlug,
 			repo_owner: resolved.owner,
 			repo_name: resolved.name,
-			editor_mode: mode,
+			editor_mode: target.mode,
 		},
 	})
 
 	return Response.json({
 		ok: true,
 		commitSha: published.commitSha,
-		draftDeleted,
-		draftId: draft.id,
-		revision: draftDeleted ? null : draft.revision,
+		draftDeleted: published.draftDeleted,
+		draftId: published.draftId,
+		revision: published.revision,
 		editorPath,
 	})
 }

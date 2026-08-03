@@ -94,10 +94,3 @@ export function serializeCollectionItem(
 	}
 	return `${sourcePrefix}${markdown}`
 }
-
-export function collectionItemBodyMatches(
-	item: Pick<ResolvedCollectionItem, "body">,
-	markdown: string,
-) {
-	return item.body === markdown
-}

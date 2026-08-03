@@ -8,6 +8,7 @@
 	"files": {
 		"includes": [
 			"**",
+			"!**/.claude",
 			"!packages/db/migrations/meta/*",
 			"!worker-configuration.d.ts"
 		],

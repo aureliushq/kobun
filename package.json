@@ -42,7 +42,7 @@
 		"deploy:production": "CLOUDFLARE_ENV=production bun run build && wrangler deploy",
 		"deploy:preview": "CLOUDFLARE_ENV=preview bun run build && wrangler deploy",
 		"dev": "bun run generate:schema && bun run generate:manifest && NODE_OPTIONS=\"--inspect\" react-router dev",
-		"doctor": "bun run check && bun run check:types && bun run test",
+		"doctor": "bun run check && bun run check:types && bun run test && bun run build",
 		"generate:component": "bun run scripts/generate-component/generate.ts",
 		"generate:manifest": "bun run scripts/generate-manifest.ts",
 		"generate:schema": "bun run scripts/generate-schema.ts",
