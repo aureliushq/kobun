@@ -5,7 +5,7 @@ import { getAuth } from "@/auth/auth.server"
 import { envContext } from "@/core/context"
 import { dbContext } from "@/db/context"
 import { project } from "@/db/schema/app-schema"
-import { getGithubFileContent } from "@/github/octokit.server"
+import { getGithubFileBytes } from "@/github/octokit.server"
 
 const CONTENT_TYPES: Record<string, string> = {
 	png: "image/png",
@@ -61,15 +61,9 @@ export async function loader({ context, params, request }: LoaderFunctionArgs) {
 	const installationId = projectRow.githubInstallation.githubInstallationId
 	const filePath = decodeURIComponent(splat).replace(/^\/+/, "")
 
-	let file: Awaited<ReturnType<typeof getGithubFileContent>>
+	let file: Awaited<ReturnType<typeof getGithubFileBytes>>
 	try {
-		file = await getGithubFileContent(
-			env,
-			installationId,
-			owner,
-			name,
-			filePath,
-		)
+		file = await getGithubFileBytes(env, installationId, owner, name, filePath)
 	} catch (error) {
 		if (
 			error instanceof Error &&
@@ -95,13 +89,7 @@ export async function loader({ context, params, request }: LoaderFunctionArgs) {
 		})
 	}
 
-	// `file.content` is a binary string (atob output): each char's code
-	// point is the byte value. Convert to a Uint8Array for the Response body.
-	const bin = file.content
-	const bytes = new Uint8Array(bin.length)
-	for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i)
-
-	return new Response(bytes, {
+	return new Response(file.bytes, {
 		headers: {
 			"Content-Type": guessContentType(filePath),
 			"Cache-Control": cacheControl,
