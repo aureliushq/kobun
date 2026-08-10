@@ -1,6 +1,7 @@
 import { and, eq, isNull, sql } from "drizzle-orm"
 import type { SQLiteColumn } from "drizzle-orm/sqlite-core"
 import invariant from "tiny-invariant"
+import { canonicalMetadata } from "@/core/content"
 import {
 	findCollectionItemBySlug,
 	isMarkdownCollectionFile,
@@ -8,7 +9,6 @@ import {
 } from "@/core/editor/collection-items.server"
 import {
 	applyMetadataDefaults,
-	canonicalMetadata,
 	type FieldRecord,
 	getSlugField,
 	validateMetadata,

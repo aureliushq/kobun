@@ -2,34 +2,6 @@ import type { Field } from "@/config/types"
 
 export type FieldRecord = Record<string, unknown>
 
-export function normalizeMetadata(value: unknown): unknown {
-	if (value instanceof Date) {
-		const iso = value.toISOString()
-		return iso.endsWith("T00:00:00.000Z") ? iso.slice(0, 10) : iso
-	}
-	if (Array.isArray(value)) return value.map(normalizeMetadata)
-	if (value && typeof value === "object") {
-		return Object.fromEntries(
-			Object.entries(value as FieldRecord).map(([key, item]) => [
-				key,
-				normalizeMetadata(item),
-			]),
-		)
-	}
-	return value
-}
-
-export function canonicalMetadata(value: unknown): string {
-	if (Array.isArray(value)) return `[${value.map(canonicalMetadata).join(",")}]`
-	if (value && typeof value === "object") {
-		return `{${Object.entries(value as FieldRecord)
-			.sort(([a], [b]) => a.localeCompare(b))
-			.map(([key, item]) => `${JSON.stringify(key)}:${canonicalMetadata(item)}`)
-			.join(",")}}`
-	}
-	return JSON.stringify(value) ?? "null"
-}
-
 function defaultForField(field: Field): unknown {
 	switch (field.type) {
 		case "boolean":

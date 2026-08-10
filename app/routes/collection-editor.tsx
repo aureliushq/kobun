@@ -6,9 +6,9 @@ import invariant from "tiny-invariant"
 import { getAuth } from "@/auth/auth.server"
 import { fetchAndParseConfig } from "@/config/github.server"
 import { useEditorLayoutControls } from "@/core/components/layouts/editor-context"
+import { canonicalMetadata } from "@/core/content"
 import { envContext } from "@/core/context"
 import {
-	canonicalMetadata,
 	type FieldRecord,
 	getCollectionEditorFields,
 	updateMetadataField,

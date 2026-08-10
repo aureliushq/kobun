@@ -1,5 +1,5 @@
+import { canonicalMetadata, normalizeMetadata } from "@/core/content"
 import { parseFrontmatter, stringifyFrontmatter } from "@/lib/frontmatter"
-import { canonicalMetadata, normalizeMetadata } from "./collection-metadata"
 
 interface CollectionConfig {
 	format: string
