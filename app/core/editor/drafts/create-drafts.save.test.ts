@@ -9,7 +9,7 @@ import type { DraftContent, SaveInput } from "./types"
 
 const FIELDS = { title: "Hello" }
 const SOURCE_PATH = `${TEST_DIRECTORY_PATH}/hello.md`
-const SOURCE_PREFIX = "---\ntitle: Hello\n---\n"
+const SOURCE_FRONTMATTER = "---\ntitle: Hello\n---\n"
 const SOURCE_BODY = "Source body"
 const SOURCE_SHA = "sha-source"
 
@@ -20,7 +20,7 @@ function setup() {
 	harness = createDraftsTestHarness({
 		files: [
 			{
-				content: `${SOURCE_PREFIX}${SOURCE_BODY}`,
+				content: `${SOURCE_FRONTMATTER}${SOURCE_BODY}`,
 				name: "hello.md",
 				path: SOURCE_PATH,
 				sha: SOURCE_SHA,

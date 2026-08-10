@@ -1,12 +1,11 @@
 import { describe, expect, it } from "vitest"
 import {
+	collectionFileFormat,
 	findCollectionItemBySlug,
 	isMarkdownCollectionFile,
-	serializeCollectionItem,
 } from "./collection-items.server"
 
 const collection = {
-	format: "md",
 	schema: {
 		title: { type: "text" },
 		slug: { type: "slug", from: "title" },
@@ -20,7 +19,13 @@ describe("collection item resolution", () => {
 		expect(isMarkdownCollectionFile({ name: "post.json" })).toBe(false)
 	})
 
+	it("reads each file's Format from its extension", () => {
+		expect(collectionFileFormat({ name: "post.md" })).toBe("md")
+		expect(collectionFileFormat({ name: "post.mdx" })).toBe("mdx")
+	})
+
 	it("matches the configured frontmatter slug and returns the markdown body", () => {
+		const content = "---\ntitle: Hello\nslug: hello-world\n---\nBody text\n"
 		const item = findCollectionItemBySlug(
 			collection,
 			[
@@ -28,7 +33,7 @@ describe("collection item resolution", () => {
 					name: "different-file-name.md",
 					path: "content/posts/different-file-name.md",
 					sha: "sha-1",
-					content: "---\ntitle: Hello\nslug: hello-world\n---\nBody text\n",
+					content,
 				},
 			],
 			"hello-world",
@@ -38,6 +43,9 @@ describe("collection item resolution", () => {
 			body: "Body text\n",
 			itemSlug: "hello-world",
 			path: "content/posts/different-file-name.md",
+			// Whoever publishes over this Source gets its bytes, not a derived
+			// fidelity trick.
+			raw: content,
 			sha: "sha-1",
 		})
 	})
@@ -80,75 +88,5 @@ describe("collection item resolution", () => {
 				"duplicate",
 			),
 		).toThrow('Multiple collection items use slug "duplicate"')
-	})
-
-	it("serializes edited markdown without losing frontmatter", () => {
-		const source =
-			'---\r\n# keep this comment\r\ntitle: "Hello"\r\ntags: [one, two]\r\n---\r\nOriginal body\r\n'
-		const item = findCollectionItemBySlug(
-			collection,
-			[
-				{
-					name: "hello-world.md",
-					path: "content/posts/hello-world.md",
-					sha: "sha",
-					content: source,
-				},
-			],
-			"hello-world",
-		)
-		const serialized = serializeCollectionItem(
-			"Updated body\n",
-			item?.sourcePrefix ?? "",
-		)
-
-		expect(serialized).toBe(
-			'---\r\n# keep this comment\r\ntitle: "Hello"\r\ntags: [one, two]\r\n---\r\nUpdated body\n',
-		)
-	})
-
-	it("preserves unknown keys and rewrites frontmatter only when metadata changes", () => {
-		const prefix = "---\ntitle: Old\nunknown: keep\n---\n"
-		expect(
-			serializeCollectionItem(
-				"Body\n",
-				prefix,
-				{ title: "Old", unknown: "keep" },
-				{ unknown: "keep", title: "Old" },
-			),
-		).toBe(`${prefix}Body\n`)
-		const changed = serializeCollectionItem(
-			"Body\n",
-			prefix,
-			{ title: "New", unknown: "keep" },
-			{ title: "Old", unknown: "keep" },
-		)
-		expect(changed).toContain("title: New")
-		expect(changed).toContain("unknown: keep")
-	})
-
-	it("normalizes unquoted YAML dates without rewriting unchanged frontmatter", () => {
-		const prefix = "---\npublished: 2026-07-14\n---\n"
-		const item = findCollectionItemBySlug(
-			collection,
-			[
-				{
-					name: "dated.md",
-					path: "content/posts/dated.md",
-					sha: "sha",
-					content: `${prefix}Body\n`,
-				},
-			],
-			"dated",
-		)
-		expect(item?.frontmatter.published).toBe("2026-07-14")
-		expect(
-			serializeCollectionItem(
-				"Updated\n",
-				item?.sourcePrefix ?? "",
-				item?.frontmatter,
-				item?.frontmatter,
-			),
-		).toBe(`${prefix}Updated\n`)
 	})
 })

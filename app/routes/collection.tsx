@@ -28,6 +28,7 @@ import { fetchAndParseConfig } from "@/config/github.server"
 import { parseDocument } from "@/core/content/document.server"
 import { envContext } from "@/core/context"
 import {
+	collectionFileFormat,
 	isMarkdownCollectionFile,
 	type RepositoryCollectionFile,
 } from "@/core/editor/collection-items.server"
@@ -119,19 +120,15 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
 		}
 	}
 
-	// The Format comes from the file, not from `collection.format`: this list only
-	// ever sees the md/mdx files `isMarkdownCollectionFile` lets through, so a
-	// Collection configured as json or yaml would otherwise hand `parseDocument` a
-	// Format its rows are not in. (That a json/yaml Collection lists nothing here
-	// is a pre-existing gap in the filter, untouched by this route.)
+	// A json/yaml Collection lists nothing here, since the filter only lets md
+	// and mdx through — a pre-existing gap, untouched by this route.
 	const items: CollectionItem[] = files
 		.filter(isMarkdownCollectionFile)
 		.map((f) => ({
 			name: f.name,
 			path: f.path,
 			sha: f.sha,
-			data: parseDocument(f.content, f.name.endsWith(".mdx") ? "mdx" : "md")
-				.data,
+			data: parseDocument(f.content, collectionFileFormat(f)).data,
 		}))
 
 	return { collection, collectionSlug: collection_slug, items }

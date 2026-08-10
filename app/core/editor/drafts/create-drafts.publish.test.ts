@@ -11,9 +11,9 @@ import type { DraftContent, PublishInput } from "./types"
 
 const FIELDS = { slug: "hello", title: "Hello" }
 const SOURCE_PATH = `${TEST_DIRECTORY_PATH}/hello.md`
-const SOURCE_PREFIX = "---\nslug: hello\ntitle: Hello\n---\n"
+const SOURCE_FRONTMATTER = "---\nslug: hello\ntitle: Hello\n---\n"
 const SOURCE_BODY = "Source body"
-const SOURCE_CONTENT = `${SOURCE_PREFIX}${SOURCE_BODY}`
+const SOURCE_CONTENT = `${SOURCE_FRONTMATTER}${SOURCE_BODY}`
 
 let harness: DraftsTestHarness
 
@@ -201,10 +201,36 @@ test("commits a dirty draft, syncs it, and deletes it", async () => {
 		outcome: "published",
 		revision: null,
 	})
+	// The writer touched only the body, so their frontmatter block comes back
+	// byte-for-byte: `commit` hands the serializer the Source's own bytes.
 	expect(sourceStore.get(SOURCE_PATH)?.content).toBe(
-		`${SOURCE_PREFIX}Published body`,
+		`${SOURCE_FRONTMATTER}Published body`,
 	)
 	expect(await db.select().from(editorDraft)).toEqual([])
+})
+
+test("re-stringifies the frontmatter when the metadata changed", async () => {
+	const { drafts, source, sourceStore } = setup()
+	seedSourceBackedDraft({
+		markdown: "Draft body",
+		publishedRevision: 1,
+		revision: 2,
+		sourceSha: source.sha,
+	})
+
+	const result = await drafts.publish(
+		publishItem({
+			expectedRevision: 2,
+			fields: { slug: "hello", title: "Renamed" },
+		}),
+	)
+
+	expect(result).toMatchObject({ ok: true, outcome: "published" })
+	// Nothing of the original block is owed back once the Data has changed: the
+	// document is re-stringified, trailing newline and all.
+	expect(sourceStore.get(SOURCE_PATH)?.content).toBe(
+		"---\nslug: hello\ntitle: Renamed\n---\nPublished body\n",
+	)
 })
 
 test("creates the source file when publishing a new item", async () => {

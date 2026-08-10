@@ -20,12 +20,13 @@ export interface ResolvedSource {
 	frontmatter: FieldRecord
 	itemSlug: string
 	path: string
-	sha: string
 	/**
-	 * The bytes preceding the Body — today's serializer re-emits them verbatim
-	 * when the Data is unchanged. Leaves with the serializer (ADR-0002).
+	 * The Source's bytes as they stand. Handed to the serializer, which decides
+	 * for itself what may be re-emitted untouched; how it does that is no
+	 * caller's business (ADR-0002).
 	 */
-	sourcePrefix: string
+	raw: string
+	sha: string
 }
 
 export interface DraftsContext {
