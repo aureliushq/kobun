@@ -4,14 +4,13 @@ import { eq } from "drizzle-orm"
 import { ChevronDown, FileText } from "lucide-react"
 import { Link, redirect, useParams } from "react-router"
 import invariant from "tiny-invariant"
-import YAML from "yaml"
 import { getAuth } from "@/auth/auth.server"
 import { fetchAndParseConfig } from "@/config/github.server"
+import { parseDocument } from "@/core/content/document.server"
 import { envContext } from "@/core/context"
 import { dbContext } from "@/db/context"
 import { project } from "@/db/schema/app-schema"
 import { getGithubFileContent } from "@/github/octokit.server"
-import { parseFrontmatter } from "@/lib/frontmatter"
 import {
 	Accordion,
 	AccordionContent,
@@ -102,37 +101,17 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
 
 	const editorPath = `/${owner}/${name}/singletons/${singleton_slug}/editor`
 
-	let exists = false
-	let data: Record<string, unknown> = {}
-	let body: string | null = null
-
+	// The catch is only for "this singleton has not been created yet" — a parse
+	// failure must never be mistaken for an absent file, so parsing happens after.
+	let file: Awaited<ReturnType<typeof getGithubFileContent>> | null = null
 	try {
-		const file = await getGithubFileContent(
+		file = await getGithubFileContent(
 			env,
 			installationId,
 			owner,
 			name,
 			filePath,
 		)
-		exists = true
-
-		if (singleton.format === "md" || singleton.format === "mdx") {
-			const parsed = parseFrontmatter(file.content)
-			data = parsed.data as Record<string, unknown>
-			body = parsed.content
-		} else if (singleton.format === "json") {
-			const parsed = JSON.parse(file.content)
-			data =
-				parsed && typeof parsed === "object" && !Array.isArray(parsed)
-					? (parsed as Record<string, unknown>)
-					: {}
-		} else if (singleton.format === "yaml") {
-			const parsed = YAML.parse(file.content)
-			data =
-				parsed && typeof parsed === "object" && !Array.isArray(parsed)
-					? (parsed as Record<string, unknown>)
-					: {}
-		}
 	} catch (error) {
 		if (
 			!(error instanceof Error && "status" in error && error.status === 404)
@@ -141,12 +120,18 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
 		}
 	}
 
+	// A ContentParseError here propagates: a writer must never be handed an empty
+	// editor over a file kobun could not read.
+	const contentDocument = file
+		? parseDocument(file.content, singleton.format)
+		: null
+
 	return {
 		singleton,
 		singletonSlug: singleton_slug,
-		exists,
-		data,
-		body,
+		exists: contentDocument !== null,
+		data: contentDocument?.data ?? {},
+		body: contentDocument?.body ?? null,
 		filePath,
 		editorPath,
 	}
