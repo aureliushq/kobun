@@ -124,10 +124,6 @@ export async function listGithubInstallationRepositories(
 }
 
 /**
- * Read a single file's content from a repository.
- * Returns the decoded UTF-8 content, SHA, and path.
- */
-/**
  * List files in a directory and fetch all of their contents in a single
  * GraphQL request, avoiding N+1 REST calls and rate-limit pressure on
  * directories with many files.
@@ -231,14 +227,18 @@ export async function listGithubDirectoryFiles(
 		})
 }
 
-export async function getGithubFileContent(
+/**
+ * Read a single file's raw bytes from a repository.
+ * Use for binary content; for text prefer getGithubFileContent.
+ */
+export async function getGithubFileBytes(
 	env: Env,
 	installationId: InstallationID,
 	owner: string,
 	repo: string,
 	path: string,
 	ref?: string,
-) {
+): Promise<{ sha: string; path: string; bytes: Uint8Array<ArrayBuffer> }> {
 	const octokit = getGithubInstallationOctokit(env, installationId)
 
 	const { data } = await octokit.repos.getContent({
@@ -256,7 +256,35 @@ export async function getGithubFileContent(
 	return {
 		sha: data.sha,
 		path: data.path,
-		content: atob(data.content),
+		bytes: Buffer.from(data.content, "base64"),
+	}
+}
+
+/**
+ * Read a single file's content from a repository as UTF-8 text.
+ * Returns the decoded content, SHA, and path.
+ */
+export async function getGithubFileContent(
+	env: Env,
+	installationId: InstallationID,
+	owner: string,
+	repo: string,
+	path: string,
+	ref?: string,
+) {
+	const file = await getGithubFileBytes(
+		env,
+		installationId,
+		owner,
+		repo,
+		path,
+		ref,
+	)
+
+	return {
+		sha: file.sha,
+		path: file.path,
+		content: new TextDecoder().decode(file.bytes),
 	}
 }
 

@@ -37,6 +37,17 @@ export type Collection = z.infer<typeof collectionSchema>
 export type Features = z.infer<typeof featureSchema>
 export type Singleton = z.infer<typeof singletonSchema>
 
+/**
+ * How a Source's bytes encode its Content Document: `md`, `mdx`, `json`, or
+ * `yaml`. This is the type consumers outside the package use; `schema.ts` keeps
+ * a private `Format` enum of the same four values for building the schema.
+ *
+ * Derived from that schema so it can never drift, but widened through a
+ * template literal: the enum is private, so without the widening a caller
+ * outside this package could not write `"md"`.
+ */
+export type Format = `${Collection["format"]}`
+
 ////////////////////// CONFIGURATION TYPES //////////////////////
 export type KobunConfig = z.infer<typeof kobunConfigSchema>
 

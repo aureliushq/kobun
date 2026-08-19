@@ -25,12 +25,16 @@ import { Link, redirect, useParams } from "react-router"
 import invariant from "tiny-invariant"
 import { getAuth } from "@/auth/auth.server"
 import { fetchAndParseConfig } from "@/config/github.server"
+import { parseDocument } from "@/core/content/document.server"
 import { envContext } from "@/core/context"
-import { isMarkdownCollectionFile } from "@/core/editor/collection-items.server"
+import {
+	collectionFileFormat,
+	isMarkdownCollectionFile,
+	type RepositoryCollectionFile,
+} from "@/core/editor/collection-items.server"
 import { dbContext } from "@/db/context"
 import { project } from "@/db/schema/app-schema"
 import { listGithubDirectoryFiles } from "@/github/octokit.server"
-import { parseFrontmatter } from "@/lib/frontmatter"
 import { Badge } from "@/ui/components/base/badge"
 import { Button } from "@/ui/components/base/button"
 import { Input } from "@/ui/components/base/input"
@@ -97,33 +101,35 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
 
 	const dirPath = `${config.basePath}/${collection_slug}`.replace(/\/+/g, "/")
 
-	let items: CollectionItem[] = []
+	// The catch is only for an empty / missing directory — a parse failure must
+	// never be mistaken for one, so the rows are built after it.
+	let files: RepositoryCollectionFile[] = []
 	try {
-		const files = await listGithubDirectoryFiles(
+		files = await listGithubDirectoryFiles(
 			env,
 			installationId,
 			owner,
 			name,
 			dirPath,
 		)
-
-		items = files.filter(isMarkdownCollectionFile).map((f) => {
-			const parsed = parseFrontmatter(f.content)
-			return {
-				name: f.name,
-				path: f.path,
-				sha: f.sha,
-				data: parsed.data as Record<string, unknown>,
-			}
-		})
 	} catch (error) {
-		// Empty / missing directory → just show no items.
 		if (
 			!(error instanceof Error && "status" in error && error.status === 404)
 		) {
 			throw error
 		}
 	}
+
+	// A json/yaml Collection lists nothing here, since the filter only lets md
+	// and mdx through — a pre-existing gap, untouched by this route.
+	const items: CollectionItem[] = files
+		.filter(isMarkdownCollectionFile)
+		.map((f) => ({
+			name: f.name,
+			path: f.path,
+			sha: f.sha,
+			data: parseDocument(f.content, collectionFileFormat(f)).data,
+		}))
 
 	return { collection, collectionSlug: collection_slug, items }
 }

@@ -1,14 +1,14 @@
 import { and, eq, isNull, sql } from "drizzle-orm"
 import type { SQLiteColumn } from "drizzle-orm/sqlite-core"
 import invariant from "tiny-invariant"
+import { canonicalMetadata } from "@/core/content"
+import { serializeDocument } from "@/core/content/document.server"
 import {
 	findCollectionItemBySlug,
 	isMarkdownCollectionFile,
-	serializeCollectionItem,
 } from "@/core/editor/collection-items.server"
 import {
 	applyMetadataDefaults,
-	canonicalMetadata,
 	type FieldRecord,
 	getSlugField,
 	validateMetadata,
@@ -356,11 +356,15 @@ export function createDrafts(context: DraftsContext) {
 		const path =
 			source?.path ?? `${directoryPath}/${itemSlug}.${collection.format}`
 		const committed = await sourceStore.write({
-			content: serializeCollectionItem(
-				input.markdown,
-				source?.sourcePrefix ?? "",
-				input.fields,
-				source?.frontmatter ?? {},
+			// The Source's own bytes go to the serializer, which re-emits the
+			// frontmatter block untouched when the Data is unchanged; a new item has
+			// none to preserve. The Format is the Collection's, not the file's:
+			// writing is what puts the extension on `path` above, so the same
+			// declaration has to decide the bytes that go under it.
+			content: serializeDocument(
+				{ body: input.markdown, data: input.fields },
+				collection.format,
+				source ? { raw: source.raw } : undefined,
 			),
 			expectedSha: source?.sha,
 			message: `${source ? "Update" : "Create"} ${path} with Kobun`,
