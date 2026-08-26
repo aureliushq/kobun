@@ -5,6 +5,7 @@ import {
 	ExternalLinkIcon,
 	TriangleAlertIcon,
 } from "lucide-react"
+import { useState } from "react"
 import { Link, redirect, useFetcher, useRouteLoaderData } from "react-router"
 import { getAuth } from "@/auth/auth.server"
 import type { ConfigFetchResult } from "@/config/github.server"
@@ -15,6 +16,17 @@ import { dbContext } from "@/db/context"
 import { editorDraft, project } from "@/db/schema/app-schema"
 import { posthogContext } from "@/lib/posthog-middleware"
 import { Alert, AlertDescription, AlertTitle } from "@/ui/components/base/alert"
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+	AlertDialogTrigger,
+} from "@/ui/components/base/alert-dialog"
 import { Badge } from "@/ui/components/base/badge"
 import { Button } from "@/ui/components/base/button"
 import {
@@ -175,11 +187,48 @@ function ConfigAlert({
 	}
 }
 
+function DiscardDraftDialog({ draftId }: { draftId: string }) {
+	const fetcher = useFetcher()
+	const [open, setOpen] = useState(false)
+
+	return (
+		<AlertDialog open={open} onOpenChange={setOpen}>
+			<AlertDialogTrigger render={<Button size="sm" variant="ghost" />}>
+				Discard
+			</AlertDialogTrigger>
+			<AlertDialogContent>
+				<AlertDialogHeader>
+					<AlertDialogTitle>Discard this draft?</AlertDialogTitle>
+					<AlertDialogDescription>
+						This can&apos;t be undone. The draft and any unpublished changes
+						will be permanently deleted.
+					</AlertDialogDescription>
+				</AlertDialogHeader>
+				<AlertDialogFooter>
+					<AlertDialogCancel>Cancel</AlertDialogCancel>
+					<AlertDialogAction
+						variant="destructive"
+						disabled={fetcher.state !== "idle"}
+						onClick={() => {
+							fetcher.submit(
+								{ intent: DISCARD_DRAFT_INTENT, draftId },
+								{ method: "post" },
+							)
+							setOpen(false)
+						}}
+					>
+						Discard
+					</AlertDialogAction>
+				</AlertDialogFooter>
+			</AlertDialogContent>
+		</AlertDialog>
+	)
+}
+
 export default function Dashboard({ loaderData }: Route.ComponentProps) {
 	const layoutData = useRouteLoaderData<typeof dashboardLayoutLoader>(
 		"core/components/layouts/dashboard",
 	)
-	const discardFetcher = useFetcher()
 	const user = layoutData?.user
 	const _config = layoutData?.configResult?.config
 	const errors = layoutData?.configResult?.errors ?? []
@@ -237,26 +286,7 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
 										>
 											Continue
 										</Button>
-										<discardFetcher.Form
-											method="post"
-											onSubmit={(event) => {
-												if (
-													!window.confirm("Discard this draft permanently?")
-												) {
-													event.preventDefault()
-												}
-											}}
-										>
-											<input
-												type="hidden"
-												name="intent"
-												value={DISCARD_DRAFT_INTENT}
-											/>
-											<input type="hidden" name="draftId" value={draft.id} />
-											<Button type="submit" size="sm" variant="ghost">
-												Discard
-											</Button>
-										</discardFetcher.Form>
+										<DiscardDraftDialog draftId={draft.id} />
 									</div>
 								</CardContent>
 							</Card>
