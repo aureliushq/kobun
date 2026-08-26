@@ -137,6 +137,19 @@ editorRef.current?.focus("end")
 | `clear()` | `void` | Clears document content. |
 | `getEditor()` | `Editor \| null` | Returns the underlying Tiptap editor for advanced integrations. |
 
+## Word count
+
+`EditorWordCount` renders a live `1,234 words · 6,789 characters` label for a document. It takes the Tiptap instance rather than the ref API, so pass `getEditor()` through state — the ref alone never re-renders on document changes:
+
+```tsx
+const [editor, setEditor] = useState<Editor | null>(null)
+
+<RichTextEditor ref={(api) => setEditor(api?.getEditor() ?? null)} />
+<EditorWordCount editor={editor} className="text-xs" />
+```
+
+It renders nothing while `editor` is `null`. Counts cover the editor document only, and come from the always-registered `CharacterCount` extension.
+
 ## Custom slash commands
 
 Custom commands are appended after the built-in commands and use the exported `SlashCommandItem` contract:

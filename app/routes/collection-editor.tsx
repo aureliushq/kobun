@@ -1,3 +1,4 @@
+import type { Editor } from "@tiptap/core"
 import { and, eq } from "drizzle-orm"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { redirect, useLocation, useNavigate } from "react-router"
@@ -24,7 +25,12 @@ import { createDrafts } from "@/core/editor/drafts/create-drafts.server"
 import { createGithubSourceStore } from "@/core/editor/drafts/github-source-store.server"
 import { dbContext } from "@/db/context"
 import { project } from "@/db/schema/app-schema"
-import { type AutosaveState, type EditorRefApi, RichTextEditor } from "@/editor"
+import {
+	type AutosaveState,
+	type EditorRefApi,
+	EditorWordCount,
+	RichTextEditor,
+} from "@/editor"
 import { posthogContext } from "@/lib/posthog-middleware"
 import {
 	Sheet,
@@ -346,6 +352,7 @@ export default function CollectionEditor({ loaderData }: Route.ComponentProps) {
 	const [isPropertiesOpen, setIsPropertiesOpen] = useState(true)
 	const isMobile = useIsMobile()
 	const [isEditorReady, setIsEditorReady] = useState(false)
+	const [editorInstance, setEditorInstance] = useState<Editor | null>(null)
 	const revisionRef = useRef(draftRevision)
 	const mutationQueueRef = useRef<Promise<void>>(Promise.resolve())
 	const [autosaveState, setAutosaveState] =
@@ -363,6 +370,9 @@ export default function CollectionEditor({ loaderData }: Route.ComponentProps) {
 	const registerEditorRef = useCallback((api: EditorRefApi | null) => {
 		editorRef.current = api
 		setIsEditorReady(api !== null)
+		// The ref alone never re-renders on document changes, so the word count
+		// needs the Tiptap instance itself in state to subscribe to it.
+		setEditorInstance(api?.getEditor() ?? null)
 	}, [])
 
 	const sendAction = useCallback(
@@ -537,7 +547,7 @@ export default function CollectionEditor({ loaderData }: Route.ComponentProps) {
 	return (
 		<div className="relative flex h-full min-h-0 overflow-hidden">
 			<div className="min-w-0 flex-1 overflow-y-auto">
-				<div className="editor-wrapper relative space-y-6 px-6 py-10">
+				<div className="editor-wrapper relative space-y-6 px-6 pt-10 pb-20">
 					{titleKey && titleField?.type === "text" ? (
 						<div className="pl-12">
 							<CollectionTitleField
@@ -559,6 +569,13 @@ export default function CollectionEditor({ loaderData }: Route.ComponentProps) {
 						readOnly={isPublishing}
 					/>
 				</div>
+			</div>
+
+			<div className="pointer-events-none absolute bottom-0 left-0 z-10 px-6 py-3">
+				<EditorWordCount
+					editor={editorInstance}
+					className="rounded-md bg-background/80 px-2 py-1 backdrop-blur-sm"
+				/>
 			</div>
 
 			<aside
