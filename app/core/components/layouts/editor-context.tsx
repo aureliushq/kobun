@@ -5,9 +5,17 @@ export interface EditorLayoutControls {
 	autosaveState: AutosaveState
 	canPublish: boolean
 	canSave: boolean
+	/**
+	 * The properties panel's open state and its toggle, for routes that have
+	 * one. The layout owns the header, so the button lives there; the route
+	 * still owns the state. Routes without a panel leave both undefined and the
+	 * header renders no toggle.
+	 */
+	isPropertiesOpen?: boolean
 	publish: () => Promise<void>
 	publishDisabledReason?: string
 	save: () => Promise<void>
+	toggleProperties?: () => void
 }
 
 interface EditorLayoutContextValue {

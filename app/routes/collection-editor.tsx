@@ -1,5 +1,4 @@
 import { and, eq } from "drizzle-orm"
-import { PanelRightClose, PanelRightOpen } from "lucide-react"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { redirect, useLocation, useNavigate } from "react-router"
 import invariant from "tiny-invariant"
@@ -27,15 +26,14 @@ import { dbContext } from "@/db/context"
 import { project } from "@/db/schema/app-schema"
 import { type AutosaveState, type EditorRefApi, RichTextEditor } from "@/editor"
 import { posthogContext } from "@/lib/posthog-middleware"
-import { Button } from "@/ui/components/base/button"
 import {
 	Sheet,
 	SheetContent,
 	SheetDescription,
 	SheetHeader,
 	SheetTitle,
-	SheetTrigger,
 } from "@/ui/components/base/sheet"
+import { useIsMobile } from "@/ui/hooks/use-mobile"
 import { PATHS } from "@/ui/lib/constants"
 import { EditorActionIntents } from "@/ui/lib/types"
 import type { Route } from "./+types/collection-editor"
@@ -345,6 +343,7 @@ export default function CollectionEditor({ loaderData }: Route.ComponentProps) {
 	const [metadataGeneration, setMetadataGeneration] = useState(0)
 	const [isPublishing, setIsPublishing] = useState(false)
 	const [isPropertiesOpen, setIsPropertiesOpen] = useState(true)
+	const isMobile = useIsMobile()
 	const [isEditorReady, setIsEditorReady] = useState(false)
 	const revisionRef = useRef(draftRevision)
 	const mutationQueueRef = useRef<Promise<void>>(Promise.resolve())
@@ -356,6 +355,10 @@ export default function CollectionEditor({ loaderData }: Route.ComponentProps) {
 		[schema],
 	)
 	const titleField = titleKey ? schema[titleKey] : null
+	const toggleProperties = useCallback(
+		() => setIsPropertiesOpen((open) => !open),
+		[],
+	)
 	const registerEditorRef = useCallback((api: EditorRefApi | null) => {
 		editorRef.current = api
 		setIsEditorReady(api !== null)
@@ -464,18 +467,22 @@ export default function CollectionEditor({ loaderData }: Route.ComponentProps) {
 			autosaveState: combinedAutosaveState,
 			canPublish: canPublish && isEditorReady && !isPublishing,
 			canSave: isEditorReady && !isPublishing,
+			isPropertiesOpen,
 			publish,
 			publishDisabledReason: publishDisabledReason ?? undefined,
 			save,
+			toggleProperties,
 		}),
 		[
 			combinedAutosaveState,
 			canPublish,
 			isEditorReady,
+			isPropertiesOpen,
 			isPublishing,
 			publish,
 			publishDisabledReason,
 			save,
+			toggleProperties,
 		],
 	)
 	useEditorLayoutControls(controls)
@@ -495,6 +502,13 @@ export default function CollectionEditor({ loaderData }: Route.ComponentProps) {
 		}, 1000)
 		return () => window.clearTimeout(timeout)
 	}, [isPublishing, metadataDirty, metadataGeneration])
+
+	// One open state serves both presentations, so crossing into the mobile
+	// breakpoint has to close it: the desktop default is open, and a Sheet that
+	// inherited that would cover the editor on load.
+	useEffect(() => {
+		if (isMobile) setIsPropertiesOpen(false)
+	}, [isMobile])
 
 	useEffect(() => {
 		const handleBeforeUnload = (event: BeforeUnloadEvent) => {
@@ -520,47 +534,6 @@ export default function CollectionEditor({ loaderData }: Route.ComponentProps) {
 		<div className="relative flex h-full min-h-0 overflow-hidden">
 			<div className="min-w-0 flex-1 overflow-y-auto">
 				<div className="editor-wrapper relative space-y-6 px-6 py-10">
-					<div className="absolute top-4 right-4 flex gap-2">
-						{!isPropertiesOpen ? (
-							<Button
-								type="button"
-								variant="ghost"
-								size="icon"
-								className="hidden md:inline-flex"
-								onClick={() => setIsPropertiesOpen(true)}
-								aria-label="Open properties"
-							>
-								<PanelRightOpen />
-							</Button>
-						) : null}
-						<Sheet>
-							<SheetTrigger
-								render={
-									<Button
-										type="button"
-										variant="ghost"
-										size="icon"
-										className="md:hidden"
-										aria-label="Open properties"
-									/>
-								}
-							>
-								<PanelRightOpen />
-							</SheetTrigger>
-							<SheetContent className="w-full max-w-sm">
-								<SheetHeader>
-									<SheetTitle>Properties</SheetTitle>
-									<SheetDescription>
-										Collection metadata for this item.
-									</SheetDescription>
-								</SheetHeader>
-								<div className="flex flex-col gap-6 overflow-y-auto px-6 pb-6">
-									{properties}
-								</div>
-							</SheetContent>
-						</Sheet>
-					</div>
-
 					{titleKey && titleField?.type === "text" ? (
 						<div className="pl-12">
 							<CollectionTitleField
@@ -591,23 +564,30 @@ export default function CollectionEditor({ loaderData }: Route.ComponentProps) {
 				}`}
 			>
 				<div className="flex w-80 shrink-0 flex-col">
-					<div className="flex h-12 shrink-0 items-center justify-between border-b px-4">
-						<h2 className="font-medium text-sm">Properties</h2>
-						<Button
-							type="button"
-							variant="ghost"
-							size="icon-sm"
-							onClick={() => setIsPropertiesOpen(false)}
-							aria-label="Close properties"
-						>
-							<PanelRightClose />
-						</Button>
-					</div>
-					<div className="flex flex-col gap-6 overflow-y-auto p-4">
+					<div className="flex flex-col gap-6 overflow-y-auto px-4 py-6">
 						{properties}
 					</div>
 				</div>
 			</aside>
+
+			{/* Below `md` the aside is display:none, so the same open state drives
+			    this Sheet instead — the header's toggle is the only trigger. */}
+			<Sheet
+				open={isMobile && isPropertiesOpen}
+				onOpenChange={setIsPropertiesOpen}
+			>
+				<SheetContent className="w-full max-w-sm">
+					<SheetHeader>
+						<SheetTitle>Properties</SheetTitle>
+						<SheetDescription>
+							Collection metadata for this item.
+						</SheetDescription>
+					</SheetHeader>
+					<div className="flex flex-col gap-6 overflow-y-auto px-6 pb-6">
+						{properties}
+					</div>
+				</SheetContent>
+			</Sheet>
 		</div>
 	)
 }

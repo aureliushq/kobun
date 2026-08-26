@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm"
-import { ChevronLeft } from "lucide-react"
+import { ChevronLeft, PanelRightClose, PanelRightOpen } from "lucide-react"
 import { useMemo, useState } from "react"
 import { Link, Outlet, redirect } from "react-router"
 import invariant from "tiny-invariant"
@@ -114,6 +114,26 @@ const EditorLayout = ({ loaderData }: Route.ComponentProps) => {
 						<span className="font-medium text-sm">{parentLabel}</span>
 					</div>
 					<div className="flex items-center gap-3">
+						{controls?.toggleProperties ? (
+							<Button
+								type="button"
+								variant="ghost"
+								size="icon"
+								aria-label={
+									controls.isPropertiesOpen
+										? "Close properties"
+										: "Open properties"
+								}
+								aria-pressed={controls.isPropertiesOpen}
+								onClick={controls.toggleProperties}
+							>
+								{controls.isPropertiesOpen ? (
+									<PanelRightClose />
+								) : (
+									<PanelRightOpen />
+								)}
+							</Button>
+						) : null}
 						{saveStatus && (
 							<span
 								className={
