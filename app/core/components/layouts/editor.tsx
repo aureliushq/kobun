@@ -106,13 +106,11 @@ const EditorLayout = ({ loaderData }: Route.ComponentProps) => {
 			<main className="flex h-screen w-screen flex-col divide-y">
 				<header className="flex h-14 shrink-0 items-center justify-between gap-4 px-6">
 					<div className="flex items-center gap-2">
-						<Button
-							variant="ghost"
-							size="icon"
-							render={<Link to={parentPath} />}
-						>
-							<ChevronLeft className="size-4" />
-						</Button>
+						<Link to={parentPath}>
+							<Button variant="ghost" size="icon">
+								<ChevronLeft className="size-4" />
+							</Button>
+						</Link>
 						<span className="font-medium text-sm">{parentLabel}</span>
 					</div>
 					<div className="flex items-center gap-3">

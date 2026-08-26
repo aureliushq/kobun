@@ -391,9 +391,9 @@ export default function Collection({ loaderData }: Route.ComponentProps) {
 							))}
 						</SelectContent>
 					</Select>
-					<Button render={<Link to={`${editorBase}/new`} />}>
-						New {singularize(collection.label)}
-					</Button>
+					<Link to={`${editorBase}/new`}>
+						<Button>New {singularize(collection.label)}</Button>
+					</Link>
 				</div>
 			</div>
 
