@@ -14,6 +14,7 @@ import {
 	updateMetadataField,
 } from "@/core/editor/collection-metadata"
 import { MetadataField } from "@/core/editor/collection-metadata-fields"
+import { CollectionTitleField } from "@/core/editor/collection-title-field"
 import {
 	type DraftRefusal,
 	type DraftTarget,
@@ -27,7 +28,6 @@ import { project } from "@/db/schema/app-schema"
 import { type AutosaveState, type EditorRefApi, RichTextEditor } from "@/editor"
 import { posthogContext } from "@/lib/posthog-middleware"
 import { Button } from "@/ui/components/base/button"
-import { Input } from "@/ui/components/base/input"
 import {
 	Sheet,
 	SheetContent,
@@ -563,13 +563,12 @@ export default function CollectionEditor({ loaderData }: Route.ComponentProps) {
 
 					{titleKey && titleField?.type === "text" ? (
 						<div className="pl-12">
-							<Input
+							<CollectionTitleField
 								value={String(fields[titleKey] ?? "")}
 								placeholder={titleField.placeholder}
 								disabled={isPublishing}
-								aria-label="Title"
-								className="h-auto border-0 bg-transparent px-0 py-2 font-semibold text-4xl shadow-none focus-visible:ring-0 dark:bg-transparent"
-								onChange={(event) => updateField(titleKey, event.target.value)}
+								onChange={(value) => updateField(titleKey, value)}
+								onCommit={() => editorRef.current?.focus("start")}
 							/>
 						</div>
 					) : null}
