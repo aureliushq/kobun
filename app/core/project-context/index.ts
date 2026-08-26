@@ -10,10 +10,11 @@
  */
 
 export type {
-	ConfigResolution,
-	ConfigResolver,
+	ConfigSource,
+	ConfigSourceRead,
+	ConfigSourceRequest,
 	RepositoryAddress,
-} from "./config-resolver"
+} from "./config-source"
 export { createProjectContext } from "./create-project-context"
 export { requireCollection, requireSingleton } from "./entities"
 export { toPageContext } from "./page-context"

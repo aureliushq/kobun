@@ -1,14 +1,21 @@
 import { afterEach, expect, test } from "vitest"
-import { ConfigStatus } from "@/db/types"
 import {
-	createFakeConfigResolver,
+	createFakeConfigSource,
 	createProjectContextTestHarness,
 	type ProjectContextTestHarness,
 	TEST_CONFIG,
+	TEST_CONFIG_JSON,
+	TEST_CONFIG_PATH,
 	TEST_INSTALLATION_ID,
 	TEST_NAME,
 	TEST_OWNER,
 } from "./test-harness"
+
+const REPOSITORY = {
+	installationId: TEST_INSTALLATION_ID,
+	name: TEST_NAME,
+	owner: TEST_OWNER,
+}
 
 let harness: ProjectContextTestHarness
 
@@ -49,22 +56,77 @@ test("declares a Config the real validator accepts", () => {
 	expect(TEST_CONFIG.errors).toEqual([])
 })
 
-test("records what the module asked the config resolver for", async () => {
-	const configResolver = createFakeConfigResolver()
-	const identity = {
-		installationId: TEST_INSTALLATION_ID,
-		name: TEST_NAME,
-		owner: TEST_OWNER,
-	}
+test("serves a file the repository holds, with a sha and an ETag", async () => {
+	const configSource = createFakeConfigSource()
 
-	expect(await configResolver.resolve(identity)).toEqual({
-		config: TEST_CONFIG,
-		status: ConfigStatus.PRESENT,
+	expect(
+		await configSource.read(REPOSITORY, { path: TEST_CONFIG_PATH }),
+	).toEqual({
+		content: TEST_CONFIG_JSON,
+		etag: '"etag-1"',
+		kind: "content",
+		sha: "sha-1",
 	})
-	configResolver.set({ config: null, status: ConfigStatus.MISSING })
-	expect(await configResolver.resolve(identity)).toEqual({
-		config: null,
-		status: ConfigStatus.MISSING,
+})
+
+test("reports a file the repository does not hold", async () => {
+	const configSource = createFakeConfigSource()
+
+	expect(await configSource.read(REPOSITORY, { path: ".kobun.yml" })).toEqual({
+		kind: "not-found",
 	})
-	expect(configResolver.calls).toEqual([identity, identity])
+})
+
+test("reports a matching ETag as unchanged, and a stale one as content", async () => {
+	const configSource = createFakeConfigSource()
+
+	expect(
+		await configSource.read(REPOSITORY, {
+			etag: '"etag-1"',
+			path: TEST_CONFIG_PATH,
+		}),
+	).toEqual({ kind: "not-modified" })
+
+	configSource.put(TEST_CONFIG_PATH, "{}")
+
+	expect(
+		await configSource.read(REPOSITORY, {
+			etag: '"etag-1"',
+			path: TEST_CONFIG_PATH,
+		}),
+	).toMatchObject({ content: "{}", etag: '"etag-2"', kind: "content" })
+})
+
+test("stops holding a file that was removed", async () => {
+	const configSource = createFakeConfigSource()
+	configSource.remove(TEST_CONFIG_PATH)
+
+	expect(
+		await configSource.read(REPOSITORY, { path: TEST_CONFIG_PATH }),
+	).toEqual({ kind: "not-found" })
+})
+
+test("fails one read on demand, then answers again", async () => {
+	const configSource = createFakeConfigSource()
+	const outage = new Error("API rate limit exceeded")
+	configSource.failNext(outage)
+
+	await expect(
+		configSource.read(REPOSITORY, { path: TEST_CONFIG_PATH }),
+	).rejects.toBe(outage)
+	await expect(
+		configSource.read(REPOSITORY, { path: TEST_CONFIG_PATH }),
+	).resolves.toMatchObject({ kind: "content" })
+})
+
+test("records every read the module made, in order", async () => {
+	const configSource = createFakeConfigSource()
+
+	await configSource.read(REPOSITORY, { etag: null, path: TEST_CONFIG_PATH })
+	await configSource.read(REPOSITORY, { etag: '"etag-1"', path: ".kobun.yml" })
+
+	expect(configSource.calls).toEqual([
+		{ etag: null, path: TEST_CONFIG_PATH },
+		{ etag: '"etag-1"', path: ".kobun.yml" },
+	])
 })

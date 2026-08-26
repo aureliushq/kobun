@@ -1,5 +1,6 @@
 import {
 	createOrUpdateGithubTextFile,
+	hasStatus,
 	listGithubDirectoryFiles,
 } from "@/github/octokit.server"
 import type { InstallationID } from "@/types/github"
@@ -8,10 +9,6 @@ import type {
 	SourceWriteInput,
 	SourceWriteResult,
 } from "./source-store"
-
-function hasStatus(error: unknown, status: number) {
-	return error instanceof Error && "status" in error && error.status === status
-}
 
 /**
  * The repository behind a project, as a `SourceStore`. Every piece of GitHub

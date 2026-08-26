@@ -9,6 +9,16 @@ const GITHUB_HEADERS = {
 }
 
 /**
+ * Whether an octokit error carries a given HTTP status. Octokit reports plenty
+ * of ordinary answers — a file that is not there, a file that has not changed,
+ * a write whose sha moved — by throwing, so adapters classify errors here
+ * before translating them into whatever their own port calls that answer.
+ */
+export function hasStatus(error: unknown, status: number) {
+	return error instanceof Error && "status" in error && error.status === status
+}
+
+/**
  * Private keys stored as env vars have literal "\n" instead of newlines.
  * This restores them.
  *
@@ -285,6 +295,55 @@ export async function getGithubFileContent(
 		sha: file.sha,
 		path: file.path,
 		content: new TextDecoder().decode(file.bytes),
+	}
+}
+
+/**
+ * Read a single file as UTF-8 text, conditionally on an ETag.
+ *
+ * A sibling of getGithubFileContent rather than an option on it: the ETag comes
+ * off the response headers, so this needs the whole response rather than the
+ * destructured data, and a caller with no ETag to send wants the simpler
+ * function. GitHub answers an unchanged file with a 304, which costs no rate
+ * limit — and which octokit, like a missing file, reports by throwing. Callers
+ * classify both with `hasStatus`; what they mean is the caller's vocabulary,
+ * not this module's.
+ */
+export async function getGithubFileContentConditional(
+	env: Env,
+	installationId: InstallationID,
+	owner: string,
+	repo: string,
+	path: string,
+	etag?: string | null,
+): Promise<{
+	content: string
+	etag: string | null
+	path: string
+	sha: string
+}> {
+	const octokit = getGithubInstallationOctokit(env, installationId)
+
+	const response = await octokit.repos.getContent({
+		owner,
+		repo,
+		path,
+		headers: {
+			...GITHUB_HEADERS,
+			...(etag ? { "if-none-match": etag } : {}),
+		},
+	})
+
+	const { data } = response
+	if (Array.isArray(data) || data.type !== "file") {
+		throw new Error(`Expected file at ${owner}/${repo}:${path}`)
+	}
+
+	return {
+		content: new TextDecoder().decode(Buffer.from(data.content, "base64")),
+		etag: response.headers.etag ?? null,
+		path: data.path,
+		sha: data.sha,
 	}
 }
 

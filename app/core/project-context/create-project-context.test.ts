@@ -1,9 +1,9 @@
 import { afterEach, expect, test } from "vitest"
-import { ConfigStatus } from "@/db/types"
 import {
 	createProjectContextTestHarness,
 	type ProjectContextTestHarness,
 	TEST_CONFIG,
+	TEST_CONFIG_PATH,
 	TEST_INSTALLATION_ID,
 	TEST_NAME,
 	TEST_OWNER,
@@ -14,6 +14,11 @@ let harness: ProjectContextTestHarness
 
 const TARGET = { name: TEST_NAME, owner: TEST_OWNER }
 
+/**
+ * A Project that has never had its Config checked, so every test here states
+ * what the Config says by describing the repository. When the answer is served
+ * from the Project row instead is the cache's business, and its tests'.
+ */
 function setup() {
 	harness = createProjectContextTestHarness()
 	return harness
@@ -24,14 +29,14 @@ afterEach(() => {
 })
 
 test("refuses an anonymous visitor without asking for a Config", async () => {
-	const { configResolver, projectContext, setSession } = setup()
+	const { configSource, projectContext, setSession } = setup()
 	setSession(null)
 
 	expect(await projectContext.resolve(TARGET)).toEqual({
 		ok: false,
 		reason: "anonymous",
 	})
-	expect(configResolver.calls).toEqual([])
+	expect(configSource.calls).toEqual([])
 })
 
 test("refuses a user who has no Project at all", async () => {
@@ -69,8 +74,8 @@ test("refuses a repository the user owns no Project for", async () => {
 })
 
 test("reports a Config that is not in the repository", async () => {
-	const { configResolver, projectContext } = setup()
-	configResolver.set({ config: null, status: ConfigStatus.MISSING })
+	const { configSource, projectContext } = setup()
+	configSource.remove(TEST_CONFIG_PATH)
 
 	expect(await projectContext.resolve(TARGET)).toEqual({
 		ok: false,
@@ -79,8 +84,8 @@ test("reports a Config that is not in the repository", async () => {
 })
 
 test("reports a Config that does not validate", async () => {
-	const { configResolver, projectContext } = setup()
-	configResolver.set({ config: null, status: ConfigStatus.ERROR })
+	const { configSource, projectContext } = setup()
+	configSource.put(TEST_CONFIG_PATH, "{ not a Config")
 
 	expect(await projectContext.resolve(TARGET)).toEqual({
 		ok: false,
@@ -88,21 +93,12 @@ test("reports a Config that does not validate", async () => {
 	})
 })
 
-test("treats every other Config status as an invalid Config", async () => {
-	const { configResolver, projectContext } = setup()
-
-	for (const status of [ConfigStatus.UNKNOWN, ConfigStatus.TOO_LARGE]) {
-		configResolver.set({ config: null, status })
-		expect(await projectContext.resolve(TARGET)).toEqual({
-			ok: false,
-			reason: "config-invalid",
-		})
-	}
-})
-
-test("treats a present status without a Config as an invalid Config", async () => {
-	const { configResolver, projectContext } = setup()
-	configResolver.set({ config: null, status: ConfigStatus.PRESENT })
+test("refuses a Config it could not classify at all", async () => {
+	// An unreachable repository with nothing cached to fall back on: the module
+	// cannot say the Config is missing, only that this Project has none. Every
+	// answer that is not "found and parsed" refuses the same way.
+	const { configSource, projectContext } = setup()
+	configSource.failNext(new Error("API rate limit exceeded"))
 
 	expect(await projectContext.resolve(TARGET)).toEqual({
 		ok: false,

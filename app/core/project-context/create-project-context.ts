@@ -1,7 +1,8 @@
 import { and, eq } from "drizzle-orm"
 import { project } from "@/db/schema/app-schema"
 import { ConfigStatus } from "@/db/types"
-import type { ConfigResolution, ConfigResolver } from "./config-resolver"
+import { type ConfigResolution, createConfigCache } from "./config-cache"
+import type { ConfigSource } from "./config-source"
 import type {
 	ProjectContextDatabase,
 	ProjectContextRefusal,
@@ -40,11 +41,12 @@ function refuseConfig(resolution: ConfigResolution): ProjectContextResult {
  * there is one place a future page can weaken it, and it is here.
  */
 export function createProjectContext(deps: {
-	configResolver: ConfigResolver
+	configSource: ConfigSource
 	db: ProjectContextDatabase
 	getSession: SessionGetter
 }) {
-	const { configResolver, db, getSession } = deps
+	const { configSource, db, getSession } = deps
+	const configCache = createConfigCache({ configSource, db })
 
 	async function resolve(target: {
 		name: string
@@ -66,7 +68,7 @@ export function createProjectContext(deps: {
 		if (!projectRow) return refuse("no-project")
 
 		const installationId = projectRow.githubInstallation.githubInstallationId
-		const resolution = await configResolver.resolve({
+		const resolution = await configCache.resolve(projectRow, {
 			installationId,
 			name,
 			owner,
