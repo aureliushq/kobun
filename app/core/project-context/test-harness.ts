@@ -13,7 +13,9 @@ import type {
 } from "./config-source"
 import { createProjectContext } from "./create-project-context"
 import type {
+	ProjectAccess,
 	ProjectContextDatabase,
+	ProjectContextOk,
 	ProjectSession,
 	SessionGetter,
 } from "./types"
@@ -75,6 +77,25 @@ export const TEST_CONFIG = (() => {
 	invariant(config, "the test Config fixture must be valid")
 	return config
 })()
+
+/**
+ * A resolved Project, as the translations above the resolver see one: only the
+ * shape matters, since the resolver's own tests cover its contents.
+ */
+export const TEST_ACCESS = {
+	installationId: TEST_INSTALLATION_ID,
+	name: TEST_NAME,
+	ok: true,
+	owner: TEST_OWNER,
+	projectRow: {},
+	session: { user: { id: TEST_USER_ID } },
+} as unknown as ProjectAccess
+
+/** The same Project, resolved by a caller that wanted its Config too. */
+export const TEST_CONTEXT: ProjectContextOk = {
+	...TEST_ACCESS,
+	config: TEST_CONFIG,
+}
 
 export interface FakeConfigSource extends ConfigSource {
 	/** Every read the module made, in order. */

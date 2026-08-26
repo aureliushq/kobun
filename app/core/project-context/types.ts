@@ -36,12 +36,11 @@ export type ProjectContextRefusal =
 	| "no-project"
 
 /**
- * Everything a content route needs before it can address any content: who the
- * user is, which Project this is, and what its Config declares. Repository-level
- * facts only — narrowing to a Collection or a Singleton is a separate helper.
+ * Who is asking and which Project they mean: the access question, answered
+ * without asking what the Project declares. Everything a caller needs to reach
+ * into the repository — and everything it needs to be allowed to.
  */
-export interface ProjectContextOk {
-	config: NormalizedConfig
+export interface ProjectAccess {
 	installationId: InstallationID
 	name: string
 	ok: true
@@ -50,17 +49,59 @@ export interface ProjectContextOk {
 	session: ProjectSession
 }
 
-export type ProjectContextResult =
-	| ProjectContextOk
-	| { ok: false; reason: ProjectContextRefusal }
+/**
+ * Everything a content route needs before it can address any content: the
+ * access above, plus what the Project's Config declares. Repository-level facts
+ * only — narrowing to a Collection or a Singleton is a separate helper.
+ */
+export interface ProjectContextOk extends ProjectAccess {
+	config: NormalizedConfig
+}
 
 /**
- * What a page loader holds after the wrapper has translated every refusal: the
- * context, plus the two request-scoped handles routes reach for afterwards. The
- * core resolver has `db` injected and never sees `env` at all; both are attached
- * out here, where a request actually exists.
+ * The other arm, named so the two can be spoken about apart. Not
+ * `ProjectContextRefusal`, which is the reason a context was refused rather
+ * than the refusal itself.
  */
-export interface PageContext extends ProjectContextOk {
+export interface RefusedProjectContext {
+	ok: false
+	reason: ProjectContextRefusal
+}
+
+export type ProjectContextResult = ProjectContextOk | RefusedProjectContext
+
+/** The same answer from a caller that skipped the Config. */
+export type ProjectAccessResult = ProjectAccess | RefusedProjectContext
+
+/** Which repository is being asked about. */
+export interface ProjectTarget {
+	name: string
+	owner: string
+}
+
+/**
+ * The one option the resolver takes. `{ config: false }` answers who is asking
+ * and which Project they mean, and stops: an asset request has no use for a
+ * Config, and past the cache's window resolving one would put a GitHub
+ * round-trip in front of a picture. The narrower success type is half the
+ * point — a Config nobody asked for is a Config nobody can read.
+ */
+export interface SkipConfig {
+	config: false
+}
+
+/**
+ * The two request-scoped handles routes reach for after a wrapper has answered.
+ * The core resolver has `db` injected and never sees `env` at all; both are
+ * attached out here, where a request actually exists.
+ */
+export interface RequestHandles {
 	db: ProjectContextDatabase
 	env: Env
 }
+
+/** What a page loader holds once every refusal has become a redirect. */
+export interface PageContext extends ProjectContextOk, RequestHandles {}
+
+/** What an API route holds once every refusal has become a status. */
+export interface ApiAccessContext extends ProjectAccess, RequestHandles {}

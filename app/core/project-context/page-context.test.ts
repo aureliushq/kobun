@@ -1,19 +1,8 @@
 import { expect, test } from "vitest"
 import { PATHS } from "@/ui/lib/constants"
 import { toPageContext } from "./page-context"
-import { catchResponse, TEST_CONFIG } from "./test-harness"
-import type { ProjectContextOk, ProjectContextRefusal } from "./types"
-
-/** Only the shape matters here; the resolver's own tests cover its contents. */
-const CONTEXT = {
-	config: TEST_CONFIG,
-	installationId: "1",
-	name: "blog",
-	ok: true,
-	owner: "acme",
-	projectRow: {},
-	session: { user: { id: "user-1" } },
-} as unknown as ProjectContextOk
+import { catchResponse, TEST_CONTEXT } from "./test-harness"
+import type { ProjectContextRefusal } from "./types"
 
 function redirectFor(reason: ProjectContextRefusal): Response {
 	return catchResponse(() => toPageContext({ ok: false, reason }))
@@ -38,5 +27,5 @@ test.each<ProjectContextRefusal>([
 })
 
 test("hands a resolved context straight through", () => {
-	expect(toPageContext(CONTEXT)).toBe(CONTEXT)
+	expect(toPageContext(TEST_CONTEXT)).toBe(TEST_CONTEXT)
 })

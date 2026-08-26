@@ -6,6 +6,7 @@ import {
 	getGithubFileContentConditional,
 	hasStatus,
 } from "@/github/octokit.server"
+import { toApiContext } from "./api-context"
 import type {
 	ConfigSource,
 	ConfigSourceRead,
@@ -14,11 +15,7 @@ import type {
 } from "./config-source"
 import { createProjectContext } from "./create-project-context"
 import { toPageContext } from "./page-context"
-import type {
-	PageContext,
-	ProjectContextDatabase,
-	ProjectContextResult,
-} from "./types"
+import type { ApiAccessContext, PageContext } from "./types"
 
 /**
  * What every route already receives. Typed structurally rather than off a
@@ -77,17 +74,11 @@ function createGithubConfigSource(env: Env): ConfigSource {
 /**
  * The module, wired to a request: the database off the router context, the
  * session off the request's headers, the Config off the Project row or, once
- * its window has closed, off GitHub. Every caller that needs its own failure
- * translation starts here — the API wrapper that owns the 401/404 half of the
- * map will be the second (#65).
+ * its window has closed, off GitHub. Every wrapper below starts here and asks
+ * its own question of what comes back — the module itself, rather than an
+ * answer already given, so that each keeps the type its question earns.
  */
-async function resolveProjectContextFromRequest(
-	args: ProjectContextArgs,
-): Promise<{
-	db: ProjectContextDatabase
-	env: Env
-	result: ProjectContextResult
-}> {
+function wireProjectContext(args: ProjectContextArgs) {
 	const { context, params, request } = args
 	const db = context.get(dbContext)
 	const env = context.get(envContext)
@@ -98,11 +89,12 @@ async function resolveProjectContextFromRequest(
 		getSession: () => getAuth(env).api.getSession({ headers: request.headers }),
 	})
 
-	const result = await projectContext.resolve({
-		name: params.name,
-		owner: params.owner,
-	})
-	return { db, env, result }
+	return {
+		db,
+		env,
+		projectContext,
+		target: { name: params.name, owner: params.owner },
+	}
 }
 
 /**
@@ -113,6 +105,22 @@ async function resolveProjectContextFromRequest(
 export async function requirePageContext(
 	args: ProjectContextArgs,
 ): Promise<PageContext> {
-	const { db, env, result } = await resolveProjectContextFromRequest(args)
+	const { db, env, projectContext, target } = wireProjectContext(args)
+	const result = await projectContext.resolve(target)
 	return { ...toPageContext(result), db, env }
+}
+
+/**
+ * The same access an API route can rely on, or the status that explains why it
+ * cannot have it — resolved without the Config, which is the whole reason this
+ * wrapper is not `requirePageContext` with a different translation. An asset
+ * request answers a picture: it must never wait on a Config revalidation, and
+ * it never reads a Config it did not wait for.
+ */
+export async function requireApiAccess(
+	args: ProjectContextArgs,
+): Promise<ApiAccessContext> {
+	const { db, env, projectContext, target } = wireProjectContext(args)
+	const result = await projectContext.resolve(target, { config: false })
+	return { ...toApiContext(result), db, env }
 }

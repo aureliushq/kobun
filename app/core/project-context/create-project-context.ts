@@ -4,13 +4,17 @@ import { ConfigStatus } from "@/db/types"
 import { type ConfigResolution, createConfigCache } from "./config-cache"
 import type { ConfigSource } from "./config-source"
 import type {
+	ProjectAccessResult,
 	ProjectContextDatabase,
 	ProjectContextRefusal,
 	ProjectContextResult,
+	ProjectTarget,
+	RefusedProjectContext,
 	SessionGetter,
+	SkipConfig,
 } from "./types"
 
-function refuse(reason: ProjectContextRefusal): ProjectContextResult {
+function refuse(reason: ProjectContextRefusal): RefusedProjectContext {
 	return { ok: false, reason }
 }
 
@@ -20,7 +24,7 @@ function refuse(reason: ProjectContextRefusal): ProjectContextResult {
  * keeps a browsable Project from ever being built over a Config that isn't
  * there.
  */
-function refuseConfig(resolution: ConfigResolution): ProjectContextResult {
+function refuseConfig(resolution: ConfigResolution): RefusedProjectContext {
 	return refuse(
 		resolution.status === ConfigStatus.MISSING
 			? "config-missing"
@@ -39,6 +43,10 @@ function refuseConfig(resolution: ConfigResolution): ProjectContextResult {
  * Ownership is a single scoped query. Expressing it in the `WHERE` clause rather
  * than by filtering a user's Projects in JavaScript is the point of the seam:
  * there is one place a future page can weaken it, and it is here.
+ *
+ * A caller with no use for a Config passes `{ config: false }` and is answered
+ * without one, in both senses: nothing is fetched, and nothing about a Config
+ * comes back.
  */
 export function createProjectContext(deps: {
 	configSource: ConfigSource
@@ -48,10 +56,15 @@ export function createProjectContext(deps: {
 	const { configSource, db, getSession } = deps
 	const configCache = createConfigCache({ configSource, db })
 
-	async function resolve(target: {
-		name: string
-		owner: string
-	}): Promise<ProjectContextResult> {
+	async function resolve(target: ProjectTarget): Promise<ProjectContextResult>
+	async function resolve(
+		target: ProjectTarget,
+		options: SkipConfig,
+	): Promise<ProjectAccessResult>
+	async function resolve(
+		target: ProjectTarget,
+		options?: SkipConfig,
+	): Promise<ProjectAccessResult | ProjectContextResult> {
 		const { name, owner } = target
 
 		const session = await getSession()
@@ -68,6 +81,19 @@ export function createProjectContext(deps: {
 		if (!projectRow) return refuse("no-project")
 
 		const installationId = projectRow.githubInstallation.githubInstallationId
+		const access = {
+			installationId,
+			name,
+			ok: true as const,
+			owner,
+			projectRow,
+			session,
+		}
+		// Not a shortcut past a check: everything that decides whether this user
+		// may read this repository has already been answered above. What is left
+		// is what the repository declares, and an asset request is not asking.
+		if (options?.config === false) return access
+
 		const resolution = await configCache.resolve(projectRow, {
 			installationId,
 			name,
@@ -75,15 +101,7 @@ export function createProjectContext(deps: {
 		})
 		if (!resolution.config) return refuseConfig(resolution)
 
-		return {
-			config: resolution.config,
-			installationId,
-			name,
-			ok: true,
-			owner,
-			projectRow,
-			session,
-		}
+		return { ...access, config: resolution.config }
 	}
 
 	return { resolve }

@@ -409,3 +409,28 @@ test("survives two loaders revalidating the same Project at once", async () => {
 	expect(row.configSha).toBe("sha-2")
 	expect(row.configStatus).toBe(ConfigStatus.PRESENT)
 })
+
+test("spends no read when the caller skipped the Config", async () => {
+	// The window has lapsed, so a caller that wanted a Config would revalidate.
+	// A page of a dozen images would revalidate a dozen times, in front of every
+	// one of them.
+	const { configSource, projectContext } = setup(cached())
+	vi.advanceTimersByTime(CONFIG_CACHE_TTL_MS)
+
+	expect(await projectContext.resolve(TARGET, { config: false })).toMatchObject(
+		{ ok: true },
+	)
+	expect(configSource.calls).toEqual([])
+})
+
+test("leaves the Project row alone when the caller skipped the Config", async () => {
+	// Not even the check time: a request that asked the repository nothing has
+	// learned nothing about when its Config was last seen.
+	const { projectContext, readProject } = setup(cached())
+	const before = readProject()
+	vi.advanceTimersByTime(CONFIG_CACHE_TTL_MS)
+
+	await projectContext.resolve(TARGET, { config: false })
+
+	expect(readProject()).toEqual(before)
+})

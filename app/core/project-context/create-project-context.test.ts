@@ -125,3 +125,63 @@ test("resolves the user, the Project, the installation, and the Config", async (
 		TEST_INSTALLATION_ID,
 	)
 })
+
+test("resolves the user, the Project, and the installation without asking for a Config", async () => {
+	const { configSource, projectContext } = setup()
+
+	const result = await projectContext.resolve(TARGET, { config: false })
+
+	expect(result).toMatchObject({
+		installationId: TEST_INSTALLATION_ID,
+		name: TEST_NAME,
+		ok: true,
+		owner: TEST_OWNER,
+		session: { user: { id: TEST_USER_ID } },
+	})
+	expect(result).toHaveProperty("projectRow.id", "project-1")
+	expect(result).not.toHaveProperty("config")
+	expect(configSource.calls).toEqual([])
+})
+
+test("still resolves a Project whose repository has no Config when the Config is skipped", async () => {
+	// An image is servable from a repository whose Config was never written, or
+	// was deleted this morning. Nothing about the picture depends on it.
+	const { configSource, projectContext } = setup()
+	configSource.remove(TEST_CONFIG_PATH)
+
+	expect(await projectContext.resolve(TARGET, { config: false })).toMatchObject(
+		{ ok: true },
+	)
+	expect(configSource.calls).toEqual([])
+})
+
+test("still resolves a Project whose Config does not validate when the Config is skipped", async () => {
+	const { configSource, projectContext } = setup()
+	configSource.put(TEST_CONFIG_PATH, "{ not a Config")
+
+	expect(await projectContext.resolve(TARGET, { config: false })).toMatchObject(
+		{ ok: true },
+	)
+	expect(configSource.calls).toEqual([])
+})
+
+test("refuses an anonymous visitor when the Config is skipped", async () => {
+	// Skipping the Config skips a question, never a check.
+	const { projectContext, setSession } = setup()
+	setSession(null)
+
+	expect(await projectContext.resolve(TARGET, { config: false })).toEqual({
+		ok: false,
+		reason: "anonymous",
+	})
+})
+
+test("refuses a repository the user owns no Project for when the Config is skipped", async () => {
+	const { projectContext } = setup()
+	const other = { name: "other", owner: TEST_OWNER }
+
+	expect(await projectContext.resolve(other, { config: false })).toEqual({
+		ok: false,
+		reason: "no-project",
+	})
+})
