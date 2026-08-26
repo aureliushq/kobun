@@ -1,5 +1,5 @@
 import { expect, test } from "vitest"
-import { getDraftEditorPath } from "./draft-paths"
+import { getCollectionPath, getDraftEditorPath } from "./draft-paths"
 
 const PROJECT = { repoName: "website", repoOwnerLogin: "acme" }
 
@@ -29,4 +29,10 @@ test("addresses a source-backed draft by the item it belongs to", () => {
 			PROJECT,
 		),
 	).toBe("/acme/website/collections/posts/editor/item/hello%20world")
+})
+
+test("addresses the collection a draft belongs to", () => {
+	expect(getCollectionPath(PROJECT, "posts")).toBe(
+		"/acme/website/collections/posts",
+	)
 })

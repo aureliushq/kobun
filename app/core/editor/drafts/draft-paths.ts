@@ -1,4 +1,4 @@
-/** Where the editor for a collection lives, for one project. */
+/** Where a collection and its editor live, for one project. */
 interface ProjectLocation {
 	repoName: string
 	repoOwnerLogin: string
@@ -12,15 +12,23 @@ interface DraftLocation {
 	sourcePath: string | null
 }
 
+/** The Collection's own page: the list of items it holds. */
+export function getCollectionPath(
+	project: ProjectLocation,
+	collectionSlug: string,
+) {
+	return `/${project.repoOwnerLogin}/${project.repoName}/collections/${collectionSlug}`
+}
+
 function collectionEditorPath(
 	project: ProjectLocation,
 	collectionSlug: string,
 ) {
-	return `/${project.repoOwnerLogin}/${project.repoName}/collections/${collectionSlug}/editor`
+	return `${getCollectionPath(project, collectionSlug)}/editor`
 }
 
 /** The editor for an item the repository already holds. */
-export function getCollectionItemEditorPath(
+function getCollectionItemEditorPath(
 	project: ProjectLocation,
 	collectionSlug: string,
 	itemSlug: string,

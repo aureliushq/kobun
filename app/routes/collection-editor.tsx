@@ -17,7 +17,7 @@ import { CollectionTitleField } from "@/core/editor/collection-title-field"
 import {
 	type DraftRefusal,
 	type DraftTarget,
-	getCollectionItemEditorPath,
+	getCollectionPath,
 	type SaveInput,
 } from "@/core/editor/drafts"
 import { createDrafts } from "@/core/editor/drafts/create-drafts.server"
@@ -274,10 +274,11 @@ export async function action(args: Route.ActionArgs) {
 	const published = await drafts.publish(input)
 	if (!published.ok) return draftRefusalResponse(published)
 
-	const editorPath = getCollectionItemEditorPath(
+	// Publishing ends the editing session: the writer goes back to the list they
+	// came from, whichever way the publish landed.
+	const collectionPath = getCollectionPath(
 		{ repoName: resolved.name, repoOwnerLogin: resolved.owner },
 		resolved.collectionSlug,
-		published.itemSlug,
 	)
 	if (published.outcome === "matches-source") {
 		return Response.json({
@@ -285,7 +286,7 @@ export async function action(args: Route.ActionArgs) {
 			commitSha: null,
 			draftDeleted: true,
 			draftId: published.draftId,
-			editorPath,
+			collectionPath,
 		})
 	}
 	if (published.outcome === "published-unsynced") {
@@ -294,7 +295,7 @@ export async function action(args: Route.ActionArgs) {
 			commitSha: published.commitSha,
 			draftId: published.draftId,
 			draftSynced: false,
-			editorPath,
+			collectionPath,
 		})
 	}
 	// A publish that reached the repository and reconciled its Draft. The two
@@ -318,7 +319,7 @@ export async function action(args: Route.ActionArgs) {
 		draftDeleted: published.draftDeleted,
 		draftId: published.draftId,
 		revision: published.revision,
-		editorPath,
+		collectionPath,
 	})
 }
 
@@ -389,7 +390,7 @@ export default function CollectionEditor({ loaderData }: Route.ComponentProps) {
 						draftDeleted?: boolean
 						error?: string
 						revision?: number | null
-						editorPath?: string
+						collectionPath?: string
 					} = {}
 					try {
 						result = JSON.parse(responseText) as typeof result
@@ -409,8 +410,11 @@ export default function CollectionEditor({ loaderData }: Route.ComponentProps) {
 						canonicalMetadata(fieldsSnapshot)
 					)
 						setMetadataDirty(false)
-					if (intent === EditorActionIntents.PUBLISH && result.editorPath)
-						navigate(result.editorPath, { replace: true })
+					// Awaited so the editor stays in its publishing state until the
+					// collection page has actually loaded, rather than sitting idle and
+					// re-clickable while its loader runs.
+					if (intent === EditorActionIntents.PUBLISH && result.collectionPath)
+						await navigate(result.collectionPath, { replace: true })
 				})
 			mutationQueueRef.current = operation.catch(() => undefined)
 			return operation

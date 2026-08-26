@@ -6,6 +6,7 @@ import invariant from "tiny-invariant"
 import { getAuth } from "@/auth/auth.server"
 import { fetchAndParseConfig } from "@/config/github.server"
 import { envContext } from "@/core/context"
+import { getCollectionPath } from "@/core/editor/drafts"
 import { dbContext } from "@/db/context"
 import { project } from "@/db/schema/app-schema"
 import { Button } from "@/ui/components/base/button"
@@ -63,7 +64,10 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
 
 	return {
 		parentLabel: collection.label,
-		parentPath: `/${owner}/${name}/collections/${collection_slug}`,
+		parentPath: getCollectionPath(
+			{ repoName: name, repoOwnerLogin: owner },
+			collection_slug,
+		),
 	}
 }
 
