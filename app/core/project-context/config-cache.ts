@@ -58,11 +58,12 @@ function storedConfig(configData: string | null): NormalizedConfig | null {
 /**
  * What the row can be served as, or null when it cannot be served at all.
  *
- * Unservable is not the same as stale: connecting a repository stamps a fresh
- * check time with a `PRESENT` status and no parsed Config (`setup.tsx`), and a
- * status this module never wrote says nothing about what is in the repository.
- * Either way there is nothing to fall back on, which is also why such a row may
- * never be revalidated conditionally.
+ * Unservable is not the same as stale: a status this module never wrote says
+ * nothing about what is in the repository — a Project between being connected
+ * and its first sync carries `UNKNOWN`, and one connected before setup learned
+ * to sync carries a fresh check time over an empty Config (ADR-0003). Either
+ * way there is nothing to fall back on, which is also why such a row may never
+ * be revalidated conditionally.
  */
 function isConfigPath(path: string) {
 	return CONFIG_PATHS.includes(path)

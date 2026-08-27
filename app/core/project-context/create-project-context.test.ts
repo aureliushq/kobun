@@ -1,4 +1,5 @@
 import { afterEach, expect, test } from "vitest"
+import { createProjectContext } from "./create-project-context"
 import {
 	createProjectContextTestHarness,
 	type ProjectContextTestHarness,
@@ -184,4 +185,24 @@ test("refuses a repository the user owns no Project for when the Config is skipp
 		ok: false,
 		reason: "no-project",
 	})
+})
+
+test("hands back the session it was given, whole", async () => {
+	// The module reads an id off the session and never looks again — so what a
+	// caller put in is what it gets out, including the fields the module has no
+	// name for. Reading `name` off the answer is the assertion: it compiles.
+	const { configSource, db } = setup()
+	const session = {
+		user: { email: "writer@example.com", id: TEST_USER_ID, name: "Writer" },
+	}
+	const projectContext = createProjectContext({
+		configSource,
+		db,
+		getSession: async () => session,
+	})
+
+	const result = await projectContext.resolve(TARGET)
+
+	expect(result.ok && result.session.user.name).toBe("Writer")
+	expect(result.ok && result.session).toBe(session)
 })

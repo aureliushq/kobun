@@ -12,16 +12,20 @@ import type { InstallationID } from "@/types/github"
 export type ProjectContextDatabase = DrizzleD1Database<typeof schema>
 
 /**
- * The session, as the module sees it: someone with an id to scope a Project
- * query by. Everything else an authentication provider knows about a user is
- * the caller's business, so nothing here names one.
+ * The least a session can be and still answer the module's only question about
+ * one: an id to scope a Project query by. Everything else an authentication
+ * provider knows about a user is the caller's business — which is why the types
+ * below are generic over the session rather than naming its fields. A caller
+ * hands in whatever its provider returns and gets the same thing back, with the
+ * module having read nothing from it but the id.
  */
 export interface ProjectSession {
 	user: { id: string }
 }
 
 /** Who is asking. Resolves to null for an anonymous visitor. */
-export type SessionGetter = () => Promise<ProjectSession | null>
+export type SessionGetter<TSession extends ProjectSession = ProjectSession> =
+	() => Promise<TSession | null>
 
 /**
  * Why a Project Context could not be resolved. Each reason is a normal outcome
@@ -40,13 +44,15 @@ export type ProjectContextRefusal =
  * without asking what the Project declares. Everything a caller needs to reach
  * into the repository — and everything it needs to be allowed to.
  */
-export interface ProjectAccess {
+export interface ProjectAccess<
+	TSession extends ProjectSession = ProjectSession,
+> {
 	installationId: InstallationID
 	name: string
 	ok: true
 	owner: string
 	projectRow: ProjectWithGithubInstallation
-	session: ProjectSession
+	session: TSession
 }
 
 /**
@@ -54,7 +60,9 @@ export interface ProjectAccess {
  * access above, plus what the Project's Config declares. Repository-level facts
  * only — narrowing to a Collection or a Singleton is a separate helper.
  */
-export interface ProjectContextOk extends ProjectAccess {
+export interface ProjectContextOk<
+	TSession extends ProjectSession = ProjectSession,
+> extends ProjectAccess<TSession> {
 	config: NormalizedConfig
 }
 
@@ -68,10 +76,14 @@ export interface RefusedProjectContext {
 	reason: ProjectContextRefusal
 }
 
-export type ProjectContextResult = ProjectContextOk | RefusedProjectContext
+export type ProjectContextResult<
+	TSession extends ProjectSession = ProjectSession,
+> = ProjectContextOk<TSession> | RefusedProjectContext
 
 /** The same answer from a caller that skipped the Config. */
-export type ProjectAccessResult = ProjectAccess | RefusedProjectContext
+export type ProjectAccessResult<
+	TSession extends ProjectSession = ProjectSession,
+> = ProjectAccess<TSession> | RefusedProjectContext
 
 /** Which repository is being asked about. */
 export interface ProjectTarget {
@@ -101,7 +113,12 @@ export interface RequestHandles {
 }
 
 /** What a page loader holds once every refusal has become a redirect. */
-export interface PageContext extends ProjectContextOk, RequestHandles {}
+export interface PageContext<TSession extends ProjectSession = ProjectSession>
+	extends ProjectContextOk<TSession>,
+		RequestHandles {}
 
 /** What an API route holds once every refusal has become a status. */
-export interface ApiAccessContext extends ProjectAccess, RequestHandles {}
+export interface ApiAccessContext<
+	TSession extends ProjectSession = ProjectSession,
+> extends ProjectAccess<TSession>,
+		RequestHandles {}

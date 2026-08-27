@@ -391,8 +391,16 @@ test("spends no read on a stored path no Config lives at", async () => {
 
 test("survives two loaders revalidating the same Project at once", async () => {
 	// A layout and the page inside it can cross the window together. Both write
-	// the same thing, so last-write-wins leaves the row coherent either way.
-	const { configSource, projectContext, readProject } = setup(cached())
+	// the same thing, so last-write-wins leaves the row coherent either way —
+	// and neither reaches the columns a dashboard sync running alongside them
+	// owns, so the race cannot cost that sync its answer.
+	const { configSource, projectContext, readProject } = setup(
+		cached({
+			configError: '[{"code":"stale"}]',
+			status: ProjectStatus.DISCONNECTED,
+		}),
+	)
+	const before = readProject()
 	configSource.put(TEST_CONFIG_PATH, TEST_CONFIG_JSON)
 	vi.advanceTimersByTime(CONFIG_CACHE_TTL_MS)
 
@@ -408,6 +416,9 @@ test("survives two loaders revalidating the same Project at once", async () => {
 	expect(row.configEtag).toBe('"etag-2"')
 	expect(row.configSha).toBe("sha-2")
 	expect(row.configStatus).toBe(ConfigStatus.PRESENT)
+	expect(row.configError).toBe('[{"code":"stale"}]')
+	expect(row.status).toBe(ProjectStatus.DISCONNECTED)
+	expect(row.updatedAt).toEqual(before.updatedAt)
 })
 
 test("spends no read when the caller skipped the Config", async () => {

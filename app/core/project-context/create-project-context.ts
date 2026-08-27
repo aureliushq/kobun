@@ -8,6 +8,7 @@ import type {
 	ProjectContextDatabase,
 	ProjectContextRefusal,
 	ProjectContextResult,
+	ProjectSession,
 	ProjectTarget,
 	RefusedProjectContext,
 	SessionGetter,
@@ -47,24 +48,33 @@ function refuseConfig(resolution: ConfigResolution): RefusedProjectContext {
  * A caller with no use for a Config passes `{ config: false }` and is answered
  * without one, in both senses: nothing is fetched, and nothing about a Config
  * comes back.
+ *
+ * The session is whatever the injected getter returns, carried through
+ * untouched: the module reads an id off it and never looks again, so a caller
+ * that needs a display name back does not have to ask twice for the session it
+ * already handed over.
  */
-export function createProjectContext(deps: {
+export function createProjectContext<
+	TSession extends ProjectSession = ProjectSession,
+>(deps: {
 	configSource: ConfigSource
 	db: ProjectContextDatabase
-	getSession: SessionGetter
+	getSession: SessionGetter<TSession>
 }) {
 	const { configSource, db, getSession } = deps
 	const configCache = createConfigCache({ configSource, db })
 
-	async function resolve(target: ProjectTarget): Promise<ProjectContextResult>
+	async function resolve(
+		target: ProjectTarget,
+	): Promise<ProjectContextResult<TSession>>
 	async function resolve(
 		target: ProjectTarget,
 		options: SkipConfig,
-	): Promise<ProjectAccessResult>
+	): Promise<ProjectAccessResult<TSession>>
 	async function resolve(
 		target: ProjectTarget,
 		options?: SkipConfig,
-	): Promise<ProjectAccessResult | ProjectContextResult> {
+	): Promise<ProjectAccessResult<TSession> | ProjectContextResult<TSession>> {
 		const { name, owner } = target
 
 		const session = await getSession()

@@ -71,6 +71,18 @@ function createGithubConfigSource(env: Env): ConfigSource {
 	}
 }
 
+/** Named so the type below can be read off it rather than spelled out. */
+function readSession(env: Env, request: Request) {
+	return getAuth(env).api.getSession({ headers: request.headers })
+}
+
+/**
+ * The session as this application's authentication provider hands it over. The
+ * module only ever reads an id off it, but it gives back what it was given, so
+ * a loader that also wants a display name has it without asking twice.
+ */
+type AuthSession = NonNullable<Awaited<ReturnType<typeof readSession>>>
+
 /**
  * The module, wired to a request: the database off the router context, the
  * session off the request's headers, the Config off the Project row or, once
@@ -86,7 +98,7 @@ function wireProjectContext(args: ProjectContextArgs) {
 	const projectContext = createProjectContext({
 		configSource: createGithubConfigSource(env),
 		db,
-		getSession: () => getAuth(env).api.getSession({ headers: request.headers }),
+		getSession: () => readSession(env, request),
 	})
 
 	return {
@@ -104,7 +116,7 @@ function wireProjectContext(args: ProjectContextArgs) {
  */
 export async function requirePageContext(
 	args: ProjectContextArgs,
-): Promise<PageContext> {
+): Promise<PageContext<AuthSession>> {
 	const { db, env, projectContext, target } = wireProjectContext(args)
 	const result = await projectContext.resolve(target)
 	return { ...toPageContext(result), db, env }
@@ -119,7 +131,7 @@ export async function requirePageContext(
  */
 export async function requireApiAccess(
 	args: ProjectContextArgs,
-): Promise<ApiAccessContext> {
+): Promise<ApiAccessContext<AuthSession>> {
 	const { db, env, projectContext, target } = wireProjectContext(args)
 	const result = await projectContext.resolve(target, { config: false })
 	return { ...toApiContext(result), db, env }

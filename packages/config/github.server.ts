@@ -97,7 +97,7 @@ export const syncProjectConfig = async (
 				configResult.errors.length > 0
 					? JSON.stringify(configResult.errors)
 					: "",
-			configPath: configResult.filePath ?? ".kobun.json",
+			configPath: configResult.filePath ?? CONFIG_PATHS[0],
 			configSha: configResult.sha,
 			configStatus,
 			status: ProjectStatus.ACTIVE,

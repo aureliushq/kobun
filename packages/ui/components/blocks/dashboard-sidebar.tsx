@@ -11,7 +11,6 @@ import {
 } from "lucide-react"
 import { useState } from "react"
 import { Form, Link, useLocation } from "react-router"
-import invariant from "tiny-invariant"
 import type { NormalizedConfig } from "@/config"
 import type { ProjectWithGithubInstallation } from "@/db/types"
 import {
@@ -59,12 +58,10 @@ const DashboardSidebar = ({
 	versionInfo,
 }: {
 	activeProject: ProjectWithGithubInstallation
-	config: NormalizedConfig | null
+	config: NormalizedConfig
 	projects: ProjectWithGithubInstallation[]
 	versionInfo: VersionInfo
 }) => {
-	invariant(config, "config is required")
-
 	const { isMobile } = useSidebar()
 	const [aboutOpen, setAboutOpen] = useState(false)
 	const basePath = ""
