@@ -21,7 +21,9 @@ export function CollectionTitleField({
 	disabled,
 	onChange,
 	onCommit,
-	placeholder,
+	// A schema is free to name the heading; most do not, and an untitled item
+	// still needs something in the field to write over.
+	placeholder = "Untitled",
 	value,
 }: CollectionTitleFieldProps) {
 	const focusOnMount = useCallback((node: HTMLTextAreaElement | null) => {

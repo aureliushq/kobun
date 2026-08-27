@@ -30,6 +30,17 @@ describe("<CollectionTitleField />", () => {
 		expect(field.selectionEnd).toBe("An existing title".length)
 	})
 
+	it("falls back to a placeholder when the schema names none", () => {
+		expect(renderField().field).toHaveAttribute("placeholder", "Untitled")
+	})
+
+	it("prefers the placeholder the schema names", () => {
+		expect(renderField({ placeholder: "Post title" }).field).toHaveAttribute(
+			"placeholder",
+			"Post title",
+		)
+	})
+
 	it("commits on Enter instead of inserting a newline", async () => {
 		const user = userEvent.setup()
 		const { field, onChange, onCommit } = renderField({ value: "Title" })

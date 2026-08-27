@@ -24,6 +24,22 @@ describe("RichTextEditor interactions", () => {
 		expect(screen.getByText("formatted").tagName).toBe("STRONG")
 	})
 
+	it("shows a placeholder in an empty document", async () => {
+		const { container } = render(
+			<RichTextEditor dragHandle={false} placeholder="Start writing..." />,
+		)
+
+		// Empty Markdown parses to a document with no nodes, so the paragraph
+		// carrying the placeholder has to exist for anything to show.
+		const paragraph = await waitFor(() => {
+			const node = container.querySelector(".ProseMirror > p")
+			expect(node).not.toBeNull()
+			return node as HTMLElement
+		})
+
+		expect(paragraph).toHaveAttribute("data-placeholder", "Start writing...")
+	})
+
 	it("opens and filters the slash menu as a query is typed", async () => {
 		const ref = createRef<EditorRefApi>()
 		render(<RichTextEditor ref={ref} dragHandle={false} />)
