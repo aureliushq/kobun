@@ -1,6 +1,4 @@
-import { usePostHog } from "@posthog/react"
 import { eq } from "drizzle-orm"
-import { useEffect } from "react"
 import { Outlet, redirect } from "react-router"
 import { getAuth } from "@/auth/auth.server"
 import { envContext } from "@/core/context"
@@ -105,15 +103,6 @@ export async function action({ context, request }: Route.ActionArgs) {
 
 const DashboardLayout = ({ loaderData }: Route.ComponentProps) => {
 	const config = loaderData?.config
-	const posthog = usePostHog()
-	const user = loaderData?.user
-
-	useEffect(() => {
-		if (user) {
-			posthog?.identify(user.id, { name: user.name })
-		}
-	}, [user, posthog])
-
 	return (
 		<SidebarProvider>
 			<DashboardSidebar

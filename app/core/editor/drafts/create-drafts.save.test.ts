@@ -208,6 +208,80 @@ test("reports not-found when a new item's draft is gone", async () => {
 	expect(result).toEqual({ code: "not-found", ok: false })
 })
 
+test("mints a new item's draft on its first save", async () => {
+	const { drafts, projectId } = setup()
+
+	const result = await drafts.save(saveNewItem(null))
+
+	expect(result).toMatchObject({ ok: true, outcome: "saved" })
+	const rows = await harness.db.select().from(editorDraft)
+	expect(rows).toHaveLength(1)
+	expect(rows[0]).toMatchObject({
+		collectionSlug: "posts",
+		itemSlug: null,
+		markdown: "Draft body",
+		metadata: JSON.stringify(FIELDS),
+		projectId,
+		// Never published, so Dirty from the moment it exists.
+		publishedRevision: null,
+		revision: 1,
+		sourcePath: null,
+		sourceSha: null,
+	})
+})
+
+test("keeps no draft for a new item nobody has typed into", async () => {
+	const { drafts } = setup()
+
+	const result = await drafts.save(
+		saveNewItem(null, { fields: { slug: "", title: "" }, markdown: "" }),
+	)
+
+	expect(result).toEqual({
+		draftId: null,
+		ok: true,
+		outcome: "unwritten",
+		revision: null,
+	})
+	expect(await harness.db.select().from(editorDraft)).toEqual([])
+})
+
+test("counts fields the editor left out as unwritten", async () => {
+	const { drafts } = setup()
+
+	const result = await drafts.save(
+		saveNewItem(null, { fields: {}, markdown: "   \n" }),
+	)
+
+	expect(result).toMatchObject({ ok: true, outcome: "unwritten" })
+	expect(await harness.db.select().from(editorDraft)).toEqual([])
+})
+
+test("mints a new item's draft for a title typed with no body", async () => {
+	const { drafts } = setup()
+
+	const result = await drafts.save(
+		saveNewItem(null, {
+			fields: { slug: "hello", title: "Hello" },
+			markdown: "",
+		}),
+	)
+
+	expect(result).toMatchObject({ ok: true, outcome: "saved" })
+	const rows = await harness.db.select().from(editorDraft)
+	expect(rows).toHaveLength(1)
+	expect(rows[0]).toMatchObject({ markdown: "", revision: 1 })
+})
+
+test("refuses a first save of a new item that expects a revision", async () => {
+	const { drafts } = setup()
+
+	const result = await drafts.save(saveNewItem(null, { expectedRevision: 0 }))
+
+	expect(result).toEqual({ code: "revision-conflict", ok: false })
+	expect(await harness.db.select().from(editorDraft)).toEqual([])
+})
+
 test("saves a new item's draft by id", async () => {
 	const { drafts } = setup()
 	const seeded = harness.seedDraft({ markdown: "", revision: 0 })

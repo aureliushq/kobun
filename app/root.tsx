@@ -1,6 +1,7 @@
 // biome-ignore-all lint/security/noDangerouslySetInnerHtml: it's fine
 
 import { usePostHog } from "@posthog/react"
+import { useEffect, useRef } from "react"
 import {
 	isRouteErrorResponse,
 	Links,
@@ -12,6 +13,8 @@ import {
 	useRouteLoaderData,
 } from "react-router"
 
+import { getAuth } from "@/auth/auth.server"
+import { envContext } from "@/core/context"
 import { ThemeContext } from "@/ui/hooks/use-theme"
 import { getThemeFromRequest, type Theme } from "@/ui/theme.server"
 import type { Route } from "./+types/root"
@@ -42,9 +45,12 @@ export function meta() {
 	]
 }
 
-export async function loader({ request }: Route.LoaderArgs) {
+export async function loader({ context, request }: Route.LoaderArgs) {
 	const theme = getThemeFromRequest(request)
-	return { theme }
+	const session = await getAuth(context.get(envContext)).api.getSession({
+		headers: request.headers,
+	})
+	return { theme, user: session?.user ?? null }
 }
 
 function getThemeClass(theme: Theme) {
@@ -94,7 +100,17 @@ export function Layout({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
-	const { theme } = useLoaderData<typeof loader>()
+	const { theme, user } = useLoaderData<typeof loader>()
+	const posthog = usePostHog()
+	const identifiedUserId = useRef<string | null>(null)
+
+	useEffect(() => {
+		if (user && identifiedUserId.current !== user.id) {
+			posthog?.identify(user.id, { name: user.name, email: user.email })
+			identifiedUserId.current = user.id
+		}
+	}, [posthog, user])
+
 	return (
 		<ThemeContext.Provider value={{ theme }}>
 			<Outlet />

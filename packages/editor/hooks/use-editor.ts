@@ -4,6 +4,14 @@ import { getEditorExtensions } from "../extensions"
 import type { SlashCommandItem } from "../extensions/slash-commands/extension"
 import type { ImageUploadAdapter } from "../types"
 
+/**
+ * Parsing empty Markdown yields a document with no nodes at all, which leaves
+ * nothing on screen and nothing for the placeholder decoration to attach to.
+ * Non-string content is always read as JSON, so this hands the editor a single
+ * empty paragraph instead.
+ */
+const EMPTY_DOCUMENT = { type: "doc", content: [{ type: "paragraph" }] }
+
 interface UseEditorOptions {
 	imageUpload?: ImageUploadAdapter
 	initialContent?: string
@@ -24,7 +32,7 @@ export function useEditor(options: UseEditorOptions): Editor | null {
 	} = options
 
 	const editor = useTiptapEditor({
-		content: initialContent ?? "",
+		content: initialContent?.trim() ? initialContent : EMPTY_DOCUMENT,
 		contentType: "markdown",
 		immediatelyRender: false,
 		editable: !readOnly,

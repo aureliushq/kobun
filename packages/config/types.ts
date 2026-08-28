@@ -4,6 +4,7 @@ import type {
 	booleanFieldSchema,
 	collectionSchema,
 	dateFieldSchema,
+	datetimeFieldSchema,
 	documentFieldSchema,
 	featureSchema,
 	fieldSchema,
@@ -22,6 +23,7 @@ import type {
 export type ArrayField = z.infer<typeof arrayFieldSchema>
 export type BooleanField = z.infer<typeof booleanFieldSchema>
 export type DateField = z.infer<typeof dateFieldSchema>
+export type DatetimeField = z.infer<typeof datetimeFieldSchema>
 export type DocumentField = z.infer<typeof documentFieldSchema>
 export type ImageField = z.infer<typeof imageFieldSchema>
 export type MultiSelectField = z.infer<typeof multiSelectFieldSchema>

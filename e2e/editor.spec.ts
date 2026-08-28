@@ -87,3 +87,21 @@ test("uploads an image through the slash command adapter", async ({ page }) => {
 		"![photo.png](/mock-upload.png)",
 	)
 })
+
+test("shows the bubble menu only for a text selection", async ({ page }) => {
+	const menu = page.getByTestId("editor-bubble-menu")
+	await expect(menu).toBeHidden()
+
+	const editor = page.locator(".ProseMirror")
+	await editor.pressSequentially("hello")
+	await editor.press("ControlOrMeta+a")
+
+	await expect(menu).toBeVisible()
+})
+
+test("shows a placeholder in an empty document", async ({ page }) => {
+	await expect(page.locator(".ProseMirror > p")).toHaveAttribute(
+		"data-placeholder",
+		"Press '/' for commands...",
+	)
+})

@@ -1,5 +1,5 @@
 import { Accordion as AccordionPrimitive } from "@base-ui/react/accordion"
-import { formatDistanceToNow } from "date-fns"
+import { format, formatDistanceToNow } from "date-fns"
 import { ChevronDown, FileText } from "lucide-react"
 import { Link, useParams } from "react-router"
 import { parseDocument } from "@/core/content/document.server"
@@ -472,6 +472,8 @@ function FieldValue({
 			return <UrlValue value={value} />
 		case "date":
 			return <DateValue value={value} />
+		case "datetime":
+			return <DatetimeValue value={value} />
 		case "boolean":
 			return <BooleanValue value={value} />
 		case "image":
@@ -544,6 +546,13 @@ function InlineFieldValue({
 			})
 			return <span className="truncate">{formatted}</span>
 		}
+		case "datetime": {
+			const d = new Date(value as string | number | Date)
+			if (Number.isNaN(d.getTime())) {
+				return <span className="truncate">{String(value)}</span>
+			}
+			return <span className="truncate">{formatDatetime(d)}</span>
+		}
 		case "boolean": {
 			const truthy = value === true || value === "true"
 			return <span className="truncate">{truthy ? "True" : "False"}</span>
@@ -609,6 +618,22 @@ function DateValue({ value }: { value: unknown }) {
 			{formatDistanceToNow(d, { addSuffix: true })}
 		</span>
 	)
+}
+
+/**
+ * A date is shown as a distance from now; a datetime is not, because the time
+ * of day is the whole reason the type exists and "3 hours ago" hides it.
+ */
+function formatDatetime(date: Date) {
+	return format(date, "MMM d, yyyy, h:mm a")
+}
+
+function DatetimeValue({ value }: { value: unknown }) {
+	const d = new Date(value as string | number | Date)
+	if (Number.isNaN(d.getTime())) {
+		return <span className="text-muted-foreground italic">invalid date</span>
+	}
+	return <span title={String(value)}>{formatDatetime(d)}</span>
 }
 
 function BooleanValue({ value }: { value: unknown }) {
