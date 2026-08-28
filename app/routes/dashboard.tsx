@@ -7,7 +7,7 @@ import {
 } from "lucide-react"
 import { Link, redirect, useFetcher, useRouteLoaderData } from "react-router"
 import { getAuth } from "@/auth/auth.server"
-import type { ConfigFetchResult } from "@/config/github.server"
+import type { ConfigError } from "@/config/types"
 import type { loader as dashboardLayoutLoader } from "@/core/components/layouts/dashboard"
 import { envContext } from "@/core/context"
 import { getDraftEditorPath, isDraftDirty } from "@/core/editor/drafts"
@@ -160,11 +160,7 @@ function ValidationErrorAlert({
 	)
 }
 
-function ConfigAlert({
-	error,
-}: {
-	error: ConfigFetchResult["errors"][number]
-}) {
+function ConfigAlert({ error }: { error: ConfigError }) {
 	switch (error.code) {
 		case "no_config":
 			return <NoConfigAlert message={error.message} />
@@ -181,8 +177,10 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
 	)
 	const discardFetcher = useFetcher()
 	const user = layoutData?.user
-	const _config = layoutData?.configResult?.config
-	const errors = layoutData?.configResult?.errors ?? []
+	// A Config that declares at least one Collection is served even when parts of
+	// it did not validate, and it carries those errors with it — so the writer is
+	// told what kobun could not read without losing the pages it could.
+	const errors = layoutData?.config?.errors ?? []
 
 	return (
 		<>

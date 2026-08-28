@@ -1,13 +1,8 @@
-import { and, eq } from "drizzle-orm"
 import { PanelRightClose, PanelRightOpen } from "lucide-react"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { redirect, useLocation, useNavigate } from "react-router"
-import invariant from "tiny-invariant"
-import { getAuth } from "@/auth/auth.server"
-import { fetchAndParseConfig } from "@/config/github.server"
 import { useEditorLayoutControls } from "@/core/components/layouts/editor-context"
 import { canonicalMetadata } from "@/core/content"
-import { envContext } from "@/core/context"
 import {
 	type FieldRecord,
 	getCollectionEditorFields,
@@ -22,8 +17,8 @@ import {
 } from "@/core/editor/drafts"
 import { createDrafts } from "@/core/editor/drafts/create-drafts.server"
 import { createGithubSourceStore } from "@/core/editor/drafts/github-source-store.server"
-import { dbContext } from "@/db/context"
-import { project } from "@/db/schema/app-schema"
+import { requireCollection } from "@/core/project-context"
+import { requirePageContext } from "@/core/project-context/project-context.server"
 import { type AutosaveState, type EditorRefApi, RichTextEditor } from "@/editor"
 import { posthogContext } from "@/lib/posthog-middleware"
 import { Button } from "@/ui/components/base/button"
@@ -36,7 +31,6 @@ import {
 	SheetTitle,
 	SheetTrigger,
 } from "@/ui/components/base/sheet"
-import { PATHS } from "@/ui/lib/constants"
 import { EditorActionIntents } from "@/ui/lib/types"
 import type { Route } from "./+types/collection-editor"
 
@@ -46,56 +40,33 @@ const initialAutosaveState: AutosaveState = {
 	lastSavedAt: null,
 }
 
-async function resolveCollectionContext({
+/**
+ * The seam, plus what it deliberately leaves to its callers: which Collection
+ * this URL names, the editor's own rule that a rich-text editor may only open a
+ * document Format, and the SourceStore the drafts module commits through
+ * (ADR-0001). The md/mdx gate is an editor concern rather than a Project
+ * Context one, so it stays here, layered on top of the narrower.
+ */
+async function resolveCollectionEditorContext({
 	context,
 	params,
 	request,
 }: Route.LoaderArgs | Route.ActionArgs) {
-	const db = context.get(dbContext)
-	const env = context.get(envContext)
-	const auth = getAuth(env)
-	const session = await auth.api.getSession({ headers: request.headers })
-	if (!session?.user) throw redirect(PATHS.LOGIN)
-
-	const { owner, name, collection_slug } = params
-	invariant(
-		owner && name && collection_slug,
-		"collection route params are required",
-	)
-
-	const projectRow = await db.query.project.findFirst({
-		where: and(
-			eq(project.userId, session.user.id),
-			eq(project.repoOwnerLogin, owner),
-			eq(project.repoName, name),
-		),
-		with: { githubInstallation: true },
-	})
-	if (!projectRow) throw new Response("Not Found", { status: 404 })
-
-	const installationId = projectRow.githubInstallation.githubInstallationId
-	const configResult = await fetchAndParseConfig(
-		env,
-		installationId,
-		owner,
-		name,
-	)
-	const config = configResult.config
-	if (!config)
-		throw new Response("Invalid repository configuration", { status: 422 })
-	const collection = config.collections[collection_slug]
-	if (!collection) throw new Response("Collection not found", { status: 404 })
+	const { collection_slug } = params
+	const ctx = await requirePageContext({ context, params, request })
+	const { collection, directoryPath } = requireCollection(ctx, collection_slug)
 	if (collection.format !== "md" && collection.format !== "mdx") {
 		throw new Response("Rich text editing requires an md or mdx collection", {
 			status: 422,
 		})
 	}
 
+	const { db, env, installationId, name, owner, projectRow } = ctx
 	return {
 		collection,
 		collectionSlug: collection_slug,
 		db,
-		directoryPath: `${config.basePath}/${collection_slug}`.replace(/\/+/g, "/"),
+		directoryPath,
 		env,
 		installationId,
 		name,
@@ -106,7 +77,7 @@ async function resolveCollectionContext({
 }
 
 function createDraftsFor(
-	resolved: Awaited<ReturnType<typeof resolveCollectionContext>>,
+	resolved: Awaited<ReturnType<typeof resolveCollectionEditorContext>>,
 ) {
 	return createDrafts({
 		collection: resolved.collection,
@@ -176,7 +147,7 @@ function getDraftTarget(
 }
 
 export async function loader(args: Route.LoaderArgs) {
-	const resolved = await resolveCollectionContext(args)
+	const resolved = await resolveCollectionEditorContext(args)
 	const drafts = createDraftsFor(resolved)
 
 	// `args.url` is React Router's normalized URL (no `.data` suffix or
@@ -244,7 +215,7 @@ async function readActionPayload(
 }
 
 export async function action(args: Route.ActionArgs) {
-	const resolved = await resolveCollectionContext(args)
+	const resolved = await resolveCollectionEditorContext(args)
 	const payload = await readActionPayload(args.request)
 	const target = getDraftTarget(args.params, payload.draftId ?? null)
 	const drafts = createDraftsFor(resolved)

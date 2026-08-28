@@ -7,7 +7,7 @@ import { getGithubFileContent } from "@/github/octokit.server"
 import type { InstallationID } from "@/types/github"
 import { CONFIG_PATHS } from "@/ui/lib/constants"
 import type { ConfigError, NormalizedConfig } from "./types"
-import { validateConfig } from "./validator"
+import { configFileFormat, validateConfig } from "./validator"
 
 export type ConfigFetchResult = {
 	config: NormalizedConfig | null
@@ -38,8 +38,7 @@ export const fetchAndParseConfig = async (
 				repo,
 				path,
 			)
-			const format = path.endsWith(".json") ? "json" : "yaml"
-			const result = validateConfig(file.content, format)
+			const result = validateConfig(file.content, configFileFormat(path))
 			return { ...result, filePath: path, sha: file.sha }
 		} catch (error) {
 			if (error instanceof Error && "status" in error && error.status === 404) {
@@ -98,7 +97,7 @@ export const syncProjectConfig = async (
 				configResult.errors.length > 0
 					? JSON.stringify(configResult.errors)
 					: "",
-			configPath: configResult.filePath ?? ".kobun.json",
+			configPath: configResult.filePath ?? CONFIG_PATHS[0],
 			configSha: configResult.sha,
 			configStatus,
 			status: ProjectStatus.ACTIVE,

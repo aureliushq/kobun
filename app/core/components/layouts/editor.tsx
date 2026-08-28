@@ -1,65 +1,37 @@
-import { eq } from "drizzle-orm"
 import { ChevronLeft } from "lucide-react"
 import { useMemo, useState } from "react"
-import { Link, Outlet, redirect } from "react-router"
+import { Link, Outlet } from "react-router"
 import invariant from "tiny-invariant"
-import { getAuth } from "@/auth/auth.server"
-import { fetchAndParseConfig } from "@/config/github.server"
-import { envContext } from "@/core/context"
-import { dbContext } from "@/db/context"
-import { project } from "@/db/schema/app-schema"
+import { requireCollection, requireSingleton } from "@/core/project-context"
+import { requirePageContext } from "@/core/project-context/project-context.server"
 import { Button } from "@/ui/components/base/button"
-import { PATHS } from "@/ui/lib/constants"
 import type { Route } from "./+types/editor"
 import {
 	EditorLayoutContext,
 	type EditorLayoutControls,
 } from "./editor-context"
 
+/**
+ * The chrome around an editor answers to the same seam its content does, so the
+ * two can never disagree about whether this user may see this Project — and the
+ * header names the entity the URL names, rather than an entity the page below
+ * it turned out not to have.
+ */
 export async function loader({ context, params, request }: Route.LoaderArgs) {
-	const db = context.get(dbContext)
-	const env = context.get(envContext)
-
-	const auth = getAuth(env)
-	const session = await auth.api.getSession({ headers: request.headers })
-	if (!session?.user) throw redirect(PATHS.LOGIN)
-
-	const { owner, name, collection_slug, singleton_slug } = params
-	invariant(
-		collection_slug || singleton_slug,
-		"collection_slug or singleton_slug is required",
-	)
-
-	const projects = await db.query.project.findMany({
-		where: eq(project.userId, session.user.id),
-		with: { githubInstallation: true },
-	})
-	const activeProject = projects.find(
-		(p) => p.repoOwnerLogin === owner && p.repoName === name,
-	)
-	if (!activeProject) throw redirect(PATHS.SETUP)
-
-	const configResult = await fetchAndParseConfig(
-		env,
-		activeProject.githubInstallation.githubInstallationId,
-		owner,
-		name,
-	)
-	const config = configResult.config
-	invariant(config, "config is required")
+	const { collection_slug, name, owner, singleton_slug } = params
+	const ctx = await requirePageContext({ context, params, request })
 
 	if (singleton_slug) {
-		const singleton = config.singletons[singleton_slug]
-		invariant(singleton, "singleton is required")
+		const { singleton } = requireSingleton(ctx, singleton_slug)
 		return {
 			parentLabel: singleton.label,
 			parentPath: `/${owner}/${name}/singletons/${singleton_slug}`,
 		}
 	}
 
+	// Neither slug: the route matched a URL that names no entity to go back to.
 	invariant(collection_slug, "collection_slug is required")
-	const collection = config.collections[collection_slug]
-	invariant(collection, "collection is required")
+	const { collection } = requireCollection(ctx, collection_slug)
 
 	return {
 		parentLabel: collection.label,
