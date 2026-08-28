@@ -10,6 +10,7 @@ enum FieldType {
 	ARRAY = "array",
 	BOOLEAN = "boolean",
 	DATE = "date",
+	DATETIME = "datetime",
 	DOCUMENT = "document",
 	IMAGE = "image",
 	MULTI_SELECT = "multi_select",
@@ -45,6 +46,9 @@ type IField =
 	  })
 	| (BaseField & {
 			type: FieldType.DATE
+	  })
+	| (BaseField & {
+			type: FieldType.DATETIME
 	  })
 	| (BaseField & {
 			type: FieldType.DOCUMENT
@@ -102,6 +106,10 @@ export const dateFieldSchema = baseFieldSchema.extend({
 	type: z.literal(FieldType.DATE),
 })
 
+export const datetimeFieldSchema = baseFieldSchema.extend({
+	type: z.literal(FieldType.DATETIME),
+})
+
 export const documentFieldSchema = baseFieldSchema.extend({
 	type: z.literal(FieldType.DOCUMENT),
 })
@@ -146,6 +154,7 @@ export const fieldSchema: z.ZodType<IField> = z.lazy(() =>
 		arrayFieldSchema,
 		booleanFieldSchema,
 		dateFieldSchema,
+		datetimeFieldSchema,
 		documentFieldSchema,
 		imageFieldSchema,
 		multiSelectFieldSchema,

@@ -1,3 +1,4 @@
+import { isMatch, isValid, parseISO } from "date-fns"
 import type { Field } from "@/config/types"
 
 export type FieldRecord = Record<string, unknown>
@@ -16,6 +17,8 @@ function defaultForField(field: Field): unknown {
 			return applyMetadataDefaults(field.fields, {})
 		case "array":
 			return []
+		case "datetime":
+			return ""
 		default:
 			return ""
 	}
@@ -95,6 +98,18 @@ export function updateMetadataField(
 	return next
 }
 
+/**
+ * A datetime is an instant, so the zone is not optional: without it the same
+ * value means a different moment in every timezone. This is the one part of the
+ * contract date-fns cannot state for us — `parseISO` accepts a zoneless
+ * `2026-07-14T09:30:00`, and a `format` pattern strict enough to refuse it
+ * would need one variant per optional part (seconds, fractional seconds).
+ * Everything else about the shape is `parseISO`'s job.
+ */
+function hasExplicitZone(value: string) {
+	return /(Z|[+-]\d{2}:\d{2})$/.test(value)
+}
+
 function isEmpty(value: unknown) {
 	return (
 		value == null ||
@@ -133,11 +148,15 @@ function validateField(field: Field, value: unknown, path: string): string[] {
 				return [`${path} must be a valid URL`]
 			}
 		case "date":
-			return typeof value === "string" &&
-				/^\d{4}-\d{2}-\d{2}$/.test(value) &&
-				!Number.isNaN(Date.parse(value))
+			return typeof value === "string" && isMatch(value, "yyyy-MM-dd")
 				? []
 				: [`${path} must be a valid date`]
+		case "datetime":
+			return typeof value === "string" &&
+				hasExplicitZone(value) &&
+				isValid(parseISO(value))
+				? []
+				: [`${path} must be a valid date and time`]
 		case "object":
 			if (!value || typeof value !== "object" || Array.isArray(value))
 				return [`${path} must be an object`]
