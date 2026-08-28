@@ -86,6 +86,7 @@ export const project = sqliteTable(
 		configCheckedAt: integer("config_checked_at", { mode: "timestamp_ms" }),
 		configError: text("config_error"),
 		configData: text("config_data"),
+		configEtag: text("config_etag"),
 		configSha: text("config_sha"),
 		status: text("status").notNull(),
 		createdAt: integer("created_at", { mode: "timestamp_ms" })

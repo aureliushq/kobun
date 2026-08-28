@@ -10,7 +10,6 @@ import {
 	useReactTable,
 } from "@tanstack/react-table"
 import { formatDistanceToNow } from "date-fns"
-import { eq } from "drizzle-orm"
 import {
 	ArrowDown,
 	ArrowUp,
@@ -21,19 +20,15 @@ import {
 	ChevronsUpDown,
 } from "lucide-react"
 import { useMemo, useState } from "react"
-import { Link, redirect, useParams } from "react-router"
-import invariant from "tiny-invariant"
-import { getAuth } from "@/auth/auth.server"
-import { fetchAndParseConfig } from "@/config/github.server"
+import { Link, useParams } from "react-router"
 import { parseDocument } from "@/core/content/document.server"
-import { envContext } from "@/core/context"
 import {
 	collectionFileFormat,
 	isMarkdownCollectionFile,
 	type RepositoryCollectionFile,
 } from "@/core/editor/collection-items.server"
-import { dbContext } from "@/db/context"
-import { project } from "@/db/schema/app-schema"
+import { requireCollection } from "@/core/project-context"
+import { requirePageContext } from "@/core/project-context/project-context.server"
 import { listGithubDirectoryFiles } from "@/github/octokit.server"
 import { Badge } from "@/ui/components/base/badge"
 import { Button } from "@/ui/components/base/button"
@@ -54,7 +49,6 @@ import {
 	TableRow,
 } from "@/ui/components/base/table"
 import { H2 } from "@/ui/components/base/typegraphy"
-import { PATHS } from "@/ui/lib/constants"
 import type { Route } from "./+types/collection"
 
 type CollectionItem = {
@@ -65,41 +59,10 @@ type CollectionItem = {
 }
 
 export async function loader({ context, params, request }: Route.LoaderArgs) {
-	const db = context.get(dbContext)
-	const env = context.get(envContext)
-
-	const auth = getAuth(env)
-	const session = await auth.api.getSession({ headers: request.headers })
-	if (!session?.user) throw redirect(PATHS.LOGIN)
-
-	const { owner, name, collection_slug } = params
-	invariant(collection_slug, "collection_slug is required")
-
-	const projects = await db.query.project.findMany({
-		where: eq(project.userId, session.user.id),
-		with: { githubInstallation: true },
-	})
-	const activeProject = projects.find(
-		(p) => p.repoOwnerLogin === owner && p.repoName === name,
-	)
-	if (!activeProject) throw redirect(PATHS.SETUP)
-
-	const installationId = activeProject.githubInstallation.githubInstallationId
-
-	const configResult = await fetchAndParseConfig(
-		env,
-		installationId,
-		owner,
-		name,
-	)
-
-	const config = configResult.config
-	invariant(config, "config is required")
-
-	const collection = config.collections[collection_slug]
-	invariant(collection, "collection is required")
-
-	const dirPath = `${config.basePath}/${collection_slug}`.replace(/\/+/g, "/")
+	const { collection_slug } = params
+	const ctx = await requirePageContext({ context, params, request })
+	const { env, installationId, name, owner } = ctx
+	const { collection, directoryPath } = requireCollection(ctx, collection_slug)
 
 	// The catch is only for an empty / missing directory — a parse failure must
 	// never be mistaken for one, so the rows are built after it.
@@ -110,7 +73,7 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
 			installationId,
 			owner,
 			name,
-			dirPath,
+			directoryPath,
 		)
 	} catch (error) {
 		if (

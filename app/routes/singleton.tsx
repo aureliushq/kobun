@@ -1,15 +1,10 @@
 import { Accordion as AccordionPrimitive } from "@base-ui/react/accordion"
 import { format, formatDistanceToNow } from "date-fns"
-import { eq } from "drizzle-orm"
 import { ChevronDown, FileText } from "lucide-react"
-import { Link, redirect, useParams } from "react-router"
-import invariant from "tiny-invariant"
-import { getAuth } from "@/auth/auth.server"
-import { fetchAndParseConfig } from "@/config/github.server"
+import { Link, useParams } from "react-router"
 import { parseDocument } from "@/core/content/document.server"
-import { envContext } from "@/core/context"
-import { dbContext } from "@/db/context"
-import { project } from "@/db/schema/app-schema"
+import { requireSingleton } from "@/core/project-context"
+import { requirePageContext } from "@/core/project-context/project-context.server"
 import { getGithubFileContent } from "@/github/octokit.server"
 import {
 	Accordion,
@@ -34,7 +29,6 @@ import {
 	EmptyTitle,
 } from "@/ui/components/base/empty"
 import { H2 } from "@/ui/components/base/typegraphy"
-import { PATHS } from "@/ui/lib/constants"
 import type { Route } from "./+types/singleton"
 
 const MAX_RENDER_DEPTH = 5
@@ -59,45 +53,10 @@ type RenderCtx = {
 }
 
 export async function loader({ context, params, request }: Route.LoaderArgs) {
-	const db = context.get(dbContext)
-	const env = context.get(envContext)
-
-	const auth = getAuth(env)
-	const session = await auth.api.getSession({ headers: request.headers })
-	if (!session?.user) throw redirect(PATHS.LOGIN)
-
-	const { owner, name, singleton_slug } = params
-	invariant(singleton_slug, "singleton_slug is required")
-
-	const projects = await db.query.project.findMany({
-		where: eq(project.userId, session.user.id),
-		with: { githubInstallation: true },
-	})
-	const activeProject = projects.find(
-		(p) => p.repoOwnerLogin === owner && p.repoName === name,
-	)
-	if (!activeProject) throw redirect(PATHS.SETUP)
-
-	const installationId = activeProject.githubInstallation.githubInstallationId
-
-	const configResult = await fetchAndParseConfig(
-		env,
-		installationId,
-		owner,
-		name,
-	)
-
-	const config = configResult.config
-	invariant(config, "config is required")
-
-	const singleton = config.singletons[singleton_slug]
-	invariant(singleton, "singleton is required")
-
-	const filePath =
-		`${config.basePath}/singletons/${singleton_slug}.${singleton.format}`.replace(
-			/\/+/g,
-			"/",
-		)
+	const { singleton_slug } = params
+	const ctx = await requirePageContext({ context, params, request })
+	const { env, installationId, name, owner } = ctx
+	const { filePath, singleton } = requireSingleton(ctx, singleton_slug)
 
 	const editorPath = `/${owner}/${name}/singletons/${singleton_slug}/editor`
 

@@ -1,11 +1,6 @@
-import { and, eq } from "drizzle-orm"
-import type { LoaderFunctionArgs } from "react-router"
-import invariant from "tiny-invariant"
-import { getAuth } from "@/auth/auth.server"
-import { envContext } from "@/core/context"
-import { dbContext } from "@/db/context"
-import { project } from "@/db/schema/app-schema"
-import { getGithubFileBytes } from "@/github/octokit.server"
+import { requireApiAccess } from "@/core/project-context/project-context.server"
+import { getGithubFileBytes, hasStatus } from "@/github/octokit.server"
+import type { Route } from "./+types/api.repo-asset"
 
 const CONTENT_TYPES: Record<string, string> = {
 	png: "image/png",
@@ -26,50 +21,28 @@ function guessContentType(path: string): string {
 	return CONTENT_TYPES[ext] ?? "application/octet-stream"
 }
 
-export async function loader({ context, params, request }: LoaderFunctionArgs) {
-	const db = context.get(dbContext)
-	const env = context.get(envContext)
+export async function loader({ context, params, request }: Route.LoaderArgs) {
+	// Resolved without the Config: the seam answers whether this user may read
+	// this repository — which is what stops our installation token fetching
+	// files from every repository the app happens to be installed on — and the
+	// picture is served without ever asking what the repository declares.
+	const { env, installationId, name, owner } = await requireApiAccess({
+		context,
+		params,
+		request,
+	})
 
-	const auth = getAuth(env)
-	const session = await auth.api.getSession({ headers: request.headers })
-	if (!session?.user) {
-		return new Response("Unauthorized", { status: 401 })
-	}
-
-	const { owner, name } = params
-	const splat = params["*"] ?? ""
-	invariant(owner && name, "owner and name are required")
+	const splat = params["*"]
 	if (!splat) {
 		return new Response("Not Found", { status: 404 })
 	}
-
-	// Verify the user actually owns this project — prevents using our
-	// installation token to fetch arbitrary files from any repo the app
-	// happens to be installed on.
-	const projectRow = await db.query.project.findFirst({
-		where: and(
-			eq(project.userId, session.user.id),
-			eq(project.repoOwnerLogin, owner),
-			eq(project.repoName, name),
-		),
-		with: { githubInstallation: true },
-	})
-	if (!projectRow) {
-		return new Response("Not Found", { status: 404 })
-	}
-
-	const installationId = projectRow.githubInstallation.githubInstallationId
 	const filePath = decodeURIComponent(splat).replace(/^\/+/, "")
 
 	let file: Awaited<ReturnType<typeof getGithubFileBytes>>
 	try {
 		file = await getGithubFileBytes(env, installationId, owner, name, filePath)
 	} catch (error) {
-		if (
-			error instanceof Error &&
-			"status" in error &&
-			(error as { status?: number }).status === 404
-		) {
+		if (hasStatus(error, 404)) {
 			return new Response("Not Found", { status: 404 })
 		}
 		throw error

@@ -18,11 +18,11 @@ import {
 	useNavigation,
 } from "react-router"
 import { getAuth } from "@/auth/auth.server"
-import { deriveConfigStatus, fetchAndParseConfig } from "@/config/github.server"
+import { syncProjectConfig } from "@/config/github.server"
 import { envContext } from "@/core/context"
 import { dbContext } from "@/db/context"
 import { githubInstallation, project, userInstallation } from "@/db/schema"
-import { ProjectStatus } from "@/db/types"
+import { ConfigStatus, ProjectStatus } from "@/db/types"
 import {
 	getGithubAppInstallUrl,
 	getGithubInstallation,
@@ -66,7 +66,7 @@ import {
 	ItemTitle,
 } from "@/ui/components/base/item"
 import { ScrollArea } from "@/ui/components/base/scroll-area"
-import { PATHS } from "@/ui/lib/constants"
+import { CONFIG_PATHS, PATHS } from "@/ui/lib/constants"
 import {
 	SetupActionErrorMessages,
 	SetupActionErrors,
@@ -265,8 +265,6 @@ export async function action({ context, request }: Route.ActionArgs) {
 
 	if (intent === SetupActionIntents.CREATE_PROJECT) {
 		const repoId = formData.get("repo_id") as string
-		const repoName = formData.get("repo_name") as string
-		const repoOwner = formData.get("repo_owner") as string
 		const installationId = formData.get("installation_id") as string
 
 		const installation = await db.query.githubInstallation.findFirst({
@@ -295,14 +293,6 @@ export async function action({ context, request }: Route.ActionArgs) {
 		if (!selectedRepo)
 			return data({ error: SetupActionErrors.REPO_NOT_FOUND }, { status: 400 })
 
-		const configResult = await fetchAndParseConfig(
-			env,
-			installation.githubInstallationId,
-			repoOwner,
-			repoName,
-		)
-		const configStatus = deriveConfigStatus(configResult)
-
 		const existingProject = await db.query.project.findFirst({
 			where: and(
 				eq(project.userId, session.user.id),
@@ -310,9 +300,13 @@ export async function action({ context, request }: Route.ActionArgs) {
 			),
 		})
 
-		// upsert to githubInstallation table
+		// Which repository this Project is, and nothing about what is in it. The
+		// two Config columns below are `NOT NULL` and so must say something; they
+		// say the row has never been looked at, and the sync that follows is what
+		// looks. Connecting and the dashboard's refresh are the same act, and go
+		// the same way (ADR-0003).
 		const id = existingProject?.id ?? String(crypto.randomUUID())
-		await db
+		const [connectedProject] = await db
 			.insert(project)
 			.values({
 				id,
@@ -322,13 +316,8 @@ export async function action({ context, request }: Route.ActionArgs) {
 				repoName: selectedRepo.name,
 				repoOwnerLogin: selectedRepo.owner.login,
 				repoHtmlUrl: selectedRepo.html_url,
-				configPath: configResult.filePath ?? ".kobun.json",
-				configStatus,
-				configCheckedAt: new Date(),
-				configError:
-					configResult.errors.length > 0
-						? JSON.stringify(configResult.errors)
-						: "",
+				configPath: CONFIG_PATHS[0],
+				configStatus: ConfigStatus.UNKNOWN,
 				status: ProjectStatus.ACTIVE,
 			})
 			.onConflictDoUpdate({
@@ -338,16 +327,12 @@ export async function action({ context, request }: Route.ActionArgs) {
 					repoName: selectedRepo.name,
 					repoOwnerLogin: selectedRepo.owner.login,
 					repoHtmlUrl: selectedRepo.html_url,
-					configPath: configResult.filePath ?? ".kobun.json",
-					configStatus,
-					configCheckedAt: new Date(),
-					configError:
-						configResult.errors.length > 0
-							? JSON.stringify(configResult.errors)
-							: "",
 					status: ProjectStatus.ACTIVE,
 				},
 			})
+			.returning()
+
+		await syncProjectConfig(db, env, connectedProject)
 
 		const posthog = context.get(posthogContext)
 		posthog?.capture({
@@ -594,16 +579,6 @@ export default function Setup({ loaderData }: Route.ComponentProps) {
 										) : (
 											<Form method="POST">
 												<Input name="repo_id" type="hidden" value={repo.id} />
-												<Input
-													name="repo_name"
-													type="hidden"
-													value={repo.name}
-												/>
-												<Input
-													name="repo_owner"
-													type="hidden"
-													value={repo.ownerLogin}
-												/>
 												<Input
 													name="installation_id"
 													type="hidden"

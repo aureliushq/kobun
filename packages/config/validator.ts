@@ -9,6 +9,14 @@ import type {
 	Singleton,
 } from "./types"
 
+/**
+ * How a Config file's bytes are encoded, from where it lives. Shared so the
+ * cache and the dashboard sync cannot come to different conclusions about the
+ * same file — a Format is a property of the Source, not of who is reading it.
+ */
+export const configFileFormat = (path: string): "json" | "yaml" =>
+	path.endsWith(".json") ? "json" : "yaml"
+
 export const validateConfig = (
 	raw: string,
 	format: "json" | "yaml",

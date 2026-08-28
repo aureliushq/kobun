@@ -1,11 +1,9 @@
 import { eq } from "drizzle-orm"
 import { Outlet, redirect } from "react-router"
 import { getAuth } from "@/auth/auth.server"
-import { fetchAndParseConfig } from "@/config/github.server"
 import { envContext } from "@/core/context"
-import { dbContext } from "@/db/context"
+import { requirePageContext } from "@/core/project-context/project-context.server"
 import { project } from "@/db/schema/app-schema"
-import type { ProjectWithGithubInstallation } from "@/db/types"
 import { ScrollArea } from "@/ui/components/base/scroll-area"
 import { SidebarProvider } from "@/ui/components/base/sidebar"
 import DashboardHeader from "@/ui/components/blocks/dashboard-header"
@@ -14,37 +12,30 @@ import { PATHS } from "@/ui/lib/constants"
 import { DashboardActionIntents } from "@/ui/lib/types"
 import type { Route } from "./+types/dashboard"
 
+/**
+ * The chrome around every content page answers to the same seam the pages do,
+ * so the sidebar can never offer a Project the page inside it refuses — nor
+ * spend a GitHub round-trip re-reading a Config the page has already resolved.
+ */
 export async function loader({
 	context,
 	params,
 	request,
 	url,
 }: Route.LoaderArgs) {
-	const db = context.get(dbContext)
-	const env = context.get(envContext)
+	const { config, db, projectRow, session } = await requirePageContext({
+		context,
+		params,
+		request,
+	})
 
-	const auth = getAuth(env)
-	const session = await auth.api.getSession({ headers: request.headers })
-	if (!session?.user) throw redirect(PATHS.LOGIN)
-
-	const { owner, name } = params
-
+	// The seam answers about one Project; the repository switcher asks for all of
+	// them. Lists are the caller's job, so this query stays here rather than
+	// widening what every content route resolves.
 	const projects = await db.query.project.findMany({
 		where: eq(project.userId, session.user.id),
 		with: { githubInstallation: true },
 	})
-	const activeProject = projects.find(
-		(project) => project.repoOwnerLogin === owner && project.repoName === name,
-	)
-
-	if (!activeProject) throw redirect(PATHS.SETUP)
-
-	const configResult = await fetchAndParseConfig(
-		env,
-		activeProject.githubInstallation.githubInstallationId,
-		owner,
-		name,
-	)
 
 	const currentVersion = KOBUN_VERSION
 	const appUrl = import.meta.env.VITE_KOBUN_APP_URL
@@ -79,8 +70,8 @@ export async function loader({
 	}
 
 	return {
-		activeProject,
-		configResult,
+		activeProject: projectRow,
+		config,
 		projects,
 		user: session.user,
 		versionInfo: {
@@ -111,13 +102,11 @@ export async function action({ context, request }: Route.ActionArgs) {
 }
 
 const DashboardLayout = ({ loaderData }: Route.ComponentProps) => {
-	const config = loaderData?.configResult?.config
+	const config = loaderData?.config
 	return (
 		<SidebarProvider>
 			<DashboardSidebar
-				activeProject={
-					loaderData.activeProject as ProjectWithGithubInstallation
-				}
+				activeProject={loaderData.activeProject}
 				config={config}
 				projects={loaderData.projects}
 				versionInfo={loaderData.versionInfo}
