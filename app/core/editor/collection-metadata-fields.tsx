@@ -1,8 +1,33 @@
 import { format, isValid } from "date-fns"
-import type { ArrayField, Field } from "@/config/types"
+import type {
+	ArrayField,
+	Field,
+	MultiSelectField,
+	SelectField,
+	SelectOption,
+} from "@/config/types"
 import { Button } from "@/ui/components/base/button"
 import { Checkbox } from "@/ui/components/base/checkbox"
+import {
+	Combobox,
+	ComboboxChip,
+	ComboboxChips,
+	ComboboxChipsInput,
+	ComboboxContent,
+	ComboboxEmpty,
+	ComboboxItem,
+	ComboboxList,
+	useComboboxAnchor,
+} from "@/ui/components/base/combobox"
 import { Input } from "@/ui/components/base/input"
+import {
+	Select,
+	SelectContent,
+	SelectGroup,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/ui/components/base/select"
 import { Switch } from "@/ui/components/base/switch"
 import { Textarea } from "@/ui/components/base/textarea"
 import {
@@ -11,6 +36,14 @@ import {
 	getCompositeValue,
 	setCompositeValue,
 } from "./collection-metadata"
+
+type ControlProps<F extends Field = Field> = {
+	field: F
+	value: unknown
+	onChange(value: unknown): void
+	disabled?: boolean
+	assetBaseUrl?: string
+}
 
 function emptyArrayItem(field: ArrayField) {
 	if (field.items.length === 1) {
@@ -25,13 +58,7 @@ function Control({
 	onChange,
 	disabled,
 	assetBaseUrl,
-}: {
-	field: Field
-	value: unknown
-	onChange(value: unknown): void
-	disabled?: boolean
-	assetBaseUrl?: string
-}) {
+}: ControlProps) {
 	if (field.type === "object") {
 		const record =
 			value && typeof value === "object" && !Array.isArray(value)
@@ -156,37 +183,24 @@ function Control({
 				onCheckedChange={(checked) => onChange(checked === true)}
 			/>
 		)
-	if (field.type === "select" || field.type === "multi_select") {
+	if (field.type === "select") {
 		return (
-			<select
-				className="min-h-7 w-full rounded-md border bg-background px-2 text-sm"
-				multiple={field.type === "multi_select"}
+			<SelectControl
+				field={field}
+				value={value}
+				onChange={onChange}
 				disabled={disabled}
-				value={
-					field.type === "multi_select"
-						? Array.isArray(value)
-							? value.map(String)
-							: []
-						: String(value ?? "")
-				}
-				onChange={(event) =>
-					onChange(
-						field.type === "multi_select"
-							? Array.from(
-									event.currentTarget.selectedOptions,
-									({ value }) => value,
-								)
-							: event.currentTarget.value,
-					)
-				}
-			>
-				<option value="">{field.placeholder ?? "Select…"}</option>
-				{field.options.map((option) => (
-					<option key={option.value} value={option.value}>
-						{option.label}
-					</option>
-				))}
-			</select>
+			/>
+		)
+	}
+	if (field.type === "multi_select") {
+		return (
+			<MultiSelectControl
+				field={field}
+				value={value}
+				onChange={onChange}
+				disabled={disabled}
+			/>
 		)
 	}
 	if (field.type === "datetime") {
@@ -233,6 +247,123 @@ function Control({
 	)
 }
 
+const SELECT_PLACEHOLDER = "Select…"
+
+/**
+ * What the writer reads for a stored value. A value the schema no longer
+ * declares has no label to show, so it shows as itself rather than vanishing —
+ * the writer can see what is there before deciding to drop it, and an untouched
+ * field saves it back unchanged.
+ */
+function labelFor(options: SelectOption[], value: string) {
+	return options.find((option) => option.value === value)?.label ?? value
+}
+
+/**
+ * `null` is "nothing chosen"; anything else is a value the writer picked. A
+ * stored `""` is nothing chosen — unless the schema declares an option whose
+ * value is `""`, in which case the empty string is a real choice and stays one.
+ */
+function chosenValue(options: SelectOption[], value: unknown) {
+	if (value == null) return null
+	const chosen = String(value)
+	if (chosen === "" && !options.some((option) => option.value === "")) {
+		return null
+	}
+	return chosen
+}
+
+function SelectControl({
+	field,
+	value,
+	onChange,
+	disabled,
+}: ControlProps<SelectField>) {
+	const placeholder = field.placeholder ?? SELECT_PLACEHOLDER
+	// The `null` entry is both the "nothing chosen" label and the way back to
+	// it, the way the native control's empty `<option>` used to be. Listing it
+	// among the items is what lets the control resolve the label itself — by
+	// option for a declared value, by the raw string for a stray one.
+	const items = [{ label: placeholder, value: null }, ...field.options]
+	return (
+		<Select
+			items={items}
+			value={chosenValue(field.options, value)}
+			onValueChange={(next) => onChange(next ?? "")}
+			disabled={disabled}
+		>
+			<SelectTrigger aria-label={field.label} className="w-full">
+				<SelectValue placeholder={placeholder} />
+			</SelectTrigger>
+			<SelectContent>
+				<SelectGroup>
+					<SelectItem value={null}>
+						<span className="text-muted-foreground">{placeholder}</span>
+					</SelectItem>
+					{field.options.map((option) => (
+						<SelectItem key={option.value} value={option.value}>
+							{option.label}
+						</SelectItem>
+					))}
+				</SelectGroup>
+			</SelectContent>
+		</Select>
+	)
+}
+
+/**
+ * Chosen values are tokens, each with its own remove button, so one goes
+ * without disturbing the rest. The list offers only what the schema declares:
+ * a stray value keeps its token but is not on the menu, so removing it is a
+ * one-way door back to the schema.
+ */
+function MultiSelectControl({
+	field,
+	value,
+	onChange,
+	disabled,
+}: ControlProps<MultiSelectField>) {
+	const anchor = useComboboxAnchor()
+	const chosen = Array.isArray(value) ? value.map(String) : []
+	const label = (item: string) => labelFor(field.options, item)
+	return (
+		<Combobox
+			items={field.options.map((option) => option.value)}
+			multiple
+			value={chosen}
+			onValueChange={(next) => onChange(next)}
+			itemToStringLabel={label}
+			disabled={disabled}
+		>
+			<ComboboxChips ref={anchor}>
+				{chosen.map((item, index) => (
+					// Frontmatter can repeat a value, so position is what tells two
+					// tokens apart — and position is what removing one goes by.
+					<ComboboxChip key={`${index}:${item}`}>{label(item)}</ComboboxChip>
+				))}
+				<ComboboxChipsInput
+					aria-label={field.label}
+					placeholder={
+						chosen.length === 0
+							? (field.placeholder ?? SELECT_PLACEHOLDER)
+							: undefined
+					}
+				/>
+			</ComboboxChips>
+			<ComboboxContent anchor={anchor}>
+				<ComboboxEmpty>No matching options.</ComboboxEmpty>
+				<ComboboxList>
+					{(item: string) => (
+						<ComboboxItem key={item} value={item}>
+							{label(item)}
+						</ComboboxItem>
+					)}
+				</ComboboxList>
+			</ComboboxContent>
+		</Combobox>
+	)
+}
+
 /**
  * A datetime is stored as a UTC instant but edited in the writer's local wall
  * time, which is the only thing `datetime-local` can speak. An unparseable
@@ -270,13 +401,7 @@ export function MetadataField({
 	onChange,
 	disabled,
 	assetBaseUrl,
-}: {
-	field: Field
-	value: unknown
-	onChange(value: unknown): void
-	disabled?: boolean
-	assetBaseUrl?: string
-}) {
+}: ControlProps) {
 	return (
 		<div className="space-y-1.5">
 			<p className="font-medium text-sm">

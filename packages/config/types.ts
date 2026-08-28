@@ -13,6 +13,7 @@ import type {
 	multiSelectFieldSchema,
 	objectFieldSchema,
 	selectFieldSchema,
+	selectOptionSchema,
 	singletonSchema,
 	slugFieldSchema,
 	textFieldSchema,
@@ -29,6 +30,7 @@ export type ImageField = z.infer<typeof imageFieldSchema>
 export type MultiSelectField = z.infer<typeof multiSelectFieldSchema>
 export type ObjectField = z.infer<typeof objectFieldSchema>
 export type SelectField = z.infer<typeof selectFieldSchema>
+export type SelectOption = z.infer<typeof selectOptionSchema>
 export type SlugField = z.infer<typeof slugFieldSchema>
 export type TextField = z.infer<typeof textFieldSchema>
 export type UrlField = z.infer<typeof urlFieldSchema>

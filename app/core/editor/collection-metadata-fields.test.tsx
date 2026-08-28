@@ -1,8 +1,22 @@
-import { fireEvent, render } from "@testing-library/react"
+import { fireEvent, render, screen } from "@testing-library/react"
+import { userEvent } from "@testing-library/user-event"
 import { describe, expect, it, vi } from "vitest"
 import type { Field } from "@/config/types"
 
 import { MetadataField } from "./collection-metadata-fields"
+
+function renderField(field: Field, value: unknown, disabled?: boolean) {
+	const onChange = vi.fn()
+	const { container } = render(
+		<MetadataField
+			field={field}
+			value={value}
+			onChange={onChange}
+			disabled={disabled}
+		/>,
+	)
+	return { container, onChange }
+}
 
 const publishedAt = {
 	type: "datetime",
@@ -10,12 +24,11 @@ const publishedAt = {
 } as unknown as Field
 
 function renderDatetime(value: unknown) {
-	const onChange = vi.fn()
-	const { container } = render(
-		<MetadataField field={publishedAt} value={value} onChange={onChange} />,
-	)
-	const input = container.querySelector("input") as HTMLInputElement
-	return { input, onChange }
+	const { container, onChange } = renderField(publishedAt, value)
+	return {
+		input: container.querySelector("input") as HTMLInputElement,
+		onChange,
+	}
 }
 
 /**
@@ -73,5 +86,224 @@ describe("<MetadataField /> over a datetime", () => {
 
 	it("shows an empty control for a value it cannot parse", () => {
 		expect(renderDatetime("not a datetime").input.value).toBe("")
+	})
+})
+
+const options = [
+	{ label: "Rust", value: "rust" },
+	{ label: "Go", value: "go" },
+]
+
+const language = {
+	type: "select",
+	label: "Language",
+	options,
+	placeholder: "Pick a language",
+} as unknown as Field
+
+const withEmptyOption = {
+	type: "select",
+	label: "Language",
+	placeholder: "Pick a language",
+	options: [{ label: "None", value: "" }, ...options],
+} as unknown as Field
+
+function trigger() {
+	return screen.getByLabelText("Language")
+}
+
+/**
+ * The stored value is the option's `value`; the writer only ever sees its
+ * `label`. "No value" is `null` inside the control and `""` on the way out, so
+ * a schema that declares an option whose value is `""` still gets a chosen
+ * option rather than an empty one.
+ */
+describe("<MetadataField /> over a select", () => {
+	it("does not fall back to a native select", () => {
+		const { container } = renderField(language, "")
+		expect(container.querySelector("select")).toBeNull()
+		expect(trigger()).toBeInTheDocument()
+	})
+
+	it("shows the placeholder when nothing is chosen", () => {
+		renderField(language, "")
+		expect(trigger()).toHaveTextContent("Pick a language")
+	})
+
+	it("shows the option's label, not its stored value", () => {
+		renderField(language, "rust")
+		expect(trigger()).toHaveTextContent("Rust")
+	})
+
+	it("still shows a value the options no longer declare", () => {
+		renderField(language, "elixir")
+		expect(trigger()).toHaveTextContent("elixir")
+	})
+
+	it("reads a stored empty string as the option that declares it", () => {
+		renderField(withEmptyOption, "")
+		expect(trigger()).toHaveTextContent("None")
+	})
+
+	it("reads no value at all as nothing chosen, empty option or not", () => {
+		renderField(withEmptyOption, undefined)
+		expect(trigger()).toHaveTextContent("Pick a language")
+	})
+
+	it("emits the option's value when the writer picks one", async () => {
+		const user = userEvent.setup()
+		const { onChange } = renderField(language, "")
+
+		await user.click(trigger())
+		await user.click(await screen.findByRole("option", { name: "Go" }))
+
+		expect(onChange).toHaveBeenCalledWith("go")
+	})
+
+	it("lets the writer put the field back to empty", async () => {
+		const user = userEvent.setup()
+		const { onChange } = renderField(language, "rust")
+
+		await user.click(trigger())
+		await user.click(
+			await screen.findByRole("option", { name: "Pick a language" }),
+		)
+
+		expect(onChange).toHaveBeenCalledWith("")
+	})
+
+	it("is read-only when disabled", () => {
+		renderField(language, "rust", true)
+		expect(trigger()).toBeDisabled()
+	})
+})
+
+const tags = {
+	type: "multi_select",
+	label: "Tags",
+	options,
+	placeholder: "Pick some tags",
+} as unknown as Field
+
+function chips(container: HTMLElement) {
+	return Array.from(
+		container.querySelectorAll<HTMLElement>('[data-slot="combobox-chip"]'),
+	)
+}
+
+function removeButton(chip: HTMLElement) {
+	return chip.querySelector(
+		'[data-slot="combobox-chip-remove"]',
+	) as HTMLButtonElement
+}
+
+/**
+ * Each chosen value is its own removable token, so removing one leaves the rest
+ * alone — the thing a native `multiple` list box could not do without a
+ * ctrl-click.
+ */
+describe("<MetadataField /> over a multi_select", () => {
+	it("shows one labelled token per chosen value", () => {
+		const { container } = renderField(tags, ["rust", "go"])
+
+		expect(container.querySelector("select")).toBeNull()
+		expect(chips(container).map((chip) => chip.textContent)).toEqual([
+			"Rust",
+			"Go",
+		])
+	})
+
+	it("shows the placeholder when nothing is chosen", () => {
+		const { container } = renderField(tags, [])
+		expect(chips(container)).toHaveLength(0)
+		expect(screen.getByLabelText("Tags")).toHaveAttribute(
+			"placeholder",
+			"Pick some tags",
+		)
+	})
+
+	it("still shows a value the options no longer declare", () => {
+		const { container } = renderField(tags, ["rust", "elixir"])
+		expect(chips(container).map((chip) => chip.textContent)).toEqual([
+			"Rust",
+			"elixir",
+		])
+	})
+
+	it("removes one token without touching the others", async () => {
+		const user = userEvent.setup()
+		const { container, onChange } = renderField(tags, ["rust", "go"])
+
+		await user.click(removeButton(chips(container)[0]))
+
+		expect(onChange).toHaveBeenCalledWith(["go"])
+	})
+
+	it("keeps repeated values apart, token by token", async () => {
+		const user = userEvent.setup()
+		const { container, onChange } = renderField(tags, ["rust", "rust", "go"])
+
+		expect(chips(container)).toHaveLength(3)
+		await user.click(removeButton(chips(container)[0]))
+
+		expect(onChange).toHaveBeenCalledWith(["rust", "go"])
+	})
+
+	it("filters the options by what the writer types", async () => {
+		const user = userEvent.setup()
+		renderField(tags, [])
+
+		await user.click(screen.getByLabelText("Tags"))
+		await user.type(screen.getByLabelText("Tags"), "ru")
+
+		expect(
+			(await screen.findAllByRole("option")).map((o) => o.textContent),
+		).toEqual(["Rust"])
+	})
+
+	it("adds a chosen option to the values already held", async () => {
+		const user = userEvent.setup()
+		const { onChange } = renderField(tags, ["rust"])
+
+		await user.click(screen.getByLabelText("Tags"))
+		await user.click(await screen.findByRole("option", { name: "Go" }))
+
+		expect(onChange).toHaveBeenCalledWith(["rust", "go"])
+	})
+
+	it("is read-only when disabled", async () => {
+		const user = userEvent.setup()
+		const { container, onChange } = renderField(tags, ["rust"], true)
+
+		expect(screen.getByLabelText("Tags")).toBeDisabled()
+		await user.click(removeButton(chips(container)[0]))
+
+		expect(onChange).not.toHaveBeenCalled()
+	})
+
+	it("reaches the writer inside an array row", () => {
+		const { container } = renderField(
+			{
+				type: "array",
+				label: "Sections",
+				items: [tags],
+			} as unknown as Field,
+			[["rust"]],
+		)
+
+		expect(chips(container).map((chip) => chip.textContent)).toEqual(["Rust"])
+	})
+
+	it("reaches the writer inside an object sub-field", () => {
+		const { container } = renderField(
+			{
+				type: "object",
+				label: "Meta",
+				fields: { tags },
+			} as unknown as Field,
+			{ tags: ["go"] },
+		)
+
+		expect(chips(container).map((chip) => chip.textContent)).toEqual(["Go"])
 	})
 })

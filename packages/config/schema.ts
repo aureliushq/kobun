@@ -21,7 +21,7 @@ enum FieldType {
 	URL = "url",
 }
 
-const selectOptionSchema = z.object({
+export const selectOptionSchema = z.object({
 	label: z.string(),
 	value: z.string(),
 })
