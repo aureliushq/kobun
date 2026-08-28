@@ -3,6 +3,7 @@ import { Outlet, redirect } from "react-router"
 import { getAuth } from "@/auth/auth.server"
 import { envContext } from "@/core/context"
 import { requirePageContext } from "@/core/project-context/project-context.server"
+import { fetchReleaseInfo } from "@/core/release-info.server"
 import { project } from "@/db/schema/app-schema"
 import { ScrollArea } from "@/ui/components/base/scroll-area"
 import { SidebarProvider } from "@/ui/components/base/sidebar"
@@ -47,41 +48,19 @@ export async function loader({
 		isHosted = false
 	}
 
-	let latestVersion = currentVersion
-	let hasUpdate = false
-	let releaseUrl = ""
-	let changelogUrl = ""
-
-	try {
-		const manifestRes = await fetch(`${appUrl}/manifest.json`)
-		if (manifestRes.ok) {
-			const manifest = (await manifestRes.json()) as {
-				version: string
-				releaseUrl: string
-				changelogUrl: string
-			}
-			latestVersion = manifest.version
-			hasUpdate = manifest.version !== currentVersion
-			releaseUrl = manifest.releaseUrl
-			changelogUrl = manifest.changelogUrl
-		}
-	} catch {
-		// Manifest fetch failed — silently continue with defaults
-	}
-
 	return {
 		activeProject: projectRow,
 		config,
 		projects,
+		// Streamed, not awaited: a version badge is not worth blocking the page
+		// on an origin that may never answer. Started below the guard above, so
+		// a request that redirects never leaves a fetch behind it (ADR 0006).
+		releaseInfo: fetchReleaseInfo(appUrl, currentVersion),
 		user: session.user,
 		versionInfo: {
 			currentVersion,
-			latestVersion,
-			hasUpdate,
-			isHosted,
-			releaseUrl,
-			changelogUrl,
 			homeUrl: import.meta.env.VITE_KOBUN_HOME_URL,
+			isHosted,
 		},
 	}
 }
@@ -109,6 +88,7 @@ const DashboardLayout = ({ loaderData }: Route.ComponentProps) => {
 				activeProject={loaderData.activeProject}
 				config={config}
 				projects={loaderData.projects}
+				releaseInfo={loaderData.releaseInfo}
 				versionInfo={loaderData.versionInfo}
 			/>
 			<main className="flex h-screen w-screen flex-col divide-y overflow-hidden pb-16">
