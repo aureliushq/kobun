@@ -2,6 +2,8 @@ import type { Field } from "@/config/types"
 import {
 	type DefaultForSchema,
 	defaultForField,
+	findSlugField,
+	resolveTitleKey,
 	validateField,
 } from "@/core/fields"
 
@@ -59,13 +61,9 @@ export function updateMetadataField(
 	value: unknown,
 ) {
 	const next = { ...current, [key]: value }
-	const slugEntry = Object.entries(schema).find(
-		([, field]) => field.type === "slug",
-	)
-	if (!slugEntry || slugEntry[1].type !== "slug" || slugEntry[1].from !== key) {
-		return next
-	}
-	const [slugKey] = slugEntry
+	const slugField = findSlugField(schema)
+	if (!slugField || slugField.field.from !== key) return next
+	const slugKey = slugField.key
 	const currentSlug = String(current[slugKey] ?? "")
 	const previousDerivedSlug = slugify(String(current[key] ?? ""))
 	if (!currentSlug || currentSlug === previousDerivedSlug) {
@@ -91,16 +89,12 @@ export function validateMetadata(
 }
 
 export function getSlugField(schema: Record<string, Field>) {
-	return (
-		Object.entries(schema).find(([, field]) => field.type === "slug")?.[0] ??
-		null
-	)
+	return findSlugField(schema)?.key ?? null
 }
 
 export function getCollectionEditorFields(schema: Record<string, Field>) {
 	const entries = Object.entries(schema)
-	const slugField = entries.find(([, field]) => field.type === "slug")
-	const titleKey = slugField?.[1].type === "slug" ? slugField[1].from : null
+	const titleKey = resolveTitleKey(schema)
 	const documentKey =
 		entries.find(([, field]) => field.type === "document")?.[0] ?? null
 	return {

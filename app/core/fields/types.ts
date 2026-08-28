@@ -24,11 +24,12 @@ export type FieldOfType<K extends ValueFieldType> = Extract<Field, { type: K }>
 /**
  * Defaults for a nested schema.
  *
- * Injected rather than derived, because an object's default carries two rules
- * the registry must not learn: a nested Document key is omitted entirely, and a
- * nested Slug is derived from its source Field. Both are Role rules, so the
- * metadata module supplies them. #70 moves them into `roles.ts` and this
- * parameter goes away.
+ * Injected rather than derived, and it stays that way: an object's default
+ * carries two rules the registry must not learn — a nested Document key is
+ * omitted entirely, and a nested Slug is derived from its source Field. Neither
+ * followed the Roles into `roles.ts`, because neither is behavior of a Role.
+ * They are rules about what a filled-in schema looks like, which makes them
+ * normalization of the Data, and that is the metadata module's job.
  */
 export type DefaultForSchema = (
 	schema: Record<string, Field>,

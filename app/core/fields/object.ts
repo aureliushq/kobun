@@ -8,11 +8,10 @@ import type { FieldTypeDefFor } from "./types"
  *
  * Validation takes no such callback, deliberately: nested Fields carry no Role
  * rules at all. The metadata module skips a Document only at the top level, and
- * it decided that before this entry was reached. One consequence is a change
- * from the switch this replaced — where the skip was keyed off a falsy path
- * prefix, an object labelled `""` would have had its nested Documents skipped
- * too. That is an accident of an empty string, not a rule, and #70 replaces the
- * path with a loud error, so it is not reproduced here.
+ * it decided that before this entry was reached — so a Document nested here
+ * reaches the dispatcher and is refused, loudly. The config layer does not yet
+ * forbid one (its cross-field rules only walk the top level), which is why the
+ * refusal is the thing that says so.
  */
 export const objectField: FieldTypeDefFor<"object"> = {
 	defaultValue: ({ defaultForSchema, field }) => defaultForSchema(field.fields),

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest"
 import type { Field } from "@/config/types"
+import { DocumentFieldError } from "@/core/fields"
 import {
 	applyMetadataDefaults,
 	defaultFieldValue,
@@ -283,6 +284,15 @@ describe("field type defaults", () => {
 		).toBe("")
 	})
 
+	it("refuses to default a document field", () => {
+		expect(() =>
+			defaultFieldValue({
+				type: "document",
+				label: "Body",
+			} as unknown as Field),
+		).toThrow(DocumentFieldError)
+	})
+
 	it("defaults an object through its own schema, deriving nested slugs", () => {
 		const schema = {
 			group: {
@@ -413,17 +423,51 @@ describe("field type validation", () => {
 		])
 	})
 
-	it("validates a document nested in an object but skips one at the top level", () => {
+	it("skips a document at the top level", () => {
 		const schema = {
 			body: { type: "document", label: "Body" },
+		} as unknown as Record<string, Field>
+		expect(validateMetadata(schema, { body: 1 })).toEqual([])
+	})
+
+	it("refuses a document nested in an object", () => {
+		const schema = {
 			group: {
 				type: "object",
 				label: "Group",
 				fields: { body: { type: "document", label: "Body" } },
 			},
 		} as unknown as Record<string, Field>
-		expect(validateMetadata(schema, { body: 1, group: { body: 1 } })).toEqual([
-			"Group.Body must be text",
-		])
+		expect(() => validateMetadata(schema, { group: { body: 1 } })).toThrow(
+			DocumentFieldError,
+		)
+	})
+
+	it("refuses a document declared as an array item", () => {
+		const schema = {
+			sections: {
+				type: "array",
+				label: "Sections",
+				items: [{ type: "document", label: "Body" }],
+			},
+		} as unknown as Record<string, Field>
+		expect(() => validateMetadata(schema, { sections: [1] })).toThrow(
+			DocumentFieldError,
+		)
+	})
+
+	it("refuses an empty required document rather than reporting it missing", () => {
+		const schema = {
+			group: {
+				type: "object",
+				label: "Group",
+				fields: {
+					body: { type: "document", label: "Body", required: true },
+				},
+			},
+		} as unknown as Record<string, Field>
+		expect(() => validateMetadata(schema, { group: {} })).toThrow(
+			DocumentFieldError,
+		)
 	})
 })

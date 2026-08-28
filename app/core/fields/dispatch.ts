@@ -1,17 +1,7 @@
 import type { Field } from "@/config/types"
 import { fieldTypeRegistry } from "./registry"
+import { refuseDocument, slugRole } from "./roles"
 import type { DefaultForSchema, FieldTypeDef, ValueField } from "./types"
-
-/**
- * Slug and Document are Roles, not Field Types (ADR 0004), so they have no
- * registry entry. Today both default to an empty string and validate as text —
- * behavior they inherited from the old switch's `default:` arm rather than
- * chose. #70 lifts this branch into `roles.ts`, where a Document reaching the
- * dispatcher becomes a loud error instead.
- */
-function isRole(field: Field): field is Exclude<Field, ValueField> {
-	return field.type === "slug" || field.type === "document"
-}
 
 /**
  * What counts as nothing filled in. Note an empty object is not empty: a
@@ -44,7 +34,8 @@ export function defaultForField(
 	field: Field,
 	defaultForSchema: DefaultForSchema,
 ): unknown {
-	if (isRole(field)) return ""
+	refuseDocument(field)
+	if (field.type === "slug") return slugRole.defaultValue()
 	return entryFor(field).defaultValue({ defaultForSchema, field })
 }
 
@@ -54,6 +45,10 @@ export function defaultForField(
  * load-bearing — a required Field that is empty says so and never reaches its
  * type's rules, while an optional empty one is simply left alone.
  *
+ * The Document refusal sits above both, because it is not a complaint about the
+ * value: an empty Document must still be refused, or a call site that forgot to
+ * filter one out would be told nothing at all.
+ *
  * Container entries recurse by being handed this function, which is why no
  * entry ever imports the registry.
  */
@@ -62,10 +57,10 @@ export function validateField(
 	value: unknown,
 	path: string,
 ): string[] {
+	refuseDocument(field)
 	if (field.required && isEmpty(value)) return [`${path} is required`]
 	if (isEmpty(value)) return []
-	if (isRole(field))
-		return typeof value === "string" ? [] : [`${path} must be text`]
+	if (field.type === "slug") return slugRole.validate({ path, value })
 	return entryFor(field).validate({
 		field,
 		path,
