@@ -4,7 +4,7 @@ Glossary of domain terms. Keep implementation details out — this is vocabulary
 
 ## Editing
 
-- **Draft** — an editable working copy of content, kept by Kobun, reconciled against a committed **Source**. A Draft exists from the moment editing begins until its content matches its Source again.
+- **Draft** — an editable working copy of content, kept by Kobun, reconciled against a committed **Source**. A Draft exists from the moment the writer writes something until its content matches its Source again; opening an editor over content nobody has typed into yet creates none.
 - **Source** — the canonical content: a file committed to the user's GitHub repository. A Draft tracks which Source version it was last reconciled with.
 - **Revision** — a counter incremented on every saved change to a Draft. Used to detect two editing sessions racing each other.
 - **Published Revision** — the Revision that was last published to the Source. A Draft with no Published Revision has never been published from.

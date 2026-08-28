@@ -255,6 +255,24 @@ test("creates the source file when publishing a new item", async () => {
 	expect(await db.select().from(editorDraft)).toEqual([])
 })
 
+test("publishes a new item the writer never saved", async () => {
+	const { db, drafts, sourceStore } = setup()
+	const fields = { slug: "new-post", title: "New post" }
+
+	const result = await drafts.publish(publishNewItem(null, { fields }))
+
+	expect(result).toMatchObject({
+		draftDeleted: true,
+		itemSlug: "new-post",
+		ok: true,
+		outcome: "published",
+	})
+	expect(sourceStore.get(`${TEST_DIRECTORY_PATH}/new-post.md`)?.content).toBe(
+		"---\nslug: new-post\ntitle: New post\n---\nPublished body\n",
+	)
+	expect(await db.select().from(editorDraft)).toEqual([])
+})
+
 test("refuses a publish carrying a stale expected revision", async () => {
 	const { drafts, source } = setup()
 	const seeded = seedSourceBackedDraft({

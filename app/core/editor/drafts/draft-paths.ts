@@ -65,3 +65,21 @@ export function getDraftEditorPath(
 		draft.itemSlug ?? draft.id,
 	)
 }
+
+/**
+ * Whether a navigation is nothing but the editor adopting the identifier its
+ * first save minted. Such a navigation changes the URL and nothing else — the
+ * editor already holds the content the loader would answer with — so the route
+ * declines to revalidate rather than replace a sentence the writer is still
+ * typing with the round trip's version of it.
+ *
+ * It lives here because `?draft=` is this module's convention — the same one
+ * `getNewItemEditorPath` writes — and nowhere else should have to know it.
+ */
+export function isDraftAdoptionNavigation(currentUrl: URL, nextUrl: URL) {
+	return (
+		currentUrl.pathname === nextUrl.pathname &&
+		currentUrl.searchParams.get("draft") === null &&
+		nextUrl.searchParams.get("draft") !== null
+	)
+}

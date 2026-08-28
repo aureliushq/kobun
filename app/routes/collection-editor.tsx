@@ -1,7 +1,12 @@
 import type { Editor } from "@tiptap/core"
 import { and, eq } from "drizzle-orm"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { redirect, useLocation, useNavigate } from "react-router"
+import {
+	redirect,
+	type ShouldRevalidateFunctionArgs,
+	useLocation,
+	useNavigate,
+} from "react-router"
 import invariant from "tiny-invariant"
 import { getAuth } from "@/auth/auth.server"
 import { fetchAndParseConfig } from "@/config/github.server"
@@ -19,6 +24,7 @@ import {
 	type DraftRefusal,
 	type DraftTarget,
 	getCollectionPath,
+	isDraftAdoptionNavigation,
 	type SaveInput,
 } from "@/core/editor/drafts"
 import { createDrafts } from "@/core/editor/drafts/create-drafts.server"
@@ -179,23 +185,34 @@ function getDraftTarget(
 	throw new Response("Not Found", { status: 404 })
 }
 
+/**
+ * A new item's Draft is minted by its first save, and the editor puts the id it
+ * returns in the URL so a reload can find it again. That navigation changes the
+ * URL and nothing else — the editor is already holding what the loader would
+ * answer with — so re-running the loader would only race the writer's typing.
+ */
+export function shouldRevalidate({
+	currentUrl,
+	defaultShouldRevalidate,
+	nextUrl,
+}: ShouldRevalidateFunctionArgs) {
+	if (isDraftAdoptionNavigation(currentUrl, nextUrl)) return false
+	return defaultShouldRevalidate
+}
+
 export async function loader(args: Route.LoaderArgs) {
 	const resolved = await resolveCollectionContext(args)
 	const drafts = createDraftsFor(resolved)
 
 	// `args.url` is React Router's normalized URL (no `.data` suffix or
-	// index/_routes params); clone it so we can mutate searchParams safely.
-	const url = new URL(args.url)
-	const target = getDraftTarget(args.params, url.searchParams.get("draft"))
+	// index/_routes params), so `?draft=` is where the editor put it.
+	const draftId = new URL(args.url).searchParams.get("draft")
+	const target = getDraftTarget(args.params, draftId)
 	const mode = target.mode
 	const opened = await drafts.open(target)
 	// The only thing `open` can fail to find is what the route asked it for: the
 	// Draft named by `?draft=` for a new item, the item itself otherwise.
 	if (!opened.ok) throw draftRefusalResponse(opened)
-	if (opened.created) {
-		url.searchParams.set("draft", opened.draftId)
-		throw redirect(`${url.pathname}${url.search}`)
-	}
 
 	return {
 		canPublish: true,
@@ -262,7 +279,10 @@ export async function action(args: Route.ActionArgs) {
 	if (payload.intent === EditorActionIntents.SAVE) {
 		const saved = await drafts.save(input)
 		if (!saved.ok) return draftRefusalResponse(saved)
-		if (saved.outcome === "matches-source") {
+		// Nothing was kept, so there is no Draft to name and no Revision to move on
+		// to: the content matched the Source, or nobody has typed into the new item
+		// yet.
+		if (saved.outcome === "matches-source" || saved.outcome === "unwritten") {
 			return Response.json({
 				ok: true,
 				commitSha: null,
@@ -336,6 +356,7 @@ export default function CollectionEditor({ loaderData }: Route.ComponentProps) {
 		draftRevision,
 		initialContent,
 		initialFields,
+		mode,
 		owner,
 		name,
 		schema,
@@ -354,6 +375,11 @@ export default function CollectionEditor({ loaderData }: Route.ComponentProps) {
 	const [isEditorReady, setIsEditorReady] = useState(false)
 	const [editorInstance, setEditorInstance] = useState<Editor | null>(null)
 	const revisionRef = useRef(draftRevision)
+	// A new item has no Draft until its first save mints one, so the id arrives in
+	// a response rather than in the loader's answer. Every mutation reads it at
+	// the moment it is sent, so the save behind the minting one carries the id
+	// that save minted instead of the null this render was built on.
+	const draftIdRef = useRef(draftId)
 	const mutationQueueRef = useRef<Promise<void>>(Promise.resolve())
 	const [autosaveState, setAutosaveState] =
 		useState<AutosaveState>(initialAutosaveState)
@@ -366,6 +392,38 @@ export default function CollectionEditor({ loaderData }: Route.ComponentProps) {
 	const toggleProperties = useCallback(
 		() => setIsPropertiesOpen((open) => !open),
 		[],
+	)
+	useEffect(() => {
+		draftIdRef.current = draftId
+	}, [draftId])
+	// Autosave flushes on unmount, so the save that mints the Draft can answer
+	// after the writer has left the editor — at which point the URL is somebody
+	// else's, and adopting into it would drag them back here.
+	const isMountedRef = useRef(true)
+	useEffect(() => {
+		isMountedRef.current = true
+		return () => {
+			isMountedRef.current = false
+		}
+	}, [])
+
+	/**
+	 * Put the Draft the first save minted in the URL, which is how a reload finds
+	 * the writer's work again. `shouldRevalidate` declines the loader that would
+	 * otherwise follow: this navigation carries no news the editor doesn't have.
+	 */
+	const adoptDraftId = useCallback(
+		async (id: string) => {
+			if (!isMountedRef.current) return
+			const search = new URLSearchParams(location.search)
+			if (search.get("draft") === id) return
+			search.set("draft", id)
+			await navigate(`${location.pathname}?${search.toString()}`, {
+				preventScrollReset: true,
+				replace: true,
+			})
+		},
+		[location.pathname, location.search, navigate],
 	)
 	const registerEditorRef = useCallback((api: EditorRefApi | null) => {
 		editorRef.current = api
@@ -387,7 +445,7 @@ export default function CollectionEditor({ loaderData }: Route.ComponentProps) {
 							method: "POST",
 							headers: { "Content-Type": "application/json" },
 							body: JSON.stringify({
-								draftId,
+								draftId: draftIdRef.current,
 								expectedRevision: revisionRef.current,
 								intent,
 								markdown,
@@ -398,6 +456,7 @@ export default function CollectionEditor({ loaderData }: Route.ComponentProps) {
 					const responseText = await response.text()
 					let result: {
 						draftDeleted?: boolean
+						draftId?: string | null
 						error?: string
 						revision?: number | null
 						collectionPath?: string
@@ -411,8 +470,10 @@ export default function CollectionEditor({ loaderData }: Route.ComponentProps) {
 						throw new Error(result.error ?? "Could not save the editor draft")
 					}
 					if (result.draftDeleted) {
+						draftIdRef.current = null
 						revisionRef.current = null
 					} else if (typeof result.revision === "number") {
+						draftIdRef.current = result.draftId ?? draftIdRef.current
 						revisionRef.current = result.revision
 					}
 					if (
@@ -423,13 +484,17 @@ export default function CollectionEditor({ loaderData }: Route.ComponentProps) {
 					// Awaited so the editor stays in its publishing state until the
 					// collection page has actually loaded, rather than sitting idle and
 					// re-clickable while its loader runs.
-					if (intent === EditorActionIntents.PUBLISH && result.collectionPath)
+					if (intent === EditorActionIntents.PUBLISH && result.collectionPath) {
 						await navigate(result.collectionPath, { replace: true })
+						return
+					}
+					if (mode === "new" && draftIdRef.current)
+						await adoptDraftId(draftIdRef.current)
 				})
 			mutationQueueRef.current = operation.catch(() => undefined)
 			return operation
 		},
-		[draftId, location.pathname, location.search, navigate],
+		[adoptDraftId, location.pathname, location.search, mode, navigate],
 	)
 
 	const updateField = useCallback(

@@ -41,22 +41,20 @@ afterEach(() => {
 	harness?.close()
 })
 
-test("mints a draft with the schema defaults on the first open of a new item", async () => {
-	const { drafts, projectId } = setup()
+test("opens a new item on the schema defaults without minting a draft", async () => {
+	const { drafts } = setup()
 
 	const result = await drafts.open({ draftId: null, mode: "new" })
 
-	const rows = await harness.db.select().from(editorDraft)
-	expect(rows).toHaveLength(1)
-	expect(result).toEqual({ created: true, draftId: rows[0].id, ok: true })
-	expect(rows[0]).toMatchObject({
-		collectionSlug: "posts",
-		markdown: "",
-		metadata: JSON.stringify({ slug: "", title: "" }),
-		projectId,
-		revision: 0,
-		sourcePath: null,
+	expect(result).toEqual({
+		content: "",
+		draftId: null,
+		fields: { slug: "", title: "" },
+		ok: true,
+		revision: null,
+		source: null,
 	})
+	expect(await harness.db.select().from(editorDraft)).toEqual([])
 })
 
 test("opens a minted draft by id", async () => {
@@ -71,7 +69,6 @@ test("opens a minted draft by id", async () => {
 
 	expect(result).toEqual({
 		content: "Draft body",
-		created: false,
 		draftId: seeded.id,
 		fields: { title: "Hello" },
 		ok: true,
@@ -103,7 +100,6 @@ test("opens an existing item that has no draft", async () => {
 
 	expect(result).toMatchObject({
 		content: SOURCE_BODY,
-		created: false,
 		draftId: null,
 		fields: { title: "Hello" },
 		ok: true,

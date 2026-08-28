@@ -1,5 +1,9 @@
 import { expect, test } from "vitest"
-import { getCollectionPath, getDraftEditorPath } from "./draft-paths"
+import {
+	getCollectionPath,
+	getDraftEditorPath,
+	isDraftAdoptionNavigation,
+} from "./draft-paths"
 
 const PROJECT = { repoName: "website", repoOwnerLogin: "acme" }
 
@@ -35,4 +39,36 @@ test("addresses the collection a draft belongs to", () => {
 	expect(getCollectionPath(PROJECT, "posts")).toBe(
 		"/acme/website/collections/posts",
 	)
+})
+
+const NEW_ITEM_EDITOR =
+	"https://kobun.test/acme/website/collections/posts/editor/new"
+
+test("recognizes the editor adopting the draft its first save minted", () => {
+	expect(
+		isDraftAdoptionNavigation(
+			new URL(NEW_ITEM_EDITOR),
+			new URL(`${NEW_ITEM_EDITOR}?draft=draft-id`),
+		),
+	).toBe(true)
+})
+
+test("does not mistake a move between drafts for an adoption", () => {
+	expect(
+		isDraftAdoptionNavigation(
+			new URL(`${NEW_ITEM_EDITOR}?draft=first`),
+			new URL(`${NEW_ITEM_EDITOR}?draft=second`),
+		),
+	).toBe(false)
+})
+
+test("does not mistake a move to another item for an adoption", () => {
+	expect(
+		isDraftAdoptionNavigation(
+			new URL(NEW_ITEM_EDITOR),
+			new URL(
+				"https://kobun.test/acme/website/collections/posts/editor/item/hello?draft=draft-id",
+			),
+		),
+	).toBe(false)
 })
