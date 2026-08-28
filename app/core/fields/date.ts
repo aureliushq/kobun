@@ -1,15 +1,16 @@
+import { isMatch } from "date-fns"
 import type { FieldTypeDefFor } from "./types"
 
 /**
- * A calendar day, written `YYYY-MM-DD`. The shape check is not enough on its
- * own — `2026-13-99` has the shape and is not a day — so the parse has to agree.
+ * A calendar day, written `yyyy-MM-dd`. The check is the parse: a shape test
+ * alone would accept `2026-02-30`, which has the shape and is not a day.
+ * Padding is where the parse is lenient — `2026-7-14` is accepted — and that
+ * leniency is the contract, not an oversight.
  */
 export const dateField: FieldTypeDefFor<"date"> = {
 	defaultValue: () => "",
 	validate: ({ path, value }) =>
-		typeof value === "string" &&
-		/^\d{4}-\d{2}-\d{2}$/.test(value) &&
-		!Number.isNaN(Date.parse(value))
+		typeof value === "string" && isMatch(value, "yyyy-MM-dd")
 			? []
 			: [`${path} must be a valid date`],
 }

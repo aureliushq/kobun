@@ -52,12 +52,13 @@ export type DraftTarget =
 export type OpenInput = DraftTarget
 
 export type OpenResult =
-	/** A Draft was minted; the caller sends the writer to it to open it. */
-	| { created: true; draftId: string; ok: true }
-	/** What the editor opens with, Effective Content already decided. */
+	/**
+	 * What the editor opens with, Effective Content already decided. A new item
+	 * opens on nothing but its schema defaults: it has no Draft until the writer
+	 * writes something, so `draftId` and `revision` are null until then.
+	 */
 	| {
 			content: string
-			created: false
 			draftId: string | null
 			fields: FieldRecord
 			ok: true
@@ -92,12 +93,15 @@ export type WriteDraftResult =
 
 export type SaveResult =
 	| WriteDraftResult
+	/** The content the Source already holds: nothing to keep that it doesn't. */
 	| {
 			draftId: string | null
 			ok: true
 			outcome: "matches-source"
 			revision: number | null
 	  }
+	/** A new item nobody has written into: there is no Draft, and no need for one. */
+	| { draftId: null; ok: true; outcome: "unwritten"; revision: null }
 
 /** Publishing carries the same content a save does; only the intent differs. */
 export type PublishInput = SaveInput

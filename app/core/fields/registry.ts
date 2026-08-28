@@ -1,6 +1,7 @@
 import { arrayField } from "./array"
 import { booleanField } from "./boolean"
 import { dateField } from "./date"
+import { datetimeField } from "./datetime"
 import { imageField } from "./image"
 import { multiSelectField } from "./multi-select"
 import { objectField } from "./object"
@@ -21,14 +22,16 @@ export type FieldTypeRegistry = {
 
 /**
  * The whole taxonomy, in one place. This is the check the refactor is for:
- * dropping an entry, adding a stray one, or declaring a tenth Field Type in the
- * config schema all fail the build here rather than falling through to an empty
- * string at runtime.
+ * dropping an entry, adding a stray one, or declaring one more Field Type in
+ * the config schema all fail the build here rather than falling through to an
+ * empty string at runtime. `datetime` arrived that way — the build named the
+ * missing entry before anyone had to notice it was missing.
  */
 export const fieldTypeRegistry = {
 	array: arrayField,
 	boolean: booleanField,
 	date: dateField,
+	datetime: datetimeField,
 	image: imageField,
 	multi_select: multiSelectField,
 	object: objectField,

@@ -1,5 +1,8 @@
 import type { Editor } from "@tiptap/react"
-import { BubbleMenu as TiptapBubbleMenu } from "@tiptap/react/menus"
+import {
+	type BubbleMenuProps,
+	BubbleMenu as TiptapBubbleMenu,
+} from "@tiptap/react/menus"
 import {
 	Bold,
 	Code,
@@ -23,8 +26,35 @@ interface EditorBubbleMenuProps {
 	editor: Editor
 }
 
+type ShouldShow = NonNullable<BubbleMenuProps["shouldShow"]>
+
 export function EditorBubbleMenu({ editor }: EditorBubbleMenuProps) {
 	const [showLinkSelector, setShowLinkSelector] = useState(false)
+
+	// Tiptap replaces its default predicate with this one rather than composing
+	// the two, so every guard the default applied has to be restated here.
+	const shouldShow = useCallback<ShouldShow>(
+		({ editor, element, state, view, from, to }) => {
+			if (!editor.isEditable) return false
+			if (editor.isActive("codeBlock")) return false
+
+			const { doc, selection } = state
+			if (selection.empty) return false
+
+			// Keep the menu up while focus sits in the link input, which lives
+			// inside the menu element.
+			if (!view.hasFocus() && !element.contains(document.activeElement)) {
+				return false
+			}
+
+			// A non-empty range holding no text — an empty block, or a node
+			// selection on an image or horizontal rule — has nothing to format.
+			if (!doc.textBetween(from, to).length) return false
+
+			return true
+		},
+		[],
+	)
 
 	const formatButtons = [
 		{
@@ -87,15 +117,12 @@ export function EditorBubbleMenu({ editor }: EditorBubbleMenuProps) {
 	)
 
 	return (
-		<TiptapBubbleMenu
-			editor={editor}
-			shouldShow={({ editor, from, to }) => {
-				if (editor.isActive("codeBlock")) return false
-				return from !== to
-			}}
-		>
+		<TiptapBubbleMenu editor={editor} shouldShow={shouldShow}>
 			<TooltipProvider>
-				<div className="flex items-center gap-0.5 rounded-lg border bg-background p-1 shadow-md">
+				<div
+					data-testid="editor-bubble-menu"
+					className="flex items-center gap-0.5 rounded-lg border bg-background p-1 shadow-md"
+				>
 					{formatButtons.map((button) => {
 						const Icon = button.icon
 						return (

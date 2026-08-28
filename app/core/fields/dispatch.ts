@@ -37,7 +37,7 @@ function entryFor<F extends ValueField>(field: F): FieldTypeDef<F> {
 
 /**
  * Roles first, then the Field Type. Nothing below this line is a fallthrough:
- * past the Role check the lookup is total over all nine Field Types, and the
+ * past the Role check the lookup is total over every Field Type, and the
  * compiler says so.
  */
 export function defaultForField(

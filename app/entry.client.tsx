@@ -1,4 +1,4 @@
-import { PostHogProvider } from "@posthog/react"
+import { PostHogErrorBoundary, PostHogProvider } from "@posthog/react"
 import posthog from "posthog-js"
 import { StrictMode, startTransition } from "react"
 import { hydrateRoot } from "react-dom/client"
@@ -12,6 +12,11 @@ if (token && host) {
 		api_host: host,
 		defaults: "2026-01-30",
 		tracing_headers: [window.location.hostname],
+		capture_exceptions: {
+			capture_unhandled_errors: true,
+			capture_unhandled_rejections: true,
+			capture_console_errors: false,
+		},
 	})
 } else if (import.meta.env.DEV) {
 	console.error(
@@ -23,9 +28,11 @@ startTransition(() => {
 	hydrateRoot(
 		document,
 		<PostHogProvider client={posthog}>
-			<StrictMode>
-				<HydratedRouter />
-			</StrictMode>
+			<PostHogErrorBoundary>
+				<StrictMode>
+					<HydratedRouter />
+				</StrictMode>
+			</PostHogErrorBoundary>
 		</PostHogProvider>,
 	)
 })

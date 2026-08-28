@@ -4,7 +4,7 @@ Glossary of domain terms. Keep implementation details out — this is vocabulary
 
 ## Editing
 
-- **Draft** — an editable working copy of content, kept by Kobun, reconciled against a committed **Source**. A Draft exists from the moment editing begins until its content matches its Source again.
+- **Draft** — an editable working copy of content, kept by Kobun, reconciled against a committed **Source**. A Draft exists from the moment the writer writes something until its content matches its Source again; opening an editor over content nobody has typed into yet creates none.
 - **Source** — the canonical content: a file committed to the user's GitHub repository. A Draft tracks which Source version it was last reconciled with.
 - **Revision** — a counter incremented on every saved change to a Draft. Used to detect two editing sessions racing each other.
 - **Published Revision** — the Revision that was last published to the Source. A Draft with no Published Revision has never been published from.
@@ -29,7 +29,7 @@ Glossary of domain terms. Keep implementation details out — this is vocabulary
 - **Singleton** — a single fixed Source file with its own schema; no slug, no directory.
 - **Slug** — the identifier of a Collection Item within its Collection; must be unique across the Collection's directory.
 - **Field** — one named entry in a Collection or Singleton schema: a label plus either a Field Type or a Role.
-- **Field Type** — the kind of value a Field holds, determining how it is defaulted, validated, shown, and edited: `text · url · date · boolean · image · select · multi_select · array · object`. Every Field Type carries an ordinary value.
+- **Field Type** — the kind of value a Field holds, determining how it is defaulted, validated, shown, and edited: `text · url · date · datetime · boolean · image · select · multi_select · array · object`. Every Field Type carries an ordinary value.
 - **Container** — a Field Type whose value holds other Fields' values: `array` (rows of items) and `object` (named sub-fields). Container behavior is defined in terms of its children's behavior.
 - **Scalar** — any non-Container Field Type; its value stands alone.
 - **Role** — a structural assignment a schema makes through a Field, rather than a value the Field holds. There are exactly three: the **Slug Role** (this Field is the item's identity, derived from a text Field), the **Document Role** (this Field is where the Body lives), and the **Title Role** (this Field is the display heading for its container — declared on a text Field, or inferred when undeclared). Role rules — exactly one slug per Collection, at most one document, document requires a document Format — are rules about the schema as a whole, not about any value.

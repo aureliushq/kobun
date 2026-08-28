@@ -5,6 +5,7 @@ import {
 	ExternalLinkIcon,
 	TriangleAlertIcon,
 } from "lucide-react"
+import { useState } from "react"
 import { Link, redirect, useFetcher, useRouteLoaderData } from "react-router"
 import { getAuth } from "@/auth/auth.server"
 import type { ConfigError } from "@/config/types"
@@ -15,6 +16,17 @@ import { dbContext } from "@/db/context"
 import { editorDraft, project } from "@/db/schema/app-schema"
 import { posthogContext } from "@/lib/posthog-middleware"
 import { Alert, AlertDescription, AlertTitle } from "@/ui/components/base/alert"
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+	AlertDialogTrigger,
+} from "@/ui/components/base/alert-dialog"
 import { Badge } from "@/ui/components/base/badge"
 import { Button } from "@/ui/components/base/button"
 import {
@@ -171,11 +183,48 @@ function ConfigAlert({ error }: { error: ConfigError }) {
 	}
 }
 
+function DiscardDraftDialog({ draftId }: { draftId: string }) {
+	const fetcher = useFetcher()
+	const [open, setOpen] = useState(false)
+
+	return (
+		<AlertDialog open={open} onOpenChange={setOpen}>
+			<AlertDialogTrigger render={<Button size="sm" variant="ghost" />}>
+				Discard
+			</AlertDialogTrigger>
+			<AlertDialogContent>
+				<AlertDialogHeader>
+					<AlertDialogTitle>Discard this draft?</AlertDialogTitle>
+					<AlertDialogDescription>
+						This can&apos;t be undone. The draft and any unpublished changes
+						will be permanently deleted.
+					</AlertDialogDescription>
+				</AlertDialogHeader>
+				<AlertDialogFooter>
+					<AlertDialogCancel>Cancel</AlertDialogCancel>
+					<AlertDialogAction
+						variant="destructive"
+						disabled={fetcher.state !== "idle"}
+						onClick={() => {
+							fetcher.submit(
+								{ intent: DISCARD_DRAFT_INTENT, draftId },
+								{ method: "post" },
+							)
+							setOpen(false)
+						}}
+					>
+						Discard
+					</AlertDialogAction>
+				</AlertDialogFooter>
+			</AlertDialogContent>
+		</AlertDialog>
+	)
+}
+
 export default function Dashboard({ loaderData }: Route.ComponentProps) {
 	const layoutData = useRouteLoaderData<typeof dashboardLayoutLoader>(
 		"core/components/layouts/dashboard",
 	)
-	const discardFetcher = useFetcher()
 	const user = layoutData?.user
 	// A Config that declares at least one Collection is served even when parts of
 	// it did not validate, and it carries those errors with it — so the writer is
@@ -235,26 +284,7 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
 										>
 											Continue
 										</Button>
-										<discardFetcher.Form
-											method="post"
-											onSubmit={(event) => {
-												if (
-													!window.confirm("Discard this draft permanently?")
-												) {
-													event.preventDefault()
-												}
-											}}
-										>
-											<input
-												type="hidden"
-												name="intent"
-												value={DISCARD_DRAFT_INTENT}
-											/>
-											<input type="hidden" name="draftId" value={draft.id} />
-											<Button type="submit" size="sm" variant="ghost">
-												Discard
-											</Button>
-										</discardFetcher.Form>
+										<DiscardDraftDialog draftId={draft.id} />
 									</div>
 								</CardContent>
 							</Card>

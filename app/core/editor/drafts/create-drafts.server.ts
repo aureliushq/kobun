@@ -64,6 +64,9 @@ export function createDrafts(context: DraftsContext) {
 		sourceStore,
 	} = context
 
+	/** What a new item's Fields hold before anyone has typed into them. */
+	const defaultFields = applyMetadataDefaults(collection.schema, {})
+
 	function findDraftBySourcePath(sourcePath: string) {
 		return db.query.editorDraft.findFirst({
 			where: and(
@@ -116,12 +119,19 @@ export function createDrafts(context: DraftsContext) {
 	 * Both `save` and `publish` land here, but neither delegates the whole
 	 * transition to it: each has its own answer for content that already matches
 	 * the Source.
+	 *
+	 * This is also where a new item's Draft comes into existence — on the first
+	 * save that carries something, not on opening the editor.
 	 */
 	async function writeDraft(
 		input: ResolvedSaveInput,
 	): Promise<WriteDraftResult> {
 		const existing = await findDraft(input)
-		if (!input.source && !existing) return { code: "not-found", ok: false }
+		// The caller named a Draft this collection no longer holds: discarded from
+		// the dashboard, or published out from another session.
+		if (!input.source && !existing && input.draftId) {
+			return { code: "not-found", ok: false }
+		}
 
 		if (existing) {
 			if (input.expectedRevision !== existing.revision) {
@@ -155,10 +165,6 @@ export function createDrafts(context: DraftsContext) {
 			return { draft: updated, ok: true, outcome: "saved" }
 		}
 
-		invariant(
-			input.source,
-			"a source is required when creating a draft for an existing item",
-		)
 		if (input.expectedRevision !== null) {
 			return { code: "revision-conflict", ok: false }
 		}
@@ -168,14 +174,16 @@ export function createDrafts(context: DraftsContext) {
 				.values({
 					collectionSlug,
 					id: crypto.randomUUID(),
-					itemSlug: input.source.itemSlug,
+					itemSlug: input.source?.itemSlug ?? null,
 					markdown: input.markdown,
 					metadata: JSON.stringify(input.fields),
 					projectId: project.id,
-					publishedRevision: 0,
+					// A new item has never been published, which is what leaves it
+					// Dirty; an existing item's first Draft starts level with its Source.
+					publishedRevision: input.source ? 0 : null,
 					revision: 1,
-					sourcePath: input.source.path,
-					sourceSha: input.source.sha,
+					sourcePath: input.source?.path ?? null,
+					sourceSha: input.source?.sha ?? null,
 				})
 				.returning()
 			return { draft: created, ok: true, outcome: "saved" }
@@ -193,11 +201,35 @@ export function createDrafts(context: DraftsContext) {
 	}
 
 	/**
+	 * Whether this save has nothing to mint a Draft from: it addresses a new item
+	 * that has no Draft yet — no Source, no id — and carries nothing the schema
+	 * did not put there itself. A Draft is what keeps the writer's work, so there
+	 * is nothing to keep until there is work; minting one on sight is what filled
+	 * the dashboard with empty Drafts. Fields the caller left out are defaulted
+	 * first, so "untouched" means the same thing however completely they spelled
+	 * the record.
+	 */
+	function hasNothingToMint(input: ResolvedSaveInput) {
+		return (
+			input.source === null &&
+			input.draftId === null &&
+			input.markdown.trim() === "" &&
+			canonicalMetadata(
+				applyMetadataDefaults(collection.schema, input.fields),
+			) === canonicalMetadata(defaultFields)
+		)
+	}
+
+	/**
 	 * Persist the writer's content as the Draft. Content that already matches the
 	 * Source needs no Draft at all: short-circuiting keeps a no-op autosave from
-	 * inflating the Revision and triggering spurious conflicts elsewhere.
+	 * inflating the Revision and triggering spurious conflicts elsewhere. Neither
+	 * does a new item the writer has not written into.
 	 */
 	async function saveResolved(input: ResolvedSaveInput): Promise<SaveResult> {
+		if (hasNothingToMint(input)) {
+			return { draftId: null, ok: true, outcome: "unwritten", revision: null }
+		}
 		if (matchesSource(input)) {
 			const existing = await findDraft(input)
 			const expected = existing?.revision ?? null
@@ -502,33 +534,25 @@ export function createDrafts(context: DraftsContext) {
 	}
 
 	async function openNewItem(draftId: string | null): Promise<OpenResult> {
-		const defaults = applyMetadataDefaults(collection.schema, {})
 		if (!draftId) {
-			// A new item's Draft is minted on sight so that autosave has somewhere
-			// to land from the writer's first keystroke.
-			const [created] = await db
-				.insert(editorDraft)
-				.values({
-					collectionSlug,
-					id: crypto.randomUUID(),
-					markdown: "",
-					metadata: JSON.stringify(defaults),
-					projectId: project.id,
-					revision: 0,
-				})
-				.returning()
-			// Nothing to display yet: the caller sends the writer to the new Draft,
-			// which opens it for real.
-			return { created: true, draftId: created.id, ok: true }
+			// An empty editor, and no Draft to show it from: the first save that
+			// carries something mints one, and the caller adopts the id it returns.
+			return {
+				content: "",
+				draftId: null,
+				fields: defaultFields,
+				ok: true,
+				revision: null,
+				source: null,
+			}
 		}
 
 		const draft = await findNewItemDraft(draftId)
 		if (!draft) return { code: "not-found", ok: false }
 		return {
 			content: draft.markdown,
-			created: false,
 			draftId: draft.id,
-			fields: draftFields(draft, defaults),
+			fields: draftFields(draft, defaultFields),
 			ok: true,
 			revision: draft.revision,
 			source: null,
@@ -550,7 +574,6 @@ export function createDrafts(context: DraftsContext) {
 		const dirty = draft && isDraftDirty(draft) ? draft : null
 		return {
 			content: dirty ? dirty.markdown : source.body,
-			created: false,
 			draftId: draft?.id ?? null,
 			fields: dirty
 				? draftFields(dirty, source.frontmatter)
@@ -562,11 +585,11 @@ export function createDrafts(context: DraftsContext) {
 	}
 
 	/**
-	 * Hand the editor everything it opens with. A new item's Draft is minted
-	 * here; an existing item's is reconciled against its Source — rebased when
-	 * the Source moved under a Clean Draft, left alone when the Draft is Dirty —
-	 * and the content is already the Effective Content, so callers never
-	 * interpret dirtiness themselves.
+	 * Hand the editor everything it opens with. Opening mints nothing: a new item
+	 * opens on its schema defaults, and an existing item's Draft is reconciled
+	 * against its Source — rebased when the Source moved under a Clean Draft, left
+	 * alone when the Draft is Dirty. The content is already the Effective Content,
+	 * so callers never interpret dirtiness themselves.
 	 */
 	async function open(input: OpenInput): Promise<OpenResult> {
 		if (input.mode === "new") return openNewItem(input.draftId)

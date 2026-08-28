@@ -171,6 +171,14 @@ export async function loader({ context, request, url }: Route.LoaderArgs) {
 			})
 			.onConflictDoNothing()
 
+		const posthog = context.get(posthogContext)
+		posthog?.capture({
+			event: "github_app_connected",
+			properties: {
+				repository_selection: installation.repository_selection,
+			},
+		})
+
 		return redirect(PATHS.SETUP)
 	}
 
@@ -343,7 +351,7 @@ export async function action({ context, request }: Route.ActionArgs) {
 		const installUrl = getGithubAppInstallUrl(env, state)
 
 		const posthog = context.get(posthogContext)
-		posthog?.capture({ event: "github_app_installed" })
+		posthog?.capture({ event: "github_app_install_started" })
 
 		return redirect(installUrl, {
 			headers: {

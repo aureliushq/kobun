@@ -1,3 +1,4 @@
+import { usePostHog } from "@posthog/react"
 import {
 	BookOpenIcon,
 	CheckIcon,
@@ -69,6 +70,12 @@ const DashboardSidebar = ({
 	const location = useLocation()
 
 	const { resolvedTheme } = useTheme()
+	const posthog = usePostHog()
+
+	const handleLogout = () => {
+		posthog?.capture("logout_initiated")
+		posthog?.reset()
+	}
 
 	const repoSlug = `${activeProject.repoOwnerLogin}/${activeProject.repoName}`
 	const pathname = `/${repoSlug}`
@@ -293,7 +300,11 @@ const DashboardSidebar = ({
 								</SidebarMenuButton>
 							</SidebarMenuItem>
 							<SidebarMenuItem>
-								<Form method="POST" action="/api/dashboard-actions">
+								<Form
+									action="/api/dashboard-actions"
+									method="POST"
+									onSubmit={handleLogout}
+								>
 									<SidebarMenuButton
 										className="sidebar-menu-button"
 										name="intent"

@@ -9,7 +9,7 @@ import type { DocumentField, Field, SlugField } from "@/config/types"
 export type ValueField = Exclude<Field, DocumentField | SlugField>
 
 /**
- * The nine Field Type names — the registry's key set.
+ * Every Field Type name — the registry's key set.
  *
  * Derived from the union so it can never drift, but widened through a template
  * literal: `FieldType` is private to the config package, so without the
@@ -63,7 +63,7 @@ export type ValidateContext<F extends ValueField> = {
  * Read and edit rendering join this contract in #71 and #72, each as its own
  * context type — which is why every behavior takes a context object rather than
  * positional arguments. A new input then becomes one property, not a signature
- * change rippling through nine entries.
+ * change rippling through every entry.
  */
 export type FieldTypeDef<F extends ValueField> = {
 	defaultValue(context: DefaultContext<F>): unknown

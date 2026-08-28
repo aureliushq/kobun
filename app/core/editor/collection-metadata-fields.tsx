@@ -1,3 +1,4 @@
+import { format, isValid } from "date-fns"
 import type { ArrayField, Field } from "@/config/types"
 import { Button } from "@/ui/components/base/button"
 import { Checkbox } from "@/ui/components/base/checkbox"
@@ -188,6 +189,17 @@ function Control({
 			</select>
 		)
 	}
+	if (field.type === "datetime") {
+		return (
+			<Input
+				type="datetime-local"
+				step="1"
+				value={toDatetimeLocal(value)}
+				disabled={disabled}
+				onChange={(event) => onChange(fromDatetimeLocal(event.target.value))}
+			/>
+		)
+	}
 	const input =
 		field.type === "text" && field.multiline ? (
 			<Textarea
@@ -219,6 +231,28 @@ function Control({
 			) : null}
 		</>
 	)
+}
+
+/**
+ * A datetime is stored as a UTC instant but edited in the writer's local wall
+ * time, which is the only thing `datetime-local` can speak. An unparseable
+ * value shows an empty picker rather than an invented one.
+ *
+ * Seconds are carried (with `step="1"` on the control) so that editing a
+ * stamped value does not silently round it down to the minute.
+ */
+function toDatetimeLocal(value: unknown) {
+	const date = new Date(String(value ?? ""))
+	return isValid(date) ? format(date, "yyyy-MM-dd'T'HH:mm:ss") : ""
+}
+
+function fromDatetimeLocal(local: string) {
+	if (!local) return ""
+	const date = new Date(local)
+	// A browser without `datetime-local` degrades the control to a text input,
+	// so junk is reachable. Hand it back rather than blanking what was typed —
+	// the validator names the problem, an empty field would hide it.
+	return isValid(date) ? date.toISOString() : local
 }
 
 function resolveImageSource(value: string, assetBaseUrl?: string) {

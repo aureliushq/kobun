@@ -40,6 +40,10 @@ const DOCUMENT_QUIRKS = [
 		name: "non-ASCII Data and Body",
 		raw: "---\ntitle: café\n---\n日本語 and 🎉\n",
 	},
+	{
+		name: "a datetime carrying a time component",
+		raw: "---\npublishedAt: 2026-07-14T09:30:00.000Z\n---\nBody\n",
+	},
 ]
 
 const DATA_QUIRKS: Array<{ format: Format; name: string; raw: string }> = [
@@ -76,6 +80,16 @@ const DATA_QUIRKS: Array<{ format: Format; name: string; raw: string }> = [
 	},
 	{ format: "yaml", name: "an empty file", raw: "" },
 	{ format: "yaml", name: "non-ASCII values", raw: "title: café 日本語 🎉\n" },
+	{
+		format: "json",
+		name: "a datetime carrying a time component",
+		raw: '{\n\t"publishedAt": "2026-07-14T09:30:00.000Z"\n}\n',
+	},
+	{
+		format: "yaml",
+		name: "a datetime carrying a time component",
+		raw: "publishedAt: 2026-07-14T09:30:00.000Z\n",
+	},
 ]
 
 const QUIRKY_SOURCES: Array<{ format: Format; name: string; raw: string }> = [
@@ -204,6 +218,15 @@ describe("frontmatter dates", () => {
 		const raw = "---\npublished: 2026-07-14\n---\nBody\n"
 
 		expect(serializeDocument(parseDocument(raw, "md"), "md", { raw })).toBe(raw)
+	})
+
+	it("parses an unquoted datetime with its time component intact", () => {
+		const document = parseDocument(
+			"---\npublishedAt: 2026-07-14T09:30:00.000Z\n---\nBody\n",
+			"md",
+		)
+
+		expect(document.data.publishedAt).toBe("2026-07-14T09:30:00.000Z")
 	})
 
 	it("appends a new Body without rewriting the date", () => {

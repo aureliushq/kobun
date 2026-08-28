@@ -1,7 +1,8 @@
-import { ChevronLeft } from "lucide-react"
+import { ChevronLeft, PanelRightClose, PanelRightOpen } from "lucide-react"
 import { useMemo, useState } from "react"
 import { Link, Outlet } from "react-router"
 import invariant from "tiny-invariant"
+import { getCollectionPath } from "@/core/editor/drafts"
 import { requireCollection, requireSingleton } from "@/core/project-context"
 import { requirePageContext } from "@/core/project-context/project-context.server"
 import { Button } from "@/ui/components/base/button"
@@ -35,7 +36,10 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
 
 	return {
 		parentLabel: collection.label,
-		parentPath: `/${owner}/${name}/collections/${collection_slug}`,
+		parentPath: getCollectionPath(
+			{ repoName: name, repoOwnerLogin: owner },
+			collection_slug,
+		),
 	}
 }
 
@@ -78,16 +82,34 @@ const EditorLayout = ({ loaderData }: Route.ComponentProps) => {
 			<main className="flex h-screen w-screen flex-col divide-y">
 				<header className="flex h-14 shrink-0 items-center justify-between gap-4 px-6">
 					<div className="flex items-center gap-2">
-						<Button
-							variant="ghost"
-							size="icon"
-							render={<Link to={parentPath} />}
-						>
-							<ChevronLeft className="size-4" />
-						</Button>
+						<Link to={parentPath}>
+							<Button variant="ghost" size="icon">
+								<ChevronLeft className="size-4" />
+							</Button>
+						</Link>
 						<span className="font-medium text-sm">{parentLabel}</span>
 					</div>
 					<div className="flex items-center gap-3">
+						{controls?.toggleProperties ? (
+							<Button
+								type="button"
+								variant="ghost"
+								size="icon"
+								aria-label={
+									controls.isPropertiesOpen
+										? "Close properties"
+										: "Open properties"
+								}
+								aria-pressed={controls.isPropertiesOpen}
+								onClick={controls.toggleProperties}
+							>
+								{controls.isPropertiesOpen ? (
+									<PanelRightClose />
+								) : (
+									<PanelRightOpen />
+								)}
+							</Button>
+						) : null}
 						{saveStatus && (
 							<span
 								className={
