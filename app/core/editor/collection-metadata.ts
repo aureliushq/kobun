@@ -5,7 +5,10 @@ import {
 	validateField,
 } from "@/core/fields"
 
-export { getCompositeValue, setCompositeValue } from "@/core/fields"
+export {
+	getCompositeValue,
+	setCompositeValue,
+} from "@/core/fields/composite"
 
 export type FieldRecord = Record<string, unknown>
 
