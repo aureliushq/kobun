@@ -46,6 +46,23 @@ export type ValidateChild = (
 	path: string,
 ) => string[]
 
+/**
+ * Where a render is happening: how deep the Field sits, whose repository its
+ * assets belong to, and — only ever at the top level — the editor paths an
+ * array Container hangs its "Add" and "Edit" links from.
+ *
+ * The depths are read by the dispatcher, never by an entry: an entry is handed
+ * a context to pass on, not one to reason about.
+ */
+export type RenderContext = {
+	accordionDepth: number
+	depth: number
+	editorPath?: string
+	fieldKey?: string
+	name: string
+	owner: string
+}
+
 export type DefaultContext<F extends ValueField> = {
 	defaultForSchema: DefaultForSchema
 	field: F
