@@ -1,4 +1,6 @@
+import { Fragment } from "react"
 import type { Field } from "@/config/types"
+import type { RenderChild } from "./types"
 
 /**
  * The chrome every rendered Field shares: the label/description row it sits in,
@@ -51,26 +53,85 @@ export function JsonFallback({ value }: { value: unknown }) {
 	)
 }
 
+/** A value summarized on one line, clipped rather than wrapped. */
+export function InlineText({ children }: { children: React.ReactNode }) {
+	return <span className="truncate">{children}</span>
+}
+
+export type FieldBlock =
+	| { kind: "fields"; entries: [string, Field][] }
+	| { kind: "array"; key: string; field: Field }
+
 /**
- * A React key for an array row. Rows carry no identity of their own, so this
- * pairs with the index rather than replacing it: it keeps a row's element from
- * being reused for a different row's content when rows are reordered.
+ * Consecutive Fields share one bordered list; an array breaks the run, because
+ * an array brings a card or a section of its own and cannot sit in a row.
  */
-export function stableKey(value: unknown): string {
-	if (value == null) return "null"
-	if (typeof value === "string" || typeof value === "number")
-		return String(value).slice(0, 32)
-	try {
-		return JSON.stringify(value).slice(0, 32)
-	} catch {
-		return "obj"
+export function buildFieldBlocks(entries: [string, Field][]): FieldBlock[] {
+	const blocks: FieldBlock[] = []
+	for (const entry of entries) {
+		const [key, field] = entry
+		if (field.type === "array") {
+			blocks.push({ kind: "array", key, field })
+		} else {
+			const last = blocks[blocks.length - 1]
+			if (last && last.kind === "fields") {
+				last.entries.push(entry)
+			} else {
+				blocks.push({ kind: "fields", entries: [entry] })
+			}
+		}
 	}
+	return blocks
 }
 
-export function singularize(s: string): string {
-	return s.endsWith("s") ? s.slice(0, -1) : s
-}
+/**
+ * A record of values laid out against a record of Fields. Both Containers reach
+ * for it: an `object` renders its own fields this way, and so does an `array`
+ * whose sole item is an object.
+ *
+ * A schema declaring no fields is not a layout — there is nothing to lay the
+ * value against — so the value is dumped instead.
+ */
+export function FieldsPanel({
+	entries,
+	renderChild,
+	value,
+}: {
+	entries: [string, Field][]
+	renderChild: RenderChild
+	value: unknown
+}) {
+	if (entries.length === 0) {
+		return <JsonFallback value={value} />
+	}
+	const record =
+		value && typeof value === "object" && !Array.isArray(value)
+			? (value as Record<string, unknown>)
+			: {}
 
-export function capitalize(s: string): string {
-	return s.length === 0 ? s : s.charAt(0).toUpperCase() + s.slice(1)
+	return (
+		<div className="flex flex-col gap-4">
+			{buildFieldBlocks(entries).map((block) => {
+				if (block.kind === "array") {
+					return (
+						<Fragment key={`array:${block.key}`}>
+							{renderChild(block.field, record[block.key])}
+						</Fragment>
+					)
+				}
+				return (
+					<dl
+						key={`fields:${block.entries.map(([k]) => k).join(",")}`}
+						className="flex flex-col divide-y rounded-lg border"
+					>
+						{block.entries.map(([key, field]) => (
+							<FieldRow key={key} field={field}>
+								{renderChild(field, record[key])}
+							</FieldRow>
+						))}
+					</dl>
+				)
+			})}
+		</div>
+	)
 }

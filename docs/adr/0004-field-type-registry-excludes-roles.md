@@ -12,7 +12,7 @@ The registry covers only the nine value-carrying types (`text · url · date · 
 
 - **Zod schemas join the registry** — rejected: `packages/config` is React-free and consumed server-side; the registry needs React. The taxonomy declaration stays in `packages/config/schema.ts` (two places per type, the second being the config contract users author against).
 - **`FieldType.TITLE` as a new type** — rejected: value-wise it is `text`; it would break `slug.from`'s must-be-text rule and add a third costume-wearing pseudo-type.
-- **Entries import the registry for array/object recursion** — rejected for circular imports; recursive behaviors receive dispatch callbacks instead, and all bookkeeping (depth guards, empty-value rendering) lives in the dispatcher, never in entries.
+- **Entries import the registry for array/object recursion** — rejected for circular imports; recursive behaviors receive dispatch callbacks instead, and all bookkeeping (depth guards, empty-value rendering) lives in the dispatcher, never in entries. "Empty-value rendering" means the dash that stands for an absent value: a type that can tell present-but-holding-nothing apart from absent — an empty list, a row-less array — still says that itself, because only it knows the difference.
 
 ## Consequences
 

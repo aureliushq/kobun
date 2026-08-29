@@ -1,4 +1,6 @@
+import type { ReactNode } from "react"
 import type { DocumentField, Field, SlugField } from "@/config/types"
+import { InlineText } from "./presentation"
 
 /**
  * A Document Field reached the dispatcher.
@@ -35,12 +37,24 @@ export function refuseDocument(
  * another's, which makes it normalization of the Data rather than behavior of
  * the Role, and that stays in the metadata module.
  *
+ * The rich render is a code chip because a slug is an identifier the writer has
+ * to copy exactly — it goes in a URL, and a proportional font hides the
+ * difference between what it says and what it is. A summary line has no room
+ * for the distinction, so there it is plain text.
+ *
  * The behaviors take a context object for the same reason a registry entry's do
- * — rich render, inline render and the edit control join them in #71 and #72,
- * each with its own inputs.
+ * — the edit control joins them in #72, with its own inputs.
  */
 export const slugRole = {
 	defaultValue: () => "",
+	renderInline: ({ value }: { value: unknown }): ReactNode => (
+		<InlineText>{String(value)}</InlineText>
+	),
+	renderValue: ({ value }: { value: unknown }): ReactNode => (
+		<code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">
+			{String(value)}
+		</code>
+	),
 	validate: ({ path, value }: { path: string; value: unknown }): string[] =>
 		typeof value === "string" ? [] : [`${path} must be text`],
 }
@@ -64,9 +78,37 @@ export function findSlugField(
  *
  * The documented resolution order is declared Title, else the Slug Role's
  * source Field, else the key/label heuristic. Only the middle tier exists
- * today: the declarative `title: true` flag is a follow-up, and the heuristic
- * still lives in the singleton route until #73 relocates it below this one.
+ * today: the declarative `title: true` flag is a follow-up, and #73 stacks
+ * `findTitleEntry` underneath this one as the fallback tier.
  */
 export function resolveTitleKey(schema: Record<string, Field>): string | null {
 	return findSlugField(schema)?.field.from ?? null
+}
+
+const TITLE_TARGETS = ["title", "name"] as const
+
+/**
+ * The Title Role's undeclared tier: the Field a reader would take for the
+ * heading. A `title` beats a `name`, and a key beats a label — a key is what
+ * the schema author wrote, a label is what they show.
+ *
+ * Both Containers ask it of their children, which is why it lives here rather
+ * than in either of them. It is not yet folded into `resolveTitleKey`: the two
+ * tiers have never consulted each other, and composing them would change what
+ * both callers resolve today. #73 does that.
+ */
+export function findTitleEntry(
+	entries: [string, Field][],
+): { key: string; field: Field } | null {
+	for (const target of TITLE_TARGETS) {
+		const match = entries.find(([key]) => key.toLowerCase() === target)
+		if (match) return { key: match[0], field: match[1] }
+	}
+	for (const target of TITLE_TARGETS) {
+		const match = entries.find(
+			([, field]) => field.label.toLowerCase() === target,
+		)
+		if (match) return { key: match[0], field: match[1] }
+	}
+	return null
 }

@@ -7,12 +7,16 @@ import { renderFieldInline, renderFieldValue } from "./dispatch"
 import type { RenderContext } from "./types"
 
 /**
- * Characterization tests for the read side of the field dispatcher.
+ * What the read side of the field dispatcher renders.
  *
- * They say what a content editor sees today, so that #71 can dissolve the two
- * switches into registry entries and prove the page did not change. They assert
- * through the seam only — a Field, a value and a render context in; DOM out —
- * and never reach for an entry.
+ * Written as characterization tests against the two switches these entries
+ * replaced, which is why they read as a description of the page rather than of
+ * the registry: they passed before the switches dissolved and after, and the
+ * only assertions that changed are the three inline renders #71 set out to fix.
+ *
+ * They assert through the seam only — a Field, a value and a render context in,
+ * DOM out — and never reach for an entry. An entry is implementation detail;
+ * what a content editor sees is not.
  */
 
 /** Schema literals are authored, not parsed, so the enum discriminants are cast. */
@@ -472,15 +476,68 @@ describe("the one-line summary", () => {
 		).toHaveTextContent("—")
 	})
 
-	it("dumps an image, an array and an object as raw strings", () => {
+	/**
+	 * The one thing #71 deliberately changes. These three had no case of their
+	 * own and fell through to `String(value)`, which put a whole path, a
+	 * comma-joined list and the literal `[object Object]` in accordion triggers.
+	 */
+	it("shows an image as its file name", () => {
 		expect(
-			inline({ type: "image", label: "Cover" }, "assets/cover.png").container,
-		).toHaveTextContent("assets/cover.png")
+			inline({ type: "image", label: "Cover" }, "assets/img/cover.png")
+				.container,
+		).toHaveTextContent("cover.png")
+	})
+
+	it("counts an array's rows", () => {
+		const tags = { type: "array", label: "Tags", items: [] }
+		expect(inline(tags, ["a", "b"]).container).toHaveTextContent("2 items")
+		expect(inline(tags, ["a"]).container).toHaveTextContent("1 item")
+		expect(inline(tags, []).container).toHaveTextContent("No items")
+	})
+
+	it("shows an object as whichever child heads it", () => {
+		const seo = {
+			type: "object",
+			label: "SEO",
+			fields: {
+				title: { type: "text", label: "Meta title" },
+				noindex: { type: "boolean", label: "No index" },
+			},
+		}
 		expect(
-			inline({ type: "array", label: "Tags", items: [] }, ["a", "b"]).container,
-		).toHaveTextContent("a,b")
+			inline(seo, { title: "Home", noindex: true }).container,
+		).toHaveTextContent("Home")
+	})
+
+	it("counts an object's fields when none of them heads it", () => {
+		const link = {
+			type: "object",
+			label: "Link",
+			fields: {
+				href: { type: "url", label: "Href" },
+				external: { type: "boolean", label: "External" },
+			},
+		}
 		expect(
-			inline({ type: "object", label: "SEO", fields: {} }, { a: 1 }).container,
-		).toHaveTextContent("[object Object]")
+			inline(link, { href: "https://kobun.io" }).container,
+		).toHaveTextContent("2 fields")
+		// A title-ish child with nothing in it is no heading either.
+		const titled = {
+			type: "object",
+			label: "Link",
+			fields: { title: { type: "text", label: "Title" } },
+		}
+		expect(inline(titled, {}).container).toHaveTextContent("1 field")
+	})
+})
+
+////////////////////// THE DOCUMENT ROLE //////////////////////
+
+describe("a Document reaching the read dispatcher", () => {
+	const body = { type: "document", label: "Content" }
+
+	it("is refused, not rendered — the Body is not a value", () => {
+		expect(() => rich(body, "# Hello")).toThrow(/Document Role/)
+		expect(() => inline(body, "# Hello")).toThrow(/Document Role/)
 	})
 })

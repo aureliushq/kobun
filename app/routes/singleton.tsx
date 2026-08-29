@@ -4,7 +4,7 @@ import { Link, useParams } from "react-router"
 import type { Field } from "@/config/types"
 import { parseDocument } from "@/core/content/document.server"
 import { type RenderContext, renderFieldValue } from "@/core/fields"
-import { FieldRow } from "@/core/fields/presentation"
+import { buildFieldBlocks, FieldRow } from "@/core/fields/presentation"
 import { requireSingleton } from "@/core/project-context"
 import { requirePageContext } from "@/core/project-context/project-context.server"
 import { getGithubFileContent } from "@/github/octokit.server"
@@ -154,24 +154,7 @@ export default function Singleton({ loaderData }: Route.ComponentProps) {
 		)
 	}
 
-	type Block =
-		| { kind: "fields"; entries: [string, Field][] }
-		| { kind: "array"; key: string; field: Field }
-
-	const blocks: Block[] = []
-	for (const entry of ordered) {
-		const [key, field] = entry
-		if (field.type === "array") {
-			blocks.push({ kind: "array", key, field })
-		} else {
-			const last = blocks[blocks.length - 1]
-			if (last && last.kind === "fields") {
-				last.entries.push(entry)
-			} else {
-				blocks.push({ kind: "fields", entries: [entry] })
-			}
-		}
-	}
+	const blocks = buildFieldBlocks(ordered)
 
 	const hasDocumentField = ordered.some(([, f]) => f.type === "document")
 	const showFallbackBody =
@@ -197,11 +180,12 @@ export default function Singleton({ loaderData }: Route.ComponentProps) {
 
 			{blocks.map((block) => {
 				if (block.kind === "array") {
-					// An absent array is an empty one, not a missing value: the section
-					// still has to offer its "Add" link.
+					// Anything that is not rows is no rows, not a missing value: the
+					// section still has to offer its "Add" link.
+					const rows = data[block.key]
 					return (
 						<Fragment key={`array:${block.key}`}>
-							{renderFieldValue(block.field, data[block.key] ?? [], {
+							{renderFieldValue(block.field, Array.isArray(rows) ? rows : [], {
 								...rootCtx,
 								editorPath,
 								fieldKey: block.key,

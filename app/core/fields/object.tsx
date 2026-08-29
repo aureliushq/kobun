@@ -1,3 +1,5 @@
+import { FieldsPanel, InlineText } from "./presentation"
+import { findTitleEntry } from "./roles"
 import type { FieldTypeDefFor } from "./types"
 
 /**
@@ -12,9 +14,37 @@ import type { FieldTypeDefFor } from "./types"
  * reaches the dispatcher and is refused, loudly. The config layer does not yet
  * forbid one (its cross-field rules only walk the top level), which is why the
  * refusal is the thing that says so.
+ *
+ * Rendering recurses the same way: through the callbacks the dispatcher hands
+ * over, never by reaching for the registry.
  */
 export const objectField: FieldTypeDefFor<"object"> = {
 	defaultValue: ({ defaultForSchema, field }) => defaultForSchema(field.fields),
+	// One line has room for one thing, so it goes to whichever child heads the
+	// object; failing that, the shape of what is there.
+	renderInline: ({ field, renderChildInline, value }) => {
+		const entries = Object.entries(field.fields)
+		const title = findTitleEntry(entries)
+		const record =
+			value && typeof value === "object" && !Array.isArray(value)
+				? (value as Record<string, unknown>)
+				: {}
+		const heading = title ? record[title.key] : undefined
+		if (title && heading != null && heading !== "")
+			return renderChildInline(title.field, heading)
+		return (
+			<InlineText>
+				{entries.length} {entries.length === 1 ? "field" : "fields"}
+			</InlineText>
+		)
+	},
+	renderValue: ({ field, renderChild, value }) => (
+		<FieldsPanel
+			entries={Object.entries(field.fields)}
+			renderChild={renderChild}
+			value={value}
+		/>
+	),
 	validate: ({ field, path, validateChild, value }) => {
 		if (!value || typeof value !== "object" || Array.isArray(value))
 			return [`${path} must be an object`]
