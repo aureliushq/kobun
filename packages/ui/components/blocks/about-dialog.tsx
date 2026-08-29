@@ -54,9 +54,7 @@ export const AwaitRelease = ({
 	releaseInfo: Promise<ReleaseInfo>
 }) => (
 	<Suspense fallback={null}>
-		<Await errorElement={<></>} resolve={releaseInfo}>
-			{children}
-		</Await>
+		<Await resolve={releaseInfo}>{children}</Await>
 	</Suspense>
 )
 

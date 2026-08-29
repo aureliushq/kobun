@@ -10,8 +10,8 @@ import {
 	LogOutIcon,
 	SettingsIcon,
 } from "lucide-react"
-import { Suspense, useState } from "react"
-import { Await, Form, Link, useLocation } from "react-router"
+import { useState } from "react"
+import { Form, Link, useLocation } from "react-router"
 import type { NormalizedConfig } from "@/config"
 import type { ProjectWithGithubInstallation } from "@/db/types"
 import {
