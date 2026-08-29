@@ -1,5 +1,6 @@
 import YAML from "yaml"
 import type z from "zod"
+import { expandFeatures } from "./features"
 import { collectionSchema, singletonSchema, versionSchema } from "./schema"
 import type {
 	Collection,
@@ -50,9 +51,21 @@ export const validateConfig = (
 				errors.push(
 					...zodIssuesToConfigError(result.error.issues, `collections.${key}`),
 				)
-			} else {
-				collections[key] = result.data
+				continue
 			}
+
+			const expanded = expandFeatures(result.data)
+			if (!expanded.collection) {
+				errors.push(
+					...expanded.errors.map((error) => ({
+						...error,
+						path: scopePath(`collections.${key}`, error.path),
+					})),
+				)
+				continue
+			}
+
+			collections[key] = expanded.collection
 		}
 	} else if (rawCollections === undefined) {
 		errors.push({
@@ -74,9 +87,24 @@ export const validateConfig = (
 				errors.push(
 					...zodIssuesToConfigError(result.error.issues, `singletons.${key}`),
 				)
-			} else {
-				singletons[key] = result.data
+				continue
 			}
+
+			// `featureSchema` hangs off `singletonSchema` and always has, but the
+			// singleton write path is a stub — expanding here would mint Managed
+			// Fields empty by construction, forever (ADR-0005). A loud error beats
+			// permanent silence, and it lasts only as long as its reason does.
+			if (result.data.features) {
+				errors.push({
+					code: "feature_unsupported",
+					message:
+						"Features are not supported on Singletons yet. Remove the features block.",
+					path: `singletons.${key}.features`,
+				})
+				continue
+			}
+
+			singletons[key] = result.data
 		}
 	}
 
@@ -112,19 +140,17 @@ export const validateConfig = (
 	}
 }
 
+/** A dotted error path, with empty segments dropped. */
+const scopePath = (...segments: PropertyKey[]): string =>
+	segments.filter((segment) => segment !== "").join(".")
+
 const zodIssuesToConfigError = (
 	issues: z.ZodIssue[],
 	prefix: string,
 ): ConfigError[] => {
-	return issues.map((issue) => {
-		const fullPath = [prefix, ...issue.path]
-			.filter((segment) => segment !== "") // remove empty segments
-			.join(".")
-
-		return {
-			code: issue.code,
-			message: issue.message,
-			path: fullPath,
-		}
-	})
+	return issues.map((issue) => ({
+		code: issue.code,
+		message: issue.message,
+		path: scopePath(prefix, ...issue.path),
+	}))
 }
