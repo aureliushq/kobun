@@ -1,5 +1,5 @@
 import { isMatch, isValid, parseISO } from "date-fns"
-import type { Field } from "@/config/types"
+import type { Field, ResolvedField } from "@/config/types"
 
 export type FieldRecord = Record<string, unknown>
 
@@ -204,17 +204,26 @@ export function getSlugField(schema: Record<string, Field>) {
 	)
 }
 
-export function getCollectionEditorFields(schema: Record<string, Field>) {
+/**
+ * The properties panel shows a Managed Field in its own group below a divider,
+ * so the partition happens here rather than at the render site — both the
+ * desktop panel and the mobile sheet read the same two lists.
+ */
+export function getCollectionEditorFields(
+	schema: Record<string, ResolvedField>,
+) {
 	const entries = Object.entries(schema)
 	const slugField = entries.find(([, field]) => field.type === "slug")
 	const titleKey = slugField?.[1].type === "slug" ? slugField[1].from : null
 	const documentKey =
 		entries.find(([, field]) => field.type === "document")?.[0] ?? null
+	const sidebar = entries.filter(
+		([key]) => key !== titleKey && key !== documentKey,
+	)
 	return {
 		documentKey,
-		sidebarFields: entries.filter(
-			([key]) => key !== titleKey && key !== documentKey,
-		),
+		managedFields: sidebar.filter(([, field]) => field.managed === true),
+		sidebarFields: sidebar.filter(([, field]) => field.managed !== true),
 		titleKey,
 	}
 }

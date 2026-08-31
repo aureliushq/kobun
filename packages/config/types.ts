@@ -48,9 +48,10 @@ export type ManagedField = Field & { managed: true }
 /**
  * A Field in a resolved schema: authored by the writer, or contributed by a
  * Feature. The marker is optional rather than a union arm so a consumer can ask
- * `field.managed` outright — the read-only branch has to be checked before the
- * Field Type dispatch (ADR-0005), and a union would make that a narrowing dance
- * at every dispatch site.
+ * `field.managed` outright — the editor partitions its properties panel on it
+ * (ADR-0005), and a union would make that a narrowing dance at a site that only
+ * wants to sort Fields into two lists. A Managed Field is editable like any
+ * other, so the marker never reaches the Field Type dispatch as a branch.
  */
 export type ResolvedField = Field & { managed?: true }
 

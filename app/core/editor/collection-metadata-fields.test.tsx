@@ -307,3 +307,49 @@ describe("<MetadataField /> over a multi_select", () => {
 		expect(chips(container).map((chip) => chip.textContent)).toEqual(["Go"])
 	})
 })
+
+/**
+ * ADR-0005 originally made a Managed Field static text. It was amended: the
+ * system stamps these values, the writer may still correct them. The marker
+ * only decides where the properties panel puts the control, never whether
+ * there is one — so a Managed Field of any type keeps its ordinary control.
+ */
+describe("<MetadataField /> over a Managed Field", () => {
+	it("renders the ordinary editable control for its type", () => {
+		const { container, onChange } = renderField(
+			{
+				type: "datetime",
+				label: "Created",
+				managed: true,
+			} as unknown as Field,
+			"",
+		)
+		const input = container.querySelector("input") as HTMLInputElement
+
+		expect(input.type).toBe("datetime-local")
+		expect(input.disabled).toBe(false)
+		expect(input.readOnly).toBe(false)
+
+		fireEvent.change(input, { target: { value: "2026-07-14T09:30:00" } })
+		expect(onChange).toHaveBeenCalled()
+	})
+
+	it("renders a managed select as a real select, not its raw value", () => {
+		renderField(
+			{
+				type: "select",
+				label: "Status",
+				options: [
+					{ label: "Draft", value: "draft" },
+					{ label: "Published", value: "published" },
+				],
+				managed: true,
+			} as unknown as Field,
+			"draft",
+		)
+
+		const trigger = screen.getByRole("combobox")
+		expect(trigger).toBeEnabled()
+		expect(trigger).toHaveTextContent("Draft")
+	})
+})

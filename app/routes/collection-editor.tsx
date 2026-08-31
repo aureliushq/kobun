@@ -5,6 +5,7 @@ import {
 	useLocation,
 	useNavigate,
 } from "react-router"
+import type { ResolvedField } from "@/config/types"
 import { useEditorLayoutControls } from "@/core/components/layouts/editor-context"
 import { canonicalMetadata } from "@/core/content"
 import {
@@ -32,6 +33,7 @@ import {
 	RichTextEditor,
 } from "@/editor"
 import { posthogContext } from "@/lib/posthog-middleware"
+import { Separator } from "@/ui/components/base/separator"
 import {
 	Sheet,
 	SheetContent,
@@ -354,7 +356,7 @@ export default function CollectionEditor({ loaderData }: Route.ComponentProps) {
 	const [autosaveState, setAutosaveState] =
 		useState<AutosaveState>(initialAutosaveState)
 	const assetBaseUrl = `/api/repo-asset/${encodeURIComponent(owner)}/${encodeURIComponent(name)}`
-	const { documentKey, sidebarFields, titleKey } = useMemo(
+	const { documentKey, managedFields, sidebarFields, titleKey } = useMemo(
 		() => getCollectionEditorFields(schema),
 		[schema],
 	)
@@ -568,7 +570,7 @@ export default function CollectionEditor({ loaderData }: Route.ComponentProps) {
 		return () => window.removeEventListener("beforeunload", handleBeforeUnload)
 	}, [metadataDirty])
 
-	const properties = sidebarFields.map(([key, field]) => (
+	const renderProperty = ([key, field]: [string, ResolvedField]) => (
 		<MetadataField
 			key={key}
 			field={field}
@@ -577,7 +579,22 @@ export default function CollectionEditor({ loaderData }: Route.ComponentProps) {
 			disabled={isPublishing}
 			assetBaseUrl={assetBaseUrl}
 		/>
-	))
+	)
+
+	// Managed Fields are editable like any other, but they are facts about the
+	// item rather than things the writer set out to write, so they sit last,
+	// below a divider. A Collection with no Features has neither.
+	const properties = (
+		<>
+			{sidebarFields.map(renderProperty)}
+			{managedFields.length > 0 ? (
+				<>
+					<Separator />
+					{managedFields.map(renderProperty)}
+				</>
+			) : null}
+		</>
+	)
 
 	return (
 		<div className="relative flex h-full min-h-0 overflow-hidden">
