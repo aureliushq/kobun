@@ -27,6 +27,12 @@ import {
 	isMarkdownCollectionFile,
 	type RepositoryCollectionFile,
 } from "@/core/editor/collection-items.server"
+import {
+	deriveCreatedAt,
+	deriveStatus,
+	type Status,
+	statusOptions,
+} from "@/core/editor/collection-list"
 import { getSlugField } from "@/core/editor/collection-metadata"
 import { resolveTitleKey } from "@/core/fields"
 import { requireCollection } from "@/core/project-context"
@@ -99,42 +105,15 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
 	return { collection, collectionSlug: collection_slug, items }
 }
 
-type Status = "DRAFT" | "PUBLISHED" | "SCHEDULED"
-
 type Row = {
 	id: string
 	title: string
 	slug: string
 	status: Status
-	createdAt: number | null
-	createdAtRaw: unknown
+	createdAt: number | undefined
 }
 
-function deriveStatus(data: Record<string, unknown>): Status {
-	const raw = data.status
-	if (typeof raw === "string") {
-		const upper = raw.toUpperCase()
-		if (upper === "DRAFT" || upper === "PUBLISHED" || upper === "SCHEDULED") {
-			return upper
-		}
-	}
-	if (data.draft === true) return "DRAFT"
-	if (data.published === false) return "DRAFT"
-	return "PUBLISHED"
-}
-
-function deriveCreatedAt(data: Record<string, unknown>): {
-	timestamp: number | null
-	raw: unknown
-} {
-	const candidate = data.createdAt ?? data.date ?? data.publishedAt
-	if (candidate == null) return { timestamp: null, raw: null }
-	const d = new Date(candidate as string | number | Date)
-	if (Number.isNaN(d.getTime())) return { timestamp: null, raw: candidate }
-	return { timestamp: d.getTime(), raw: candidate }
-}
-
-function formatRelative(ts: number | null): string {
+function formatRelative(ts: number | undefined): string {
 	if (ts == null) return "—"
 	return formatDistanceToNow(new Date(ts), { addSuffix: true })
 }
@@ -145,13 +124,6 @@ const STATUS_CLASSES: Record<Status, string> = {
 	DRAFT: "bg-red-500/15 text-red-700 border-red-500/30 dark:text-red-400",
 	SCHEDULED:
 		"bg-blue-500/15 text-blue-700 border-blue-500/30 dark:text-blue-400",
-}
-
-const STATUS_FILTER_LABELS: Record<string, string> = {
-	all: "All statuses",
-	PUBLISHED: "Published",
-	DRAFT: "Draft",
-	SCHEDULED: "Scheduled",
 }
 
 const SORT_LABELS: Record<string, string> = {
@@ -185,17 +157,24 @@ export default function Collection({ loaderData }: Route.ComponentProps) {
 				const slug = slugFieldKey
 					? String(item.data[slugFieldKey] ?? filenameSlug)
 					: filenameSlug
-				const created = deriveCreatedAt(item.data)
 				return {
 					id: item.path,
 					title,
 					slug,
-					status: deriveStatus(item.data),
-					createdAt: created.timestamp,
-					createdAtRaw: created.raw,
+					status: deriveStatus(collection.schema, item.data),
+					createdAt: deriveCreatedAt(collection.schema, item.data),
 				}
 			}),
-		[items, titleFieldKey, slugFieldKey],
+		[collection.schema, items, titleFieldKey, slugFieldKey],
+	)
+
+	const statuses = useMemo(
+		() => statusOptions(collection.schema),
+		[collection.schema],
+	)
+	const statusFilters = useMemo(
+		() => [{ label: "All statuses", value: "all" }, ...statuses],
+		[statuses],
 	)
 
 	const [sorting, setSorting] = useState<SortingState>([
@@ -244,7 +223,8 @@ export default function Collection({ loaderData }: Route.ComponentProps) {
 						variant="outline"
 						className={`uppercase ${STATUS_CLASSES[row.original.status]}`}
 					>
-						{row.original.status}
+						{statuses.find(({ value }) => value === row.original.status)
+							?.label ?? row.original.status}
 					</Badge>
 				),
 				filterFn: (row, _columnId, filterValue) => {
@@ -258,14 +238,13 @@ export default function Collection({ loaderData }: Route.ComponentProps) {
 				header: () => null,
 				cell: () => null,
 				enableSorting: true,
-				sortingFn: (a, b) => {
-					const av = a.original.createdAt ?? -Infinity
-					const bv = b.original.createdAt ?? -Infinity
-					return av - bv
-				},
+				sortingFn: "basic",
+				// An item with no created date has nothing to sort on, so it goes last
+				// under Newest and under Oldest alike.
+				sortUndefined: "last",
 			},
 		],
-		[editorBase],
+		[editorBase, statuses],
 	)
 
 	const table = useReactTable({
@@ -316,12 +295,13 @@ export default function Collection({ loaderData }: Route.ComponentProps) {
 						<SelectTrigger className="w-56">
 							<SelectValue placeholder="All statuses">
 								{(value) =>
-									STATUS_FILTER_LABELS[value as string] ?? "All statuses"
+									statusFilters.find((option) => option.value === value)
+										?.label ?? "All statuses"
 								}
 							</SelectValue>
 						</SelectTrigger>
 						<SelectContent>
-							{Object.entries(STATUS_FILTER_LABELS).map(([value, label]) => (
+							{statusFilters.map(({ label, value }) => (
 								<SelectItem key={value} value={value}>
 									{label}
 								</SelectItem>

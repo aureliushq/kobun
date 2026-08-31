@@ -45,6 +45,8 @@ import {
 	useSidebar,
 } from "@/ui/components/base/sidebar"
 import AboutDialog, {
+	AwaitRelease,
+	type ReleaseInfo,
 	type VersionInfo,
 } from "@/ui/components/blocks/about-dialog"
 import { Logo, LogoDark } from "@/ui/components/logo"
@@ -56,11 +58,13 @@ const DashboardSidebar = ({
 	activeProject,
 	config,
 	projects,
+	releaseInfo,
 	versionInfo,
 }: {
 	activeProject: ProjectWithGithubInstallation
 	config: NormalizedConfig
 	projects: ProjectWithGithubInstallation[]
+	releaseInfo: Promise<ReleaseInfo>
 	versionInfo: VersionInfo
 }) => {
 	const { isMobile } = useSidebar()
@@ -165,7 +169,11 @@ const DashboardSidebar = ({
 									<SidebarMenuButton
 										isActive={location.pathname === `/${repoSlug}`}
 										render={
-											<Link className="sidebar-menu-button" to={pathname} />
+											<Link
+												className="sidebar-menu-button"
+												prefetch="intent"
+												to={pathname}
+											/>
 										}
 									>
 										<HouseIcon />
@@ -191,6 +199,7 @@ const DashboardSidebar = ({
 													render={
 														<Link
 															className="sidebar-menu-button"
+															prefetch="intent"
 															to={`${pathname}/collections/${key}`}
 														/>
 													}
@@ -218,6 +227,7 @@ const DashboardSidebar = ({
 												render={
 													<Link
 														className="sidebar-menu-button"
+														prefetch="intent"
 														to={`${pathname}/singletons/${key}`}
 													/>
 												}
@@ -276,9 +286,13 @@ const DashboardSidebar = ({
 									<span className="font-mono text-[0.6rem]">
 										v{versionInfo.currentVersion}
 									</span>
-									{versionInfo.hasUpdate && (
-										<span className="h-2 w-2 rounded-full bg-blue-500" />
-									)}
+									<AwaitRelease releaseInfo={releaseInfo}>
+										{(release) =>
+											release.hasUpdate && (
+												<span className="h-2 w-2 rounded-full bg-blue-500" />
+											)
+										}
+									</AwaitRelease>
 								</SidebarMenuButton>
 							</SidebarMenuItem>
 						</SidebarMenu>
@@ -323,6 +337,7 @@ const DashboardSidebar = ({
 			<AboutDialog
 				open={aboutOpen}
 				onOpenChange={setAboutOpen}
+				releaseInfo={releaseInfo}
 				versionInfo={versionInfo}
 			/>
 		</>

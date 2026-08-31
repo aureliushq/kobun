@@ -301,78 +301,220 @@ const OPTIONS = [
 	{ label: "Live", value: "live" },
 ]
 
+const status = {
+	type: "select",
+	label: "Status",
+	options: OPTIONS,
+	placeholder: "Pick a state",
+}
+
+const withEmptyOption = {
+	type: "select",
+	label: "Status",
+	placeholder: "Pick a state",
+	options: [{ label: "None", value: "" }, ...OPTIONS],
+}
+
+function trigger(label: string) {
+	return screen.getByLabelText(label)
+}
+
+/**
+ * The stored value is the option's `value`; the writer only ever sees its
+ * `label`. "No value" is `null` inside the control and `""` on the way out, so
+ * a schema that declares an option whose value is `""` still gets a chosen
+ * option rather than an empty one.
+ */
 describe("the control over a select", () => {
-	it("offers one choice at a time, above a placeholder option", () => {
-		const { container, onChange } = control(
-			{ type: "select", label: "Status", options: OPTIONS },
-			"live",
-		)
-		const select = container.querySelector("select") as HTMLSelectElement
+	it("does not fall back to a native select", () => {
+		const { container } = control(status, "")
 
-		expect(select.multiple).toBe(false)
-		expect(select.value).toBe("live")
-		expect([...select.options].map((option) => option.textContent)).toEqual([
-			"Select…",
-			"Draft",
-			"Live",
-		])
-
-		fireEvent.change(select, { target: { value: "draft" } })
-		expect(onChange).toHaveBeenCalledWith("draft")
+		expect(container.querySelector("select")).toBeNull()
+		expect(trigger("Status")).toBeInTheDocument()
 	})
 
-	it("uses the schema's placeholder for the empty choice when it has one", () => {
-		const { container } = control(
-			{
-				type: "select",
-				label: "Status",
-				options: OPTIONS,
-				placeholder: "Pick one",
-			},
-			"",
+	it("shows the placeholder when nothing is chosen", () => {
+		control(status, "")
+		expect(trigger("Status")).toHaveTextContent("Pick a state")
+	})
+
+	it("falls back to its own placeholder when the schema has none", () => {
+		control({ type: "select", label: "Status", options: OPTIONS }, "")
+		expect(trigger("Status")).toHaveTextContent("Select…")
+	})
+
+	it("shows the option's label, not its stored value", () => {
+		control(status, "live")
+		expect(trigger("Status")).toHaveTextContent("Live")
+	})
+
+	it("still shows a value the options no longer declare", () => {
+		control(status, "archived")
+		expect(trigger("Status")).toHaveTextContent("archived")
+	})
+
+	it("reads a stored empty string as the option that declares it", () => {
+		control(withEmptyOption, "")
+		expect(trigger("Status")).toHaveTextContent("None")
+	})
+
+	it("reads no value at all as nothing chosen, empty option or not", () => {
+		control(withEmptyOption, undefined)
+		expect(trigger("Status")).toHaveTextContent("Pick a state")
+	})
+
+	it("emits the option's value when the writer picks one", async () => {
+		const user = userEvent.setup()
+		const { onChange } = control(status, "")
+
+		await user.click(trigger("Status"))
+		await user.click(await screen.findByRole("option", { name: "Live" }))
+
+		expect(onChange).toHaveBeenCalledWith("live")
+	})
+
+	it("lets the writer put the field back to empty", async () => {
+		const user = userEvent.setup()
+		const { onChange } = control(status, "live")
+
+		await user.click(trigger("Status"))
+		await user.click(
+			await screen.findByRole("option", { name: "Pick a state" }),
 		)
-		expect(
-			(container.querySelector("select") as HTMLSelectElement).options[0]
-				.textContent,
-		).toBe("Pick one")
+
+		expect(onChange).toHaveBeenCalledWith("")
+	})
+
+	it("is read-only when disabled", () => {
+		control(status, "live", { disabled: true })
+		expect(trigger("Status")).toBeDisabled()
 	})
 })
 
-describe("the control over a multi_select", () => {
-	it("shows every stored choice as selected at once", () => {
-		const { container } = control(
-			{ type: "multi_select", label: "Tags", options: OPTIONS },
-			["draft", "live"],
-		)
-		const select = container.querySelector("select") as HTMLSelectElement
+const tags = {
+	type: "multi_select",
+	label: "Tags",
+	options: OPTIONS,
+	placeholder: "Pick some tags",
+}
 
-		expect(select.multiple).toBe(true)
-		expect([...select.selectedOptions].map((option) => option.value)).toEqual([
-			"draft",
-			"live",
+function chips(container: HTMLElement) {
+	return Array.from(
+		container.querySelectorAll<HTMLElement>('[data-slot="combobox-chip"]'),
+	)
+}
+
+function removeButton(chip: HTMLElement) {
+	return chip.querySelector(
+		'[data-slot="combobox-chip-remove"]',
+	) as HTMLButtonElement
+}
+
+/**
+ * Each chosen value is its own removable token, so removing one leaves the rest
+ * alone — the thing a native `multiple` list box could not do without a
+ * ctrl-click.
+ */
+describe("the control over a multi_select", () => {
+	it("shows one labelled token per chosen value", () => {
+		const { container } = control(tags, ["draft", "live"])
+
+		expect(container.querySelector("select")).toBeNull()
+		expect(chips(container).map((chip) => chip.textContent)).toEqual([
+			"Draft",
+			"Live",
 		])
 	})
 
-	it("emits a list of what is selected, not a single value", async () => {
-		const { onChange } = control(
-			{ type: "multi_select", label: "Tags", options: OPTIONS },
-			[],
-		)
+	it("shows the placeholder when nothing is chosen", () => {
+		const { container } = control(tags, [])
 
-		await userEvent.selectOptions(screen.getByRole("listbox"), "live")
-
-		expect(onChange).toHaveBeenLastCalledWith(["live"])
+		expect(chips(container)).toHaveLength(0)
+		expect(trigger("Tags")).toHaveAttribute("placeholder", "Pick some tags")
 	})
 
-	it("selects nothing for a value that is not a list", () => {
-		const { container } = control(
-			{ type: "multi_select", label: "Tags", options: OPTIONS },
-			"draft",
-		)
+	it("still shows a value the options no longer declare", () => {
+		const { container } = control(tags, ["draft", "archived"])
+		expect(chips(container).map((chip) => chip.textContent)).toEqual([
+			"Draft",
+			"archived",
+		])
+	})
+
+	it("shows no tokens for a value that is not a list", () => {
+		const { container } = control(tags, "draft")
+		expect(chips(container)).toHaveLength(0)
+	})
+
+	it("removes one token without touching the others", async () => {
+		const user = userEvent.setup()
+		const { container, onChange } = control(tags, ["draft", "live"])
+
+		await user.click(removeButton(chips(container)[0]))
+
+		expect(onChange).toHaveBeenCalledWith(["live"])
+	})
+
+	it("keeps repeated values apart, token by token", async () => {
+		const user = userEvent.setup()
+		const { container, onChange } = control(tags, ["draft", "draft", "live"])
+
+		expect(chips(container)).toHaveLength(3)
+		await user.click(removeButton(chips(container)[0]))
+
+		expect(onChange).toHaveBeenCalledWith(["draft", "live"])
+	})
+
+	it("filters the options by what the writer types", async () => {
+		const user = userEvent.setup()
+		control(tags, [])
+
+		await user.click(trigger("Tags"))
+		await user.type(trigger("Tags"), "li")
+
 		expect(
-			(container.querySelector("select") as HTMLSelectElement).selectedOptions
-				.length,
-		).toBe(0)
+			(await screen.findAllByRole("option")).map((one) => one.textContent),
+		).toEqual(["Live"])
+	})
+
+	it("adds a chosen option to the values already held", async () => {
+		const user = userEvent.setup()
+		const { onChange } = control(tags, ["draft"])
+
+		await user.click(trigger("Tags"))
+		await user.click(await screen.findByRole("option", { name: "Live" }))
+
+		expect(onChange).toHaveBeenCalledWith(["draft", "live"])
+	})
+
+	it("is read-only when disabled", async () => {
+		const user = userEvent.setup()
+		const { container, onChange } = control(tags, ["draft"], {
+			disabled: true,
+		})
+
+		expect(trigger("Tags")).toBeDisabled()
+		await user.click(removeButton(chips(container)[0]))
+
+		expect(onChange).not.toHaveBeenCalled()
+	})
+
+	it("reaches the writer inside an array row", () => {
+		const { container } = control(
+			{ type: "array", label: "Sections", items: [tags] },
+			[["draft"]],
+		)
+
+		expect(chips(container).map((chip) => chip.textContent)).toEqual(["Draft"])
+	})
+
+	it("reaches the writer inside an object sub-field", () => {
+		const { container } = control(
+			{ type: "object", label: "Meta", fields: { tags } },
+			{ tags: ["live"] },
+		)
+
+		expect(chips(container).map((chip) => chip.textContent)).toEqual(["Live"])
 	})
 })
 
@@ -572,5 +714,38 @@ describe("a Document reaching the control dispatcher", () => {
 				{},
 			),
 		).toThrow(/Document Role/)
+	})
+})
+
+////////////////////// MANAGED FIELDS //////////////////////
+
+/**
+ * ADR-0005 originally made a Managed Field static text. It was amended: the
+ * system stamps these values, the writer may still correct them. The marker
+ * only decides where the properties panel puts the control, never whether there
+ * is one — so a Managed Field of any type keeps its ordinary control, and the
+ * marker never reaches the dispatch as a branch.
+ */
+describe("a Managed Field reaching the control dispatcher", () => {
+	it("gets the ordinary editable control for its type", () => {
+		const { container, onChange } = control(
+			{ type: "datetime", label: "Created", managed: true },
+			"",
+		)
+		const field = input(container)
+
+		expect(field.type).toBe("datetime-local")
+		expect(field.disabled).toBe(false)
+		expect(field.readOnly).toBe(false)
+
+		fireEvent.change(field, { target: { value: "2026-07-14T09:30:00" } })
+		expect(onChange).toHaveBeenCalled()
+	})
+
+	it("gets a real select for a managed status, not its raw value", () => {
+		control({ ...status, label: "Status", managed: true }, "draft")
+
+		expect(trigger("Status")).toBeEnabled()
+		expect(trigger("Status")).toHaveTextContent("Draft")
 	})
 })

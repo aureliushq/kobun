@@ -1,4 +1,4 @@
-import type { Field } from "@/config/types"
+import type { Field, ResolvedField } from "@/config/types"
 import {
 	type DefaultForSchema,
 	defaultForField,
@@ -87,16 +87,25 @@ export function getSlugField(schema: Record<string, Field>) {
 	return findSlugField(schema)?.key ?? null
 }
 
-export function getCollectionEditorFields(schema: Record<string, Field>) {
+/**
+ * The properties panel shows a Managed Field in its own group below a divider,
+ * so the partition happens here rather than at the render site — both the
+ * desktop panel and the mobile sheet read the same two lists.
+ */
+export function getCollectionEditorFields(
+	schema: Record<string, ResolvedField>,
+) {
 	const entries = Object.entries(schema)
 	const titleKey = resolveTitleKey(schema)
 	const documentKey =
 		entries.find(([, field]) => field.type === "document")?.[0] ?? null
+	const sidebar = entries.filter(
+		([key]) => key !== titleKey && key !== documentKey,
+	)
 	return {
 		documentKey,
-		sidebarFields: entries.filter(
-			([key]) => key !== titleKey && key !== documentKey,
-		),
+		managedFields: sidebar.filter(([, field]) => field.managed === true),
+		sidebarFields: sidebar.filter(([, field]) => field.managed !== true),
 		titleKey,
 	}
 }

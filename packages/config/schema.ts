@@ -21,7 +21,7 @@ enum FieldType {
 	URL = "url",
 }
 
-const selectOptionSchema = z.object({
+export const selectOptionSchema = z.object({
 	label: z.string(),
 	value: z.string(),
 })
@@ -181,10 +181,12 @@ export const objectFieldSchema = baseFieldSchema.extend({
 export const featureSchema = z.object({
 	featured: z.object({ limit: z.number() }).optional(),
 	publish: z.boolean().optional(),
-	timestamps: z.object({
-		createdAt: z.boolean().optional(),
-		updatedAt: z.boolean().optional(),
-	}),
+	timestamps: z
+		.object({
+			createdAt: z.boolean().optional(),
+			updatedAt: z.boolean().optional(),
+		})
+		.optional(),
 })
 
 ////////////////////// COLLECTIONS & SINGLETONS //////////////////////

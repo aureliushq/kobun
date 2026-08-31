@@ -5,13 +5,20 @@ import {
 	ExternalLinkIcon,
 	TriangleAlertIcon,
 } from "lucide-react"
-import { useState } from "react"
-import { Link, redirect, useFetcher, useRouteLoaderData } from "react-router"
+import { Suspense, useState } from "react"
+import {
+	Await,
+	Link,
+	redirect,
+	useFetcher,
+	useRouteLoaderData,
+} from "react-router"
 import { getAuth } from "@/auth/auth.server"
 import type { ConfigError } from "@/config/types"
 import type { loader as dashboardLayoutLoader } from "@/core/components/layouts/dashboard"
 import { envContext } from "@/core/context"
 import { getDraftEditorPath, isDraftDirty } from "@/core/editor/drafts"
+import type { ProjectContextDatabase } from "@/core/project-context"
 import { dbContext } from "@/db/context"
 import { editorDraft, project } from "@/db/schema/app-schema"
 import { posthogContext } from "@/lib/posthog-middleware"
@@ -38,22 +45,27 @@ import {
 	CardTitle,
 } from "@/ui/components/base/card"
 import { H2 } from "@/ui/components/base/typegraphy"
+import { AsyncErrorAlert } from "@/ui/components/blocks/async-error-alert"
+import { CardListSkeleton } from "@/ui/components/blocks/skeletons"
 import { PATHS } from "@/ui/lib/constants"
 import type { Route } from "./+types/dashboard"
 
 const DISCARD_DRAFT_INTENT = "discard-draft"
 
-export async function loader({ context, request }: Route.LoaderArgs) {
-	const db = context.get(dbContext)
-	const auth = getAuth(context.get(envContext))
-	const session = await auth.api.getSession({ headers: request.headers })
-	if (!session?.user) throw redirect(PATHS.LOGIN)
-
+/**
+ * Three round-trips before a single Draft can be listed, none of which decides
+ * whether this page may be seen — so the page does not wait on them (ADR 0006).
+ *
+ * The cleanup delete rides along inside the stream. It only removes Drafts that
+ * are Synced, so running it late, twice, or — if the reader closes the tab
+ * mid-stream — not at all costs nothing: the next dashboard load does it.
+ */
+async function loadDashboardDrafts(db: ProjectContextDatabase, userId: string) {
 	const userProjects = await db.query.project.findMany({
-		where: eq(project.userId, session.user.id),
+		where: eq(project.userId, userId),
 	})
 	const projectIds = userProjects.map((projectRow) => projectRow.id)
-	if (projectIds.length === 0) return { drafts: [] }
+	if (projectIds.length === 0) return []
 
 	await db
 		.delete(editorDraft)
@@ -66,12 +78,20 @@ export async function loader({ context, request }: Route.LoaderArgs) {
 			),
 		)
 
-	const drafts = await db.query.editorDraft.findMany({
+	return db.query.editorDraft.findMany({
 		where: inArray(editorDraft.projectId, projectIds),
 		with: { project: true },
 		orderBy: [desc(editorDraft.updatedAt)],
 	})
-	return { drafts }
+}
+
+export async function loader({ context, request }: Route.LoaderArgs) {
+	const db = context.get(dbContext)
+	const auth = getAuth(context.get(envContext))
+	const session = await auth.api.getSession({ headers: request.headers })
+	if (!session?.user) throw redirect(PATHS.LOGIN)
+
+	return { drafts: loadDashboardDrafts(db, session.user.id) }
 }
 
 export async function action({ context, request }: Route.ActionArgs) {
@@ -221,6 +241,72 @@ function DiscardDraftDialog({ draftId }: { draftId: string }) {
 	)
 }
 
+type DashboardDraft = Awaited<ReturnType<typeof loadDashboardDrafts>>[number]
+
+function DraftsSection({ drafts }: { drafts: DashboardDraft[] }) {
+	if (drafts.length === 0) return null
+
+	return (
+		<section className="flex flex-col gap-3 pt-4">
+			<div>
+				<h3 className="font-medium text-base">Drafts</h3>
+				<p className="text-muted-foreground text-sm">
+					Continue editing unpublished work.
+				</p>
+			</div>
+			{drafts.map((draft) => {
+				const dirty = isDraftDirty(draft)
+				const href = getDraftEditorPath(draft, draft.project)
+				const state =
+					draft.publishedRevision === null
+						? "Unpublished"
+						: dirty
+							? "Unsaved changes"
+							: "Published"
+				return (
+					<Card key={draft.id} size="sm">
+						<CardHeader>
+							<CardTitle>
+								<Link className="hover:underline" to={href}>
+									{draft.itemSlug ?? `New ${draft.collectionSlug} item`}
+								</Link>
+							</CardTitle>
+							<CardDescription>
+								{draft.project.repoOwnerLogin}/{draft.project.repoName} ·{" "}
+								{draft.collectionSlug}
+							</CardDescription>
+							<CardAction>
+								<Badge variant={dirty ? "secondary" : "outline"}>{state}</Badge>
+							</CardAction>
+						</CardHeader>
+						<CardContent className="flex items-center justify-between gap-4">
+							<span className="text-muted-foreground">
+								Edited{" "}
+								{formatDistanceToNow(new Date(draft.updatedAt), {
+									addSuffix: true,
+								})}
+							</span>
+							<div className="flex items-center gap-2">
+								{/* The one link on this card worth warming; the title above
+								    points at the same editor, and prefetching both would ask
+								    for it twice. */}
+								<Button
+									size="sm"
+									variant="outline"
+									render={<Link prefetch="intent" to={href} />}
+								>
+									Continue
+								</Button>
+								<DiscardDraftDialog draftId={draft.id} />
+							</div>
+						</CardContent>
+					</Card>
+				)
+			})}
+		</section>
+	)
+}
+
 export default function Dashboard({ loaderData }: Route.ComponentProps) {
 	const layoutData = useRouteLoaderData<typeof dashboardLayoutLoader>(
 		"core/components/layouts/dashboard",
@@ -234,64 +320,10 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
 	return (
 		<>
 			<H2>{`Welcome ${user?.name}!`}</H2>
-			{loaderData.drafts.length > 0 && (
-				<section className="flex flex-col gap-3 pt-4">
-					<div>
-						<h3 className="font-medium text-base">Drafts</h3>
-						<p className="text-muted-foreground text-sm">
-							Continue editing unpublished work.
-						</p>
-					</div>
-					{loaderData.drafts.map((draft) => {
-						const dirty = isDraftDirty(draft)
-						const href = getDraftEditorPath(draft, draft.project)
-						const state =
-							draft.publishedRevision === null
-								? "Unpublished"
-								: dirty
-									? "Unsaved changes"
-									: "Published"
-						return (
-							<Card key={draft.id} size="sm">
-								<CardHeader>
-									<CardTitle>
-										<Link className="hover:underline" to={href}>
-											{draft.itemSlug ?? `New ${draft.collectionSlug} item`}
-										</Link>
-									</CardTitle>
-									<CardDescription>
-										{draft.project.repoOwnerLogin}/{draft.project.repoName} ·{" "}
-										{draft.collectionSlug}
-									</CardDescription>
-									<CardAction>
-										<Badge variant={dirty ? "secondary" : "outline"}>
-											{state}
-										</Badge>
-									</CardAction>
-								</CardHeader>
-								<CardContent className="flex items-center justify-between gap-4">
-									<span className="text-muted-foreground">
-										Edited{" "}
-										{formatDistanceToNow(new Date(draft.updatedAt), {
-											addSuffix: true,
-										})}
-									</span>
-									<div className="flex items-center gap-2">
-										<Button
-											size="sm"
-											variant="outline"
-											render={<Link to={href} />}
-										>
-											Continue
-										</Button>
-										<DiscardDraftDialog draftId={draft.id} />
-									</div>
-								</CardContent>
-							</Card>
-						)
-					})}
-				</section>
-			)}
+			{/* Above the Drafts, because these arrive with the page while the
+			    Drafts are still streaming: anything rendered below a skeleton is
+			    pushed up the moment that skeleton turns out to stand for nothing.
+			    A broken Config is also the more urgent of the two to read. */}
 			{errors.length > 0 && (
 				<>
 					<p>We found the following errors in your configuration:</p>
@@ -306,6 +338,14 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
 					</div>
 				</>
 			)}
+			<Suspense fallback={<CardListSkeleton count={2} />}>
+				<Await
+					errorElement={<AsyncErrorAlert title="Couldn't load your drafts" />}
+					resolve={loaderData.drafts}
+				>
+					{(drafts: DashboardDraft[]) => <DraftsSection drafts={drafts} />}
+				</Await>
+			</Suspense>
 		</>
 	)
 }

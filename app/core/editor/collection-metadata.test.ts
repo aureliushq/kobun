@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import type { Field } from "@/config/types"
+import type { Field, ResolvedField } from "@/config/types"
 import { DocumentFieldError } from "@/core/fields"
 import { getCompositeValue, setCompositeValue } from "@/core/fields/composite"
 import {
@@ -92,6 +92,56 @@ describe("collection metadata", () => {
 			"tags",
 			"publishedAt",
 		])
+		expect(editorFields.managedFields).toEqual([])
+	})
+
+	it("separates Managed Fields from the writer's own", () => {
+		const editorFields = getCollectionEditorFields({
+			...schema,
+			createdAt: {
+				type: "datetime",
+				label: "Created",
+				managed: true,
+			} as unknown as ResolvedField,
+			status: {
+				type: "select",
+				label: "Status",
+				options: [{ label: "Draft", value: "draft" }],
+				managed: true,
+			} as unknown as ResolvedField,
+		})
+		expect(editorFields.sidebarFields.map(([key]) => key)).toEqual([
+			"slug",
+			"settings",
+			"tags",
+			"publishedAt",
+		])
+		expect(editorFields.managedFields.map(([key]) => key)).toEqual([
+			"createdAt",
+			"status",
+		])
+	})
+
+	it("keeps a Managed Field out of both lists when it is the title or document", () => {
+		const editorFields = getCollectionEditorFields({
+			title: {
+				type: "text",
+				label: "Title",
+				managed: true,
+			} as unknown as ResolvedField,
+			slug: {
+				type: "slug",
+				label: "Slug",
+				from: "title",
+			} as unknown as ResolvedField,
+			content: {
+				type: "document",
+				label: "Content",
+				managed: true,
+			} as unknown as ResolvedField,
+		})
+		expect(editorFields.managedFields).toEqual([])
+		expect(editorFields.sidebarFields.map(([key]) => key)).toEqual(["slug"])
 	})
 
 	it("preserves tuple and label-keyed composite array rows", () => {

@@ -1,7 +1,77 @@
+import type { MultiSelectField } from "@/config/types"
 import { Badge } from "@/ui/components/base/badge"
+import {
+	Combobox,
+	ComboboxChip,
+	ComboboxChips,
+	ComboboxChipsInput,
+	ComboboxContent,
+	ComboboxEmpty,
+	ComboboxItem,
+	ComboboxList,
+	useComboboxAnchor,
+} from "@/ui/components/base/combobox"
 import { EmptyValue, InlineText } from "./presentation"
-import { OptionsControl, optionLabel } from "./select"
+import { optionLabel, SELECT_PLACEHOLDER } from "./select"
 import type { FieldTypeDefFor } from "./types"
+
+/**
+ * Chosen values are tokens, each with its own remove button, so one goes
+ * without disturbing the rest, and the list filters as the writer types. The
+ * list offers only what the schema declares: a stray value keeps its token but
+ * is not on the menu, so removing it is a one-way door back to the schema.
+ */
+function MultiSelectControl({
+	disabled,
+	field,
+	onChange,
+	value,
+}: {
+	disabled?: boolean
+	field: MultiSelectField
+	onChange(value: unknown): void
+	value: unknown
+}) {
+	const anchor = useComboboxAnchor()
+	const chosen = Array.isArray(value) ? value.map(String) : []
+	const label = (item: string) => optionLabel(field.options, item)
+	return (
+		<Combobox
+			items={field.options.map((option) => option.value)}
+			multiple
+			value={chosen}
+			onValueChange={(next) => onChange(next)}
+			itemToStringLabel={label}
+			disabled={disabled}
+		>
+			<ComboboxChips ref={anchor}>
+				{chosen.map((item, index) => (
+					// Frontmatter can repeat a value, so position is what tells two
+					// tokens apart — and position is what removing one goes by.
+					<ComboboxChip key={`${index}:${item}`}>{label(item)}</ComboboxChip>
+				))}
+				<ComboboxChipsInput
+					aria-label={field.label}
+					placeholder={
+						chosen.length === 0
+							? (field.placeholder ?? SELECT_PLACEHOLDER)
+							: undefined
+					}
+				/>
+			</ComboboxChips>
+			<ComboboxContent anchor={anchor}>
+				<ComboboxEmpty>No matching options.</ComboboxEmpty>
+				<ComboboxList>
+					{(item: string) => (
+						<ComboboxItem key={item} value={item}>
+							{label(item)}
+						</ComboboxItem>
+					)}
+				</ComboboxList>
+			</ComboboxContent>
+		</Combobox>
+	)
+}
 
 /**
  * Any number of choices from a declared list. Two failures worth telling apart:
@@ -15,12 +85,10 @@ export const multiSelectField: FieldTypeDefFor<"multi_select"> = {
 	defaultValue: ({ field }) =>
 		field.defaultSelected?.map(({ value }) => value) ?? [],
 	renderControl: ({ disabled, field, onChange, value }) => (
-		<OptionsControl
+		<MultiSelectControl
 			disabled={disabled}
-			multiple
+			field={field}
 			onChange={onChange}
-			options={field.options}
-			placeholder={field.placeholder}
 			value={value}
 		/>
 	),
