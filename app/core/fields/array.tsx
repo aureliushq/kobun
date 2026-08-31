@@ -17,12 +17,14 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/ui/components/base/card"
-import { getCompositeValue } from "./composite"
+import { getCompositeValue, setCompositeValue } from "./composite"
 import { FieldRow, FieldsPanel, InlineText, JsonFallback } from "./presentation"
 import { findTitleEntry } from "./roles"
 import type {
+	DefaultForField,
 	FieldTypeDefFor,
 	RenderChild,
+	RenderChildControl,
 	RenderChildInline,
 	RenderContext,
 } from "./types"
@@ -35,6 +37,23 @@ import type {
  */
 export const arrayField: FieldTypeDefFor<"array"> = {
 	defaultValue: () => [],
+	renderControl: ({
+		defaultForField,
+		disabled,
+		field,
+		onChange,
+		renderChild,
+		value,
+	}) => (
+		<ArrayControl
+			defaultForField={defaultForField}
+			disabled={disabled}
+			field={field}
+			onChange={onChange}
+			renderChild={renderChild}
+			value={value}
+		/>
+	),
 	// A summary line cannot show rows, so it says how many there are — the same
 	// count a nested section puts in its badge.
 	renderInline: ({ value }) => {
@@ -456,4 +475,111 @@ function ArrayItemPanel({
 			})}
 		</div>
 	)
+}
+
+////////////////////// CONTROL //////////////////////
+
+/**
+ * Rows the writer edits, reorders and throws away. Every button hands back a
+ * whole new list rather than a change to the old one, because the value the
+ * editor holds is the list — there is nothing else to patch.
+ *
+ * A row is addressed the same way validation addresses it: one declared item
+ * makes the row that item's value outright, several make it a composite read
+ * and written through the shape it arrived in.
+ */
+function ArrayControl({
+	defaultForField,
+	disabled,
+	field,
+	onChange,
+	renderChild,
+	value,
+}: {
+	defaultForField: DefaultForField
+	disabled?: boolean
+	field: ArrayField
+	onChange(value: unknown): void
+	renderChild: RenderChildControl
+	value: unknown
+}) {
+	const rows = Array.isArray(value) ? value : []
+	const replaceRow = (index: number, next: unknown) =>
+		onChange(rows.map((row, i) => (i === index ? next : row)))
+	const swapRows = (index: number, other: number) => {
+		const next = [...rows]
+		;[next[other], next[index]] = [next[index], next[other]]
+		onChange(next)
+	}
+
+	return (
+		<div className="space-y-2">
+			{rows.map((row, index) => (
+				// biome-ignore lint/suspicious/noArrayIndexKey: array values have no stable identity in frontmatter
+				<div className="space-y-2 rounded-md border p-3" key={index}>
+					{field.items.length === 1
+						? renderChild(field.items[0], row, (next) =>
+								replaceRow(index, next),
+							)
+						: field.items.map((item, itemIndex) => (
+								<Fragment key={`${item.type}:${item.label}`}>
+									{renderChild(
+										item,
+										getCompositeValue(row, item, itemIndex),
+										(next) =>
+											replaceRow(
+												index,
+												setCompositeValue(row, item, itemIndex, next),
+											),
+									)}
+								</Fragment>
+							))}
+					<div className="flex gap-2">
+						<Button
+							type="button"
+							variant="outline"
+							disabled={disabled || index === 0}
+							onClick={() => swapRows(index, index - 1)}
+						>
+							Up
+						</Button>
+						<Button
+							type="button"
+							variant="outline"
+							disabled={disabled || index === rows.length - 1}
+							onClick={() => swapRows(index, index + 1)}
+						>
+							Down
+						</Button>
+						<Button
+							type="button"
+							variant="destructive"
+							disabled={disabled}
+							onClick={() => onChange(rows.filter((_, i) => i !== index))}
+						>
+							Remove
+						</Button>
+					</div>
+				</div>
+			))}
+			<Button
+				type="button"
+				variant="outline"
+				disabled={disabled}
+				onClick={() => onChange([...rows, emptyRow(field, defaultForField)])}
+			>
+				Add {field.itemLabel ?? "item"}
+			</Button>
+		</div>
+	)
+}
+
+/**
+ * A row the writer just added. Defaulting arrives injected rather than
+ * imported: what a Field defaults to is the dispatcher's answer, and this entry
+ * only has to ask it once per declared item.
+ */
+function emptyRow(field: ArrayField, defaultForField: DefaultForField) {
+	if (field.items.length === 1) return defaultForField(field.items[0])
+	return field.items.map((item) => defaultForField(item))
 }

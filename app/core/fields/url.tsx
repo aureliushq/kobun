@@ -1,9 +1,18 @@
-import { InlineText } from "./presentation"
+import { InlineText, TextControl } from "./presentation"
 import type { FieldTypeDefFor } from "./types"
 
 /** A link. Validated by whether the platform's URL parser accepts it, nothing narrower. */
 export const urlField: FieldTypeDefFor<"url"> = {
 	defaultValue: () => "",
+	renderControl: ({ disabled, field, onChange, value }) => (
+		<TextControl
+			disabled={disabled}
+			onChange={onChange}
+			placeholder={field.placeholder}
+			type="url"
+			value={value}
+		/>
+	),
 	renderInline: ({ value }) => <InlineText>{String(value)}</InlineText>,
 	renderValue: ({ value }) => {
 		const href = String(value)

@@ -1,11 +1,12 @@
 import { Fragment } from "react"
 import type { Field } from "@/config/types"
+import { Input } from "@/ui/components/base/input"
 import type { RenderChild } from "./types"
 
 /**
  * The chrome every Field shares, read or edited: the rows it sits in — one for
- * a value, one for a control — the dash that stands for nothing filled in, and
- * the last-resort JSON dump.
+ * a value, one for a control — the text input most of them are typed into, the
+ * dash that stands for nothing filled in, and the last-resort JSON dump.
  *
  * Its own module rather than part of the dispatcher because the entries need it
  * too — and an entry importing the dispatcher would close the loop the registry
@@ -61,6 +62,35 @@ export function ControlRow({
 			) : null}
 			{children}
 		</div>
+	)
+}
+
+/**
+ * The input every text-shaped Field is typed into. What separates them is the
+ * keyboard the browser offers and nothing else, so that is the only thing each
+ * one has to say — `date` and `url` name a type, the rest take the default.
+ */
+export function TextControl({
+	disabled,
+	onChange,
+	placeholder,
+	type = "text",
+	value,
+}: {
+	disabled?: boolean
+	onChange(value: unknown): void
+	placeholder?: string
+	type?: "date" | "text" | "url"
+	value: unknown
+}) {
+	return (
+		<Input
+			type={type}
+			value={String(value ?? "")}
+			disabled={disabled}
+			placeholder={placeholder}
+			onChange={(event) => onChange(event.target.value)}
+		/>
 	)
 }
 

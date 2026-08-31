@@ -1,4 +1,5 @@
 import { format, isValid, parseISO } from "date-fns"
+import { Input } from "@/ui/components/base/input"
 import { InlineText } from "./presentation"
 import type { FieldTypeDefFor } from "./types"
 
@@ -29,6 +30,15 @@ function formatDatetime(instant: Date) {
 /** An instant, as an ISO-8601 string carrying its zone. */
 export const datetimeField: FieldTypeDefFor<"datetime"> = {
 	defaultValue: () => "",
+	renderControl: ({ disabled, onChange, value }) => (
+		<Input
+			type="datetime-local"
+			step="1"
+			value={toDatetimeLocal(value)}
+			disabled={disabled}
+			onChange={(event) => onChange(fromDatetimeLocal(event.target.value))}
+		/>
+	),
 	renderInline: ({ value }) => {
 		const instant = new Date(value as string | number | Date)
 		if (Number.isNaN(instant.getTime()))
@@ -47,4 +57,26 @@ export const datetimeField: FieldTypeDefFor<"datetime"> = {
 		isValid(parseISO(value))
 			? []
 			: [`${path} must be a valid date and time`],
+}
+
+/**
+ * The stored value is a UTC instant, but `datetime-local` speaks only the
+ * writer's local wall time, so both directions are converted here. An
+ * unparseable value shows an empty picker rather than an invented one.
+ *
+ * Seconds are carried, with `step="1"` on the control, so that editing a
+ * stamped value does not silently round it down to the minute.
+ */
+function toDatetimeLocal(value: unknown) {
+	const date = new Date(String(value ?? ""))
+	return isValid(date) ? format(date, "yyyy-MM-dd'T'HH:mm:ss") : ""
+}
+
+function fromDatetimeLocal(local: string) {
+	if (!local) return ""
+	const date = new Date(local)
+	// A browser without `datetime-local` degrades the control to a text input,
+	// so junk is reachable. Hand it back rather than blanking what was typed —
+	// the validator names the problem, an empty field would hide it.
+	return isValid(date) ? date.toISOString() : local
 }

@@ -1,4 +1,6 @@
 import { Badge } from "@/ui/components/base/badge"
+import { Checkbox } from "@/ui/components/base/checkbox"
+import { Switch } from "@/ui/components/base/switch"
 import { InlineText } from "./presentation"
 import type { FieldTypeDefFor } from "./types"
 
@@ -14,6 +16,23 @@ function isTruthy(value: unknown) {
 /** A flag. Absent means false, never undefined — the editor always has something to show. */
 export const booleanField: FieldTypeDefFor<"boolean"> = {
 	defaultValue: ({ field }) => field.defaultValue ?? false,
+	// A checkbox unless the schema asked for a switch. Both read the value
+	// strictly — only `true` is checked, so a half-written file shows unchecked
+	// rather than checked-because-non-empty.
+	renderControl: ({ disabled, field, onChange, value }) =>
+		field.componentType === "switch" ? (
+			<Switch
+				checked={value === true}
+				disabled={disabled}
+				onCheckedChange={onChange}
+			/>
+		) : (
+			<Checkbox
+				checked={value === true}
+				disabled={disabled}
+				onCheckedChange={(checked) => onChange(checked === true)}
+			/>
+		),
 	renderInline: ({ value }) => (
 		<InlineText>{isTruthy(value) ? "True" : "False"}</InlineText>
 	),

@@ -1,3 +1,4 @@
+import { Fragment } from "react"
 import { FieldsPanel, InlineText } from "./presentation"
 import { findTitleEntry } from "./roles"
 import type { FieldTypeDefFor } from "./types"
@@ -20,15 +21,29 @@ import type { FieldTypeDefFor } from "./types"
  */
 export const objectField: FieldTypeDefFor<"object"> = {
 	defaultValue: ({ defaultForSchema, field }) => defaultForSchema(field.fields),
+	// Each child edited in place, in a box that says they belong together. A
+	// child hands back its own value; assembling the record around it is this
+	// entry's job, because only it knows which key the child answers to.
+	renderControl: ({ field, onChange, renderChild, value }) => {
+		const record = asRecord(value)
+		return (
+			<div className="space-y-3 rounded-md border p-3">
+				{Object.entries(field.fields).map(([key, child]) => (
+					<Fragment key={key}>
+						{renderChild(child, record[key], (next) =>
+							onChange({ ...record, [key]: next }),
+						)}
+					</Fragment>
+				))}
+			</div>
+		)
+	},
 	// One line has room for one thing, so it goes to whichever child heads the
 	// object; failing that, the shape of what is there.
 	renderInline: ({ field, renderChildInline, value }) => {
 		const entries = Object.entries(field.fields)
 		const title = findTitleEntry(entries)
-		const record =
-			value && typeof value === "object" && !Array.isArray(value)
-				? (value as Record<string, unknown>)
-				: {}
+		const record = asRecord(value)
 		const heading = title ? record[title.key] : undefined
 		if (title && heading != null && heading !== "")
 			return renderChildInline(title.field, heading)
@@ -53,4 +68,11 @@ export const objectField: FieldTypeDefFor<"object"> = {
 			validateChild(child, record[key], `${path}.${child.label}`),
 		)
 	},
+}
+
+/** Anything that is not a record of children holds none of them. */
+function asRecord(value: unknown): Record<string, unknown> {
+	return value && typeof value === "object" && !Array.isArray(value)
+		? (value as Record<string, unknown>)
+		: {}
 }

@@ -1,6 +1,6 @@
 import { Badge } from "@/ui/components/base/badge"
 import { EmptyValue, InlineText } from "./presentation"
-import { optionLabel } from "./select"
+import { OptionsControl, optionLabel } from "./select"
 import type { FieldTypeDefFor } from "./types"
 
 /**
@@ -14,6 +14,16 @@ import type { FieldTypeDefFor } from "./types"
 export const multiSelectField: FieldTypeDefFor<"multi_select"> = {
 	defaultValue: ({ field }) =>
 		field.defaultSelected?.map(({ value }) => value) ?? [],
+	renderControl: ({ disabled, field, onChange, value }) => (
+		<OptionsControl
+			disabled={disabled}
+			multiple
+			onChange={onChange}
+			options={field.options}
+			placeholder={field.placeholder}
+			value={value}
+		/>
+	),
 	renderInline: ({ field, value }) => {
 		const chosen = Array.isArray(value) ? value : []
 		return (

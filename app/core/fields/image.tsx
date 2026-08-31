@@ -1,4 +1,4 @@
-import { InlineText } from "./presentation"
+import { InlineText, TextControl } from "./presentation"
 import type { FieldTypeDefFor } from "./types"
 
 /**
@@ -26,6 +26,20 @@ function imageSrc(raw: string, owner: string, name: string) {
  */
 export const imageField: FieldTypeDefFor<"image"> = {
 	defaultValue: () => "",
+	// The path is typed, not picked — there is no browser for the repository
+	// yet. The preview underneath is what tells the writer they typed it right.
+	renderControl: ({ assetBaseUrl, disabled, onChange, value }) => (
+		<>
+			<TextControl disabled={disabled} onChange={onChange} value={value} />
+			{value ? (
+				<img
+					className="mt-2 max-h-40 rounded-md border object-contain"
+					src={previewSrc(String(value), assetBaseUrl)}
+					alt="Preview"
+				/>
+			) : null}
+		</>
+	),
 	renderInline: ({ value }) => {
 		const raw = String(value)
 		return (
@@ -49,4 +63,20 @@ export const imageField: FieldTypeDefFor<"image"> = {
 	},
 	validate: ({ path, value }) =>
 		typeof value === "string" ? [] : [`${path} must be text`],
+}
+
+/**
+ * The preview's source. Deliberately not `imageSrc`: that one is handed the
+ * Project and builds the asset route itself, while the editor already has the
+ * route built and passes it in. The two also disagree on purpose about a
+ * root-relative path — the editor leaves one alone, because a writer who typed
+ * a leading slash meant a path on this site, not in the repository.
+ */
+function previewSrc(raw: string, assetBaseUrl?: string) {
+	if (/^(https?:|data:|\/)/i.test(raw) || !assetBaseUrl) return raw
+	return `${assetBaseUrl}/${raw
+		.replace(/^\/+/, "")
+		.split("/")
+		.map(encodeURIComponent)
+		.join("/")}`
 }

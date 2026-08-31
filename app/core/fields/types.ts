@@ -139,15 +139,17 @@ export type RenderControlContext<F extends ValueField> = ControlContext & {
 }
 
 /**
- * What one Field Type owes. Every member is required and none may be optional:
- * a silently missing behavior is the bug class this registry exists to kill.
- * Edit controls join this contract in #72, as their own context type — which is
- * why every behavior takes a context object rather than positional arguments. A
- * new input then becomes one property, not a signature change rippling through
+ * What one Field Type owes: all five behaviors, every member required and none
+ * optional. A silently missing behavior is the bug class this registry exists
+ * to kill, and from here an incomplete entry does not compile.
+ *
+ * Every behavior takes a context object rather than positional arguments, so a
+ * new input is one property rather than a signature change rippling through
  * every entry.
  */
 export type FieldTypeDef<F extends ValueField> = {
 	defaultValue(context: DefaultContext<F>): unknown
+	renderControl(context: RenderControlContext<F>): ReactNode
 	renderInline(context: RenderInlineContext<F>): ReactNode
 	renderValue(context: RenderValueContext<F>): ReactNode
 	validate(context: ValidateContext<F>): string[]

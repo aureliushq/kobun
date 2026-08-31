@@ -1,6 +1,6 @@
 import type { ReactNode } from "react"
 import type { DocumentField, Field, SlugField } from "@/config/types"
-import { InlineText } from "./presentation"
+import { InlineText, TextControl } from "./presentation"
 
 /**
  * A Document Field reached the dispatcher.
@@ -42,11 +42,26 @@ export function refuseDocument(
  * difference between what it says and what it is. A summary line has no room
  * for the distinction, so there it is plain text.
  *
- * The behaviors take a context object for the same reason a registry entry's do
- * — the edit control joins them in #72, with its own inputs.
+ * Edited as plain text, and editable at all on purpose: a writer who does not
+ * want the derived slug has to be able to say so, and the metadata module then
+ * stops deriving over what they typed.
+ *
+ * The behaviors take a context object for the same reason a registry entry's
+ * do: an input can join one of them without disturbing the rest.
  */
 export const slugRole = {
 	defaultValue: () => "",
+	renderControl: ({
+		disabled,
+		onChange,
+		value,
+	}: {
+		disabled?: boolean
+		onChange(value: unknown): void
+		value: unknown
+	}): ReactNode => (
+		<TextControl disabled={disabled} onChange={onChange} value={value} />
+	),
 	renderInline: ({ value }: { value: unknown }): ReactNode => (
 		<InlineText>{String(value)}</InlineText>
 	),

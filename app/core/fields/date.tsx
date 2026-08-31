@@ -1,5 +1,5 @@
 import { formatDistanceToNow, isMatch } from "date-fns"
-import { InlineText } from "./presentation"
+import { InlineText, TextControl } from "./presentation"
 import type { FieldTypeDefFor } from "./types"
 
 /**
@@ -15,6 +15,16 @@ import type { FieldTypeDefFor } from "./types"
  */
 export const dateField: FieldTypeDefFor<"date"> = {
 	defaultValue: () => "",
+	// The browser's own day picker, which is what makes `yyyy-MM-dd` the format
+	// without anything here having to say so.
+	renderControl: ({ disabled, onChange, value }) => (
+		<TextControl
+			disabled={disabled}
+			onChange={onChange}
+			type="date"
+			value={value}
+		/>
+	),
 	renderInline: ({ value }) => {
 		const day = new Date(value as string | number | Date)
 		if (Number.isNaN(day.getTime()))
