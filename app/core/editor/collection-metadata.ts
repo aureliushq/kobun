@@ -1,54 +1,26 @@
-import { isMatch, isValid, parseISO } from "date-fns"
 import type { Field } from "@/config/types"
+import {
+	type DefaultForSchema,
+	defaultForField,
+	findSlugField,
+	resolveTitleKey,
+	validateField,
+} from "@/core/fields"
 
 export type FieldRecord = Record<string, unknown>
 
-function defaultForField(field: Field): unknown {
-	switch (field.type) {
-		case "boolean":
-			return field.defaultValue ?? false
-		case "text":
-			return field.defaultValue ?? ""
-		case "select":
-			return field.defaultSelected?.value ?? ""
-		case "multi_select":
-			return field.defaultSelected?.map(({ value }) => value) ?? []
-		case "object":
-			return applyMetadataDefaults(field.fields, {})
-		case "array":
-			return []
-		case "datetime":
-			return ""
-		default:
-			return ""
-	}
-}
+/**
+ * How the registry's Container entries default their children. It is supplied
+ * from here rather than derived in the registry because defaulting a schema
+ * carries Role rules — a Document key is omitted entirely, a Slug is derived
+ * from its source Field — and Roles are this module's business, not a Field
+ * Type's.
+ */
+const defaultForSchema: DefaultForSchema = (schema) =>
+	applyMetadataDefaults(schema, {})
 
 export function defaultFieldValue(field: Field): unknown {
-	return defaultForField(field)
-}
-
-export function getCompositeValue(row: unknown, field: Field, index: number) {
-	if (Array.isArray(row)) return row[index]
-	if (row && typeof row === "object") {
-		const record = row as FieldRecord
-		return record[field.label] ?? record[String(index)]
-	}
-	return undefined
-}
-
-export function setCompositeValue(
-	row: unknown,
-	field: Field,
-	index: number,
-	value: unknown,
-) {
-	if (Array.isArray(row)) {
-		const next = [...row]
-		next[index] = value
-		return next
-	}
-	return { ...((row as FieldRecord | null) ?? {}), [field.label]: value }
+	return defaultForField(field, defaultForSchema)
 }
 
 export function applyMetadataDefaults(
@@ -58,7 +30,8 @@ export function applyMetadataDefaults(
 	const result = { ...values }
 	for (const [key, field] of Object.entries(schema)) {
 		if (field.type === "document") continue
-		if (result[key] === undefined) result[key] = defaultForField(field)
+		if (result[key] === undefined)
+			result[key] = defaultForField(field, defaultForSchema)
 	}
 	for (const [key, field] of Object.entries(schema)) {
 		if (field.type !== "slug" || String(result[key] ?? "").trim()) continue
@@ -83,102 +56,15 @@ export function updateMetadataField(
 	value: unknown,
 ) {
 	const next = { ...current, [key]: value }
-	const slugEntry = Object.entries(schema).find(
-		([, field]) => field.type === "slug",
-	)
-	if (!slugEntry || slugEntry[1].type !== "slug" || slugEntry[1].from !== key) {
-		return next
-	}
-	const [slugKey] = slugEntry
+	const slugField = findSlugField(schema)
+	if (!slugField || slugField.field.from !== key) return next
+	const slugKey = slugField.key
 	const currentSlug = String(current[slugKey] ?? "")
 	const previousDerivedSlug = slugify(String(current[key] ?? ""))
 	if (!currentSlug || currentSlug === previousDerivedSlug) {
 		next[slugKey] = slugify(String(value ?? ""))
 	}
 	return next
-}
-
-/**
- * A datetime is an instant, so the zone is not optional: without it the same
- * value means a different moment in every timezone. This is the one part of the
- * contract date-fns cannot state for us — `parseISO` accepts a zoneless
- * `2026-07-14T09:30:00`, and a `format` pattern strict enough to refuse it
- * would need one variant per optional part (seconds, fractional seconds).
- * Everything else about the shape is `parseISO`'s job.
- */
-function hasExplicitZone(value: string) {
-	return /(Z|[+-]\d{2}:\d{2})$/.test(value)
-}
-
-function isEmpty(value: unknown) {
-	return (
-		value == null ||
-		value === "" ||
-		(Array.isArray(value) && value.length === 0)
-	)
-}
-
-function validateField(field: Field, value: unknown, path: string): string[] {
-	if (field.required && isEmpty(value)) return [`${path} is required`]
-	if (isEmpty(value)) return []
-	switch (field.type) {
-		case "boolean":
-			return typeof value === "boolean" ? [] : [`${path} must be a boolean`]
-		case "multi_select": {
-			if (
-				!Array.isArray(value) ||
-				value.some((item) => typeof item !== "string")
-			)
-				return [`${path} must be a list of options`]
-			const options = new Set(field.options.map(({ value }) => value))
-			return value.every((item) => options.has(item))
-				? []
-				: [`${path} contains an invalid option`]
-		}
-		case "select":
-			return typeof value === "string" &&
-				field.options.some((option) => option.value === value)
-				? []
-				: [`${path} is not a valid option`]
-		case "url":
-			try {
-				new URL(String(value))
-				return []
-			} catch {
-				return [`${path} must be a valid URL`]
-			}
-		case "date":
-			return typeof value === "string" && isMatch(value, "yyyy-MM-dd")
-				? []
-				: [`${path} must be a valid date`]
-		case "datetime":
-			return typeof value === "string" &&
-				hasExplicitZone(value) &&
-				isValid(parseISO(value))
-				? []
-				: [`${path} must be a valid date and time`]
-		case "object":
-			if (!value || typeof value !== "object" || Array.isArray(value))
-				return [`${path} must be an object`]
-			return validateMetadata(field.fields, value as FieldRecord, path)
-		case "array":
-			if (!Array.isArray(value)) return [`${path} must be an array`]
-			return value.flatMap((row, index) => {
-				if (field.items.length === 1)
-					return validateField(field.items[0], row, `${path}[${index}]`)
-				if (!row || typeof row !== "object")
-					return [`${path}[${index}] must be a row`]
-				return field.items.flatMap((item, itemIndex) =>
-					validateField(
-						item,
-						getCompositeValue(row, item, itemIndex),
-						`${path}[${index}].${item.label}`,
-					),
-				)
-			})
-		default:
-			return typeof value === "string" ? [] : [`${path} must be text`]
-	}
 }
 
 export function validateMetadata(
@@ -198,16 +84,12 @@ export function validateMetadata(
 }
 
 export function getSlugField(schema: Record<string, Field>) {
-	return (
-		Object.entries(schema).find(([, field]) => field.type === "slug")?.[0] ??
-		null
-	)
+	return findSlugField(schema)?.key ?? null
 }
 
 export function getCollectionEditorFields(schema: Record<string, Field>) {
 	const entries = Object.entries(schema)
-	const slugField = entries.find(([, field]) => field.type === "slug")
-	const titleKey = slugField?.[1].type === "slug" ? slugField[1].from : null
+	const titleKey = resolveTitleKey(schema)
 	const documentKey =
 		entries.find(([, field]) => field.type === "document")?.[0] ?? null
 	return {

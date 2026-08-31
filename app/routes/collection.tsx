@@ -27,6 +27,8 @@ import {
 	isMarkdownCollectionFile,
 	type RepositoryCollectionFile,
 } from "@/core/editor/collection-items.server"
+import { getSlugField } from "@/core/editor/collection-metadata"
+import { resolveTitleKey } from "@/core/fields"
 import { requireCollection } from "@/core/project-context"
 import { requirePageContext } from "@/core/project-context/project-context.server"
 import { listGithubDirectoryFiles } from "@/github/octokit.server"
@@ -170,11 +172,8 @@ export default function Collection({ loaderData }: Route.ComponentProps) {
 	const name = params.name ?? ""
 	const editorBase = `/${owner}/${name}/collections/${collectionSlug}/editor`
 
-	const schemaEntries = Object.entries(collection.schema)
-	const slugEntry = schemaEntries.find(([, f]) => f.type === "slug")
-	const slugFieldKey = slugEntry?.[0]
-	const titleFieldKey =
-		slugEntry && slugEntry[1].type === "slug" ? slugEntry[1].from : undefined
+	const slugFieldKey = getSlugField(collection.schema)
+	const titleFieldKey = resolveTitleKey(collection.schema)
 
 	const rows = useMemo<Row[]>(
 		() =>
