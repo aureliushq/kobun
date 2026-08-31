@@ -37,6 +37,13 @@ export type DefaultForSchema = (
 ) => Record<string, unknown>
 
 /**
+ * Default one nested Field. An `array` Container asks for it when the writer
+ * adds a row, and gets it injected for the same reason `DefaultForSchema` is:
+ * what a Field defaults to is the dispatcher's answer, not a Container's.
+ */
+export type DefaultForField = (field: Field) => unknown
+
+/**
  * Validate one nested Field at a path its container computed. The dispatcher
  * hands this to Container entries so they recurse without importing the
  * registry — no cycles, and no entry can get the bookkeeping wrong.
@@ -76,6 +83,17 @@ export type RenderChild = (field: Field, value: unknown) => ReactNode
 /** Summarize one nested Field on a single line. */
 export type RenderChildInline = (field: Field, value: unknown) => ReactNode
 
+/**
+ * Render one nested Field's control — its chrome and its input together, the
+ * same pair a top-level Field gets. The dispatcher builds it so no Container
+ * can render a child without the label that says which child it is.
+ */
+export type RenderChildControl = (
+	field: Field,
+	value: unknown,
+	onChange: (value: unknown) => void,
+) => ReactNode
+
 export type DefaultContext<F extends ValueField> = {
 	defaultForSchema: DefaultForSchema
 	field: F
@@ -99,6 +117,24 @@ export type RenderValueContext<F extends ValueField> = {
 export type RenderInlineContext<F extends ValueField> = {
 	field: F
 	renderChildInline: RenderChildInline
+	value: unknown
+}
+
+/**
+ * Everything an editable Field needs that is neither the Field nor its value:
+ * where its asset lives, how to default a new one, whether the form is locked,
+ * and where its next value goes. Descending changes only the last of them.
+ */
+export type ControlContext = {
+	assetBaseUrl?: string
+	defaultForField: DefaultForField
+	disabled?: boolean
+	onChange(value: unknown): void
+}
+
+export type RenderControlContext<F extends ValueField> = ControlContext & {
+	field: F
+	renderChild: RenderChildControl
 	value: unknown
 }
 

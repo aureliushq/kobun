@@ -1,77 +1,40 @@
-import { fireEvent, render } from "@testing-library/react"
+import { fireEvent, render, screen } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
 import type { Field } from "@/config/types"
 
 import { MetadataField } from "./collection-metadata-fields"
 
-const publishedAt = {
-	type: "datetime",
-	label: "Published at",
-} as unknown as Field
-
-function renderDatetime(value: unknown) {
-	const onChange = vi.fn()
-	const { container } = render(
-		<MetadataField field={publishedAt} value={value} onChange={onChange} />,
-	)
-	const input = container.querySelector("input") as HTMLInputElement
-	return { input, onChange }
-}
-
 /**
- * The stored value is a UTC instant; the control speaks the writer's local wall
- * time. Both directions are asserted against a local-time round trip rather
- * than a hardcoded offset, so the test says the same thing in every timezone.
+ * The component itself decides nothing about a Field beyond its chrome, so
+ * there is one thing to prove here: that the chrome is wired to the control the
+ * dispatcher chose, both ways. Which control each Field Type gets, and what it
+ * emits, is asserted at that seam in `app/core/fields/control.test.tsx`.
  */
-describe("<MetadataField /> over a datetime", () => {
-	it("uses a date-and-time control, not a plain text input", () => {
-		expect(renderDatetime("").input.type).toBe("datetime-local")
-	})
-
-	it("shows a stored UTC instant as local wall time, seconds included", () => {
-		const instant = "2026-07-14T09:30:45.000Z"
-		const local = new Date(instant)
-		const pad = (part: number) => String(part).padStart(2, "0")
-
-		expect(renderDatetime(instant).input.value).toBe(
-			`${local.getFullYear()}-${pad(local.getMonth() + 1)}-${pad(
-				local.getDate(),
-			)}T${pad(local.getHours())}:${pad(local.getMinutes())}:${pad(
-				local.getSeconds(),
-			)}`,
+describe("<MetadataField />", () => {
+	it("names the Field above the control the dispatcher chose", () => {
+		const onChange = vi.fn()
+		const { container } = render(
+			<MetadataField
+				field={
+					{
+						type: "text",
+						label: "Title",
+						description: "Heads the page",
+						required: true,
+					} as unknown as Field
+				}
+				value="Hello"
+				onChange={onChange}
+			/>,
 		)
-	})
 
-	it("keeps the seconds a stamped value carries", () => {
-		const { input, onChange } = renderDatetime("2026-07-14T09:30:45.000Z")
+		expect(screen.getByText("Title *")).toBeInTheDocument()
+		expect(screen.getByText("Heads the page")).toBeInTheDocument()
 
-		fireEvent.change(input, { target: { value: "2026-07-14T11:15:45" } })
+		const input = container.querySelector("input") as HTMLInputElement
+		expect(input.value).toBe("Hello")
 
-		expect(onChange).toHaveBeenCalledWith(
-			new Date("2026-07-14T11:15:45").toISOString(),
-		)
-		expect(onChange.mock.calls[0][0]).toContain(":45.")
-	})
-
-	it("emits a UTC instant when the writer picks a local time", () => {
-		const { input, onChange } = renderDatetime("")
-
-		fireEvent.change(input, { target: { value: "2026-07-14T09:30" } })
-
-		expect(onChange).toHaveBeenCalledWith(
-			new Date("2026-07-14T09:30").toISOString(),
-		)
-	})
-
-	it("emits an empty value when the writer clears the control", () => {
-		const { input, onChange } = renderDatetime("2026-07-14T09:30:00.000Z")
-
-		fireEvent.change(input, { target: { value: "" } })
-
-		expect(onChange).toHaveBeenCalledWith("")
-	})
-
-	it("shows an empty control for a value it cannot parse", () => {
-		expect(renderDatetime("not a datetime").input.value).toBe("")
+		fireEvent.change(input, { target: { value: "Goodbye" } })
+		expect(onChange).toHaveBeenCalledWith("Goodbye")
 	})
 })

@@ -9,7 +9,8 @@
  * not a value — then looks the Field Type up, and owns everything cross-cutting
  * along the way: the required check, the empty short-circuit, the nesting
  * limits, the dash that stands for nothing filled in, and the callbacks
- * Containers recurse through. Edit controls join the entry contract in #72.
+ * Containers recurse through. The edit control is the one behavior still
+ * decided by a chain inside the dispatcher; #72 dissolves it into the entries.
  *
  * The composite row helpers are deliberately not re-exported here. They are the
  * one piece of this module a caller can want without wanting the taxonomy, and
@@ -19,9 +20,11 @@
 
 export {
 	defaultForField,
+	renderFieldControl,
 	renderFieldInline,
 	renderFieldValue,
 	validateField,
 } from "./dispatch"
+export { ControlRow } from "./presentation"
 export { DocumentFieldError, findSlugField, resolveTitleKey } from "./roles"
 export type { DefaultForSchema, RenderContext } from "./types"

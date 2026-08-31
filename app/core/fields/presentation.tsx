@@ -3,8 +3,9 @@ import type { Field } from "@/config/types"
 import type { RenderChild } from "./types"
 
 /**
- * The chrome every rendered Field shares: the label/description row it sits in,
- * the dash that stands for nothing filled in, and the last-resort JSON dump.
+ * The chrome every Field shares, read or edited: the rows it sits in — one for
+ * a value, one for a control — the dash that stands for nothing filled in, and
+ * the last-resort JSON dump.
  *
  * Its own module rather than part of the dispatcher because the entries need it
  * too — and an entry importing the dispatcher would close the loop the registry
@@ -32,6 +33,33 @@ export function FieldRow({
 				) : null}
 			</dt>
 			<dd className="min-w-0 text-sm">{children}</dd>
+		</div>
+	)
+}
+
+/**
+ * The chrome an editable Field sits in: what it is called, whether it has to be
+ * filled in, and any note the schema author left about it. `FieldRow`'s
+ * counterpart on the edit side — a form has no room for a two-column grid, so
+ * the label sits above the input rather than beside it.
+ */
+export function ControlRow({
+	field,
+	children,
+}: {
+	field: Pick<Field, "description" | "label" | "required">
+	children: React.ReactNode
+}) {
+	return (
+		<div className="space-y-1.5">
+			<p className="font-medium text-sm">
+				{field.label}
+				{field.required ? " *" : ""}
+			</p>
+			{field.description ? (
+				<p className="text-muted-foreground text-xs">{field.description}</p>
+			) : null}
+			{children}
 		</div>
 	)
 }
