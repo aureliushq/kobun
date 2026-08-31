@@ -6,6 +6,7 @@ import type {
 	ConfigError,
 	Features,
 	ManagedField,
+	ResolvedField,
 } from "./types"
 
 /**
@@ -83,6 +84,22 @@ const MANAGED_FIELDS: ManagedFieldDefinition[] = [
 /** The definitions a feature block turns on. */
 const enabledBy = (features: Features | undefined): ManagedFieldDefinition[] =>
 	features ? MANAGED_FIELDS.filter(({ enabled }) => enabled(features)) : []
+
+/**
+ * The Managed Field a resolved schema holds under this key, or null when the
+ * Collection enabled no Feature that contributes it.
+ *
+ * The marker is the whole permission: a key the Config declared itself is the
+ * writer's, and a Feature colliding with one is an error rather than a silent
+ * winner (ADR-0005), so nothing else needs asking.
+ */
+export const managedField = (
+	schema: Record<string, ResolvedField>,
+	key: string,
+): ManagedField | null => {
+	const field = schema[key]
+	return field?.managed === true ? (field as ManagedField) : null
+}
 
 /** The Managed Fields a feature block contributes, keyed as they appear in the schema. */
 export const managedFieldsFor = (

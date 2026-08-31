@@ -1,17 +1,13 @@
+import { managedField } from "@/config/features"
 import type { ResolvedField } from "@/config/types"
 import type { FieldRecord } from "@/core/editor/collection-metadata"
 import type { ResolvedSource } from "./types"
 
 type ResolvedSchema = Record<string, ResolvedField>
 
-/**
- * Whether the resolved schema says this key is the system's to stamp. A key the
- * Config declared itself is the writer's, and a Feature colliding with one is a
- * config error rather than a silent winner (ADR-0005), so the marker is the
- * whole permission.
- */
+/** Whether the resolved schema says this key is the system's to stamp. */
 function isManaged(schema: ResolvedSchema, key: string) {
-	return schema[key]?.managed === true
+	return managedField(schema, key) !== null
 }
 
 /** A value nobody has set: absent, null, or the empty string a Field defaults to. */
