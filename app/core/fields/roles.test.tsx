@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 import type { Field } from "@/config/types"
 
-import { findTitleEntries, resolveTitle, resolveTitleKey } from "./roles"
+import { findHeuristicTitles, resolveTitle, resolveTitleKey } from "./roles"
 
 /**
  * Which Field heads a container — the Title Role.
@@ -38,7 +38,7 @@ describe("the Fields a reader would take for a heading", () => {
 	it("takes a title over a name, and hands back both", () => {
 		expect(
 			keysOf(
-				findTitleEntries(
+				findHeuristicTitles(
 					entries({
 						name: { type: "text", label: "Name" },
 						body: { type: "text", label: "Body" },
@@ -52,7 +52,7 @@ describe("the Fields a reader would take for a heading", () => {
 	it("prefers the key the schema author wrote to the label they show", () => {
 		expect(
 			keysOf(
-				findTitleEntries(
+				findHeuristicTitles(
 					entries({
 						heading: { type: "text", label: "Title" },
 						title: { type: "text", label: "Headline" },
@@ -65,7 +65,7 @@ describe("the Fields a reader would take for a heading", () => {
 	it("reads labels only when no key is title-ish, and ignores case", () => {
 		expect(
 			keysOf(
-				findTitleEntries(
+				findHeuristicTitles(
 					entries({
 						moniker: { type: "text", label: "NAME" },
 						heading: { type: "text", label: "Title" },
@@ -77,7 +77,7 @@ describe("the Fields a reader would take for a heading", () => {
 
 	it("finds nothing when nothing reads as a heading", () => {
 		expect(
-			findTitleEntries(
+			findHeuristicTitles(
 				entries({
 					body: { type: "text", label: "Body" },
 					summary: { type: "text", label: "Summary" },

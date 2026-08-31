@@ -4,7 +4,7 @@ import { Link, useParams } from "react-router"
 import type { Field } from "@/config/types"
 import { parseDocument } from "@/core/content/document.server"
 import {
-	findTitleEntries,
+	findHeuristicTitles,
 	type RenderContext,
 	renderFieldValue,
 } from "@/core/fields"
@@ -78,11 +78,12 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
  * Which Fields read as a heading is the Title Role's answer, not the page's;
  * the page only decides that they go on top. It asks for the heuristic tier
  * alone rather than the whole Role: hoisting a Slug's source Field would move
- * a field on a page that has never had it moved.
+ * a field on a page that has never had it moved. A declared Title, when the
+ * config flag lands, will have to be hoisted here too.
  */
 function orderedSchemaEntries(schema: SchemaRecord): [string, Field][] {
 	const entries = Object.entries(schema)
-	const titleKeys = findTitleEntries(entries).map((title) => title.key)
+	const titleKeys = findHeuristicTitles(entries).map((title) => title.key)
 
 	const titles: [string, Field][] = []
 	const others: [string, Field][] = []

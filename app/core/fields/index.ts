@@ -30,8 +30,8 @@ export {
 } from "./dispatch"
 export {
 	DocumentFieldError,
+	findHeuristicTitles,
 	findSlugField,
-	findTitleEntries,
 	resolveTitleKey,
 } from "./roles"
 export type { DefaultForSchema, RenderContext } from "./types"

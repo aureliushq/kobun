@@ -92,10 +92,16 @@ export const slugRole = {
 export function findSlugField(
 	schema: Record<string, Field>,
 ): { key: string; field: SlugField } | null {
-	for (const [key, field] of Object.entries(schema)) {
-		if (field.type === "slug") return { key, field }
+	return findSlugFields(Object.entries(schema))[0] ?? null
+}
+
+/** Every Field carrying the Slug Role, in declared order. */
+function findSlugFields(entries: [string, Field][]) {
+	const found: { key: string; field: SlugField }[] = []
+	for (const [key, field] of entries) {
+		if (field.type === "slug") found.push({ key, field })
 	}
-	return null
+	return found
 }
 
 /** The Field a container is headed by, and the key it answers to. */
@@ -114,7 +120,7 @@ export type TitleEntry = { key: string; field: Field }
  * the `title: true` config flag is a follow-up.
  */
 export function resolveTitle(entries: [string, Field][]): TitleEntry | null {
-	return slugSource(entries) ?? findTitleEntries(entries)[0] ?? null
+	return slugSource(entries) ?? findHeuristicTitles(entries)[0] ?? null
 }
 
 /** The Title Role over a schema, for the callers that only want the key. */
@@ -124,10 +130,9 @@ export function resolveTitleKey(schema: Record<string, Field>): string | null {
 
 /** The Field the Slug Role derives from, when it is one of these Fields. */
 function slugSource(entries: [string, Field][]): TitleEntry | null {
-	for (const [, field] of entries) {
-		if (field.type !== "slug") continue
+	for (const { field } of findSlugFields(entries)) {
 		const source = entries.find(([key]) => key === field.from)
-		return source ? { key: source[0], field: source[1] } : null
+		if (source) return { key: source[0], field: source[1] }
 	}
 	return null
 }
@@ -141,15 +146,18 @@ const TITLE_TARGETS = ["title", "name"] as const
  * are read only when no key is title-ish.
  *
  * Plural because the singleton page hoists every one of them to the top of the
- * page, while the Containers and `resolveTitle` take the first.
+ * page, while the Containers and `resolveTitle` take the first. Named after the
+ * tier rather than the Role because it answers only for this one: a caller that
+ * wants the Title Role's answer wants `resolveTitle`.
  */
-export function findTitleEntries(entries: [string, Field][]): TitleEntry[] {
+export function findHeuristicTitles(entries: [string, Field][]): TitleEntry[] {
 	const byKey = titlesBy(entries, ([key]) => key)
 	return byKey.length > 0
 		? byKey
 		: titlesBy(entries, ([, field]) => field.label)
 }
 
+/** The Fields whose key, or whose label, is one of the targets — best first. */
 function titlesBy(
 	entries: [string, Field][],
 	read: (entry: [string, Field]) => string,
