@@ -28,5 +28,10 @@ export {
 	renderFieldValue,
 	validateField,
 } from "./dispatch"
-export { DocumentFieldError, findSlugField, resolveTitleKey } from "./roles"
+export {
+	DocumentFieldError,
+	findSlugField,
+	findTitleEntries,
+	resolveTitleKey,
+} from "./roles"
 export type { DefaultForSchema, RenderContext } from "./types"

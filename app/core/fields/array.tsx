@@ -19,7 +19,7 @@ import {
 } from "@/ui/components/base/card"
 import { getCompositeValue, setCompositeValue } from "./composite"
 import { FieldRow, FieldsPanel, InlineText, JsonFallback } from "./presentation"
-import { findTitleEntry } from "./roles"
+import { resolveTitle } from "./roles"
 import type {
 	DefaultForField,
 	FieldTypeDefFor,
@@ -162,7 +162,7 @@ function describeArrayField(field: ArrayField): ArrayRowSchema | null {
 				kind: "object",
 				itemLabel,
 				entries: Object.entries(fields),
-				titleField: findTitleEntry(Object.entries(fields)),
+				titleField: resolveTitle(Object.entries(fields)),
 				getValue: (row, key) =>
 					row && typeof row === "object" && !Array.isArray(row)
 						? (row as Record<string, unknown>)[key]
@@ -188,7 +188,7 @@ function describeArrayField(field: ArrayField): ArrayRowSchema | null {
 		kind: "composite",
 		itemLabel,
 		entries: compositeEntries,
-		titleField: findTitleEntry(compositeEntries.map((e) => [e.key, e.field])),
+		titleField: resolveTitle(compositeEntries.map((e) => [e.key, e.field])),
 		// Validation reads a row through `getCompositeValue`, which also accepts a
 		// positional key on a record. The read path never has, and teaching it to
 		// would put a value on the page where a dash is today — a visible change

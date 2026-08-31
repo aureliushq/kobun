@@ -3,7 +3,11 @@ import { Fragment } from "react"
 import { Link, useParams } from "react-router"
 import type { Field } from "@/config/types"
 import { parseDocument } from "@/core/content/document.server"
-import { type RenderContext, renderFieldValue } from "@/core/fields"
+import {
+	findTitleEntries,
+	type RenderContext,
+	renderFieldValue,
+} from "@/core/fields"
 import { buildFieldBlocks, FieldRow } from "@/core/fields/presentation"
 import { requireSingleton } from "@/core/project-context"
 import { requirePageContext } from "@/core/project-context/project-context.server"
@@ -68,33 +72,17 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
 
 ////////////////////// ORDERING //////////////////////
 
-const TITLE_TARGETS = ["title", "name"] as const
-
 /**
  * Title-ish Fields first, the Body last, everything else in declared order.
  *
- * The heuristic is the Title Role's fallback tier and belongs beside the other
- * two in `roles.ts`; #73 moves it there.
+ * Which Fields read as a heading is the Title Role's answer, not the page's;
+ * the page only decides that they go on top. It asks for the heuristic tier
+ * alone rather than the whole Role: hoisting a Slug's source Field would move
+ * a field on a page that has never had it moved.
  */
 function orderedSchemaEntries(schema: SchemaRecord): [string, Field][] {
 	const entries = Object.entries(schema)
-
-	// Determine title-ish keys (key-first, label-fallback).
-	const titleKeys: string[] = []
-	for (const target of TITLE_TARGETS) {
-		const m = entries.find(
-			([k]) => k.toLowerCase() === target && !titleKeys.includes(k),
-		)
-		if (m) titleKeys.push(m[0])
-	}
-	if (titleKeys.length === 0) {
-		for (const target of TITLE_TARGETS) {
-			const m = entries.find(
-				([k, f]) => f.label.toLowerCase() === target && !titleKeys.includes(k),
-			)
-			if (m) titleKeys.push(m[0])
-		}
-	}
+	const titleKeys = findTitleEntries(entries).map((title) => title.key)
 
 	const titles: [string, Field][] = []
 	const others: [string, Field][] = []

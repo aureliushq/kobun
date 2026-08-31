@@ -98,42 +98,66 @@ export function findSlugField(
 	return null
 }
 
+/** The Field a container is headed by, and the key it answers to. */
+export type TitleEntry = { key: string; field: Field }
+
 /**
  * Which Field heads this container — the Title Role.
  *
- * The documented resolution order is declared Title, else the Slug Role's
- * source Field, else the key/label heuristic. Only the middle tier exists
- * today: the declarative `title: true` flag is a follow-up, and #73 stacks
- * `findTitleEntry` underneath this one as the fallback tier.
+ * Declared Title first, then the Slug Role's source Field, then the key/label
+ * heuristic. A tier that names a Field this container does not have hands over
+ * to the next: a composite array row addresses its Fields by item label, so a
+ * Slug's `from` — a key in the top-level schema — can point outside the entries
+ * being resolved.
+ *
+ * The declared tier is absent because there is nothing to declare it with yet;
+ * the `title: true` config flag is a follow-up.
  */
+export function resolveTitle(entries: [string, Field][]): TitleEntry | null {
+	return slugSource(entries) ?? findTitleEntries(entries)[0] ?? null
+}
+
+/** The Title Role over a schema, for the callers that only want the key. */
 export function resolveTitleKey(schema: Record<string, Field>): string | null {
-	return findSlugField(schema)?.field.from ?? null
+	return resolveTitle(Object.entries(schema))?.key ?? null
+}
+
+/** The Field the Slug Role derives from, when it is one of these Fields. */
+function slugSource(entries: [string, Field][]): TitleEntry | null {
+	for (const [, field] of entries) {
+		if (field.type !== "slug") continue
+		const source = entries.find(([key]) => key === field.from)
+		return source ? { key: source[0], field: source[1] } : null
+	}
+	return null
 }
 
 const TITLE_TARGETS = ["title", "name"] as const
 
 /**
- * The Title Role's undeclared tier: the Field a reader would take for the
- * heading. A `title` beats a `name`, and a key beats a label — a key is what
- * the schema author wrote, a label is what they show.
+ * The Title Role's undeclared tier: the Fields a reader would take for the
+ * heading, best first. A `title` beats a `name`, and a key beats a label — a
+ * key is what the schema author wrote, a label is what they show, so the labels
+ * are read only when no key is title-ish.
  *
- * Both Containers ask it of their children, which is why it lives here rather
- * than in either of them. It is not yet folded into `resolveTitleKey`: the two
- * tiers have never consulted each other, and composing them would change what
- * both callers resolve today. #73 does that.
+ * Plural because the singleton page hoists every one of them to the top of the
+ * page, while the Containers and `resolveTitle` take the first.
  */
-export function findTitleEntry(
+export function findTitleEntries(entries: [string, Field][]): TitleEntry[] {
+	const byKey = titlesBy(entries, ([key]) => key)
+	return byKey.length > 0
+		? byKey
+		: titlesBy(entries, ([, field]) => field.label)
+}
+
+function titlesBy(
 	entries: [string, Field][],
-): { key: string; field: Field } | null {
+	read: (entry: [string, Field]) => string,
+): TitleEntry[] {
+	const found: TitleEntry[] = []
 	for (const target of TITLE_TARGETS) {
-		const match = entries.find(([key]) => key.toLowerCase() === target)
-		if (match) return { key: match[0], field: match[1] }
+		const match = entries.find((entry) => read(entry).toLowerCase() === target)
+		if (match) found.push({ key: match[0], field: match[1] })
 	}
-	for (const target of TITLE_TARGETS) {
-		const match = entries.find(
-			([, field]) => field.label.toLowerCase() === target,
-		)
-		if (match) return { key: match[0], field: match[1] }
-	}
-	return null
+	return found
 }

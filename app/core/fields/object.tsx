@@ -1,6 +1,6 @@
 import { Fragment } from "react"
 import { FieldsPanel, InlineText } from "./presentation"
-import { findTitleEntry } from "./roles"
+import { resolveTitle } from "./roles"
 import type { FieldTypeDefFor } from "./types"
 
 /**
@@ -42,7 +42,7 @@ export const objectField: FieldTypeDefFor<"object"> = {
 	// object; failing that, the shape of what is there.
 	renderInline: ({ field, renderChildInline, value }) => {
 		const entries = Object.entries(field.fields)
-		const title = findTitleEntry(entries)
+		const title = resolveTitle(entries)
 		const record = asRecord(value)
 		const heading = title ? record[title.key] : undefined
 		if (title && heading != null && heading !== "")
