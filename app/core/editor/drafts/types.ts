@@ -35,6 +35,11 @@ export interface DraftsContext {
 	db: DraftsDatabase
 	/** Where this collection's Source files live in the repository. */
 	directoryPath: string
+	/**
+	 * The current time, for the values the system stamps into content. Injected
+	 * so a test can say what "now" is rather than race the wall clock.
+	 */
+	now?: () => Date
 	project: { id: string }
 	sourceStore: SourceStore
 }

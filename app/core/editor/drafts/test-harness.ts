@@ -1,5 +1,6 @@
 import { eq } from "drizzle-orm"
 import invariant from "tiny-invariant"
+import { expandFeatures } from "@/config/features"
 import { collectionSchema } from "@/config/schema"
 import type { Collection } from "@/config/types"
 import {
@@ -105,22 +106,54 @@ export interface DraftsTestHarness {
 export const TEST_COLLECTION_SLUG = "posts"
 export const TEST_DIRECTORY_PATH = "content/posts"
 
+/** A title, a slug derived from it, and a body. */
+const TEST_SCHEMA = {
+	content: { label: "Content", type: "document" },
+	slug: { from: "title", label: "Slug", type: "slug" },
+	title: { label: "Title", type: "text" },
+}
+
 /**
- * A minimal collection: a title, a slug derived from it, and a body. Parsed
- * through the real schema so the fixture cannot drift from a legal config.
+ * A Collection as the config layer hands one over: parsed through the real
+ * schema and expanded, so a fixture cannot drift from a legal Config and the
+ * Managed Fields carry the markers the real ones carry.
  */
-export const TEST_COLLECTION: Collection = collectionSchema.parse({
+function resolveCollection(authored: unknown): Collection {
+	const { collection, errors } = expandFeatures(
+		collectionSchema.parse(authored),
+	)
+	invariant(
+		collection,
+		`the test collection must expand: ${JSON.stringify(errors)}`,
+	)
+	return collection
+}
+
+/** A minimal collection, no Features enabled. */
+export const TEST_COLLECTION: Collection = resolveCollection({
 	format: "md",
 	label: "Posts",
-	schema: {
-		content: { label: "Content", type: "document" },
-		slug: { from: "title", label: "Slug", type: "slug" },
-		title: { label: "Title", type: "text" },
-	},
+	schema: TEST_SCHEMA,
+})
+
+/**
+ * The same collection with every Feature on, so its schema carries all four
+ * Managed Fields: `createdAt`, `updatedAt`, `publishedAt` and `status`.
+ */
+export const TEST_COLLECTION_WITH_FEATURES: Collection = resolveCollection({
+	features: { publish: true, timestamps: { createdAt: true, updatedAt: true } },
+	format: "md",
+	label: "Posts",
+	schema: TEST_SCHEMA,
 })
 
 export function createDraftsTestHarness(
-	options: { collection?: Collection; files?: SourceFile[] } = {},
+	options: {
+		collection?: Collection
+		files?: SourceFile[]
+		/** What the module reads as the current time when it stamps a value. */
+		now?: () => Date
+	} = {},
 ): DraftsTestHarness {
 	const { close, db: sqliteDb } = createInMemoryDb()
 	const projectId = "project-1"
@@ -171,6 +204,7 @@ export function createDraftsTestHarness(
 			collectionSlug: TEST_COLLECTION_SLUG,
 			db,
 			directoryPath: TEST_DIRECTORY_PATH,
+			now: options.now,
 			project: { id: projectId },
 			sourceStore,
 		}),

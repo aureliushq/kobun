@@ -25,8 +25,9 @@ type ManagedFieldDefinition = {
  * A Managed Field, built through the real `fieldSchema` so a definition that
  * stops being a legal Field throws on import rather than reaching a consumer.
  *
- * None of them is `required`. Nothing stamps their values yet (#87), so a
- * required Managed Field would refuse every publish until it did.
+ * None of them is `required`. Publication State never backfills onto a Source
+ * Kobun did not author, and a writer may clear a value the system stamped, so a
+ * Managed Field is legitimately unset even after a publish (ADR-0005).
  */
 const managed = (field: z.input<typeof fieldSchema>): ManagedField => ({
 	...fieldSchema.parse(field),
@@ -64,6 +65,9 @@ const MANAGED_FIELDS: ManagedFieldDefinition[] = [
 	{
 		enabled: (features) => features.publish === true,
 		field: managed({
+			// A new Collection Item reads as `draft` before it has ever been
+			// published; the publish that creates it is what makes it `published`.
+			defaultSelected: { label: "Draft", value: "draft" },
 			label: "Status",
 			options: [
 				{ label: "Draft", value: "draft" },

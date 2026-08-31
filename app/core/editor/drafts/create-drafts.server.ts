@@ -15,6 +15,11 @@ import {
 } from "@/core/editor/collection-metadata"
 import { editorDraft } from "@/db/schema/app-schema"
 import { isDraftDirty } from "./draft-state"
+import {
+	stampAtCreation,
+	stampAtPublish,
+	withoutCreationStamps,
+} from "./managed-stamps"
 import type {
 	DraftRow,
 	DraftsContext,
@@ -60,6 +65,7 @@ export function createDrafts(context: DraftsContext) {
 		collectionSlug,
 		db,
 		directoryPath,
+		now = () => new Date(),
 		project,
 		sourceStore,
 	} = context
@@ -206,8 +212,9 @@ export function createDrafts(context: DraftsContext) {
 	 * did not put there itself. A Draft is what keeps the writer's work, so there
 	 * is nothing to keep until there is work; minting one on sight is what filled
 	 * the dashboard with empty Drafts. Fields the caller left out are defaulted
-	 * first, so "untouched" means the same thing however completely they spelled
-	 * the record.
+	 * first, and the creation stamp `open` handed them is set aside, so
+	 * "untouched" means the same thing however completely they spelled the
+	 * record — and an edit to any other Managed Field is still work.
 	 */
 	function hasNothingToMint(input: ResolvedSaveInput) {
 		return (
@@ -215,8 +222,14 @@ export function createDrafts(context: DraftsContext) {
 			input.draftId === null &&
 			input.markdown.trim() === "" &&
 			canonicalMetadata(
-				applyMetadataDefaults(collection.schema, input.fields),
-			) === canonicalMetadata(defaultFields)
+				withoutCreationStamps(
+					collection.schema,
+					applyMetadataDefaults(collection.schema, input.fields),
+				),
+			) ===
+				canonicalMetadata(
+					withoutCreationStamps(collection.schema, defaultFields),
+				)
 		)
 	}
 
@@ -243,7 +256,18 @@ export function createDrafts(context: DraftsContext) {
 				revision: existing?.revision ?? null,
 			}
 		}
-		return writeDraft(input)
+		// A new item's Draft is born carrying its creation time, because the row
+		// itself does not survive the publish that would need it (ADR-0005). An
+		// existing item's creation time is the Source's business, not ours.
+		if (input.source) return writeDraft(input)
+		return writeDraft({
+			...input,
+			fields: stampAtCreation({
+				fields: input.fields,
+				now: now(),
+				schema: collection.schema,
+			}),
+		})
 	}
 
 	/** The Slug these fields name, which is what the item will be addressed by. */
@@ -444,15 +468,34 @@ export function createDrafts(context: DraftsContext) {
 	async function publishResolved(
 		input: ResolvedSaveInput,
 	): Promise<PublishResult> {
+		// Whether this publish needs a commit at all is decided against unstamped
+		// values, and the stamp lands before the Draft is persisted. The other way
+		// round, a Draft that survives the publish would disagree with its Source
+		// forever — it would hold the values the commit did not — and every later
+		// publish would commit a fresh timestamp (ADR-0005). A publish that commits
+		// nothing stamps nothing, so a refusal cannot turn a Clean Draft Dirty.
+		const unchanged = matchesSource(input)
+		const stamped: ResolvedSaveInput = unchanged
+			? input
+			: {
+					...input,
+					fields: stampAtPublish({
+						fields: input.fields,
+						now: now(),
+						schema: collection.schema,
+						source: input.source,
+					}),
+				}
+
 		// The writer's content is persisted before any gate runs: a publish we
 		// refuse must still keep what they typed.
-		const written = await writeDraft(input)
+		const written = await writeDraft(stamped)
 		if (!written.ok) return written
 
-		const slug = effectiveSlug(input.fields)
-		const errors = validatePublish(input, slug)
+		const slug = effectiveSlug(stamped.fields)
+		const errors = validatePublish(stamped, slug)
 		if (errors.length) return { code: "validation", errors, ok: false }
-		if (await isSlugTaken(slug, input.source)) {
+		if (await isSlugTaken(slug, stamped.source)) {
 			return { code: "duplicate-slug", ok: false, slug }
 		}
 
@@ -460,16 +503,16 @@ export function createDrafts(context: DraftsContext) {
 		// The Draft was built on a version of the Source that is no longer there:
 		// publishing would drop whatever replaced it.
 		if (
-			input.source &&
+			stamped.source &&
 			draft.sourceSha &&
-			draft.sourceSha !== input.source.sha
+			draft.sourceSha !== stamped.source.sha
 		) {
 			return { code: "stale-source", ok: false }
 		}
 
 		// Content the Source already holds needs no commit — and no Draft. Skipping
 		// it keeps a publish the writer changed nothing in out of the history.
-		if (matchesSource(input)) {
+		if (unchanged) {
 			if (!(await deleteDraft(draft))) {
 				return { code: "revision-conflict", ok: false }
 			}
@@ -480,7 +523,7 @@ export function createDrafts(context: DraftsContext) {
 				outcome: "matches-source",
 			}
 		}
-		return commit(input, draft, slug)
+		return commit(stamped, draft, slug)
 	}
 
 	/**
@@ -540,7 +583,13 @@ export function createDrafts(context: DraftsContext) {
 			return {
 				content: "",
 				draftId: null,
-				fields: defaultFields,
+				// Stamped here as well as at minting, so a new item reads as Created
+				// and `draft` in the properties panel before it has ever been saved.
+				fields: stampAtCreation({
+					fields: defaultFields,
+					now: now(),
+					schema: collection.schema,
+				}),
 				ok: true,
 				revision: null,
 				source: null,

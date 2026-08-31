@@ -90,8 +90,17 @@ describe("managedFieldsFor", () => {
 		})
 	})
 
-	// Nothing stamps these yet (#87), so a Managed Field is legitimately unset
-	// during a publish. A required one would refuse every publish.
+	// A new Collection Item reads as `draft` before it has ever been published;
+	// the publish that creates it is what makes it `published` (#87).
+	it("defaults status to Draft", () => {
+		expect(managedFieldsFor({ publish: true }).status).toMatchObject({
+			defaultSelected: { label: "Draft", value: "draft" },
+		})
+	})
+
+	// Publication State never backfills onto a Source Kobun did not author, so a
+	// Managed Field is legitimately unset during a publish. A required one would
+	// refuse every publish.
 	it("marks no Managed Field required", () => {
 		const fields = managedFieldsFor({
 			publish: true,
