@@ -1,12 +1,11 @@
 import { describe, expect, it } from "vitest"
 import type { Field } from "@/config/types"
 import { DocumentFieldError } from "@/core/fields"
+import { getCompositeValue, setCompositeValue } from "@/core/fields/composite"
 import {
 	applyMetadataDefaults,
 	defaultFieldValue,
 	getCollectionEditorFields,
-	getCompositeValue,
-	setCompositeValue,
 	updateMetadataField,
 	validateMetadata,
 } from "./collection-metadata"

@@ -1,5 +1,6 @@
 import type { Field } from "@/config/types"
-import { ControlRow, renderFieldControl } from "@/core/fields"
+import { renderFieldControl } from "@/core/fields"
+import { ControlRow } from "@/core/fields/presentation"
 import { defaultFieldValue } from "./collection-metadata"
 
 /**

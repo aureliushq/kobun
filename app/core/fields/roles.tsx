@@ -53,14 +53,24 @@ export const slugRole = {
 	defaultValue: () => "",
 	renderControl: ({
 		disabled,
+		field,
 		onChange,
 		value,
 	}: {
 		disabled?: boolean
+		// The Field union's slug variant, not `SlugField`: the parsed schema drops
+		// the placeholder the authored one may declare, and the control has to
+		// honour whichever it is handed.
+		field: Extract<Field, { type: "slug" }>
 		onChange(value: unknown): void
 		value: unknown
 	}): ReactNode => (
-		<TextControl disabled={disabled} onChange={onChange} value={value} />
+		<TextControl
+			disabled={disabled}
+			onChange={onChange}
+			placeholder={field.placeholder}
+			value={value}
+		/>
 	),
 	renderInline: ({ value }: { value: unknown }): ReactNode => (
 		<InlineText>{String(value)}</InlineText>

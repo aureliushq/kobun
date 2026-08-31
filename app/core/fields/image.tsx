@@ -8,12 +8,12 @@ import type { FieldTypeDefFor } from "./types"
  */
 function imageSrc(raw: string, owner: string, name: string) {
 	if (/^(https?:|data:)/i.test(raw)) return raw
-	const segments = raw
-		.replace(/^\/+/, "")
-		.split("/")
-		.map(encodeURIComponent)
-		.join("/")
-	return `/api/repo-asset/${encodeURIComponent(owner)}/${encodeURIComponent(name)}/${segments}`
+	return `/api/repo-asset/${encodeURIComponent(owner)}/${encodeURIComponent(name)}/${encodeSegments(raw)}`
+}
+
+/** A repository path as one URL path: every segment encoded, none of them lost. */
+function encodeSegments(raw: string) {
+	return raw.replace(/^\/+/, "").split("/").map(encodeURIComponent).join("/")
 }
 
 /**
@@ -74,9 +74,5 @@ export const imageField: FieldTypeDefFor<"image"> = {
  */
 function previewSrc(raw: string, assetBaseUrl?: string) {
 	if (/^(https?:|data:|\/)/i.test(raw) || !assetBaseUrl) return raw
-	return `${assetBaseUrl}/${raw
-		.replace(/^\/+/, "")
-		.split("/")
-		.map(encodeURIComponent)
-		.join("/")}`
+	return `${assetBaseUrl}/${encodeSegments(raw)}`
 }

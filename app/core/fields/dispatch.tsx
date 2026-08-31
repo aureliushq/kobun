@@ -164,6 +164,11 @@ export function renderFieldInline(field: Field, value: unknown): ReactNode {
  * its fixed control, and builds the callback a Container's children arrive
  * through, chrome and all, so no entry can render a child without saying which
  * child it is. Everything else is the Field Type's own answer.
+ *
+ * No depth guard, unlike `renderFieldValue`: a read can dump a value it will
+ * not descend into, but an edit cannot — refusing to draw a control is refusing
+ * to let the writer reach their own content. A schema deep enough to matter is
+ * a config-layer problem, not something to swallow here.
  */
 export function renderFieldControl(
 	field: Field,
@@ -174,6 +179,7 @@ export function renderFieldControl(
 	if (field.type === "slug")
 		return slugRole.renderControl({
 			disabled: ctx.disabled,
+			field,
 			onChange: ctx.onChange,
 			value,
 		})

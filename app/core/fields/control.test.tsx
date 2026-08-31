@@ -58,13 +58,13 @@ describe("the control over a text-shaped Scalar", () => {
 			{ type: "text", label: "Title", placeholder: "Name it" },
 			"Hello",
 		)
-		const control_ = input(container)
+		const textbox = input(container)
 
-		expect(control_.type).toBe("text")
-		expect(control_.value).toBe("Hello")
-		expect(control_.placeholder).toBe("Name it")
+		expect(textbox.type).toBe("text")
+		expect(textbox.value).toBe("Hello")
+		expect(textbox.placeholder).toBe("Name it")
 
-		fireEvent.change(control_, { target: { value: "Goodbye" } })
+		fireEvent.change(textbox, { target: { value: "Goodbye" } })
 		expect(onChange).toHaveBeenCalledWith("Goodbye")
 	})
 
@@ -106,14 +106,15 @@ describe("the control over a text-shaped Scalar", () => {
 		expect(input(container).placeholder).toBe("https://")
 	})
 
-	it("gives a Slug a plain text input", () => {
+	it("gives a Slug a plain text input the writer can overrule", () => {
 		const { container, onChange } = control(
-			{ type: "slug", label: "Slug", from: "title" },
-			"my-post",
+			{ type: "slug", label: "Slug", from: "title", placeholder: "my-post" },
+			"a-post",
 		)
 
 		expect(input(container).type).toBe("text")
-		expect(input(container).value).toBe("my-post")
+		expect(input(container).value).toBe("a-post")
+		expect(input(container).placeholder).toBe("my-post")
 
 		fireEvent.change(input(container), { target: { value: "other-post" } })
 		expect(onChange).toHaveBeenCalledWith("other-post")
@@ -171,9 +172,9 @@ describe("the control over a datetime", () => {
 	})
 
 	it("keeps the seconds a stamped value carries", () => {
-		const { input: control_, onChange } = datetime("2026-07-14T09:30:45.000Z")
+		const { input: picker, onChange } = datetime("2026-07-14T09:30:45.000Z")
 
-		fireEvent.change(control_, { target: { value: "2026-07-14T11:15:45" } })
+		fireEvent.change(picker, { target: { value: "2026-07-14T11:15:45" } })
 
 		expect(onChange).toHaveBeenCalledWith(
 			new Date("2026-07-14T11:15:45").toISOString(),
@@ -182,9 +183,9 @@ describe("the control over a datetime", () => {
 	})
 
 	it("emits a UTC instant when the writer picks a local time", () => {
-		const { input: control_, onChange } = datetime("")
+		const { input: picker, onChange } = datetime("")
 
-		fireEvent.change(control_, { target: { value: "2026-07-14T09:30" } })
+		fireEvent.change(picker, { target: { value: "2026-07-14T09:30" } })
 
 		expect(onChange).toHaveBeenCalledWith(
 			new Date("2026-07-14T09:30").toISOString(),
@@ -192,9 +193,9 @@ describe("the control over a datetime", () => {
 	})
 
 	it("emits an empty value when the writer clears the control", () => {
-		const { input: control_, onChange } = datetime("2026-07-14T09:30:00.000Z")
+		const { input: picker, onChange } = datetime("2026-07-14T09:30:00.000Z")
 
-		fireEvent.change(control_, { target: { value: "" } })
+		fireEvent.change(picker, { target: { value: "" } })
 
 		expect(onChange).toHaveBeenCalledWith("")
 	})

@@ -28,6 +28,5 @@ export {
 	renderFieldValue,
 	validateField,
 } from "./dispatch"
-export { ControlRow } from "./presentation"
 export { DocumentFieldError, findSlugField, resolveTitleKey } from "./roles"
 export type { DefaultForSchema, RenderContext } from "./types"
