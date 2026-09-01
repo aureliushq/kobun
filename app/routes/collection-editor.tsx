@@ -601,6 +601,9 @@ export default function CollectionEditor({ loaderData }: Route.ComponentProps) {
 			<div className="min-w-0 flex-1 overflow-y-auto">
 				<div className="editor-wrapper relative space-y-6 px-6 pt-10 pb-20">
 					{titleKey && titleField?.type === "text" ? (
+						// The same gutter the editor below reserves for its drag
+						// handle, so the Title sits on the writing column's left
+						// edge rather than 3rem out from it. The two must match.
 						<div className="pl-12">
 							<CollectionTitleField
 								value={String(fields[titleKey] ?? "")}

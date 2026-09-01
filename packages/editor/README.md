@@ -65,7 +65,7 @@ export function DocumentEditor({ markdown }: { markdown: string }) {
 | `onChange` | `(markdown: string) => void` | — | Runs after every document change. |
 | `onAutosaveStateChange` | `(state: AutosaveState) => void` | — | Reports dirty, saving, and last-saved state. |
 | `readOnly` | `boolean` | `false` | Disables editing and hides editing menus. |
-| `dragHandle` | `boolean` | `true` | Shows the block drag handle while editing. |
+| `dragHandle` | `boolean` | `true` | Reserves the left gutter and shows the block drag handle in it while editing. The gutter stays reserved when `readOnly`, so hiding the handle never reflows the text. |
 | `slashCommands` | `SlashCommandItem[]` | `[]` | Appends custom items to the built-in slash command menu. |
 | `className` | `string` | — | Additional class for the editor container. |
 | `ref` | `React.Ref<EditorRefApi>` | — | Exposes the imperative editor API. |
