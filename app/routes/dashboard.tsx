@@ -18,11 +18,16 @@ import { NO_CONFIG_ERROR, parseConfigErrors } from "@/config/errors"
 import type { ConfigError } from "@/config/types"
 import type { loader as dashboardLayoutLoader } from "@/core/components/layouts/dashboard"
 import { envContext } from "@/core/context"
-import { getDraftEditorPath, isDraftDirty } from "@/core/editor/drafts"
+import {
+	draftHeading,
+	getDraftEditorPath,
+	isDraftDirty,
+} from "@/core/editor/drafts"
 import type {
 	ConfigProblem,
 	ProjectContextDatabase,
 } from "@/core/project-context"
+import { lastKnownConfig } from "@/core/project-context"
 import { dbContext } from "@/db/context"
 import { editorDraft, project } from "@/db/schema/app-schema"
 import { posthogContext } from "@/lib/posthog-middleware"
@@ -42,7 +47,6 @@ import { Badge } from "@/ui/components/base/badge"
 import { Button } from "@/ui/components/base/button"
 import {
 	Card,
-	CardAction,
 	CardContent,
 	CardDescription,
 	CardHeader,
@@ -63,6 +67,13 @@ const DISCARD_DRAFT_INTENT = "discard-draft"
  * The cleanup delete rides along inside the stream. It only removes Drafts that
  * are Synced, so running it late, twice, or — if the reader closes the tab
  * mid-stream — not at all costs nothing: the next dashboard load does it.
+ *
+ * A card is headed by the Draft's Title and names its Collection by that
+ * Collection's label, both of which need the Project's Config — and the Config
+ * the cache last stored is already on the Project row, so neither costs a
+ * fourth round-trip. It is read here rather than in the card because the row
+ * carries a whole parsed Config, which no browser needs to hold to render a
+ * heading.
  */
 async function loadDashboardDrafts(db: ProjectContextDatabase, userId: string) {
 	const userProjects = await db.query.project.findMany({
@@ -82,10 +93,42 @@ async function loadDashboardDrafts(db: ProjectContextDatabase, userId: string) {
 			),
 		)
 
-	return db.query.editorDraft.findMany({
+	// Read once per Project rather than once per Draft: a writer with a dozen
+	// Drafts in one Collection has one Config between them.
+	const configs = new Map(
+		userProjects.map((projectRow) => [
+			projectRow.id,
+			lastKnownConfig(projectRow),
+		]),
+	)
+
+	const drafts = await db.query.editorDraft.findMany({
 		where: inArray(editorDraft.projectId, projectIds),
 		with: { project: true },
 		orderBy: [desc(editorDraft.updatedAt)],
+	})
+
+	return drafts.map((draft) => {
+		// A Collection the Config no longer declares still has Drafts, and they
+		// are still reachable — so the card falls back to the slug rather than
+		// dropping the row.
+		const collection =
+			configs.get(draft.projectId)?.collections[draft.collectionSlug] ?? null
+		return {
+			collectionLabel: collection?.label ?? draft.collectionSlug,
+			collectionSlug: draft.collectionSlug,
+			heading: draftHeading(draft, collection),
+			id: draft.id,
+			itemSlug: draft.itemSlug,
+			project: {
+				repoName: draft.project.repoName,
+				repoOwnerLogin: draft.project.repoOwnerLogin,
+			},
+			publishedRevision: draft.publishedRevision,
+			revision: draft.revision,
+			sourcePath: draft.sourcePath,
+			updatedAt: draft.updatedAt,
+		}
 	})
 }
 
@@ -314,28 +357,36 @@ function DraftsSection({ drafts }: { drafts: DashboardDraft[] }) {
 							: "Published"
 				return (
 					<Card key={draft.id} size="sm">
-						<CardHeader>
-							<CardTitle>
+						{/* An explicit `minmax(0, 1fr)` column: the header's implicit one
+						    is sized to its content, which a long title would grow past
+						    rather than be cut off inside. */}
+						<CardHeader className="grid-cols-[minmax(0,1fr)]">
+							{/* One line, whatever the writer typed — the rest is a hover
+							    away, through the attribute the browser already reveals. */}
+							<CardTitle className="truncate" title={draft.heading}>
 								<Link className="hover:underline" to={href}>
-									{draft.itemSlug ?? `New ${draft.collectionSlug} item`}
+									{draft.heading}
 								</Link>
 							</CardTitle>
-							<CardDescription>
-								{draft.project.repoOwnerLogin}/{draft.project.repoName} ·{" "}
-								{draft.collectionSlug}
+							<CardDescription className="truncate">
+								{draft.collectionLabel} · {draft.project.repoOwnerLogin}/
+								{draft.project.repoName}
 							</CardDescription>
-							<CardAction>
-								<Badge variant={dirty ? "secondary" : "outline"}>{state}</Badge>
-							</CardAction>
 						</CardHeader>
+						{/* State and time sit down here with the actions rather than level
+						    with the title, which is the only thing on the card that should
+						    be read first. */}
 						<CardContent className="flex items-center justify-between gap-4">
-							<span className="text-muted-foreground">
-								Edited{" "}
-								{formatDistanceToNow(new Date(draft.updatedAt), {
-									addSuffix: true,
-								})}
-							</span>
-							<div className="flex items-center gap-2">
+							<div className="flex min-w-0 items-center gap-2">
+								<Badge variant={dirty ? "secondary" : "outline"}>{state}</Badge>
+								<span className="truncate text-muted-foreground">
+									Edited{" "}
+									{formatDistanceToNow(new Date(draft.updatedAt), {
+										addSuffix: true,
+									})}
+								</span>
+							</div>
+							<div className="flex shrink-0 items-center gap-2">
 								{/* The one link on this card worth warming; the title above
 								    points at the same editor, and prefetching both would ask
 								    for it twice. */}

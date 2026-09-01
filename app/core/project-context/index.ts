@@ -11,6 +11,7 @@
  */
 
 export { toApiContext } from "./api-context"
+export { lastKnownConfig } from "./config-cache"
 export type {
 	ConfigSource,
 	ConfigSourceRead,

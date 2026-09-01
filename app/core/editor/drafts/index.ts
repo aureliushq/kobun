@@ -1,6 +1,6 @@
 /**
- * The Draft lifecycle: everything about a Draft that a caller holding a Draft
- * row and nothing else can answer — is it Dirty, where is it edited — plus the
+ * The Draft lifecycle: everything about a Draft that needs no round-trip to
+ * answer — is it Dirty, where is it edited, what heads its card — plus the
  * vocabulary a caller drives the transitions in.
  *
  * The `createDrafts` factory is deliberately not re-exported here. It parses
@@ -15,4 +15,5 @@ export {
 	isDraftAdoptionNavigation,
 } from "./draft-paths"
 export { isDraftDirty } from "./draft-state"
+export { draftHeading } from "./draft-summary"
 export type { DraftRefusal, DraftTarget, SaveInput } from "./types"

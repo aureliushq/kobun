@@ -2,7 +2,11 @@ import { eq } from "drizzle-orm"
 import type { NormalizedConfig } from "@/config/types"
 import { configFileFormat, validateConfig } from "@/config/validator"
 import { project } from "@/db/schema/app-schema"
-import { ConfigStatus, type ProjectWithGithubInstallation } from "@/db/types"
+import {
+	ConfigStatus,
+	type Project,
+	type ProjectWithGithubInstallation,
+} from "@/db/types"
 import { CONFIG_PATHS } from "@/ui/lib/constants"
 import type {
 	ConfigSource,
@@ -69,7 +73,10 @@ function isConfigPath(path: string) {
 	return CONFIG_PATHS.includes(path)
 }
 
-function servable(row: ProjectWithGithubInstallation): ConfigResolution | null {
+/** What deciding whether a stored Config can be served takes, and no more. */
+type ConfigRow = Pick<Project, "configData" | "configPath" | "configStatus">
+
+function servable(row: ConfigRow): ConfigResolution | null {
 	if (!isConfigPath(row.configPath)) return null
 
 	if (row.configStatus === ConfigStatus.MISSING)
@@ -274,4 +281,20 @@ export function createConfigCache(deps: {
 	}
 
 	return { resolve }
+}
+
+/**
+ * The Config a Project was last known to have, for a caller that wants to name
+ * something rather than browse it — the dashboard's Draft list heading each
+ * card with its Collection's label, across every Project at once.
+ *
+ * It runs the same servability rules as a resolve, so a row this module would
+ * refuse to serve is refused here too. What it deliberately skips is the TTL:
+ * revalidating one Project per Draft would put a dozen GitHub round-trips
+ * behind a list that exists to be read at a glance (ADR-0006), and a label a
+ * minute out of date costs nothing. A caller that acts on the Config rather
+ * than naming it wants `createConfigCache`.
+ */
+export function lastKnownConfig(row: ConfigRow): NormalizedConfig | null {
+	return servable(row)?.config ?? null
 }
