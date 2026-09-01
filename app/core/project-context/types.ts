@@ -32,12 +32,19 @@ export type SessionGetter<TSession extends ProjectSession = ProjectSession> =
  * — an anonymous visitor and a mistyped repository name are both things users
  * do — so they are reported, never thrown (ADR-0001). Translating them into
  * redirects or statuses is the wrapper's job.
+ *
+ * A Config that is missing or will not validate is not among them: that is an
+ * answer about a Project the caller may see, not a reason it cannot (ADR-0007).
  */
-export type ProjectContextRefusal =
-	| "anonymous"
-	| "config-invalid"
-	| "config-missing"
-	| "no-project"
+export type ProjectContextRefusal = "anonymous" | "no-project"
+
+/**
+ * What is wrong with the Config of a Project the user may see. Reported on the
+ * success arm below rather than as a refusal, because a repository with no
+ * Config is still a repository this user connected — and its dashboard is where
+ * it says so.
+ */
+export type ConfigProblem = "config-invalid" | "config-missing"
 
 /**
  * Who is asking and which Project they mean: the access question, answered
@@ -67,6 +74,19 @@ export interface ProjectContextOk<
 }
 
 /**
+ * The same access, over a Project whose Config could not be resolved. It
+ * carries what was already resolved rather than collapsing to a bare reason, so
+ * a caller can both say what is wrong and say where to send the reader — the
+ * dashboard of the Project it just named.
+ */
+export interface UnconfiguredProjectContext<
+	TSession extends ProjectSession = ProjectSession,
+> extends ProjectAccess<TSession> {
+	config: null
+	configProblem: ConfigProblem
+}
+
+/**
  * The other arm, named so the two can be spoken about apart. Not
  * `ProjectContextRefusal`, which is the reason a context was refused rather
  * than the refusal itself.
@@ -76,9 +96,17 @@ export interface RefusedProjectContext {
 	reason: ProjectContextRefusal
 }
 
+/**
+ * What the resolver answers a caller that asked for a Config. `config` is the
+ * discriminant between the first two arms: `null` is a unit type, so
+ * `if (result.config)` narrows to the Project that has one.
+ */
 export type ProjectContextResult<
 	TSession extends ProjectSession = ProjectSession,
-> = ProjectContextOk<TSession> | RefusedProjectContext
+> =
+	| ProjectContextOk<TSession>
+	| UnconfiguredProjectContext<TSession>
+	| RefusedProjectContext
 
 /** The same answer from a caller that skipped the Config. */
 export type ProjectAccessResult<
@@ -116,6 +144,17 @@ export interface RequestHandles {
 export interface PageContext<TSession extends ProjectSession = ProjectSession>
 	extends ProjectContextOk<TSession>,
 		RequestHandles {}
+
+/**
+ * What the Project's own pages hold: the same thing, except that a Config it
+ * could not resolve is something to render rather than somewhere to go. Only
+ * the dashboard reads this — every page that addresses content still needs a
+ * Config, and takes `PageContext`.
+ */
+export type ProjectPageContext<
+	TSession extends ProjectSession = ProjectSession,
+> = (ProjectContextOk<TSession> | UnconfiguredProjectContext<TSession>) &
+	RequestHandles
 
 /** What an API route holds once every refusal has become a status. */
 export interface ApiAccessContext<

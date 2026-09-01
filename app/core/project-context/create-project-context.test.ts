@@ -75,12 +75,18 @@ test("refuses a repository the user owns no Project for", async () => {
 })
 
 test("reports a Config that is not in the repository", async () => {
+	// Still a Project this user may see: the repository was connected, it just
+	// declares nothing yet. Refusing it here is what sent a reader back to setup
+	// (ADR-0007).
 	const { configSource, projectContext } = setup()
 	configSource.remove(TEST_CONFIG_PATH)
 
-	expect(await projectContext.resolve(TARGET)).toEqual({
-		ok: false,
-		reason: "config-missing",
+	expect(await projectContext.resolve(TARGET)).toMatchObject({
+		config: null,
+		configProblem: "config-missing",
+		name: TEST_NAME,
+		ok: true,
+		owner: TEST_OWNER,
 	})
 })
 
@@ -88,22 +94,24 @@ test("reports a Config that does not validate", async () => {
 	const { configSource, projectContext } = setup()
 	configSource.put(TEST_CONFIG_PATH, "{ not a Config")
 
-	expect(await projectContext.resolve(TARGET)).toEqual({
-		ok: false,
-		reason: "config-invalid",
+	expect(await projectContext.resolve(TARGET)).toMatchObject({
+		config: null,
+		configProblem: "config-invalid",
+		ok: true,
 	})
 })
 
-test("refuses a Config it could not classify at all", async () => {
+test("reports a Config it could not classify at all", async () => {
 	// An unreachable repository with nothing cached to fall back on: the module
 	// cannot say the Config is missing, only that this Project has none. Every
-	// answer that is not "found and parsed" refuses the same way.
+	// answer that is not "found and parsed" is reported the same way.
 	const { configSource, projectContext } = setup()
 	configSource.failNext(new Error("API rate limit exceeded"))
 
-	expect(await projectContext.resolve(TARGET)).toEqual({
-		ok: false,
-		reason: "config-invalid",
+	expect(await projectContext.resolve(TARGET)).toMatchObject({
+		config: null,
+		configProblem: "config-invalid",
+		ok: true,
 	})
 })
 

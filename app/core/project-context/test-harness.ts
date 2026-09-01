@@ -18,6 +18,7 @@ import type {
 	ProjectContextOk,
 	ProjectSession,
 	SessionGetter,
+	UnconfiguredProjectContext,
 } from "./types"
 
 /**
@@ -95,6 +96,13 @@ export const TEST_ACCESS = {
 export const TEST_CONTEXT: ProjectContextOk = {
 	...TEST_ACCESS,
 	config: TEST_CONFIG,
+}
+
+/** The same Project, over a repository that holds no Config to resolve. */
+export const TEST_UNCONFIGURED_CONTEXT: UnconfiguredProjectContext = {
+	...TEST_ACCESS,
+	config: null,
+	configProblem: "config-missing",
 }
 
 export interface FakeConfigSource extends ConfigSource {

@@ -49,11 +49,14 @@ ADR 0001's `SourceStore` absorbs GitHub identity. The seam lives in
 // core resolver — returns a discriminated union, never throws:
 resolveProjectContext(args, opts?: { config?: false })
   → { ok: true, session, projectRow, installationId, config, configStatus, owner, name, db, env }
-  | { ok: false, reason: "anonymous" | "no-project" | "config-missing" | "config-invalid" }
+  | { ok: true, …, config: null, configProblem: "config-missing" | "config-invalid" }  // ADR 0007
+  | { ok: false, reason: "anonymous" | "no-project" }
 
 // thin translators own the HTTP map (mirrors ADR 0001's typed-results philosophy):
-requirePageContext(args, opts?)  // redirects: anonymous → PATHS.LOGIN, others → PATHS.SETUP
-requireApiContext(args, opts?)   // throws Response: 401 / 404 / 422
+requirePageContext(args, opts?)  // redirects: anonymous → LOGIN, no-project → SETUP,
+                                 //            no Config → that Project's dashboard (ADR 0007)
+requireProjectPage(args)         // the dashboard: refuses only anonymous / no-project
+requireApiContext(args, opts?)   // throws Response: 401 / 404
 
 // pure narrowing helpers derive entity + paths; not part of the core:
 requireCollection(ctx, slug) → { collection, directoryPath }
@@ -62,8 +65,10 @@ requireSingleton(ctx, slug)  → { singleton, filePath }
 
 Decisions, one per original open question:
 
-1. **Redirect vs. throw** → typed-union core + two thin wrappers. No mode flag; the core
-   never encodes HTTP policy.
+1. **Redirect vs. throw** → typed-union core + thin wrappers. No mode flag; the core
+   never encodes HTTP policy. Amended by [ADR 0007](../adr/0007-a-project-with-no-config-still-has-a-dashboard.md):
+   a Config that is missing or invalid is reported on the success arm, not as a refusal, so
+   that the Project's own dashboard can render it instead of bouncing to setup.
 2. **Returned context** → repo-level facts only (above). Entity narrowing is separate
    helpers; editor-only rules (md/mdx-only) stay in the editor route on top of
    `requireCollection`. `{ config: false }` skips config resolution entirely (and narrows

@@ -14,11 +14,15 @@ import {
 	useRouteLoaderData,
 } from "react-router"
 import { getAuth } from "@/auth/auth.server"
+import { NO_CONFIG_ERROR, parseConfigErrors } from "@/config/errors"
 import type { ConfigError } from "@/config/types"
 import type { loader as dashboardLayoutLoader } from "@/core/components/layouts/dashboard"
 import { envContext } from "@/core/context"
 import { getDraftEditorPath, isDraftDirty } from "@/core/editor/drafts"
-import type { ProjectContextDatabase } from "@/core/project-context"
+import type {
+	ConfigProblem,
+	ProjectContextDatabase,
+} from "@/core/project-context"
 import { dbContext } from "@/db/context"
 import { editorDraft, project } from "@/db/schema/app-schema"
 import { posthogContext } from "@/lib/posthog-middleware"
@@ -192,12 +196,57 @@ function ValidationErrorAlert({
 	)
 }
 
+/**
+ * A Config the resolver could not classify at all — an unreachable repository
+ * as much as a broken file. It gets its own arm rather than falling through to
+ * "Invalid config", which would tell a writer whose Config is fine that it is
+ * not.
+ */
+const UNREADABLE_CONFIG = "unreadable_config"
+
+/**
+ * What to tell a writer whose Project resolved without a Config (ADR-0007).
+ * `syncProjectConfig` writes what it found on connect and on every refresh, and
+ * the alerts below already know how to render one — so the stored list is what
+ * this shows, and the problem only stands in when there is none to read.
+ */
+function configProblemErrors(
+	problem: ConfigProblem,
+	stored: string | null,
+): ConfigError[] {
+	const errors = parseConfigErrors(stored)
+	if (errors.length > 0) return errors
+
+	return [
+		problem === "config-missing"
+			? NO_CONFIG_ERROR
+			: {
+					code: UNREADABLE_CONFIG,
+					message:
+						"Kobun could not reach or read this repository's configuration. Refresh the configuration to try again.",
+					path: "",
+				},
+	]
+}
+
+function UnreadableConfigAlert({ message }: { message: string }) {
+	return (
+		<Alert variant="destructive">
+			<TriangleAlertIcon />
+			<AlertTitle>Couldn&apos;t read your configuration</AlertTitle>
+			<AlertDescription>{message}</AlertDescription>
+		</Alert>
+	)
+}
+
 function ConfigAlert({ error }: { error: ConfigError }) {
 	switch (error.code) {
 		case "no_config":
 			return <NoConfigAlert message={error.message} />
 		case "parse_error":
 			return <ParseErrorAlert filePath={error.path} message={error.message} />
+		case UNREADABLE_CONFIG:
+			return <UnreadableConfigAlert message={error.message} />
 		default:
 			return <ValidationErrorAlert path={error.path} message={error.message} />
 	}
@@ -314,8 +363,15 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
 	const user = layoutData?.user
 	// A Config that declares at least one Collection is served even when parts of
 	// it did not validate, and it carries those errors with it — so the writer is
-	// told what kobun could not read without losing the pages it could.
-	const errors = layoutData?.config?.errors ?? []
+	// told what kobun could not read without losing the pages it could. A Project
+	// with no Config at all resolves here too, and this is where it says so.
+	const problem = layoutData?.configProblem ?? null
+	const errors = problem
+		? configProblemErrors(
+				problem,
+				layoutData?.activeProject.configError ?? null,
+			)
+		: (layoutData?.config?.errors ?? [])
 
 	return (
 		<>

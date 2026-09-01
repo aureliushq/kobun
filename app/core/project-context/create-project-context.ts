@@ -4,6 +4,7 @@ import { ConfigStatus } from "@/db/types"
 import { type ConfigResolution, createConfigCache } from "./config-cache"
 import type { ConfigSource } from "./config-source"
 import type {
+	ConfigProblem,
 	ProjectAccessResult,
 	ProjectContextDatabase,
 	ProjectContextRefusal,
@@ -20,17 +21,15 @@ function refuse(reason: ProjectContextRefusal): RefusedProjectContext {
 }
 
 /**
- * Why a Config that did not arrive is unusable. A status of `PRESENT` with no
- * parsed Config is a resolver that contradicted itself; treating it as invalid
- * keeps a browsable Project from ever being built over a Config that isn't
- * there.
+ * Which of the two things a Config that did not arrive is. A status of
+ * `PRESENT` with no parsed Config is a resolver that contradicted itself;
+ * calling that invalid keeps a browsable Project from ever being built over a
+ * Config that isn't there.
  */
-function refuseConfig(resolution: ConfigResolution): RefusedProjectContext {
-	return refuse(
-		resolution.status === ConfigStatus.MISSING
-			? "config-missing"
-			: "config-invalid",
-	)
+function problemWith(resolution: ConfigResolution): ConfigProblem {
+	return resolution.status === ConfigStatus.MISSING
+		? "config-missing"
+		: "config-invalid"
 }
 
 /**
@@ -109,7 +108,11 @@ export function createProjectContext<
 			name,
 			owner,
 		})
-		if (!resolution.config) return refuseConfig(resolution)
+		// Not a refusal: this user may see this Project, and the page that says
+		// so is its dashboard rather than setup (ADR-0007). What the repository
+		// declares is a separate question, and this is its other answer.
+		if (!resolution.config)
+			return { ...access, config: null, configProblem: problemWith(resolution) }
 
 		return { ...access, config: resolution.config }
 	}

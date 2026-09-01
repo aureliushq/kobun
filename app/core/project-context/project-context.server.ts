@@ -14,8 +14,8 @@ import type {
 	RepositoryAddress,
 } from "./config-source"
 import { createProjectContext } from "./create-project-context"
-import { toPageContext } from "./page-context"
-import type { ApiAccessContext, PageContext } from "./types"
+import { toPageContext, toProjectPage } from "./page-context"
+import type { ApiAccessContext, PageContext, ProjectPageContext } from "./types"
 
 /**
  * What every route already receives. Typed structurally rather than off a
@@ -120,6 +120,21 @@ export async function requirePageContext(
 	const { db, env, projectContext, target } = wireProjectContext(args)
 	const result = await projectContext.resolve(target)
 	return { ...toPageContext(result), db, env }
+}
+
+/**
+ * What the Project's own pages rely on: the same context, except that a Config
+ * that would not resolve comes back to be rendered rather than redirected away
+ * from. Only the dashboard uses this — it is the one page a Project has before
+ * it has a readable Config, and sending it to setup is what left a freshly
+ * connected repository unreachable (ADR-0007).
+ */
+export async function requireProjectPage(
+	args: ProjectContextArgs,
+): Promise<ProjectPageContext<AuthSession>> {
+	const { db, env, projectContext, target } = wireProjectContext(args)
+	const result = await projectContext.resolve(target)
+	return { ...toProjectPage(result), db, env }
 }
 
 /**

@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm"
 import { Outlet, redirect } from "react-router"
 import { getAuth } from "@/auth/auth.server"
 import { envContext } from "@/core/context"
-import { requirePageContext } from "@/core/project-context/project-context.server"
+import { requireProjectPage } from "@/core/project-context/project-context.server"
 import { fetchReleaseInfo } from "@/core/release-info.server"
 import { project } from "@/db/schema/app-schema"
 import { ScrollArea } from "@/ui/components/base/scroll-area"
@@ -17,6 +17,10 @@ import type { Route } from "./+types/dashboard"
  * The chrome around every content page answers to the same seam the pages do,
  * so the sidebar can never offer a Project the page inside it refuses — nor
  * spend a GitHub round-trip re-reading a Config the page has already resolved.
+ *
+ * This is the one layout that resolves a Project without demanding a Config
+ * (ADR-0007): the page below it reports a Config it could not read, and a
+ * reader sent away from here has nowhere left to be sent.
  */
 export async function loader({
 	context,
@@ -24,11 +28,8 @@ export async function loader({
 	request,
 	url,
 }: Route.LoaderArgs) {
-	const { config, db, projectRow, session } = await requirePageContext({
-		context,
-		params,
-		request,
-	})
+	const ctx = await requireProjectPage({ context, params, request })
+	const { config, db, projectRow, session } = ctx
 
 	// The seam answers about one Project; the repository switcher asks for all of
 	// them. Lists are the caller's job, so this query stays here rather than
@@ -51,6 +52,8 @@ export async function loader({
 	return {
 		activeProject: projectRow,
 		config,
+		// What the page below renders when there is no Config to render from.
+		configProblem: ctx.config ? null : ctx.configProblem,
 		projects,
 		// Streamed, not awaited: a version badge is not worth blocking the page
 		// on an origin that may never answer. Started below the guard above, so
