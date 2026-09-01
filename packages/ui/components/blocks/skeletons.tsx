@@ -7,6 +7,7 @@ import {
 	CardTitle,
 } from "@/ui/components/base/card"
 import { Skeleton } from "@/ui/components/base/skeleton"
+import { TableCell, TableRow } from "@/ui/components/base/table"
 
 /**
  * The shapes a page reserves while its slow half streams in (ADR 0006).
@@ -60,5 +61,40 @@ export function CardListSkeleton({ count = 3 }: { count?: number }) {
 				</Card>
 			))}
 		</div>
+	)
+}
+
+/**
+ * The rows a Collection's table reserves while its listing streams in.
+ *
+ * The geometry answers to the `columns` `CollectionTable` declares in
+ * `app/core/editor/collection-table.tsx`: `h-16` cells, a title bar over the
+ * smaller line that carries the created date, and a bar the size of the status
+ * Badge. The third cell is empty on purpose — the `createdAt` column renders
+ * `null` for both its header and its cells, but the `<th>` and `<td>` still
+ * exist, and a skeleton row with fewer cells than the header would size the
+ * columns differently until the real rows arrived.
+ */
+export function TableRowsSkeleton({ count = 5 }: { count?: number }) {
+	return (
+		<>
+			{Array.from({ length: count }, (_, index) => (
+				<TableRow key={index}>
+					<TableCell className="h-16">
+						<div className="flex flex-col gap-0.5">
+							<Skeleton
+								className={`h-4 ${TITLE_WIDTHS[index % TITLE_WIDTHS.length]}`}
+							/>
+							<Skeleton className="h-3.5 w-24" />
+						</div>
+					</TableCell>
+					<TableCell className="h-16">
+						{/* The Badge's box, not its text */}
+						<Skeleton className="h-5 w-20" />
+					</TableCell>
+					<TableCell className="h-16" />
+				</TableRow>
+			))}
+		</>
 	)
 }

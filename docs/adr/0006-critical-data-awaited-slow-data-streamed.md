@@ -17,7 +17,7 @@ Four of these are mechanical, and each one has a failure mode that is silent rat
 - **Promises are never derived during render.** `Await` marks the instance it is handed, so a `.then()` in a render body produces a fresh promise each pass and suspends forever. Pass the loader's promise through untouched.
 - **Skeleton widths are fixed.** A width that differs between the server render and the client one is a hydration mismatch. This is why the shadcn `SidebarMenuSkeleton` is left unused: it seeds its width from `useState(() => Math.random())`. `packages/ui/components/blocks/skeletons.tsx` cycles a constant list by index instead, and a test asserts two renders agree.
 
-The vocabulary lives in `packages/ui/components/blocks/skeletons.tsx` — `blocks/`, because `base/` is shadcn-managed and a patch there would be clobbered. Each shape is built out of the same container components the real content uses, so its geometry matches by construction rather than by a measured height someone has to keep in step; `CardListSkeleton` renders a real `Card`, down to the `CardDescription` the header's grid keys off. It ships with two shapes. `CardListSkeleton` has this ticket's only caller; `PageHeaderSkeleton` has none yet, and is here because #103 and #104 both open with a heading the dashboard renders from awaited data. That is a deliberate exception to the rule against writing what nothing calls, and a narrow one: `TableRowsSkeleton` is left out on the same reasoning read the other way, because its column widths have to match the Collection table's real `columnDef`s and #103 is where those are known rather than guessed.
+The vocabulary lives in `packages/ui/components/blocks/skeletons.tsx` — `blocks/`, because `base/` is shadcn-managed and a patch there would be clobbered. Each shape is built out of the same container components the real content uses, so its geometry matches by construction rather than by a measured height someone has to keep in step; `CardListSkeleton` renders a real `Card`, down to the `CardDescription` the header's grid keys off. It ships with two shapes. `CardListSkeleton` has this ticket's only caller; `PageHeaderSkeleton` has none yet, and is here because #103 and #104 both open with a heading the dashboard renders from awaited data. That is a deliberate exception to the rule against writing what nothing calls, and a narrow one: `TableRowsSkeleton` is left out on the same reasoning read the other way, because its column widths have to match the Collection table's real `columnDef`s and #103 is where those are known rather than guessed. (It landed there — see the amendment below.)
 
 A block gets a skeleton when its resolved state is usually non-empty and its position is load-bearing. Otherwise it gets `fallback={null}` — a placeholder for something that usually never arrives, like the update dot, is a flash promising news that isn't coming.
 
@@ -27,19 +27,56 @@ React Router aborts the turbo-stream encoder after `streamTimeout` and rejects e
 
 That bounds what the client is *sent*, on a document load and on a client-side navigation alike. It does not bound the server render, which suspends on the original promise rather than on the encoder's copy — so the render is given its own `AbortSignal.timeout(streamTimeout + 1_000)`, a second later, late enough for a section that timed out to render its error state into the document and early enough that nothing waits on a promise that is not coming. Without that signal a hung loader holds the document's stream open indefinitely and `allReady` never resolves for the crawlers that wait on it. Both halves together are what make "never leaves a skeleton animating forever" a property rather than a hope.
 
+## Amendment: the Collection list, and a fifth rule about keys
+
+Settled while adopting the split on the Collection page (#103), the first route where the streamed
+half is addressed by a URL parameter rather than by the session.
+
+`TableRowsSkeleton` now exists, alongside the other two shapes and on the same terms: a `count`
+and nothing else, its geometry answering to `collection-table.tsx`'s `columnDef`s — `h-16` cells,
+a title bar over the smaller line the created date sits on, and a bar the size of the status
+Badge. Its third cell is empty on purpose. The `createdAt` column renders `null` for both header
+and cell, but the `<th>` and `<td>` are still walked and still there, so a skeleton row one cell
+short would size the columns differently until the real rows arrived. A test pins the skeleton's
+cell count to the header's rather than leaving that to a comment.
+
+`PageHeaderSkeleton` is still uncalled, and the reason given for writing it ahead was wrong: this
+page's heading is its Collection's label, which comes from the Config and is therefore awaited, so
+it is real on the first paint and has nothing to stand in for. #104 either finds a use or deletes
+it — the exception was narrow, and it has now failed half the test it was granted on.
+
+**A fifth mechanical rule, and the same kind of silent failure as the other four: a streamed
+section whose data is addressed by a URL parameter carries that parameter as a `key` on its
+`Suspense`.** Navigating from one Collection to another suspends inside the router's transition,
+over a boundary that has already revealed content — and React answers that not by showing the
+fallback but by delaying the whole commit. The heading, the controls and the rows all stay on the
+Collection the writer just left, which is the original bug moved client-side. A new key at the
+boundary's position mounts a boundary with nothing revealed, and that falls back at once. The key
+belongs on the `Suspense`, not the `Await`: "already revealed" is a property of the boundary. The
+dashboard never met this because its loader keys off the session, so its promise is the same page
+every time.
+
+Two smaller things this route settled. The controls take the *visibly disabled* arm rather than
+the *usable immediately* one — the toolbar drives a TanStack instance that needs the rows, and
+hoisting four pieces of state into the route to keep keystrokes that are typed into a disabled
+box is a cost with nothing on the other side of it. And a GitHub failure on a Collection now
+reaches an in-page alert rather than the root boundary, which is what rule one costs: the frame
+stays, and `CollectionUnavailable` rebuilds the heading row around the alert so a writer whose
+Collection kobun cannot read can still start a new item.
+
 ## Considered options
 
 - **Await everything (status quo)** — one code path and no partial states, but first paint is coupled to the p99 of every origin the loader touches, including one that only feeds a decoration.
 - **Fetch the slow half in a `clientLoader` or an effect** — no server plumbing at all, but the request cannot start until JS has booted and hydration has run, so it is strictly slower than streaming and gives up SSR for the streamed part entirely.
 - **React 19's `use()` instead of `Await`** — fewer concepts and no render-prop, but no per-boundary `errorElement`, so every streamed section would need a class `ErrorBoundary` beside it to meet the same guarantee.
 - **Defer Config too, by splitting `requirePageContext`'s return** — removes the occasional TTL-expiry round-trip from first paint, but forfeits the redirect on a missing or invalid Config: the page would have to render, then discover it should not have. It also un-picks the seam ADR 0003 had just drawn, for a cost that ADR already made small.
-- **A shared `<StreamedSection>` wrapping `Suspense` + `Await`** — would hide the `errorElement` trap behind a default, but three call sites is not yet a pattern, and the wrapper would have to grow a way to opt out of the skeleton on its first use. Revisit when #103 and #104 have landed and the shape is known rather than guessed.
+- **A shared `<StreamedSection>` wrapping `Suspense` + `Await`** — would hide the `errorElement` trap behind a default, but three call sites is not yet a pattern, and the wrapper would have to grow a way to opt out of the skeleton on its first use. Revisit when #103 and #104 have landed and the shape is known rather than guessed. #103 has landed, and it argues against the wrapper rather than for it: that call site needs the fallback and the resolved child to be the *same* component under a different prop, plus a `key`, plus an error element that rebuilds the frame. Three more options is not a shared abstraction. #104 decides.
 
 ## Consequences
 
 - The Drafts section is streamed even though it is D1-only and fast. It is the ticket's named example and the worked one #103 and #104 follow, but it means an account with no Drafts shows a card skeleton that resolves to nothing. The Config-error block moved above it so that collapse pushes nothing around: awaited content rendered *below* a skeleton is exactly what a skeleton standing for nothing jumps. The new order also reads better — a Config kobun could not parse is more urgent than a Draft.
 - The dashboard's cleanup delete now runs on hover, because the Home link prefetches on intent and prefetching runs the real loader. It is a write behind a GET, which is not a shape to copy; it is tolerable only because it deletes Synced Drafts, which are by definition rows the writer has already published and this glossary already says are deleted. A route whose deferred work is not idempotent must not be prefetched.
-- Prefetch on intent now covers every sidebar destination, not just the Project switcher. Hovering a Collection therefore warms `collection.tsx`, which still lists that directory on GitHub — so a reader sweeping the mouse down a long sidebar can speculatively fetch several listings. ADR 0003's cache bounds the Config half of that; the listing half is #103's to address.
+- Prefetch on intent now covers every sidebar destination, not just the Project switcher. Hovering a Collection therefore warms `collection.tsx`, which still lists that directory on GitHub — so a reader sweeping the mouse down a long sidebar can speculatively fetch several listings. ADR 0003's cache bounds the Config half of that; the listing half is #125's, having turned out to be a caching problem in a streaming problem's clothes.
 - Three links are deliberately left without prefetch because warming them would fetch something that is not there: Settings points at a path with no registered route, and the sidebar logo and the header breadcrumb both point at an empty `basePath` that resolves to the current URL. Each is a real bug, filed rather than papered over.
 - `VersionInfo` is now only what the build stamps in; what costs a round-trip moved to `ReleaseInfo`. Splitting rather than deferring the whole object keeps `v{currentVersion}` — the widest element in the sidebar footer row — awaited, so that row never reflows.
 - `fetchReleaseInfo` no longer requests a manifest when no app URL was configured at build time. The old inline code fetched `undefined/manifest.json` on every dashboard load of a self-hosted instance and swallowed the failure.

@@ -1,26 +1,5 @@
-import {
-	type ColumnDef,
-	type ColumnFiltersState,
-	flexRender,
-	getCoreRowModel,
-	getFilteredRowModel,
-	getPaginationRowModel,
-	getSortedRowModel,
-	type SortingState,
-	useReactTable,
-} from "@tanstack/react-table"
-import { formatDistanceToNow } from "date-fns"
-import {
-	ArrowDown,
-	ArrowUp,
-	ChevronLeft,
-	ChevronRight,
-	ChevronsLeft,
-	ChevronsRight,
-	ChevronsUpDown,
-} from "lucide-react"
-import { useMemo, useState } from "react"
-import { Link, useParams } from "react-router"
+import { Suspense } from "react"
+import { Await, useParams } from "react-router"
 import { parseDocument } from "@/core/content/document.server"
 import {
 	collectionFileFormat,
@@ -28,52 +7,39 @@ import {
 	type RepositoryCollectionFile,
 } from "@/core/editor/collection-items.server"
 import {
-	deriveCreatedAt,
-	deriveStatus,
-	type Status,
-	statusOptions,
-} from "@/core/editor/collection-list"
-import { getSlugField } from "@/core/editor/collection-metadata"
-import { resolveTitleKey } from "@/core/fields"
+	type CollectionItem,
+	CollectionTable,
+	CollectionUnavailable,
+} from "@/core/editor/collection-table"
 import { requireCollection } from "@/core/project-context"
 import { requirePageContext } from "@/core/project-context/project-context.server"
-import { listGithubDirectoryFiles } from "@/github/octokit.server"
-import { Badge } from "@/ui/components/base/badge"
-import { Button } from "@/ui/components/base/button"
-import { Input } from "@/ui/components/base/input"
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/ui/components/base/select"
-import {
-	Table,
-	TableBody,
-	TableCell,
-	TableHead,
-	TableHeader,
-	TableRow,
-} from "@/ui/components/base/table"
-import { H2 } from "@/ui/components/base/typegraphy"
+import { hasStatus, listGithubDirectoryFiles } from "@/github/octokit.server"
+import type { InstallationID } from "@/types/github"
 import type { Route } from "./+types/collection"
 
-type CollectionItem = {
-	name: string
-	path: string
-	sha: string
-	data: Record<string, unknown>
-}
-
-export async function loader({ context, params, request }: Route.LoaderArgs) {
-	const { collection_slug } = params
-	const ctx = await requirePageContext({ context, params, request })
-	const { env, installationId, name, owner } = ctx
-	const { collection, directoryPath } = requireCollection(ctx, collection_slug)
-
-	// The catch is only for an empty / missing directory — a parse failure must
-	// never be mistaken for one, so the rows are built after it.
+/**
+ * One GraphQL call that pulls the full text of every file in the Collection's
+ * directory, then a frontmatter parse per file. None of it decides whether this
+ * page may be seen, so the page does not wait on it (ADR 0006).
+ *
+ * It is `async` for a reason beyond the awaits: anything that throws in here
+ * rejects the promise the loader hands to `Await` rather than throwing out of
+ * the loader, so it reaches the section's error state instead of taking down
+ * the frame the split exists to render. That now includes a Content Document
+ * kobun cannot parse, which used to reach the root boundary.
+ */
+async function loadCollectionItems(
+	env: Env,
+	installationId: InstallationID,
+	owner: string,
+	name: string,
+	directoryPath: string,
+): Promise<CollectionItem[]> {
+	// A directory that is not there comes back from the query as no entries at
+	// all, so the empty Collection needs nothing from this catch; it is here for
+	// the REST-shaped 404 the installation's auth exchange can still raise. Kept
+	// narrow either way — a parse failure must never be read as an empty
+	// Collection, so the rows are built after it.
 	let files: RepositoryCollectionFile[] = []
 	try {
 		files = await listGithubDirectoryFiles(
@@ -84,385 +50,76 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
 			directoryPath,
 		)
 	} catch (error) {
-		if (
-			!(error instanceof Error && "status" in error && error.status === 404)
-		) {
-			throw error
-		}
+		if (!hasStatus(error, 404)) throw error
 	}
 
 	// A json/yaml Collection lists nothing here, since the filter only lets md
 	// and mdx through — a pre-existing gap, untouched by this route.
-	const items: CollectionItem[] = files
-		.filter(isMarkdownCollectionFile)
-		.map((f) => ({
-			name: f.name,
-			path: f.path,
-			sha: f.sha,
-			data: parseDocument(f.content, collectionFileFormat(f)).data,
-		}))
-
-	return { collection, collectionSlug: collection_slug, items }
+	return files.filter(isMarkdownCollectionFile).map((f) => ({
+		name: f.name,
+		path: f.path,
+		sha: f.sha,
+		data: parseDocument(f.content, collectionFileFormat(f)).data,
+	}))
 }
 
-type Row = {
-	id: string
-	title: string
-	slug: string
-	status: Status
-	createdAt: number | undefined
-}
+export async function loader({ context, params, request }: Route.LoaderArgs) {
+	const { collection_slug } = params
+	const ctx = await requirePageContext({ context, params, request })
+	const { env, installationId, name, owner } = ctx
+	// Awaited: this 404s on a Collection the Config no longer declares, and the
+	// label and schema it returns are what say which page this is.
+	const { collection, directoryPath } = requireCollection(ctx, collection_slug)
 
-function formatRelative(ts: number | undefined): string {
-	if (ts == null) return "—"
-	return formatDistanceToNow(new Date(ts), { addSuffix: true })
-}
-
-const STATUS_CLASSES: Record<Status, string> = {
-	PUBLISHED:
-		"bg-green-500/15 text-green-700 border-green-500/30 dark:text-green-400",
-	DRAFT: "bg-red-500/15 text-red-700 border-red-500/30 dark:text-red-400",
-	SCHEDULED:
-		"bg-blue-500/15 text-blue-700 border-blue-500/30 dark:text-blue-400",
-}
-
-const SORT_LABELS: Record<string, string> = {
-	"createdAt:desc": "Sort by: Newest",
-	"createdAt:asc": "Sort by: Oldest",
-	"title:asc": "Sort by: Title (A→Z)",
-	"title:desc": "Sort by: Title (Z→A)",
-}
-
-function singularize(s: string): string {
-	return s.endsWith("s") ? s.slice(0, -1) : s
+	return {
+		collection,
+		collectionSlug: collection_slug,
+		// Started below the guards — a promise above one is a request nobody reads.
+		items: loadCollectionItems(env, installationId, owner, name, directoryPath),
+	}
 }
 
 export default function Collection({ loaderData }: Route.ComponentProps) {
-	const { collection, items, collectionSlug } = loaderData
+	const { collection, collectionSlug, items } = loaderData
 	const params = useParams()
 	const owner = params.owner ?? ""
 	const name = params.name ?? ""
 	const editorBase = `/${owner}/${name}/collections/${collectionSlug}/editor`
 
-	const slugFieldKey = getSlugField(collection.schema)
-	const titleFieldKey = resolveTitleKey(collection.schema)
-
-	const rows = useMemo<Row[]>(
-		() =>
-			items.map((item) => {
-				const filenameSlug = item.name.replace(/\.mdx?$/, "")
-				const title = titleFieldKey
-					? String(item.data[titleFieldKey] ?? filenameSlug)
-					: filenameSlug
-				const slug = slugFieldKey
-					? String(item.data[slugFieldKey] ?? filenameSlug)
-					: filenameSlug
-				return {
-					id: item.path,
-					title,
-					slug,
-					status: deriveStatus(collection.schema, item.data),
-					createdAt: deriveCreatedAt(collection.schema, item.data),
-				}
-			}),
-		[collection.schema, items, titleFieldKey, slugFieldKey],
-	)
-
-	const statuses = useMemo(
-		() => statusOptions(collection.schema),
-		[collection.schema],
-	)
-	const statusFilters = useMemo(
-		() => [{ label: "All statuses", value: "all" }, ...statuses],
-		[statuses],
-	)
-
-	const [sorting, setSorting] = useState<SortingState>([
-		{ id: "createdAt", desc: true },
-	])
-	const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
-	const [search, setSearch] = useState("")
-	const [pagination, setPagination] = useState({
-		pageIndex: 0,
-		pageSize: 50,
-	})
-
-	const columns = useMemo<ColumnDef<Row>[]>(
-		() => [
-			{
-				accessorKey: "title",
-				header: ({ column }) => (
-					<SortableHeader column={column} label="Title" />
-				),
-				cell: ({ row }) => (
-					<div className="flex flex-col gap-0.5 p-0">
-						<Link
-							to={`${editorBase}/item/${encodeURIComponent(row.original.slug)}`}
-							className="font-medium text-sm hover:underline"
-						>
-							{row.original.title}
-						</Link>
-						<div className="text-muted-foreground text-xs">
-							{formatRelative(row.original.createdAt)}
-						</div>
-					</div>
-				),
-				filterFn: (row, _columnId, filterValue) => {
-					const v = String(filterValue ?? "").toLowerCase()
-					if (!v) return true
-					return row.original.title.toLowerCase().includes(v)
-				},
-			},
-			{
-				accessorKey: "status",
-				header: ({ column }) => (
-					<SortableHeader column={column} label="Status" />
-				),
-				cell: ({ row }) => (
-					<Badge
-						variant="outline"
-						className={`uppercase ${STATUS_CLASSES[row.original.status]}`}
-					>
-						{statuses.find(({ value }) => value === row.original.status)
-							?.label ?? row.original.status}
-					</Badge>
-				),
-				filterFn: (row, _columnId, filterValue) => {
-					if (!filterValue || filterValue === "all") return true
-					return row.original.status === filterValue
-				},
-			},
-			{
-				accessorKey: "createdAt",
-				// Hidden header — sorting is exposed via the toolbar.
-				header: () => null,
-				cell: () => null,
-				enableSorting: true,
-				sortingFn: "basic",
-				// An item with no created date has nothing to sort on, so it goes last
-				// under Newest and under Oldest alike.
-				sortUndefined: "last",
-			},
-		],
-		[editorBase, statuses],
-	)
-
-	const table = useReactTable({
-		data: rows,
-		columns,
-		state: { sorting, columnFilters, pagination },
-		onSortingChange: setSorting,
-		onColumnFiltersChange: setColumnFilters,
-		onPaginationChange: setPagination,
-		getCoreRowModel: getCoreRowModel(),
-		getSortedRowModel: getSortedRowModel(),
-		getFilteredRowModel: getFilteredRowModel(),
-		getPaginationRowModel: getPaginationRowModel(),
-	})
-
-	const statusFilterValue =
-		(table.getColumn("status")?.getFilterValue() as string | undefined) ?? "all"
-
-	const pageIndex = table.getState().pagination.pageIndex
-	const pageSize = table.getState().pagination.pageSize
-	const totalRows = table.getFilteredRowModel().rows.length
-	const pageStart = totalRows === 0 ? 0 : pageIndex * pageSize + 1
-	const pageEnd = Math.min((pageIndex + 1) * pageSize, totalRows)
-
 	return (
-		<div className="flex flex-col gap-6">
-			<div className="flex items-center justify-between gap-4">
-				<H2>{collection.label}</H2>
-
-				<div className="flex items-center gap-2">
-					<Input
-						placeholder="Search by title…"
-						value={search}
-						onChange={(e) => {
-							setSearch(e.target.value)
-							table.getColumn("title")?.setFilterValue(e.target.value)
-						}}
-						className="max-w-xs"
-					/>
-					<Select
-						value={statusFilterValue}
-						onValueChange={(v) =>
-							table
-								.getColumn("status")
-								?.setFilterValue(v === "all" ? undefined : v)
-						}
-					>
-						<SelectTrigger className="w-56">
-							<SelectValue placeholder="All statuses">
-								{(value) =>
-									statusFilters.find((option) => option.value === value)
-										?.label ?? "All statuses"
-								}
-							</SelectValue>
-						</SelectTrigger>
-						<SelectContent>
-							{statusFilters.map(({ label, value }) => (
-								<SelectItem key={value} value={value}>
-									{label}
-								</SelectItem>
-							))}
-						</SelectContent>
-					</Select>
-					<Select
-						value={
-							sorting[0]
-								? `${sorting[0].id}:${sorting[0].desc ? "desc" : "asc"}`
-								: "createdAt:desc"
-						}
-						onValueChange={(v) => {
-							if (!v) return
-							const [id, dir] = v.split(":")
-							setSorting([{ id, desc: dir === "desc" }])
-						}}
-					>
-						<SelectTrigger className="w-56">
-							<SelectValue placeholder="Sort by">
-								{(value) => SORT_LABELS[value as string] ?? "Sort by"}
-							</SelectValue>
-						</SelectTrigger>
-						<SelectContent>
-							{Object.entries(SORT_LABELS).map(([value, label]) => (
-								<SelectItem key={value} value={value}>
-									{label}
-								</SelectItem>
-							))}
-						</SelectContent>
-					</Select>
-					<Link to={`${editorBase}/new`}>
-						<Button>New {singularize(collection.label)}</Button>
-					</Link>
-				</div>
-			</div>
-
-			<div className="overflow-hidden">
-				<Table>
-					<TableHeader>
-						{table.getHeaderGroups().map((headerGroup) => (
-							<TableRow key={headerGroup.id}>
-								{headerGroup.headers.map((header) => (
-									<TableHead
-										key={header.id}
-										className="text-muted-foreground text-xs uppercase tracking-wider"
-									>
-										{header.isPlaceholder
-											? null
-											: flexRender(
-													header.column.columnDef.header,
-													header.getContext(),
-												)}
-									</TableHead>
-								))}
-							</TableRow>
-						))}
-					</TableHeader>
-					<TableBody>
-						{table.getRowModel().rows.length === 0 ? (
-							<TableRow>
-								<TableCell
-									colSpan={columns.length}
-									className="h-32 text-center text-muted-foreground"
-								>
-									No items yet.
-								</TableCell>
-							</TableRow>
-						) : (
-							table.getRowModel().rows.map((row) => (
-								<TableRow key={row.id}>
-									{row.getVisibleCells().map((cell) => (
-										<TableCell className="h-16" key={cell.id}>
-											{flexRender(
-												cell.column.columnDef.cell,
-												cell.getContext(),
-											)}
-										</TableCell>
-									))}
-								</TableRow>
-							))
-						)}
-					</TableBody>
-				</Table>
-			</div>
-
-			<div className="flex items-center justify-between gap-4">
-				<div className="text-muted-foreground text-xs">
-					{totalRows === 0
-						? "0 items"
-						: `Showing ${pageStart}–${pageEnd} of ${totalRows}`}
-				</div>
-				<div className="flex items-center gap-1">
-					<Button
-						variant="ghost"
-						size="icon"
-						onClick={() => table.firstPage()}
-						disabled={!table.getCanPreviousPage()}
-						aria-label="First page"
-					>
-						<ChevronsLeft className="size-4" />
-					</Button>
-					<Button
-						variant="ghost"
-						size="icon"
-						onClick={() => table.previousPage()}
-						disabled={!table.getCanPreviousPage()}
-						aria-label="Previous page"
-					>
-						<ChevronLeft className="size-4" />
-					</Button>
-					<span className="px-2 text-xs">
-						Page {pageIndex + 1} of {Math.max(table.getPageCount(), 1)}
-					</span>
-					<Button
-						variant="ghost"
-						size="icon"
-						onClick={() => table.nextPage()}
-						disabled={!table.getCanNextPage()}
-						aria-label="Next page"
-					>
-						<ChevronRight className="size-4" />
-					</Button>
-					<Button
-						variant="ghost"
-						size="icon"
-						onClick={() => table.lastPage()}
-						disabled={!table.getCanNextPage()}
-						aria-label="Last page"
-					>
-						<ChevronsRight className="size-4" />
-					</Button>
-				</div>
-			</div>
-		</div>
-	)
-}
-
-function SortableHeader<TData>({
-	column,
-	label,
-}: {
-	column: import("@tanstack/react-table").Column<TData, unknown>
-	label: string
-}) {
-	const sorted = column.getIsSorted()
-	return (
-		<Button
-			variant="ghost"
-			size="sm"
-			className="-ml-2 h-7 px-2 font-medium text-muted-foreground text-xs uppercase tracking-wider hover:bg-transparent"
-			onClick={() => column.toggleSorting(sorted === "asc")}
+		// Keyed by the slug, and on the `Suspense` rather than the `Await`.
+		// Navigating between two Collections suspends inside a transition over a
+		// boundary that has already revealed content, and React answers that by
+		// delaying the whole commit — heading, controls and rows all stay on the
+		// Collection the writer just left. A new key at the boundary's position
+		// mounts a boundary with nothing revealed, which falls back at once.
+		<Suspense
+			key={collectionSlug}
+			fallback={
+				<CollectionTable
+					collection={collection}
+					editorBase={editorBase}
+					items={null}
+				/>
+			}
 		>
-			{label}
-			{sorted === "asc" ? (
-				<ArrowUp className="ml-1 size-3" />
-			) : sorted === "desc" ? (
-				<ArrowDown className="ml-1 size-3" />
-			) : (
-				<ChevronsUpDown className="ml-1 size-3 opacity-50" />
-			)}
-		</Button>
+			<Await
+				errorElement={
+					<CollectionUnavailable
+						collection={collection}
+						editorBase={editorBase}
+					/>
+				}
+				resolve={items}
+			>
+				{(resolved: CollectionItem[]) => (
+					<CollectionTable
+						collection={collection}
+						editorBase={editorBase}
+						items={resolved}
+					/>
+				)}
+			</Await>
+		</Suspense>
 	)
 }
