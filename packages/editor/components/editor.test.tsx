@@ -1,4 +1,4 @@
-import { act, render } from "@testing-library/react"
+import { act, render, screen } from "@testing-library/react"
 import type { Editor } from "@tiptap/core"
 import { createRef, StrictMode } from "react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
@@ -14,7 +14,9 @@ vi.mock("@tiptap/react", () => ({ EditorContent: () => null }))
 vi.mock("./menus/bubble-menu/bubble-menu", () => ({
 	EditorBubbleMenu: () => null,
 }))
-vi.mock("./menus/side-menu/side-menu", () => ({ SideMenu: () => null }))
+vi.mock("./menus/side-menu/side-menu", () => ({
+	SideMenu: () => <div data-testid="side-menu" />,
+}))
 
 type UpdateHandler = () => void
 
@@ -180,5 +182,31 @@ describe("RichTextEditor autosave", () => {
 			isSaving: false,
 			lastSavedAt: null,
 		})
+	})
+})
+
+describe("RichTextEditor gutter", () => {
+	it("keeps the drag-handle gutter reserved when the editor goes read-only", () => {
+		const testEditor = createTestEditor("Initial")
+		mocks.useEditor.mockReturnValue(testEditor.editor)
+		const { container, rerender } = render(<RichTextEditor />)
+
+		expect(container.firstElementChild).toHaveClass("pl-12")
+		expect(screen.getByTestId("side-menu")).toBeInTheDocument()
+
+		rerender(<RichTextEditor readOnly />)
+
+		// The handle goes; the space it occupied does not. Otherwise the writing
+		// column reflows 3rem sideways for the length of a publish.
+		expect(container.firstElementChild).toHaveClass("pl-12")
+		expect(screen.queryByTestId("side-menu")).not.toBeInTheDocument()
+	})
+
+	it("reserves no gutter when the host asks for no drag handle", () => {
+		const testEditor = createTestEditor("Initial")
+		mocks.useEditor.mockReturnValue(testEditor.editor)
+		const { container } = render(<RichTextEditor dragHandle={false} />)
+
+		expect(container.firstElementChild).not.toHaveClass("pl-12")
 	})
 })
