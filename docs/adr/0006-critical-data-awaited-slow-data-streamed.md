@@ -17,7 +17,7 @@ Four of these are mechanical, and each one has a failure mode that is silent rat
 - **Promises are never derived during render.** `Await` marks the instance it is handed, so a `.then()` in a render body produces a fresh promise each pass and suspends forever. Pass the loader's promise through untouched.
 - **Skeleton widths are fixed.** A width that differs between the server render and the client one is a hydration mismatch. This is why the shadcn `SidebarMenuSkeleton` is left unused: it seeds its width from `useState(() => Math.random())`. `packages/ui/components/blocks/skeletons.tsx` cycles a constant list by index instead, and a test asserts two renders agree.
 
-The vocabulary lives in `packages/ui/components/blocks/skeletons.tsx` — `blocks/`, because `base/` is shadcn-managed and a patch there would be clobbered. Each shape is built out of the same container components the real content uses, so its geometry matches by construction rather than by a measured height someone has to keep in step; `CardListSkeleton` renders a real `Card`, down to the `CardDescription` the header's grid keys off. It ships with two shapes. `CardListSkeleton` has this ticket's only caller; `PageHeaderSkeleton` has none yet, and is here because #103 and #104 both open with a heading the dashboard renders from awaited data. That is a deliberate exception to the rule against writing what nothing calls, and a narrow one: `TableRowsSkeleton` is left out on the same reasoning read the other way, because its column widths have to match the Collection table's real `columnDef`s and #103 is where those are known rather than guessed. (It landed there — see the amendment below.)
+The vocabulary lives in `packages/ui/components/blocks/skeletons.tsx` — `blocks/`, because `base/` is shadcn-managed and a patch there would be clobbered. Each shape is built out of the same container components the real content uses, so its geometry matches by construction rather than by a measured height someone has to keep in step; `CardListSkeleton` renders a real `Card`, down to the `CardDescription` the header's grid keys off. It shipped with two shapes. `CardListSkeleton` has this ticket's only caller; `PageHeaderSkeleton` has none yet, and is here because #103 and #104 both open with a heading the dashboard renders from awaited data. That is a deliberate exception to the rule against writing what nothing calls, and a narrow one: `TableRowsSkeleton` is left out on the same reasoning read the other way, because its column widths have to match the Collection table's real `columnDef`s and #103 is where those are known rather than guessed. (It landed there — see the amendment below, which is also where `PageHeaderSkeleton` was finally deleted.)
 
 A block gets a skeleton when its resolved state is usually non-empty and its position is load-bearing. Otherwise it gets `fallback={null}` — a placeholder for something that usually never arrives, like the update dot, is a flash promising news that isn't coming.
 
@@ -64,6 +64,111 @@ reaches an in-page alert rather than the root boundary, which is what rule one c
 stays, and `CollectionUnavailable` rebuilds the heading row around the alert so a writer whose
 Collection kobun cannot read can still start a new item.
 
+## Amendment: the editor, and the two questions #103 parked
+
+Settled while adopting the split on the Collection Item editor (#104), the first route whose
+streamed half the writer types into.
+
+**`PageHeaderSkeleton` is deleted.** It was granted as an exception on the promise that #103 or
+#104 would call it. #103's heading turned out to be the Collection's label, which comes from the
+Config and is therefore awaited and real on the first paint. #104 has no page heading at all — the
+chrome is the *layout's* header, rendered from `parentLabel`, which the layout's own loader awaits
+— and the "title area" the ticket names is a Field, which renders for real and disabled rather than
+as a bar. It failed the test in both directions of the reasoning, and the general lesson is that
+writing a shape ahead of its caller guessed wrong twice out of two.
+
+**`<StreamedSection>` is refused, and the question closes.** The third call site argues against the
+wrapper harder than the second did. It needs a fallback and a resolved child that are the same
+component under a different prop; a resolved child that then *branches* on a discriminated result;
+a different component for the error element; a `key`, which is always the parent's to set; and one
+arm — a new item — with no boundary at all. The narrow version that buys only the one thing worth
+buying, re-exporting `Await` with a non-nullable `errorElement` so rule one becomes a compile
+error, is refused too: `<></>` satisfies such a type anyway, as it must, and a stated rule with
+three visible followers is cheaper than a shim nobody remembers exists.
+
+## Amendment: a sixth rule, and what a mount-once prop costs
+
+**A streamed section's key comes from the path, never from the search.** Rule five said to key the
+`Suspense` by the URL parameter the streamed data is addressed by; this route says which part of
+the URL. The editor puts `?draft=` in the URL the moment the first save mints a Draft, and a key
+that noticed would remount the boundary and destroy the document being typed into — the fifth
+rule's own fix turned into a worse version of the bug it fixed. `collection-editor.tsx` builds its
+key from `collection_slug` and `collection_item_slug` and nothing else.
+
+**`EditorBodySkeleton` is the first shape whose geometry is copied rather than constructed**, and
+that is a departure from the rule the vocabulary was built on. The other two are made of the same
+`Card` and `TableRow` the real content is, so they cannot drift. This one stands in for a Tiptap
+document whose box is declared in CSS in another package — `min-h-[640px]`, `max-w-[42rem]`, the
+`h-4`/`gap-2.5` line box of `1rem` at `line-height: 1.625`, and the `pl-12` gutter `RichTextEditor`
+renders itself — so the numbers are transcribed from `packages/editor/styles/editor.css` with only
+a doc comment tying them back. Nothing fails if that file changes. The alternative, moving the
+shape into `packages/editor` beside its source, splits the vocabulary the ADR put in one place for
+a drift nobody has yet had; it is the fix if this ever goes wrong, and the reason it is named here
+rather than left to be found.
+
+**A prop that is read once at mount cannot be handed a flag and re-seeded later.** `RichTextEditor`
+passes `initialContent` to Tiptap's `useEditor` with no dependency array, so a content change after
+mount is ignored; the only ways back in are a `key` remount or the imperative `setMarkdown`. So the
+pending half of this route renders *no* editor at all rather than a `readOnly` one, and the
+boundary's fallback-to-child swap is what seeds the real one. That is the difference between this
+route and #103, whose pending half could render its whole table. It is also what makes "autosave
+does not fire on the placeholder" free rather than guarded: an editor that never mounts has no
+`update` event to debounce and no unmount flush to run.
+
+**One piece of state is hoisted above the boundary**, which #103 declined to do. The line is
+whether the writer can reach it while the section is pending: #103's controls were disabled, so
+nothing was lost when React remounted around the resolved data; here the properties panel is real
+chrome, its toggle lives in the layout header and works from the first paint, and a panel that
+reopened itself when the content landed would be a visible fault. One `useState` and the
+breakpoint effect that belongs with it are packaged as `usePropertiesPanel`, which the route calls
+above the boundary and passes down; the hook and the panel's markup stay together in the view's
+file, because they answer to each other rather than to the route.
+
+**Rule one is taken the other way here, deliberately.** The editor's `Await` carries no
+`errorElement`, so both ways the streamed half can fail rethrow past it to the route's boundary.
+Rule one exists to stop a failed section taking down the shell around it — and on this route the
+shell is an editor with nothing to edit, which is not a page a writer can do anything with. A Slug
+this Collection no longer holds must still reach the 404 it always did, and a failed read must
+still reach the error page it always did; keeping the frame around either would be showing a
+writer a title field over an item that is not there.
+
+Making that work is a fact about the wire, not a matter of taste. **A rejected deferred promise
+loses everything except its shape.** `sanitizeError` replaces every rejected `Error` with
+"Unexpected Server Error" outside development, and the turbo-stream encoder's plugin list
+special-cases exactly two things — an `Error` and an `ErrorResponseImpl`. A `Response` thrown
+inside the promise is neither, so it falls to the `SingleFetchClassInstance` postPlugin and arrives
+as an empty object, because a `Response`'s members live on its prototype. So the loader's
+`throw draftRefusalResponse(...)`, which is still right for the awaited new-item path, cannot cross
+the stream — and the 404 travels as `UNSAFE_ErrorResponseImpl(404, "Not Found", null)` instead,
+which the encoder writes as `["ErrorResponse", …]` and the client rebuilds into something
+`isRouteErrorResponse` recognises. A transport failure rejects as itself and reaches the same
+boundary as the generic error, which is what it reached before the split. `AwaitErrorBoundary`'s
+`if (status === 2 && !errorElement) throw promise._error` is the line all of this turns on.
+
+Two things it costs, stated rather than discovered. The `UNSAFE_` prefix means "not covered by
+semver", so a React Router upgrade could move it; `routes/collection-editor.test.tsx` pins the
+behaviour rather than the import, and is the first route-level test in the repo for that reason.
+And the HTTP status is no longer 404: the document's status line is sent before the deferred half
+resolves, so a streamed route physically cannot answer with the status of something it has not
+looked up yet. What comes back is the 404 *page*, through the same boundary, on a 200. That is the
+one part of "still reaches the error path it does today" that streaming cannot buy back, and no
+arrangement of the pieces recovers it short of awaiting the lookup.
+
+**`Await` renders a non-promise synchronously** (`AwaitErrorBoundary.render` short-circuits on
+`!(resolve instanceof Promise)`), which is what lets a new item have no placeholder phase at all
+rather than a brief one. `Promise.resolve(x)` does *not* take that path — it suspends for a commit
+and flushes the fallback into the SSR'd HTML — so "await it and hand `Await` a settled promise" is
+not a way to opt a route arm out of its own skeleton. The loader returns a discriminated union on
+`mode` instead, and the `Suspense` exists only inside the `item` arm of the JSX, so the property is
+structural rather than a behaviour of the framework's internals.
+
+**A hazard worth writing down rather than relying on.** This route must never revalidate its
+streamed half while the editor is open: a new promise resuspends the boundary and remounts
+`RichTextEditor`, losing whatever the writer had typed. It is safe today because `sendAction` posts
+through `fetch` rather than a router submission, the page route's own `action` is only ever reached
+at `/api/editor/…`, and `shouldRevalidate` already declines the one navigation that occurs. Three
+independent reasons, none of them written down until now.
+
 ## Considered options
 
 - **Await everything (status quo)** — one code path and no partial states, but first paint is coupled to the p99 of every origin the loader touches, including one that only feeds a decoration.
@@ -80,3 +185,7 @@ Collection kobun cannot read can still start a new item.
 - Three links are deliberately left without prefetch because warming them would fetch something that is not there: Settings points at a path with no registered route, and the sidebar logo and the header breadcrumb both point at an empty `basePath` that resolves to the current URL. Each is a real bug, filed rather than papered over.
 - `VersionInfo` is now only what the build stamps in; what costs a round-trip moved to `ReleaseInfo`. Splitting rather than deferring the whole object keeps `v{currentVersion}` — the widest element in the sidebar footer row — awaited, so that row never reflows.
 - `fetchReleaseInfo` no longer requests a manifest when no app URL was configured at build time. The old inline code fetched `undefined/manifest.json` on every dashboard load of a self-hosted instance and swallowed the failure.
+- `mode: "new"` awaits a D1 lookup deliberately. It is I/O, but it is the line this ADR already
+  draws — what the route *does* with a value, not what the value costs: that lookup is the only
+  thing that can 404 a `?draft=` somebody has since discarded, and a redirect or a throw cannot be
+  issued from a deferred promise.

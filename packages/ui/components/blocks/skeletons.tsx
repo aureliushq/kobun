@@ -23,16 +23,6 @@ import { TableCell, TableRow } from "@/ui/components/base/table"
 /** Widths that read as text of varying length without varying between renders. */
 const TITLE_WIDTHS = ["w-48", "w-64", "w-40"]
 
-export function PageHeaderSkeleton() {
-	return (
-		<div className="flex flex-col gap-2">
-			{/* h-9 is the line box of `H2`'s text-3xl */}
-			<Skeleton className="h-9 w-64" />
-			<Skeleton className="h-5 w-96 max-w-full" />
-		</div>
-	)
-}
-
 export function CardListSkeleton({ count = 3 }: { count?: number }) {
 	return (
 		<div className="flex flex-col gap-3">
@@ -96,5 +86,46 @@ export function TableRowsSkeleton({ count = 5 }: { count?: number }) {
 				</TableRow>
 			))}
 		</>
+	)
+}
+
+/** Line lengths that read as prose without varying between renders. */
+const PARAGRAPH_LINES = [
+	["w-full", "w-full", "w-11/12", "w-2/3"],
+	["w-full", "w-10/12", "w-1/2"],
+	["w-full", "w-full", "w-3/4"],
+]
+
+/**
+ * The writing column a Collection Item reserves while its Effective Content
+ * streams in.
+ *
+ * The geometry answers to `packages/editor/styles/editor.css` and to
+ * `RichTextEditor` itself. `pl-12` is the drag handle's gutter, which belongs to
+ * the writing column rather than to whether the editor accepts input — without
+ * it the prose would land 3rem left of where this stood. `min-h-[640px]` and
+ * `max-w-[42rem]` are `.ProseMirror`'s own box, and the min-height is the
+ * load-bearing one: the real editor is that tall before it holds a word, so a
+ * shorter placeholder would let the page collapse and rebound. Bars are `h-4` on
+ * a `gap-2.5` rhythm — 16px + 10px is the 26px line box of `font-size: 1rem` at
+ * `line-height: 1.625` — and `mb-5` between blocks is Typography's `1.25em`
+ * paragraph margin, which `.ProseMirror > p` zeroes at the top and keeps at the
+ * bottom. A paragraph's last line is short, so the last bar of each is.
+ */
+export function EditorBodySkeleton({ count = 3 }: { count?: number }) {
+	return (
+		<div className="pl-12">
+			<div className="min-h-[640px] w-full max-w-[42rem]">
+				{Array.from({ length: count }, (_, index) => (
+					<div className="mb-5 flex flex-col gap-2.5" key={index}>
+						{PARAGRAPH_LINES[index % PARAGRAPH_LINES.length].map(
+							(width, line) => (
+								<Skeleton className={`h-4 ${width}`} key={line} />
+							),
+						)}
+					</div>
+				))}
+			</div>
+		</div>
 	)
 }
