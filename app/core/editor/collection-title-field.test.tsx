@@ -34,6 +34,15 @@ describe("<CollectionTitleField />", () => {
 		expect(renderField().field).toHaveAttribute("placeholder", "Untitled")
 	})
 
+	// The Field renders for real while a Collection Item's content streams in,
+	// disabled until its value lands (#104). Focusing a disabled control is a
+	// no-op, so the caret is claimed once — when the editor becomes usable.
+	it("does not take the caret while it is disabled", () => {
+		const { field } = renderField({ disabled: true, value: "" })
+
+		expect(field).not.toHaveFocus()
+	})
+
 	it("prefers the placeholder the schema names", () => {
 		expect(renderField({ placeholder: "Post title" }).field).toHaveAttribute(
 			"placeholder",

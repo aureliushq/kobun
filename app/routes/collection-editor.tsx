@@ -1,20 +1,16 @@
-import type { Editor } from "@tiptap/core"
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { Suspense } from "react"
 import {
+	Await,
+	UNSAFE_ErrorResponseImpl as ErrorResponseImpl,
 	type ShouldRevalidateFunctionArgs,
-	useLocation,
-	useNavigate,
+	useParams,
 } from "react-router"
-import type { ResolvedField } from "@/config/types"
-import { useEditorLayoutControls } from "@/core/components/layouts/editor-context"
-import { canonicalMetadata } from "@/core/content"
 import {
-	type FieldRecord,
-	getCollectionEditorFields,
-	updateMetadataField,
-} from "@/core/editor/collection-metadata"
-import { MetadataField } from "@/core/editor/collection-metadata-fields"
-import { CollectionTitleField } from "@/core/editor/collection-title-field"
+	CollectionItemEditor,
+	type OpenedContent,
+	usePropertiesPanel,
+} from "@/core/editor/collection-item-editor"
+import type { FieldRecord } from "@/core/editor/collection-metadata"
 import {
 	type DraftRefusal,
 	type DraftTarget,
@@ -24,32 +20,12 @@ import {
 } from "@/core/editor/drafts"
 import { createDrafts } from "@/core/editor/drafts/create-drafts.server"
 import { createGithubSourceStore } from "@/core/editor/drafts/github-source-store.server"
+import type { OpenResult } from "@/core/editor/drafts/types"
 import { requireCollection } from "@/core/project-context"
 import { requirePageContext } from "@/core/project-context/project-context.server"
-import {
-	type AutosaveState,
-	type EditorRefApi,
-	EditorWordCount,
-	RichTextEditor,
-} from "@/editor"
 import { posthogContext } from "@/lib/posthog-middleware"
-import { Separator } from "@/ui/components/base/separator"
-import {
-	Sheet,
-	SheetContent,
-	SheetDescription,
-	SheetHeader,
-	SheetTitle,
-} from "@/ui/components/base/sheet"
-import { useIsMobile } from "@/ui/hooks/use-mobile"
 import { EditorActionIntents } from "@/ui/lib/types"
 import type { Route } from "./+types/collection-editor"
-
-const initialAutosaveState: AutosaveState = {
-	isDirty: false,
-	isSaving: false,
-	lastSavedAt: null,
-}
 
 /**
  * The seam, plus what it deliberately leaves to its callers: which Collection
@@ -85,6 +61,16 @@ async function resolveCollectionEditorContext({
 		projectRow,
 		sourceStore: createGithubSourceStore({ env, installationId, name, owner }),
 	}
+}
+
+/** Where the writer came from, and where a publish sends them back to. */
+function collectionPathFor(
+	resolved: Awaited<ReturnType<typeof resolveCollectionEditorContext>>,
+) {
+	return getCollectionPath(
+		{ repoName: resolved.name, repoOwnerLogin: resolved.owner },
+		resolved.collectionSlug,
+	)
 }
 
 function createDraftsFor(
@@ -172,33 +158,73 @@ export function shouldRevalidate({
 	return defaultShouldRevalidate
 }
 
+/** The half of `open`'s answer the editor actually opens with. */
+function openedContent(
+	opened: Extract<OpenResult, { ok: true }>,
+): OpenedContent {
+	return {
+		content: opened.content,
+		draftId: opened.draftId,
+		fields: opened.fields,
+		revision: opened.revision,
+	}
+}
+
+/**
+ * One GraphQL call that pulls the full text of every file in the Collection's
+ * directory, then a frontmatter parse to find the Slug, then the Draft that
+ * tracks it. None of it decides whether this page may be seen, so the page does
+ * not wait on it (ADR 0006).
+ *
+ * A Slug this Collection no longer holds still answers 404, and a GitHub failure
+ * still answers the way it did before the split: both reject, and the `Await`
+ * below carries no `errorElement`, so both reach the route's error boundary.
+ * The 404 travels as an `ErrorResponseImpl` because that is the one error shape
+ * the turbo-stream encoder preserves — a thrown `Response` serialises to an
+ * empty object, and a plain `Error` is sanitized to "Unexpected Server Error"
+ * outside development, which is right for a failure and wrong for a 404.
+ */
+export async function openCollectionItem(
+	drafts: ReturnType<typeof createDraftsFor>,
+	target: DraftTarget,
+): Promise<OpenedContent> {
+	const opened = await drafts.open(target)
+	if (!opened.ok) throw new ErrorResponseImpl(404, "Not Found", null)
+	return openedContent(opened)
+}
+
 export async function loader(args: Route.LoaderArgs) {
 	const resolved = await resolveCollectionEditorContext(args)
-	const drafts = createDraftsFor(resolved)
 
 	// `args.url` is React Router's normalized URL (no `.data` suffix or
 	// index/_routes params), so `?draft=` is where the editor put it.
 	const draftId = new URL(args.url).searchParams.get("draft")
 	const target = getDraftTarget(args.params, draftId)
-	const mode = target.mode
-	const opened = await drafts.open(target)
-	// The only thing `open` can fail to find is what the route asked it for: the
-	// Draft named by `?draft=` for a new item, the item itself otherwise.
-	if (!opened.ok) throw draftRefusalResponse(opened)
+
+	// Everything the shell is built from, and the only half that may redirect.
+	const shell = {
+		canPublish: true,
+		name: resolved.name,
+		owner: resolved.owner,
+		publishDisabledReason: null,
+		schema: resolved.collection.schema,
+	}
+	const drafts = createDraftsFor(resolved)
+
+	// A new item has no Source to fetch: at most one D1 lookup, never GitHub, and
+	// the only thing that can 404 a `?draft=` somebody has since discarded. It
+	// stays awaited, so this page has no pending state to stand in for.
+	if (target.mode === "new") {
+		const opened = await drafts.open(target)
+		if (!opened.ok) throw draftRefusalResponse(opened)
+		return { ...shell, mode: "new" as const, opened: openedContent(opened) }
+	}
 
 	return {
-		canPublish: true,
-		draftId: opened.draftId,
-		draftRevision: opened.revision,
-		initialContent: opened.content,
-		initialFields: opened.fields,
-		originalFields: opened.source?.frontmatter ?? ({} as FieldRecord),
-		owner: resolved.owner,
-		name: resolved.name,
-		schema: resolved.collection.schema,
-		itemSlug: opened.source?.itemSlug ?? null,
-		mode,
-		publishDisabledReason: null,
+		...shell,
+		mode: "item" as const,
+		// Started below the guards — a promise above one is a request nobody reads.
+		opened: openCollectionItem(drafts, target),
 	}
 }
 
@@ -274,10 +300,7 @@ export async function action(args: Route.ActionArgs) {
 
 	// Publishing ends the editing session: the writer goes back to the list they
 	// came from, whichever way the publish landed.
-	const collectionPath = getCollectionPath(
-		{ repoName: resolved.name, repoOwnerLogin: resolved.owner },
-		resolved.collectionSlug,
-	)
+	const collectionPath = collectionPathFor(resolved)
 	if (published.outcome === "matches-source") {
 		return Response.json({
 			ok: true,
@@ -322,345 +345,51 @@ export async function action(args: Route.ActionArgs) {
 }
 
 export default function CollectionEditor({ loaderData }: Route.ComponentProps) {
-	const {
+	const { canPublish, name, owner, publishDisabledReason, schema } = loaderData
+	const params = useParams()
+	// Above the boundary, so the panel keeps whatever the writer set while the
+	// content was still on its way.
+	const panel = usePropertiesPanel()
+	const chrome = {
 		canPublish,
-		draftId,
-		draftRevision,
-		initialContent,
-		initialFields,
-		mode,
-		owner,
 		name,
-		schema,
+		owner,
+		panel,
 		publishDisabledReason,
-	} = loaderData
-	const location = useLocation()
-	const navigate = useNavigate()
-	const editorRef = useRef<EditorRefApi>(null)
-	const [fields, setFields] = useState<FieldRecord>(initialFields)
-	const fieldsRef = useRef(fields)
-	const [metadataDirty, setMetadataDirty] = useState(false)
-	const [metadataGeneration, setMetadataGeneration] = useState(0)
-	const [isPublishing, setIsPublishing] = useState(false)
-	const [isPropertiesOpen, setIsPropertiesOpen] = useState(true)
-	const isMobile = useIsMobile()
-	const [isEditorReady, setIsEditorReady] = useState(false)
-	const [editorInstance, setEditorInstance] = useState<Editor | null>(null)
-	const revisionRef = useRef(draftRevision)
-	// A new item has no Draft until its first save mints one, so the id arrives in
-	// a response rather than in the loader's answer. Every mutation reads it at
-	// the moment it is sent, so the save behind the minting one carries the id
-	// that save minted instead of the null this render was built on.
-	const draftIdRef = useRef(draftId)
-	const mutationQueueRef = useRef<Promise<void>>(Promise.resolve())
-	const [autosaveState, setAutosaveState] =
-		useState<AutosaveState>(initialAutosaveState)
-	const assetBaseUrl = `/api/repo-asset/${encodeURIComponent(owner)}/${encodeURIComponent(name)}`
-	const { documentKey, managedFields, sidebarFields, titleKey } = useMemo(
-		() => getCollectionEditorFields(schema),
-		[schema],
-	)
-	const titleField = titleKey ? schema[titleKey] : null
-	const toggleProperties = useCallback(
-		() => setIsPropertiesOpen((open) => !open),
-		[],
-	)
-	useEffect(() => {
-		draftIdRef.current = draftId
-	}, [draftId])
-	// Autosave flushes on unmount, so the save that mints the Draft can answer
-	// after the writer has left the editor — at which point the URL is somebody
-	// else's, and adopting into it would drag them back here.
-	const isMountedRef = useRef(true)
-	useEffect(() => {
-		isMountedRef.current = true
-		return () => {
-			isMountedRef.current = false
-		}
-	}, [])
+		schema,
+	}
 
-	/**
-	 * Put the Draft the first save minted in the URL, which is how a reload finds
-	 * the writer's work again. `shouldRevalidate` declines the loader that would
-	 * otherwise follow: this navigation carries no news the editor doesn't have.
-	 */
-	const adoptDraftId = useCallback(
-		async (id: string) => {
-			if (!isMountedRef.current) return
-			const search = new URLSearchParams(location.search)
-			if (search.get("draft") === id) return
-			search.set("draft", id)
-			await navigate(`${location.pathname}?${search.toString()}`, {
-				preventScrollReset: true,
-				replace: true,
-			})
-		},
-		[location.pathname, location.search, navigate],
-	)
-	const registerEditorRef = useCallback((api: EditorRefApi | null) => {
-		editorRef.current = api
-		setIsEditorReady(api !== null)
-		// The ref alone never re-renders on document changes, so the word count
-		// needs the Tiptap instance itself in state to subscribe to it.
-		setEditorInstance(api?.getEditor() ?? null)
-	}, [])
-
-	const sendAction = useCallback(
-		(intent: EditorActionIntents, markdown: string) => {
-			const fieldsSnapshot = fieldsRef.current
-			const operation = mutationQueueRef.current
-				.catch(() => undefined)
-				.then(async () => {
-					const response = await fetch(
-						`/api/editor${location.pathname}${location.search}`,
-						{
-							method: "POST",
-							headers: { "Content-Type": "application/json" },
-							body: JSON.stringify({
-								draftId: draftIdRef.current,
-								expectedRevision: revisionRef.current,
-								intent,
-								markdown,
-								fields: fieldsSnapshot,
-							}),
-						},
-					)
-					const responseText = await response.text()
-					let result: {
-						draftDeleted?: boolean
-						draftId?: string | null
-						error?: string
-						revision?: number | null
-						collectionPath?: string
-					} = {}
-					try {
-						result = JSON.parse(responseText) as typeof result
-					} catch {
-						result = { error: responseText || undefined }
-					}
-					if (!response.ok) {
-						throw new Error(result.error ?? "Could not save the editor draft")
-					}
-					if (result.draftDeleted) {
-						draftIdRef.current = null
-						revisionRef.current = null
-					} else if (typeof result.revision === "number") {
-						draftIdRef.current = result.draftId ?? draftIdRef.current
-						revisionRef.current = result.revision
-					}
-					if (
-						canonicalMetadata(fieldsRef.current) ===
-						canonicalMetadata(fieldsSnapshot)
-					)
-						setMetadataDirty(false)
-					// Awaited so the editor stays in its publishing state until the
-					// collection page has actually loaded, rather than sitting idle and
-					// re-clickable while its loader runs.
-					if (intent === EditorActionIntents.PUBLISH && result.collectionPath) {
-						await navigate(result.collectionPath, { replace: true })
-						return
-					}
-					if (mode === "new" && draftIdRef.current)
-						await adoptDraftId(draftIdRef.current)
-				})
-			mutationQueueRef.current = operation.catch(() => undefined)
-			return operation
-		},
-		[adoptDraftId, location.pathname, location.search, mode, navigate],
-	)
-
-	const updateField = useCallback(
-		(key: string, value: unknown) => {
-			setFields((current) => {
-				const next = updateMetadataField(schema, current, key, value)
-				fieldsRef.current = next
-				return next
-			})
-			setMetadataDirty(true)
-			setMetadataGeneration((generation) => generation + 1)
-		},
-		[schema],
-	)
-
-	const save = useCallback(async () => {
-		if (!editorRef.current) throw new Error("The editor is still loading")
-		await editorRef.current.save()
-	}, [])
-
-	const publish = useCallback(async () => {
-		setIsPublishing(true)
-		try {
-			await editorRef.current?.publish()
-		} finally {
-			setIsPublishing(false)
-		}
-	}, [])
-
-	const persistence = useMemo(
-		() => ({
-			onAutoSave: (markdown: string) =>
-				sendAction(EditorActionIntents.SAVE, markdown),
-			onPublish: (markdown: string) =>
-				sendAction(EditorActionIntents.PUBLISH, markdown),
-		}),
-		[sendAction],
-	)
-
-	const combinedAutosaveState = useMemo(
-		() => ({
-			...autosaveState,
-			isDirty: autosaveState.isDirty || metadataDirty,
-		}),
-		[autosaveState, metadataDirty],
-	)
-	const controls = useMemo(
-		() => ({
-			autosaveState: combinedAutosaveState,
-			canPublish: canPublish && isEditorReady && !isPublishing,
-			canSave: isEditorReady && !isPublishing,
-			isPropertiesOpen,
-			publish,
-			publishDisabledReason: publishDisabledReason ?? undefined,
-			save,
-			toggleProperties,
-		}),
-		[
-			combinedAutosaveState,
-			canPublish,
-			isEditorReady,
-			isPropertiesOpen,
-			isPublishing,
-			publish,
-			publishDisabledReason,
-			save,
-			toggleProperties,
-		],
-	)
-	useEditorLayoutControls(controls)
-
-	useEffect(() => {
-		if (
-			metadataGeneration === 0 ||
-			!metadataDirty ||
-			!editorRef.current ||
-			isPublishing
+	// A new item's content was awaited, so there is no boundary here at all and
+	// therefore no placeholder to fall back to.
+	if (loaderData.mode === "new") {
+		return (
+			<CollectionItemEditor {...chrome} mode="new" opened={loaderData.opened} />
 		)
-			return
-		const timeout = window.setTimeout(() => {
-			void editorRef.current?.save().catch((error: unknown) => {
-				console.error("Metadata autosave failed:", error)
-			})
-		}, 1000)
-		return () => window.clearTimeout(timeout)
-	}, [isPublishing, metadataDirty, metadataGeneration])
-
-	// One open state serves both presentations, so crossing into the mobile
-	// breakpoint has to close it: the desktop default is open, and a Sheet that
-	// inherited that would cover the editor on load.
-	useEffect(() => {
-		if (isMobile) setIsPropertiesOpen(false)
-	}, [isMobile])
-
-	useEffect(() => {
-		const handleBeforeUnload = (event: BeforeUnloadEvent) => {
-			if (!metadataDirty && !editorRef.current?.hasUnsavedChanges()) return
-			event.preventDefault()
-		}
-		window.addEventListener("beforeunload", handleBeforeUnload)
-		return () => window.removeEventListener("beforeunload", handleBeforeUnload)
-	}, [metadataDirty])
-
-	const renderProperty = ([key, field]: [string, ResolvedField]) => (
-		<MetadataField
-			key={key}
-			field={field}
-			value={fields[key]}
-			onChange={(value) => updateField(key, value)}
-			disabled={isPublishing}
-			assetBaseUrl={assetBaseUrl}
-		/>
-	)
-
-	// Managed Fields are editable like any other, but they are facts about the
-	// item rather than things the writer set out to write, so they sit last,
-	// below a divider. A Collection with no Features has neither.
-	const properties = (
-		<>
-			{sidebarFields.map(renderProperty)}
-			{managedFields.length > 0 ? (
-				<>
-					<Separator />
-					{managedFields.map(renderProperty)}
-				</>
-			) : null}
-		</>
-	)
+	}
 
 	return (
-		<div className="relative flex h-full min-h-0 overflow-hidden">
-			<div className="min-w-0 flex-1 overflow-y-auto">
-				<div className="editor-wrapper relative space-y-6 px-6 pt-10 pb-20">
-					{titleKey && titleField?.type === "text" ? (
-						<div className="pl-12">
-							<CollectionTitleField
-								value={String(fields[titleKey] ?? "")}
-								placeholder={titleField.placeholder}
-								disabled={isPublishing}
-								onChange={(value) => updateField(titleKey, value)}
-								onCommit={() => editorRef.current?.focus("start")}
-							/>
-						</div>
-					) : null}
-
-					<RichTextEditor
-						key={documentKey ?? "fallback-content"}
-						ref={registerEditorRef}
-						initialContent={initialContent}
-						onAutosaveStateChange={setAutosaveState}
-						persistence={persistence}
-						readOnly={isPublishing}
-					/>
-				</div>
-			</div>
-
-			<div className="pointer-events-none absolute bottom-0 left-0 z-10 px-6 py-3">
-				<EditorWordCount
-					editor={editorInstance}
-					className="rounded-md bg-background/80 px-2 py-1 backdrop-blur-sm"
-				/>
-			</div>
-
-			<aside
-				aria-label="Properties"
-				className={`hidden shrink-0 overflow-hidden bg-muted/10 transition-[width] duration-200 md:flex ${
-					isPropertiesOpen ? "w-80 border-l" : "w-0"
-				}`}
-			>
-				<div className="flex w-80 shrink-0 flex-col">
-					<div className="flex flex-col gap-6 overflow-y-auto px-4 py-6">
-						{properties}
-					</div>
-				</div>
-			</aside>
-
-			{/* Below `md` the aside is display:none, so the same open state drives
-			    this Sheet instead — the header's toggle is the only trigger. */}
-			<Sheet
-				open={isMobile && isPropertiesOpen}
-				onOpenChange={setIsPropertiesOpen}
-			>
-				<SheetContent className="w-full max-w-sm">
-					<SheetHeader>
-						<SheetTitle>Properties</SheetTitle>
-						<SheetDescription>
-							Collection metadata for this item.
-						</SheetDescription>
-					</SheetHeader>
-					<div className="flex flex-col gap-6 overflow-y-auto px-6 pb-6">
-						{properties}
-					</div>
-				</SheetContent>
-			</Sheet>
-		</div>
+		// Keyed by the item the URL names, and on the `Suspense` rather than the
+		// `Await`: navigating between two items suspends over a boundary that has
+		// already revealed content, and React answers that by delaying the whole
+		// commit rather than falling back. The key is built from the path params
+		// and never from the search — `?draft=` moves under the writer as the
+		// first save mints a Draft, and a key that noticed would remount the
+		// editor, destroying the document being typed into.
+		<Suspense
+			key={`${params.collection_slug}/${params.collection_item_slug}`}
+			fallback={<CollectionItemEditor {...chrome} mode="item" opened={null} />}
+		>
+			{/* No `errorElement`, which is ADR 0006's rule one taken deliberately
+			    the other way: the rule exists to stop a failed section taking
+			    down the shell around it, and here the shell is an editor with
+			    nothing to edit. A Slug that names nothing must still answer 404
+			    and a failed read must still answer the way it did before the
+			    split, so both rethrow past this to the route's boundary. */}
+			<Await resolve={loaderData.opened}>
+				{(resolved: OpenedContent) => (
+					<CollectionItemEditor {...chrome} mode="item" opened={resolved} />
+				)}
+			</Await>
+		</Suspense>
 	)
 }

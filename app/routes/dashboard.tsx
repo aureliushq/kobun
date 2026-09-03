@@ -14,11 +14,22 @@ import {
 	useRouteLoaderData,
 } from "react-router"
 import { getAuth } from "@/auth/auth.server"
+import { NO_CONFIG_ERROR, parseConfigErrors } from "@/config/errors"
 import type { ConfigError } from "@/config/types"
 import type { loader as dashboardLayoutLoader } from "@/core/components/layouts/dashboard"
 import { envContext } from "@/core/context"
-import { getDraftEditorPath, isDraftDirty } from "@/core/editor/drafts"
-import type { ProjectContextDatabase } from "@/core/project-context"
+import {
+	type DraftState,
+	draftHeading,
+	draftState,
+	getDraftEditorPath,
+	isDraftDirty,
+} from "@/core/editor/drafts"
+import type {
+	ConfigProblem,
+	ProjectContextDatabase,
+} from "@/core/project-context"
+import { lastKnownConfig } from "@/core/project-context"
 import { dbContext } from "@/db/context"
 import { editorDraft, project } from "@/db/schema/app-schema"
 import { posthogContext } from "@/lib/posthog-middleware"
@@ -38,7 +49,6 @@ import { Badge } from "@/ui/components/base/badge"
 import { Button } from "@/ui/components/base/button"
 import {
 	Card,
-	CardAction,
 	CardContent,
 	CardDescription,
 	CardHeader,
@@ -53,12 +63,30 @@ import type { Route } from "./+types/dashboard"
 const DISCARD_DRAFT_INTENT = "discard-draft"
 
 /**
+ * What a card calls each state a Draft can be in. "Unsaved changes" is gone:
+ * the changes are saved — kobun has them — they are just not published, which
+ * is also what the Collection list says about the same Draft.
+ */
+const DRAFT_STATE_LABELS: Record<DraftState, string> = {
+	clean: "Published",
+	dirty: "Unpublished changes",
+	"never-published": "Unpublished",
+}
+
+/**
  * Three round-trips before a single Draft can be listed, none of which decides
  * whether this page may be seen — so the page does not wait on them (ADR 0006).
  *
  * The cleanup delete rides along inside the stream. It only removes Drafts that
  * are Synced, so running it late, twice, or — if the reader closes the tab
  * mid-stream — not at all costs nothing: the next dashboard load does it.
+ *
+ * A card is headed by the Draft's Title and names its Collection by that
+ * Collection's label, both of which need the Project's Config — and the Config
+ * the cache last stored is already on the Project row, so neither costs a
+ * fourth round-trip. It is read here rather than in the card because the row
+ * carries a whole parsed Config, which no browser needs to hold to render a
+ * heading.
  */
 async function loadDashboardDrafts(db: ProjectContextDatabase, userId: string) {
 	const userProjects = await db.query.project.findMany({
@@ -78,10 +106,42 @@ async function loadDashboardDrafts(db: ProjectContextDatabase, userId: string) {
 			),
 		)
 
-	return db.query.editorDraft.findMany({
+	// Read once per Project rather than once per Draft: a writer with a dozen
+	// Drafts in one Collection has one Config between them.
+	const configs = new Map(
+		userProjects.map((projectRow) => [
+			projectRow.id,
+			lastKnownConfig(projectRow),
+		]),
+	)
+
+	const drafts = await db.query.editorDraft.findMany({
 		where: inArray(editorDraft.projectId, projectIds),
 		with: { project: true },
 		orderBy: [desc(editorDraft.updatedAt)],
+	})
+
+	return drafts.map((draft) => {
+		// A Collection the Config no longer declares still has Drafts, and they
+		// are still reachable — so the card falls back to the slug rather than
+		// dropping the row.
+		const collection =
+			configs.get(draft.projectId)?.collections[draft.collectionSlug] ?? null
+		return {
+			collectionLabel: collection?.label ?? draft.collectionSlug,
+			collectionSlug: draft.collectionSlug,
+			heading: draftHeading(draft, collection),
+			id: draft.id,
+			itemSlug: draft.itemSlug,
+			project: {
+				repoName: draft.project.repoName,
+				repoOwnerLogin: draft.project.repoOwnerLogin,
+			},
+			publishedRevision: draft.publishedRevision,
+			revision: draft.revision,
+			sourcePath: draft.sourcePath,
+			updatedAt: draft.updatedAt,
+		}
 	})
 }
 
@@ -192,12 +252,57 @@ function ValidationErrorAlert({
 	)
 }
 
+/**
+ * A Config the resolver could not classify at all — an unreachable repository
+ * as much as a broken file. It gets its own arm rather than falling through to
+ * "Invalid config", which would tell a writer whose Config is fine that it is
+ * not.
+ */
+const UNREADABLE_CONFIG = "unreadable_config"
+
+/**
+ * What to tell a writer whose Project resolved without a Config (ADR-0007).
+ * `syncProjectConfig` writes what it found on connect and on every refresh, and
+ * the alerts below already know how to render one — so the stored list is what
+ * this shows, and the problem only stands in when there is none to read.
+ */
+function configProblemErrors(
+	problem: ConfigProblem,
+	stored: string | null,
+): ConfigError[] {
+	const errors = parseConfigErrors(stored)
+	if (errors.length > 0) return errors
+
+	return [
+		problem === "config-missing"
+			? NO_CONFIG_ERROR
+			: {
+					code: UNREADABLE_CONFIG,
+					message:
+						"Kobun could not reach or read this repository's configuration. Refresh the configuration to try again.",
+					path: "",
+				},
+	]
+}
+
+function UnreadableConfigAlert({ message }: { message: string }) {
+	return (
+		<Alert variant="destructive">
+			<TriangleAlertIcon />
+			<AlertTitle>Couldn&apos;t read your configuration</AlertTitle>
+			<AlertDescription>{message}</AlertDescription>
+		</Alert>
+	)
+}
+
 function ConfigAlert({ error }: { error: ConfigError }) {
 	switch (error.code) {
 		case "no_config":
 			return <NoConfigAlert message={error.message} />
 		case "parse_error":
 			return <ParseErrorAlert filePath={error.path} message={error.message} />
+		case UNREADABLE_CONFIG:
+			return <UnreadableConfigAlert message={error.message} />
 		default:
 			return <ValidationErrorAlert path={error.path} message={error.message} />
 	}
@@ -257,36 +362,39 @@ function DraftsSection({ drafts }: { drafts: DashboardDraft[] }) {
 			{drafts.map((draft) => {
 				const dirty = isDraftDirty(draft)
 				const href = getDraftEditorPath(draft, draft.project)
-				const state =
-					draft.publishedRevision === null
-						? "Unpublished"
-						: dirty
-							? "Unsaved changes"
-							: "Published"
+				const state = DRAFT_STATE_LABELS[draftState(draft)]
 				return (
 					<Card key={draft.id} size="sm">
-						<CardHeader>
-							<CardTitle>
+						{/* An explicit `minmax(0, 1fr)` column: the header's implicit one
+						    is sized to its content, which a long title would grow past
+						    rather than be cut off inside. */}
+						<CardHeader className="grid-cols-[minmax(0,1fr)]">
+							{/* One line, whatever the writer typed — the rest is a hover
+							    away, through the attribute the browser already reveals. */}
+							<CardTitle className="truncate" title={draft.heading}>
 								<Link className="hover:underline" to={href}>
-									{draft.itemSlug ?? `New ${draft.collectionSlug} item`}
+									{draft.heading}
 								</Link>
 							</CardTitle>
-							<CardDescription>
-								{draft.project.repoOwnerLogin}/{draft.project.repoName} ·{" "}
-								{draft.collectionSlug}
+							<CardDescription className="truncate">
+								{draft.collectionLabel} · {draft.project.repoOwnerLogin}/
+								{draft.project.repoName}
 							</CardDescription>
-							<CardAction>
-								<Badge variant={dirty ? "secondary" : "outline"}>{state}</Badge>
-							</CardAction>
 						</CardHeader>
+						{/* State and time sit down here with the actions rather than level
+						    with the title, which is the only thing on the card that should
+						    be read first. */}
 						<CardContent className="flex items-center justify-between gap-4">
-							<span className="text-muted-foreground">
-								Edited{" "}
-								{formatDistanceToNow(new Date(draft.updatedAt), {
-									addSuffix: true,
-								})}
-							</span>
-							<div className="flex items-center gap-2">
+							<div className="flex min-w-0 items-center gap-2">
+								<Badge variant={dirty ? "secondary" : "outline"}>{state}</Badge>
+								<span className="truncate text-muted-foreground">
+									Edited{" "}
+									{formatDistanceToNow(new Date(draft.updatedAt), {
+										addSuffix: true,
+									})}
+								</span>
+							</div>
+							<div className="flex shrink-0 items-center gap-2">
 								{/* The one link on this card worth warming; the title above
 								    points at the same editor, and prefetching both would ask
 								    for it twice. */}
@@ -314,8 +422,15 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
 	const user = layoutData?.user
 	// A Config that declares at least one Collection is served even when parts of
 	// it did not validate, and it carries those errors with it — so the writer is
-	// told what kobun could not read without losing the pages it could.
-	const errors = layoutData?.config?.errors ?? []
+	// told what kobun could not read without losing the pages it could. A Project
+	// with no Config at all resolves here too, and this is where it says so.
+	const problem = layoutData?.configProblem ?? null
+	const errors = problem
+		? configProblemErrors(
+				problem,
+				layoutData?.activeProject.configError ?? null,
+			)
+		: (layoutData?.config?.errors ?? [])
 
 	return (
 		<>

@@ -62,7 +62,8 @@ const DashboardSidebar = ({
 	versionInfo,
 }: {
 	activeProject: ProjectWithGithubInstallation
-	config: NormalizedConfig
+	/** Null for a Project whose Config is missing or invalid (ADR-0007). */
+	config: NormalizedConfig | null
 	projects: ProjectWithGithubInstallation[]
 	releaseInfo: Promise<ReleaseInfo>
 	versionInfo: VersionInfo
@@ -70,6 +71,10 @@ const DashboardSidebar = ({
 	const { isMobile } = useSidebar()
 	const [aboutOpen, setAboutOpen] = useState(false)
 	const basePath = ""
+	// A Project whose Config could not be read has nothing to navigate to, and
+	// its dashboard is where it says why (ADR-0007).
+	const collections = config?.collections ?? {}
+	const singletons = config?.singletons ?? {}
 
 	const location = useLocation()
 
@@ -183,42 +188,39 @@ const DashboardSidebar = ({
 							</SidebarMenu>
 						</SidebarGroupContent>
 					</SidebarGroup>
-					{Object.keys(config.collections).length > 0 && (
+					{Object.keys(collections).length > 0 && (
 						<SidebarGroup>
 							<SidebarGroupLabel>Collections</SidebarGroupLabel>
 							<SidebarGroupContent>
 								<SidebarMenu>
-									{Object.entries(config.collections).map(
-										([key, collection]) => (
-											<SidebarMenuItem key={key}>
-												<SidebarMenuButton
-													isActive={
-														location.pathname ===
-														`${pathname}/collections/${key}`
-													}
-													render={
-														<Link
-															className="sidebar-menu-button"
-															prefetch="intent"
-															to={`${pathname}/collections/${key}`}
-														/>
-													}
-												>
-													{collection.label}
-												</SidebarMenuButton>
-											</SidebarMenuItem>
-										),
-									)}
+									{Object.entries(collections).map(([key, collection]) => (
+										<SidebarMenuItem key={key}>
+											<SidebarMenuButton
+												isActive={
+													location.pathname === `${pathname}/collections/${key}`
+												}
+												render={
+													<Link
+														className="sidebar-menu-button"
+														prefetch="intent"
+														to={`${pathname}/collections/${key}`}
+													/>
+												}
+											>
+												{collection.label}
+											</SidebarMenuButton>
+										</SidebarMenuItem>
+									))}
 								</SidebarMenu>
 							</SidebarGroupContent>
 						</SidebarGroup>
 					)}
-					{Object.keys(config.singletons).length > 0 && (
+					{Object.keys(singletons).length > 0 && (
 						<SidebarGroup>
 							<SidebarGroupLabel>Singletons</SidebarGroupLabel>
 							<SidebarGroupContent>
 								<SidebarMenu>
-									{Object.entries(config.singletons).map(([key, singleton]) => (
+									{Object.entries(singletons).map(([key, singleton]) => (
 										<SidebarMenuItem key={key}>
 											<SidebarMenuButton
 												isActive={

@@ -155,12 +155,13 @@ test.each([
 		cached({ configData: null, configStatus }),
 	)
 
-	expect(await projectContext.resolve(TARGET)).toEqual({
-		ok: false,
-		reason:
+	expect(await projectContext.resolve(TARGET)).toMatchObject({
+		config: null,
+		configProblem:
 			configStatus === ConfigStatus.MISSING
 				? "config-missing"
 				: "config-invalid",
+		ok: true,
 	})
 	expect(configSource.calls).toEqual([])
 })
@@ -249,9 +250,10 @@ test("reports a Config that stopped validating, without looking elsewhere", asyn
 	configSource.put(".kobun.yml", TEST_CONFIG_JSON)
 	vi.advanceTimersByTime(CONFIG_CACHE_TTL_MS)
 
-	expect(await projectContext.resolve(TARGET)).toEqual({
-		ok: false,
-		reason: "config-invalid",
+	expect(await projectContext.resolve(TARGET)).toMatchObject({
+		config: null,
+		configProblem: "config-invalid",
+		ok: true,
 	})
 	// A Config that is there but broken is not a Config that has moved.
 	expect(configSource.calls).toHaveLength(1)
@@ -266,9 +268,10 @@ test("picks up a Config that has been fixed once the window closes", async () =>
 		cached({ configData: null, configStatus: ConfigStatus.ERROR }),
 	)
 
-	expect(await projectContext.resolve(TARGET)).toEqual({
-		ok: false,
-		reason: "config-invalid",
+	expect(await projectContext.resolve(TARGET)).toMatchObject({
+		config: null,
+		configProblem: "config-invalid",
+		ok: true,
 	})
 
 	configSource.put(TEST_CONFIG_PATH, TEST_CONFIG_JSON)
@@ -284,9 +287,10 @@ test("caches a repository that has no Config, and finds one added later", async 
 	const { configSource, projectContext, readProject } = setup()
 	configSource.remove(TEST_CONFIG_PATH)
 
-	expect(await projectContext.resolve(TARGET)).toEqual({
-		ok: false,
-		reason: "config-missing",
+	expect(await projectContext.resolve(TARGET)).toMatchObject({
+		config: null,
+		configProblem: "config-missing",
+		ok: true,
 	})
 	expect(configSource.calls).toHaveLength(CONFIG_PATHS.length)
 
@@ -351,9 +355,10 @@ test("refuses without remembering when an unreachable repository is all there is
 	const before = readProject()
 	configSource.failNext(new Error("API rate limit exceeded"))
 
-	expect(await projectContext.resolve(TARGET)).toEqual({
-		ok: false,
-		reason: "config-invalid",
+	expect(await projectContext.resolve(TARGET)).toMatchObject({
+		config: null,
+		configProblem: "config-invalid",
+		ok: true,
 	})
 	expect(readProject()).toEqual(before)
 })
@@ -366,9 +371,10 @@ test("recovers a Config restored byte for byte after a sync marked it missing", 
 		cached({ configData: null, configStatus: ConfigStatus.MISSING }),
 	)
 
-	expect(await projectContext.resolve(TARGET)).toEqual({
-		ok: false,
-		reason: "config-missing",
+	expect(await projectContext.resolve(TARGET)).toMatchObject({
+		config: null,
+		configProblem: "config-missing",
+		ok: true,
 	})
 
 	vi.advanceTimersByTime(CONFIG_CACHE_TTL_MS)

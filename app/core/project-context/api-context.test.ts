@@ -9,8 +9,6 @@ function responseFor(reason: ProjectContextRefusal): Response {
 
 test.each<[ProjectContextRefusal, number, string]>([
 	["anonymous", 401, "Unauthorized"],
-	["config-invalid", 422, "Invalid repository configuration"],
-	["config-missing", 422, "Repository configuration not found"],
 	["no-project", 404, "Not Found"],
 ])("turns %s into a %i an API consumer can act on", async (reason, status, body) => {
 	const response = responseFor(reason)

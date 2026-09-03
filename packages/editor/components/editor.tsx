@@ -147,7 +147,11 @@ export const RichTextEditor = forwardRef<EditorRefApi, RichTextEditorProps>(
 				ref={containerRef}
 				className={cn(
 					"group/editor relative",
-					!readOnly && dragHandle && "pl-12",
+					// The gutter belongs to the writing column, not to whether the
+					// editor currently accepts input: dropping it while read-only
+					// reflows the column 3rem sideways. The handle inside it is
+					// the part that goes away.
+					dragHandle && "pl-12",
 					className,
 				)}
 			>

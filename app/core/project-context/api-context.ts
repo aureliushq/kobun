@@ -15,8 +15,6 @@ const REFUSALS: Record<
 	{ body: string; status: number }
 > = {
 	anonymous: { body: "Unauthorized", status: 401 },
-	"config-invalid": { body: "Invalid repository configuration", status: 422 },
-	"config-missing": { body: "Repository configuration not found", status: 422 },
 	"no-project": { body: "Not Found", status: 404 },
 }
 
@@ -27,7 +25,9 @@ const REFUSALS: Record<
  *
  * Generic over the success arm so the one translation serves a caller that
  * resolved a Config and a caller that skipped it — the refusals are the same
- * four either way, and only they are this function's business.
+ * two either way, and only they are this function's business. A Config that
+ * would not resolve is not among them (ADR-0007); the only API caller skips the
+ * Config anyway.
  */
 export function toApiContext<Ok extends ProjectAccess>(
 	result: Ok | RefusedProjectContext,

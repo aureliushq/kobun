@@ -1,5 +1,5 @@
 /** Where a collection and its editor live, for one project. */
-interface ProjectLocation {
+export interface ProjectLocation {
 	repoName: string
 	repoOwnerLogin: string
 }

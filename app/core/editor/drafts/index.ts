@@ -1,6 +1,6 @@
 /**
- * The Draft lifecycle: everything about a Draft that a caller holding a Draft
- * row and nothing else can answer — is it Dirty, where is it edited — plus the
+ * The Draft lifecycle: everything about a Draft that needs no round-trip to
+ * answer — is it Dirty, where is it edited, what heads its card — plus the
  * vocabulary a caller drives the transitions in.
  *
  * The `createDrafts` factory is deliberately not re-exported here. It parses
@@ -9,10 +9,14 @@
  * drag that parser into every browser bundle that only wanted to know whether a
  * Draft is Dirty — which is exactly what the dashboard's draft list wants.
  */
+export type { CollectionDraft } from "./collection-drafts"
+export { listCollectionDrafts } from "./collection-drafts"
 export {
 	getCollectionPath,
 	getDraftEditorPath,
 	isDraftAdoptionNavigation,
 } from "./draft-paths"
-export { isDraftDirty } from "./draft-state"
+export type { DraftState } from "./draft-state"
+export { draftState, isDraftDirty } from "./draft-state"
+export { draftHeading } from "./draft-summary"
 export type { DraftRefusal, DraftTarget, SaveInput } from "./types"

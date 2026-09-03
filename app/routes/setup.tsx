@@ -1,4 +1,4 @@
-import { and, desc, eq, or } from "drizzle-orm"
+import { desc, eq, or } from "drizzle-orm"
 import {
 	AlertCircleIcon,
 	ArrowUpRightIcon,
@@ -20,9 +20,9 @@ import {
 import { getAuth } from "@/auth/auth.server"
 import { syncProjectConfig } from "@/config/github.server"
 import { envContext } from "@/core/context"
+import { connectProject } from "@/core/project-context"
 import { dbContext } from "@/db/context"
 import { githubInstallation, project, userInstallation } from "@/db/schema"
-import { ConfigStatus, ProjectStatus } from "@/db/types"
 import {
 	getGithubAppInstallUrl,
 	getGithubInstallation,
@@ -66,7 +66,7 @@ import {
 	ItemTitle,
 } from "@/ui/components/base/item"
 import { ScrollArea } from "@/ui/components/base/scroll-area"
-import { CONFIG_PATHS, PATHS } from "@/ui/lib/constants"
+import { PATHS } from "@/ui/lib/constants"
 import {
 	SetupActionErrorMessages,
 	SetupActionErrors,
@@ -264,86 +264,38 @@ export async function action({ context, request }: Route.ActionArgs) {
 	const intent = formData.get("intent") as SetupActionIntents
 
 	if (intent === SetupActionIntents.CREATE_PROJECT) {
-		const repoId = formData.get("repo_id") as string
-		const installationId = formData.get("installation_id") as string
-
-		const installation = await db.query.githubInstallation.findFirst({
-			where: eq(githubInstallation.id, installationId),
-		})
-
-		if (!installation)
-			return data(
-				{ error: SetupActionErrors.INSTALLATION_NOT_FOUND },
-				{ status: 400 },
-			)
-
-		if (installation?.deletedAt || installation?.suspendedAt)
-			return data(
-				{ error: SetupActionErrors.INSTALLATION_SUSPENDED },
-				{ status: 400 },
-			)
-
-		const repos = await listGithubInstallationRepositories(
-			env,
-			installation.githubInstallationId,
+		const result = await connectProject(
+			{
+				db,
+				listRepositories: (installation) =>
+					listGithubInstallationRepositories(
+						env,
+						installation.githubInstallationId,
+					),
+				syncConfig: (connectedProject) =>
+					syncProjectConfig(db, env, connectedProject),
+			},
+			{
+				installationId: formData.get("installation_id") as string,
+				repoId: formData.get("repo_id") as string,
+				userId: session.user.id,
+			},
 		)
 
-		const selectedRepo = repos.find((repo) => String(repo.id) === repoId)
-
-		if (!selectedRepo)
-			return data({ error: SetupActionErrors.REPO_NOT_FOUND }, { status: 400 })
-
-		const existingProject = await db.query.project.findFirst({
-			where: and(
-				eq(project.userId, session.user.id),
-				eq(project.repoId, String(repoId)),
-			),
-		})
-
-		// Which repository this Project is, and nothing about what is in it. The
-		// two Config columns below are `NOT NULL` and so must say something; they
-		// say the row has never been looked at, and the sync that follows is what
-		// looks. Connecting and the dashboard's refresh are the same act, and go
-		// the same way (ADR-0003).
-		const id = existingProject?.id ?? String(crypto.randomUUID())
-		const [connectedProject] = await db
-			.insert(project)
-			.values({
-				id,
-				userId: session.user.id,
-				installationId: String(installation.id),
-				repoId: String(selectedRepo.id),
-				repoName: selectedRepo.name,
-				repoOwnerLogin: selectedRepo.owner.login,
-				repoHtmlUrl: selectedRepo.html_url,
-				configPath: CONFIG_PATHS[0],
-				configStatus: ConfigStatus.UNKNOWN,
-				status: ProjectStatus.ACTIVE,
-			})
-			.onConflictDoUpdate({
-				target: [project.userId, project.repoId],
-				set: {
-					installationId: String(installation.id),
-					repoName: selectedRepo.name,
-					repoOwnerLogin: selectedRepo.owner.login,
-					repoHtmlUrl: selectedRepo.html_url,
-					status: ProjectStatus.ACTIVE,
-				},
-			})
-			.returning()
-
-		await syncProjectConfig(db, env, connectedProject)
+		if (!result.ok) return data({ error: result.error }, { status: 400 })
 
 		const posthog = context.get(posthogContext)
 		posthog?.capture({
 			event: "project_created",
 			properties: {
-				repo_owner: selectedRepo.owner.login,
-				repo_name: selectedRepo.name,
+				repo_owner: result.repoOwnerLogin,
+				repo_name: result.repoName,
 			},
 		})
 
-		return redirect(`/${selectedRepo.owner.login}/${selectedRepo.name}`)
+		// The Project's dashboard, which now renders whatever the sync above
+		// found — including a Config it could not read (ADR-0007).
+		return redirect(result.path)
 	}
 
 	if (intent === SetupActionIntents.INSTALL_APP) {

@@ -6,6 +6,7 @@ import { ConfigStatus, type Project, ProjectStatus } from "@/db/types"
 import { getGithubFileContent } from "@/github/octokit.server"
 import type { InstallationID } from "@/types/github"
 import { CONFIG_PATHS } from "@/ui/lib/constants"
+import { NO_CONFIG_ERROR } from "./errors"
 import type { ConfigError, NormalizedConfig } from "./types"
 import { configFileFormat, validateConfig } from "./validator"
 
@@ -55,14 +56,7 @@ export const fetchAndParseConfig = async (
 
 	return {
 		config: null,
-		errors: [
-			{
-				code: "no_config",
-				message:
-					"No configuration file found at repository root. Expected .kobun.json, .kobun.yml, or .kobun.yaml.",
-				path: "",
-			},
-		],
+		errors: [NO_CONFIG_ERROR],
 		filePath: null,
 		sha: null,
 	}
