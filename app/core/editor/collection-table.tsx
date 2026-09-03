@@ -30,6 +30,11 @@ import {
 	statusOptions,
 } from "@/core/editor/collection-list"
 import { getSlugField } from "@/core/editor/collection-metadata"
+import {
+	type CollectionDraft,
+	type DraftState,
+	draftState,
+} from "@/core/editor/drafts"
 import { resolveTitleKey } from "@/core/fields"
 import { Badge } from "@/ui/components/base/badge"
 import { Button } from "@/ui/components/base/button"
@@ -62,12 +67,45 @@ export type CollectionItem = {
 	data: Record<string, unknown>
 }
 
+/**
+ * The listing, in each of the three states the route can hand it over in. One
+ * value rather than a list plus flags, so "loading, and also failed" cannot be
+ * expressed — and all three arms of the route's `Suspense` read alike.
+ */
+export type CollectionListing = CollectionItem[] | "pending" | "unavailable"
+
+/**
+ * What the Status column says. The Publication States a Source records, plus
+ * the two a Draft is in — one column carrying both vocabularies, because a row
+ * is one thing to a writer and what they want to know about a Draft is that it
+ * is one.
+ */
+type RowStatus = Status | "UNPUBLISHED" | "UNPUBLISHED_CHANGES"
+
+/**
+ * What this column calls each state a Draft is in. `clean` is unreachable from
+ * this page — the listing only asks for Dirty Drafts — but it is the honest
+ * answer for a Draft whose Source has caught up, and a total map cannot be
+ * read as the column having an opinion it does not have.
+ */
+const DRAFT_STATUS: Record<DraftState, RowStatus> = {
+	clean: "PUBLISHED",
+	dirty: "UNPUBLISHED_CHANGES",
+	"never-published": "UNPUBLISHED",
+}
+
+const DRAFT_STATUS_OPTIONS: { label: string; value: RowStatus }[] = [
+	{ label: "Unpublished", value: "UNPUBLISHED" },
+	{ label: "Unpublished changes", value: "UNPUBLISHED_CHANGES" },
+]
+
 type Row = {
-	id: string
-	title: string
-	slug: string
-	status: Status
 	createdAt: number | undefined
+	/** Where the row opens. A Draft brought its own; an item builds one. */
+	href: string
+	id: string
+	status: RowStatus
+	title: string
 }
 
 function formatRelative(ts: number | undefined): string {
@@ -75,12 +113,18 @@ function formatRelative(ts: number | undefined): string {
 	return formatDistanceToNow(new Date(ts), { addSuffix: true })
 }
 
-const STATUS_CLASSES: Record<Status, string> = {
+const STATUS_CLASSES: Record<RowStatus, string> = {
 	PUBLISHED:
 		"bg-green-500/15 text-green-700 border-green-500/30 dark:text-green-400",
 	DRAFT: "bg-red-500/15 text-red-700 border-red-500/30 dark:text-red-400",
 	SCHEDULED:
 		"bg-blue-500/15 text-blue-700 border-blue-500/30 dark:text-blue-400",
+	// Amber for both, so a Draft reads as work in hand rather than as one more
+	// Publication State: the two say the same thing about who has the newer copy.
+	UNPUBLISHED:
+		"bg-amber-500/15 text-amber-700 border-amber-500/30 dark:text-amber-400",
+	UNPUBLISHED_CHANGES:
+		"bg-amber-500/15 text-amber-700 border-amber-500/30 dark:text-amber-400",
 }
 
 const SORT_LABELS: Record<string, string> = {
@@ -140,78 +184,108 @@ function CollectionFrame({
 }
 
 /**
- * Where the page goes when the listing never arrives. It keeps the frame rather
- * than letting `AsyncErrorAlert` stand alone: the frame is the whole point of
- * the split, and a writer whose Collection kobun cannot read can still start a
- * new item.
- */
-export function CollectionUnavailable({
-	collection,
-	editorBase,
-}: {
-	collection: Collection
-	editorBase: string
-}) {
-	return (
-		<CollectionFrame
-			actions={
-				<NewItemButton collection={collection} editorBase={editorBase} />
-			}
-			collection={collection}
-		>
-			<AsyncErrorAlert title="Couldn't load this collection" />
-		</CollectionFrame>
-	)
-}
-
-/**
- * A Collection's list of Collection Items.
+ * A Collection's list: the Collection Items the repository holds, and the
+ * Drafts the writer has not published to it yet.
  *
- * `items` is `null` while the listing is still streaming — one state rather
- * than a list plus a flag, so "loading, with rows" cannot be expressed. The
- * same component renders both halves of the `Suspense` in `routes/collection`,
- * which is what keeps the skeleton's geometry matching the real table's by
- * construction. Everything the writer can reach while `items` is null is either
- * disabled or needs nothing from the listing, so nothing is lost when React
- * remounts the tree around the resolved data.
+ * `listing` carries all three states the route can be in — one value rather
+ * than a list plus flags — and the same component renders every arm of the
+ * `Suspense` in `routes/collection`, which is what keeps the skeleton's
+ * geometry matching the real table's by construction. `drafts` is awaited, so
+ * it is real in all three: they come from the database, and losing them to
+ * GitHub's silence would take away the half of the page that was still true.
+ *
+ * Every control the writer can reach while the listing is pending is either
+ * disabled or needs nothing from it, so nothing is lost when React remounts the
+ * tree around the resolved data.
  */
 export function CollectionTable({
 	collection,
+	drafts,
 	editorBase,
-	items,
+	listing,
 }: {
 	collection: Collection
+	drafts: CollectionDraft[]
 	editorBase: string
-	items: CollectionItem[] | null
+	listing: CollectionListing
 }) {
-	const pending = items === null
+	const pending = listing === "pending"
+	const unavailable = listing === "unavailable"
+	const items = Array.isArray(listing) ? listing : null
 
 	const slugFieldKey = getSlugField(collection.schema)
 	const titleFieldKey = resolveTitleKey(collection.schema)
 
-	const rows = useMemo<Row[]>(
-		() =>
-			(items ?? []).map((item) => {
-				const filenameSlug = item.name.replace(/\.mdx?$/, "")
-				const title = titleFieldKey
-					? String(item.data[titleFieldKey] ?? filenameSlug)
-					: filenameSlug
-				const slug = slugFieldKey
-					? String(item.data[slugFieldKey] ?? filenameSlug)
-					: filenameSlug
-				return {
-					id: item.path,
-					title,
-					slug,
-					status: deriveStatus(collection.schema, item.data),
-					createdAt: deriveCreatedAt(collection.schema, item.data),
-				}
-			}),
-		[collection.schema, items, titleFieldKey, slugFieldKey],
-	)
+	const rows = useMemo<Row[]>(() => {
+		// At most one Draft tracks a given Source — the database says so, with a
+		// unique index on the pair — so an item finds its Draft by path and takes
+		// it out of the running for a row of its own.
+		const bySourcePath = new Map(
+			drafts.flatMap((draft) =>
+				draft.sourcePath ? [[draft.sourcePath, draft] as const] : [],
+			),
+		)
+		const itemRows = (items ?? []).map((item) => {
+			const filenameSlug = item.name.replace(/\.mdx?$/, "")
+			const title = titleFieldKey
+				? String(item.data[titleFieldKey] ?? filenameSlug)
+				: filenameSlug
+			const slug = slugFieldKey
+				? String(item.data[slugFieldKey] ?? filenameSlug)
+				: filenameSlug
+			const draft = bySourcePath.get(item.path)
+			return {
+				// The Draft's Data first, for the same reason its title wins: it is
+				// the newer copy of the very fields this is read off. The Source's
+				// stands behind it, for a Draft that names no date of its own.
+				createdAt:
+					(draft && deriveCreatedAt(collection.schema, draft.data)) ??
+					deriveCreatedAt(collection.schema, item.data),
+				href: draft?.href ?? `${editorBase}/item/${encodeURIComponent(slug)}`,
+				id: item.path,
+				status: draft
+					? DRAFT_STATUS[draftState(draft)]
+					: deriveStatus(collection.schema, item.data),
+				// The Draft holds the newer title, and a row is best named after
+				// what it opens rather than after the version already moved past.
+				title: draft?.heading ?? title,
+			}
+		})
 
-	const statuses = useMemo(
-		() => statusOptions(collection.schema),
+		// Every Draft with no Source behind it — and, until the listing arrives,
+		// every Draft with one, since there is nothing yet for its item to absorb
+		// it into.
+		//
+		// A Draft whose Source the arrived listing does not hold gets no row, and
+		// that exception is deliberate: the file it tracks has gone from the
+		// repository, so its editor has nothing to open and the row would lead to
+		// a 404. It is still on the dashboard, which is where it can be discarded.
+		const draftRows = drafts
+			.filter((draft) => !draft.sourcePath || items === null)
+			.map((draft) => ({
+				// Its own Data is what it would be committed as, so the date is read
+				// off it the same way; the row's own moment stands in when it names
+				// none, which is what keeps a Draft inside the sort.
+				createdAt:
+					deriveCreatedAt(collection.schema, draft.data) ?? draft.createdAt,
+				href: draft.href,
+				id: `draft:${draft.id}`,
+				status: DRAFT_STATUS[draftState(draft)],
+				title: draft.heading,
+			}))
+
+		return [...itemRows, ...draftRows]
+	}, [
+		collection.schema,
+		drafts,
+		editorBase,
+		items,
+		titleFieldKey,
+		slugFieldKey,
+	])
+
+	const statuses = useMemo<{ label: string; value: RowStatus }[]>(
+		() => [...statusOptions(collection.schema), ...DRAFT_STATUS_OPTIONS],
 		[collection.schema],
 	)
 	const statusFilters = useMemo(
@@ -239,7 +313,7 @@ export function CollectionTable({
 				cell: ({ row }) => (
 					<div className="flex flex-col gap-0.5 p-0">
 						<Link
-							to={`${editorBase}/item/${encodeURIComponent(row.original.slug)}`}
+							to={row.original.href}
 							className="font-medium text-sm hover:underline"
 						>
 							{row.original.title}
@@ -286,7 +360,7 @@ export function CollectionTable({
 				sortUndefined: "last",
 			},
 		],
-		[editorBase, pending, statuses],
+		[pending, statuses],
 	)
 
 	const table = useReactTable({
@@ -337,7 +411,7 @@ export function CollectionTable({
 								?.setFilterValue(v === "all" ? undefined : v)
 						}
 					>
-						<SelectTrigger className="w-56">
+						<SelectTrigger aria-label="Filter by status" className="w-56">
 							<SelectValue placeholder="All statuses">
 								{(value) =>
 									statusFilters.find((option) => option.value === value)
@@ -366,7 +440,7 @@ export function CollectionTable({
 							setSorting([{ id, desc: dir === "desc" }])
 						}}
 					>
-						<SelectTrigger className="w-56">
+						<SelectTrigger aria-label="Sort" className="w-56">
 							<SelectValue placeholder="Sort by">
 								{(value) => SORT_LABELS[value as string] ?? "Sort by"}
 							</SelectValue>
@@ -384,6 +458,10 @@ export function CollectionTable({
 			}
 			collection={collection}
 		>
+			{/* Inside the frame rather than in place of it: a writer whose
+			    Collection kobun cannot read can still reach their Drafts and still
+			    start a new item. */}
+			{unavailable && <AsyncErrorAlert title="Couldn't load this collection" />}
 			<div className="overflow-hidden">
 				<Table>
 					<TableHeader>
@@ -406,31 +484,34 @@ export function CollectionTable({
 						))}
 					</TableHeader>
 					<TableBody>
-						{pending ? (
-							<TableRowsSkeleton />
-						) : table.getRowModel().rows.length === 0 ? (
-							<TableRow>
-								<TableCell
-									colSpan={columns.length}
-									className="h-32 text-center text-muted-foreground"
-								>
-									No items yet.
-								</TableCell>
+						{table.getRowModel().rows.map((row) => (
+							<TableRow key={row.id}>
+								{row.getVisibleCells().map((cell) => (
+									<TableCell className="h-16" key={cell.id}>
+										{flexRender(cell.column.columnDef.cell, cell.getContext())}
+									</TableCell>
+								))}
 							</TableRow>
-						) : (
-							table.getRowModel().rows.map((row) => (
-								<TableRow key={row.id}>
-									{row.getVisibleCells().map((cell) => (
-										<TableCell className="h-16" key={cell.id}>
-											{flexRender(
-												cell.column.columnDef.cell,
-												cell.getContext(),
-											)}
-										</TableCell>
-									))}
+						))}
+						{/* Under the Drafts rather than instead of them: the Drafts are
+						    already here, and the skeleton stands only for the items still
+						    on their way. */}
+						{pending && <TableRowsSkeleton />}
+						{/* Neither a pending listing nor a failed one may say the
+						    Collection is empty — that is a wrong answer rather than a
+						    placeholder, and the alert above already says what happened. */}
+						{!pending &&
+							!unavailable &&
+							table.getRowModel().rows.length === 0 && (
+								<TableRow>
+									<TableCell
+										colSpan={columns.length}
+										className="h-32 text-center text-muted-foreground"
+									>
+										No items yet.
+									</TableCell>
 								</TableRow>
-							))
-						)}
+							)}
 					</TableBody>
 				</Table>
 			</div>

@@ -13,9 +13,16 @@ const EXCERPT_WORDS = 10
 /**
  * The Draft's Data, if the row actually holds any. `metadata` is written as
  * `JSON.stringify(fields)`, but a row can predate a writer or carry a value
- * from a session that never finished — and a heading is not worth throwing over.
+ * from a session that never finished — and neither a heading nor a listing row
+ * is worth throwing over.
+ *
+ * Exported because a Draft's Data answers more than its heading: the Collection
+ * list derives a Draft row's date from the same object, and parsing the column
+ * twice is two chances to disagree about what an unparseable one means.
  */
-function draftData(metadata: string | null): Record<string, unknown> | null {
+export function draftData(
+	metadata: string | null,
+): Record<string, unknown> | null {
 	if (!metadata) return null
 
 	let parsed: unknown

@@ -9,8 +9,8 @@ import {
 import {
 	type CollectionItem,
 	CollectionTable,
-	CollectionUnavailable,
 } from "@/core/editor/collection-table"
+import { listCollectionDrafts } from "@/core/editor/drafts"
 import { requireCollection } from "@/core/project-context"
 import { requirePageContext } from "@/core/project-context/project-context.server"
 import { hasStatus, listGithubDirectoryFiles } from "@/github/octokit.server"
@@ -66,7 +66,7 @@ async function loadCollectionItems(
 export async function loader({ context, params, request }: Route.LoaderArgs) {
 	const { collection_slug } = params
 	const ctx = await requirePageContext({ context, params, request })
-	const { env, installationId, name, owner } = ctx
+	const { db, env, installationId, name, owner, projectRow } = ctx
 	// Awaited: this 404s on a Collection the Config no longer declares, and the
 	// label and schema it returns are what say which page this is.
 	const { collection, directoryPath } = requireCollection(ctx, collection_slug)
@@ -74,13 +74,23 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
 	return {
 		collection,
 		collectionSlug: collection_slug,
+		// Awaited, though it gates nothing: one indexed read of a table this
+		// request has already resolved the Project of, and awaiting it is what
+		// puts the writer's Drafts on the first paint and keeps them there when
+		// GitHub does not answer (ADR 0006).
+		drafts: await listCollectionDrafts(
+			db,
+			projectRow,
+			collection,
+			collection_slug,
+		),
 		// Started below the guards — a promise above one is a request nobody reads.
 		items: loadCollectionItems(env, installationId, owner, name, directoryPath),
 	}
 }
 
 export default function Collection({ loaderData }: Route.ComponentProps) {
-	const { collection, collectionSlug, items } = loaderData
+	const { collection, collectionSlug, drafts, items } = loaderData
 	const params = useParams()
 	const owner = params.owner ?? ""
 	const name = params.name ?? ""
@@ -98,16 +108,19 @@ export default function Collection({ loaderData }: Route.ComponentProps) {
 			fallback={
 				<CollectionTable
 					collection={collection}
+					drafts={drafts}
 					editorBase={editorBase}
-					items={null}
+					listing="pending"
 				/>
 			}
 		>
 			<Await
 				errorElement={
-					<CollectionUnavailable
+					<CollectionTable
 						collection={collection}
+						drafts={drafts}
 						editorBase={editorBase}
+						listing="unavailable"
 					/>
 				}
 				resolve={items}
@@ -115,8 +128,9 @@ export default function Collection({ loaderData }: Route.ComponentProps) {
 				{(resolved: CollectionItem[]) => (
 					<CollectionTable
 						collection={collection}
+						drafts={drafts}
 						editorBase={editorBase}
-						items={resolved}
+						listing={resolved}
 					/>
 				)}
 			</Await>

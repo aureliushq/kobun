@@ -169,6 +169,73 @@ through `fetch` rather than a router submission, the page route's own `action` i
 at `/api/editor/…`, and `shouldRevalidate` already declines the one navigation that occurs. Three
 independent reasons, none of them written down until now.
 
+## Amendment: a value awaited so it can outlive the streamed half
+
+Settled while putting a Collection's Drafts on its own page (#105), the first
+route with something worth showing that the slow half's failure must not take
+with it.
+
+A Collection's page now lists the writer's Dirty Drafts beside the Collection
+Items GitHub holds. Those Drafts are one indexed `SELECT` on `editor_draft`, over
+a Project this request has already resolved — and by the rule this ADR states,
+they gate nothing and so belong in the streamed half. **They are awaited
+anyway**, and the reason is the one the rule is written to allow: the line is
+drawn by what the route *does* with a value. What this route does with the
+Drafts is show them when GitHub does not answer. A value inside the deferred
+promise cannot do that — it rejects with everything else in there — and a second
+boundary beside the first buys the same thing for a nested `Suspense`, an error
+element of its own, and a table that has to be assembled from two arms landing
+in either order. Awaiting puts the Drafts in `loaderData`, where the pending arm
+and the error arm both simply have them, and where they paint on the first
+navigation rather than whenever their own boundary resolves.
+
+So the cost side of the rule holds: this is I/O in front of the first paint. It
+is affordable for the same reason Config is — one round-trip to D1, on the
+`(project_id, collection_slug)` index — and the Dirty filter is expressed as SQL
+rather than in memory, so a writer's Clean Drafts are never fetched to be
+dropped.
+
+**`CollectionUnavailable` is deleted, and `items` becomes `listing`.** The prop
+was `CollectionItem[] | null`, and the amendment above called that "one state
+rather than a list plus a flag". It is now
+`CollectionItem[] | "pending" | "unavailable"` — the third state folds the error
+component back into the table, because the error arm and the pending arm now
+differ only in which stand-in the body carries and whether an alert sits above
+it. Both still render through `CollectionFrame`, so the frame a failed listing
+keeps is the same frame by construction rather than by resemblance.
+
+**The invariant that "loading, with rows" cannot be expressed is retired, on
+purpose.** It was true when every row came from the same promise. Draft rows are
+real while the item rows are still a skeleton, and `TableRowsSkeleton` renders
+*under* them rather than instead of them: the Drafts are already in hand, and a
+placeholder over content that has arrived is a worse answer than the content.
+What survives of the invariant is the part that was load-bearing: neither a
+pending listing nor a failed one may reach "No items yet." The toolbar keeps the
+narrower rule it always had — disabled while the listing is *pending*, because
+filtering a set still arriving answers a question nobody asked. It is enabled on
+a failure, deliberately: that listing is never going to land, and a writer with
+twenty Drafts and a toolbar frozen forever is worse served than one filtering the
+rows that did arrive.
+
+**A Draft whose Source the arrived listing does not hold gets no row**, and #105's
+"Drafts participate in the page's sorting and filtering rather than sitting
+outside it, or the exception is deliberate and stated" is where this is stated.
+The file it tracks has gone from the repository, so `openCollectionItem` answers
+its editor with a 404 — and a row that leads to a 404 is worse than no row. It is
+not lost: the dashboard lists every Draft regardless of Source, which is where
+that one is discarded. Before the listing arrives there is nothing to judge
+against, so such a Draft stands alone until its item turns up to absorb it.
+
+One thing this route decides that is presentation rather than architecture, and
+is recorded because `CONTEXT.md` warns against exactly it: the Status column
+carries **both** vocabularies. A row backed by a Draft shows `UNPUBLISHED` or
+`UNPUBLISHED CHANGES` in place of the Publication State its Source records. The
+glossary keeps Draft and Publication State apart as *terms*, and they stay apart
+— `draftState` in the drafts module answers one, `deriveStatus` answers the
+other, and neither knows about the other. What they share is a column, because a
+writer looking at a row wants to know who holds the newer copy before they want
+to know what the committed file says about itself.
+
 ## Considered options
 
 - **Await everything (status quo)** — one code path and no partial states, but first paint is coupled to the p99 of every origin the loader touches, including one that only feeds a decoration.

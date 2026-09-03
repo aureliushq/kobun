@@ -19,7 +19,9 @@ import type { ConfigError } from "@/config/types"
 import type { loader as dashboardLayoutLoader } from "@/core/components/layouts/dashboard"
 import { envContext } from "@/core/context"
 import {
+	type DraftState,
 	draftHeading,
+	draftState,
 	getDraftEditorPath,
 	isDraftDirty,
 } from "@/core/editor/drafts"
@@ -59,6 +61,17 @@ import { PATHS } from "@/ui/lib/constants"
 import type { Route } from "./+types/dashboard"
 
 const DISCARD_DRAFT_INTENT = "discard-draft"
+
+/**
+ * What a card calls each state a Draft can be in. "Unsaved changes" is gone:
+ * the changes are saved — kobun has them — they are just not published, which
+ * is also what the Collection list says about the same Draft.
+ */
+const DRAFT_STATE_LABELS: Record<DraftState, string> = {
+	clean: "Published",
+	dirty: "Unpublished changes",
+	"never-published": "Unpublished",
+}
 
 /**
  * Three round-trips before a single Draft can be listed, none of which decides
@@ -349,12 +362,7 @@ function DraftsSection({ drafts }: { drafts: DashboardDraft[] }) {
 			{drafts.map((draft) => {
 				const dirty = isDraftDirty(draft)
 				const href = getDraftEditorPath(draft, draft.project)
-				const state =
-					draft.publishedRevision === null
-						? "Unpublished"
-						: dirty
-							? "Unsaved changes"
-							: "Published"
+				const state = DRAFT_STATE_LABELS[draftState(draft)]
 				return (
 					<Card key={draft.id} size="sm">
 						{/* An explicit `minmax(0, 1fr)` column: the header's implicit one
