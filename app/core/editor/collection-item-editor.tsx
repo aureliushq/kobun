@@ -36,6 +36,8 @@ export type OpenedContent = {
 	draftId: string | null
 	fields: FieldRecord
 	revision: number | null
+	/** Whether the Draft holds bytes the Source lacks: **Dirty**. */
+	dirty: boolean
 }
 
 const initialAutosaveState: AutosaveState = {
@@ -128,6 +130,13 @@ export function CollectionItemEditor({
 	// the moment it is sent, so the save behind the minting one carries the id
 	// that save minted instead of the null this render was built on.
 	const draftIdRef = useRef(opened?.draftId ?? null)
+	// Whether the repository is behind — the Draft holds bytes the Source does
+	// not. Seeded from what `open` decided, then moved by the answers to the
+	// mutations this component already sends. The header warns a departing
+	// writer on it when Save to GitHub is their primary (ADR-0008).
+	const [hasUncommittedWork, setHasUncommittedWork] = useState(
+		opened?.dirty ?? false,
+	)
 	const mutationQueueRef = useRef<Promise<void>>(Promise.resolve())
 	const [autosaveState, setAutosaveState] =
 		useState<AutosaveState>(initialAutosaveState)
@@ -223,6 +232,12 @@ export function CollectionItemEditor({
 						draftIdRef.current = result.draftId ?? draftIdRef.current
 						revisionRef.current = result.revision
 					}
+					// Only a save leaves the repository behind. A Commit reached it
+					// even where the guarded sync could not claim the Draft — the
+					// bytes are there either way.
+					setHasUncommittedWork(
+						intent === EditorActionIntents.SAVE && !result.draftDeleted,
+					)
 					if (
 						canonicalMetadata(fieldsRef.current) ===
 						canonicalMetadata(fieldsSnapshot)
@@ -329,6 +344,10 @@ export function CollectionItemEditor({
 			canPublish: canPublish && !pending && isEditorReady && !isCommitting,
 			canSave: !pending && isEditorReady && !isCommitting,
 			commit,
+			// Errs toward warning: a Draft the Source lacks, or keystrokes autosave
+			// has not persisted yet. A false warning costs a dialogue; a missed one
+			// costs the writer their bearings about what GitHub actually holds.
+			hasUncommittedWork: hasUncommittedWork || combinedAutosaveState.isDirty,
 			isPropertiesOpen,
 			// Absent rather than disabled where the Collection has no `publish`
 			// Feature: the header renders no button at all (ADR-0008).
@@ -341,6 +360,7 @@ export function CollectionItemEditor({
 			combinedAutosaveState,
 			canPublish,
 			commit,
+			hasUncommittedWork,
 			isEditorReady,
 			isPropertiesOpen,
 			isCommitting,
@@ -370,6 +390,9 @@ export function CollectionItemEditor({
 		return () => window.clearTimeout(timeout)
 	}, [isCommitting, metadataDirty, metadataGeneration, pending])
 
+	// Only about bytes D1 does not have yet. Whether the *repository* is behind
+	// is a question about the target the writer chose, and this component
+	// deliberately does not know which that is — the layout owns that guard.
 	useEffect(() => {
 		const handleBeforeUnload = (event: BeforeUnloadEvent) => {
 			if (!metadataDirty && !editorRef.current?.hasUnsavedChanges()) return

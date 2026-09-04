@@ -660,6 +660,7 @@ export function createDrafts(context: DraftsContext) {
 				}),
 				ok: true,
 				revision: null,
+				dirty: false,
 				source: null,
 			}
 		}
@@ -672,6 +673,9 @@ export function createDrafts(context: DraftsContext) {
 			fields: draftFields(draft, defaultFields),
 			ok: true,
 			revision: draft.revision,
+			// A new item's Draft has never reached the repository, so it is Dirty
+			// by definition — there is no Source behind it to be Clean against.
+			dirty: true,
 			source: null,
 		}
 	}
@@ -697,6 +701,7 @@ export function createDrafts(context: DraftsContext) {
 				: source.frontmatter,
 			ok: true,
 			revision: draft?.revision ?? null,
+			dirty: dirty !== null,
 			source,
 		}
 	}

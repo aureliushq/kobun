@@ -70,6 +70,13 @@ export type OpenResult =
 			revision: number | null
 			/** Absent for a new item, which has no Source until it is published. */
 			source: ResolvedSource | null
+			/**
+			 * Whether the Draft holds work the Source lacks — **Dirty**, and the
+			 * glossary's word for it. Reported here rather than left to the
+			 * caller because a Clean Draft still has a row, so the presence of
+			 * one says nothing about whether the repository is behind.
+			 */
+			dirty: boolean
 	  }
 	| { code: "not-found"; ok: false }
 

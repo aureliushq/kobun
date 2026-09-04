@@ -42,6 +42,10 @@ export default [
 			"routes/api.collection-editor.ts",
 		),
 		route("repo-asset/:owner/:name/*", "routes/api.repo-asset.ts"),
+		route(
+			"set-editor-primary-action",
+			"routes/api.set-editor-primary-action.ts",
+		),
 		route("set-theme", "routes/api.set-theme.ts"),
 	]),
 	route("/component-examples", "routes/example.tsx"),

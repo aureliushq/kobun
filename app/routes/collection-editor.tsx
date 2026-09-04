@@ -7,6 +7,7 @@ import {
 } from "react-router"
 import { managedField } from "@/config/features"
 import type { Collection } from "@/config/types"
+import { SET_PRIMARY_ACTION_PATH } from "@/core/components/layouts/use-primary-editor-action"
 import {
 	CollectionItemEditor,
 	type OpenedContent,
@@ -167,9 +168,14 @@ function getDraftTarget(
 export function shouldRevalidate({
 	currentUrl,
 	defaultShouldRevalidate,
+	formAction,
 	nextUrl,
 }: ShouldRevalidateFunctionArgs) {
 	if (isDraftAdoptionNavigation(currentUrl, nextUrl)) return false
+	// Choosing which target the header's primary button runs is chrome. It says
+	// nothing about the item being edited, and re-reading the Source would cost
+	// a GitHub round trip for a menu click made mid-sentence.
+	if (formAction === SET_PRIMARY_ACTION_PATH) return false
 	return defaultShouldRevalidate
 }
 
@@ -182,6 +188,7 @@ function openedContent(
 		draftId: opened.draftId,
 		fields: opened.fields,
 		revision: opened.revision,
+		dirty: opened.dirty,
 	}
 }
 

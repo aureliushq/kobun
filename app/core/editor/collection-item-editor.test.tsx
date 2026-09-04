@@ -68,6 +68,7 @@ function opened(overrides: Partial<OpenedContent> = {}): OpenedContent {
 		draftId: null,
 		fields: { slug: "hello", summary: "A summary", title: "Hello world" },
 		revision: null,
+		dirty: false,
 		...overrides,
 	}
 }
@@ -253,6 +254,41 @@ describe("a commit that answers with what it wrote", () => {
 		await waitFor(() => {
 			expect(screen.getByDisplayValue("The stamped summary")).toBeVisible()
 		})
+	})
+
+	// The commit put the bytes in the repository, so there is nothing left for
+	// the header to warn a departing writer about (#107).
+	it("tells the header the repository is no longer behind", async () => {
+		vi.mocked(fetch).mockResolvedValue(
+			new Response(JSON.stringify({ draftDeleted: true, ok: true })),
+		)
+		const { setControls } = editor(opened({ dirty: true }))
+
+		expect(lastControls(setControls)?.hasUncommittedWork).toBe(true)
+
+		await act(async () => {
+			await lastControls(setControls)?.commit()
+		})
+
+		await waitFor(() => {
+			expect(lastControls(setControls)?.hasUncommittedWork).toBe(false)
+		})
+	})
+})
+
+describe("what the header is told about the repository", () => {
+	it("passes on what opening the item decided", () => {
+		const { setControls } = editor(opened({ dirty: true }))
+
+		expect(lastControls(setControls)?.hasUncommittedWork).toBe(true)
+	})
+
+	// A Clean Draft has a row and is still fully in the repository, so a writer
+	// who opened one and changed nothing must not be warned on the way out.
+	it("reads a clean draft as nothing the repository lacks", () => {
+		const { setControls } = editor(opened({ draftId: "d1" }))
+
+		expect(lastControls(setControls)?.hasUncommittedWork).toBe(false)
 	})
 })
 

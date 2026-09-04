@@ -9,6 +9,12 @@ export interface EditorLayoutControls {
 	canSave: boolean
 	commit: () => Promise<void>
 	/**
+	 * Whether the repository is behind what the writer has: a Draft holding
+	 * bytes the Source lacks, or keystrokes autosave has not persisted yet. The
+	 * header warns on it when Save to GitHub is the primary (ADR-0008).
+	 */
+	hasUncommittedWork: boolean
+	/**
 	 * The properties panel's open state and its toggle, for routes that have
 	 * one. The layout owns the header, so the button lives there; the route
 	 * still owns the state. Routes without a panel leave both undefined and the
