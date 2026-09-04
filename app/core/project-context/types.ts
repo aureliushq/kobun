@@ -43,8 +43,15 @@ export type ProjectContextRefusal = "anonymous" | "no-project"
  * success arm below rather than as a refusal, because a repository with no
  * Config is still a repository this user connected — and its dashboard is where
  * it says so.
+ *
+ * `config-unreadable` is the third thing, and not a kind of invalid: an
+ * unreachable repository says nothing about the file in it, so a Project whose
+ * Config is fine must not be reported as broken during a blip (ADR-0003).
  */
-export type ConfigProblem = "config-invalid" | "config-missing"
+export type ConfigProblem =
+	| "config-invalid"
+	| "config-missing"
+	| "config-unreadable"
 
 /**
  * Who is asking and which Project they mean: the access question, answered

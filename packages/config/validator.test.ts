@@ -139,3 +139,35 @@ it("ignores a managed marker a Config writes itself", () => {
 	expect(errors).toEqual([])
 	expect(config?.collections.posts.schema.title).not.toHaveProperty("managed")
 })
+
+// A Config that declares nothing parses to `null`, and `null` is all the caller
+// gets — so every way of reaching it has to leave a reason behind, or the
+// dashboard is left inventing one (ADR-0003 amendment).
+describe("a Config that declares nothing", () => {
+	it("says so when the collections map is empty", () => {
+		const { config, errors } = parse({ collections: {} })
+
+		expect(config).toBeNull()
+		expect(errors).toHaveLength(1)
+		expect(errors[0].code).toBe("no_collections")
+		expect(errors[0].path).toBe("collections")
+	})
+
+	// `YAML.parse` answers an empty document with `null`, and reading `basePath`
+	// off that threw a TypeError past every caller but the one that happened to
+	// wrap it.
+	it("reports an empty YAML file rather than throwing", () => {
+		const { config, errors } = validateConfig("", "yaml")
+
+		expect(config).toBeNull()
+		expect(errors).toHaveLength(1)
+		expect(errors[0].code).toBe("parse_error")
+	})
+
+	it("reports a file that is not an object at all", () => {
+		const { config, errors } = validateConfig('"just a string"', "json")
+
+		expect(config).toBeNull()
+		expect(errors[0].code).toBe("parse_error")
+	})
+})

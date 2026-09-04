@@ -1,5 +1,10 @@
 import { eq } from "drizzle-orm"
-import type { NormalizedConfig } from "@/config/types"
+import {
+	NO_CONFIG_ERROR,
+	scopeConfigErrors,
+	storedConfigErrors,
+} from "@/config/errors"
+import type { ConfigError, NormalizedConfig } from "@/config/types"
 import { configFileFormat, validateConfig } from "@/config/validator"
 import { project } from "@/db/schema/app-schema"
 import {
@@ -32,6 +37,7 @@ export interface ConfigResolution {
 /** The columns the cache owns. Everything else on the row belongs to somebody else. */
 interface ConfigColumns {
 	configData: string | null
+	configError: string | null
 	configEtag: string | null
 	configPath: string
 	configSha: string | null
@@ -89,11 +95,20 @@ function servable(row: ConfigRow): ConfigResolution | null {
 	return config ? { config, status: ConfigStatus.PRESENT } : null
 }
 
-/** A Config file's bytes, classified. The Format follows the path, as it always has. */
-function parseConfig(path: string, content: string): ConfigResolution {
-	const { config } = validateConfig(content, configFileFormat(path))
+/**
+ * A Config file's bytes, classified, with what the validator could not read.
+ * The Format follows the path, as it always has, and so does the path a parse
+ * error names.
+ */
+interface ParsedConfig extends ConfigResolution {
+	errors: ConfigError[]
+}
+
+function parseConfig(path: string, content: string): ParsedConfig {
+	const { config, errors } = validateConfig(content, configFileFormat(path))
 	return {
 		config,
+		errors: scopeConfigErrors(errors, path),
 		status: config ? ConfigStatus.PRESENT : ConfigStatus.ERROR,
 	}
 }
@@ -144,9 +159,15 @@ export function createConfigCache(deps: {
 
 	/**
 	 * A revalidation is news about the Config, not a change to the Project. It
-	 * leaves `configError` and `status` to the dashboard sync that owns them,
-	 * and carries `updatedAt` through by hand — the column has an `$onUpdate`,
-	 * and setup's recent-Projects list is ordered by it.
+	 * leaves the Project's own `status` to the dashboard sync that owns it, and
+	 * carries `updatedAt` through by hand — the column has an `$onUpdate`, and
+	 * setup's recent-Projects list is ordered by it.
+	 *
+	 * `configError` is not on that list: it says what is wrong with the Config,
+	 * so it belongs to whichever path last looked, or the dashboard reports a
+	 * problem the repository has already stopped having (ADR-0003 amendment).
+	 * A call with no columns writes none of them — nothing was read, so nothing
+	 * is news.
 	 */
 	async function recordCheck(
 		row: ProjectWithGithubInstallation,
@@ -169,15 +190,16 @@ export function createConfigCache(deps: {
 		path: string,
 		read: Extract<ConfigSourceRead, { kind: "content" }>,
 	): Promise<ConfigResolution> {
-		const resolution = parseConfig(path, read.content)
+		const { config, errors, status } = parseConfig(path, read.content)
 		await recordCheck(row, now, {
-			configData: resolution.config ? JSON.stringify(resolution.config) : null,
+			configData: config ? JSON.stringify(config) : null,
+			configError: storedConfigErrors(errors),
 			configEtag: read.etag,
 			configPath: path,
 			configSha: read.sha,
-			configStatus: resolution.status,
+			configStatus: status,
 		})
-		return resolution
+		return { config, status }
 	}
 
 	/**
@@ -203,6 +225,9 @@ export function createConfigCache(deps: {
 
 		await recordCheck(row, now, {
 			configData: null,
+			// Whatever was wrong with the Config that used to be here, that is
+			// not what is wrong now.
+			configError: storedConfigErrors([NO_CONFIG_ERROR]),
 			configEtag: null,
 			// A Config that disappears keeps the path it was last found at: that
 			// is still the best guess for where a restored one will be.
@@ -252,6 +277,9 @@ export function createConfigCache(deps: {
 		if (remembered && found.sha === row.configSha) {
 			await recordCheck(row, now, {
 				configData: row.configData,
+				// Nothing was re-parsed, so the stored errors still describe the
+				// bytes this row holds.
+				configError: row.configError,
 				configEtag: found.etag,
 				configPath: row.configPath,
 				configSha: row.configSha,

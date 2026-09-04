@@ -101,16 +101,16 @@ test("reports a Config that does not validate", async () => {
 	})
 })
 
-test("reports a Config it could not classify at all", async () => {
-	// An unreachable repository with nothing cached to fall back on: the module
-	// cannot say the Config is missing, only that this Project has none. Every
-	// answer that is not "found and parsed" is reported the same way.
+test("reports a repository it could not reach as its own problem", async () => {
+	// An unreachable repository with nothing cached to fall back on. The module
+	// cannot say the Config is missing or broken — it never saw one — and a
+	// writer whose Config is fine must not be told that it is not.
 	const { configSource, projectContext } = setup()
 	configSource.failNext(new Error("API rate limit exceeded"))
 
 	expect(await projectContext.resolve(TARGET)).toMatchObject({
 		config: null,
-		configProblem: "config-invalid",
+		configProblem: "config-unreadable",
 		ok: true,
 	})
 })

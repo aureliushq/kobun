@@ -253,36 +253,52 @@ function ValidationErrorAlert({
 }
 
 /**
- * A Config the resolver could not classify at all — an unreachable repository
- * as much as a broken file. It gets its own arm rather than falling through to
- * "Invalid config", which would tell a writer whose Config is fine that it is
- * not.
+ * A repository the resolver could not reach, which is not the same as a file it
+ * could not read. It gets its own arm rather than falling through to "Invalid
+ * config", which would tell a writer whose Config is fine that it is not.
  */
 const UNREADABLE_CONFIG = "unreadable_config"
 
+const UNREADABLE_CONFIG_ERROR: ConfigError = {
+	code: UNREADABLE_CONFIG,
+	message:
+		"Kobun could not reach or read this repository's configuration. Refresh the configuration to try again.",
+	path: "",
+}
+
+/**
+ * What is left to say about a Config kobun did read and could not use, when the
+ * row holds no list of what was wrong with it. Only a Project connected before
+ * the cache began storing that list gets here.
+ */
+const INVALID_CONFIG_ERROR: ConfigError = {
+	code: "invalid_config",
+	message:
+		"This repository's configuration could not be used. Refresh the configuration to see what is wrong with it.",
+	path: "",
+}
+
 /**
  * What to tell a writer whose Project resolved without a Config (ADR-0007).
- * `syncProjectConfig` writes what it found on connect and on every refresh, and
- * the alerts below already know how to render one — so the stored list is what
- * this shows, and the problem only stands in when there is none to read.
+ * Both writers of `configError` — the sync, and the Config cache every
+ * navigation resolves through — leave behind what they last found, and the
+ * alerts below already know how to render one, so the stored list is what this
+ * shows.
+ *
+ * The two cases it does not read that column for: a repository nothing could be
+ * read from, where the column describes some earlier visit rather than this
+ * one, and a row written before either writer stored anything.
  */
 function configProblemErrors(
 	problem: ConfigProblem,
 	stored: string | null,
 ): ConfigError[] {
+	if (problem === "config-unreadable") return [UNREADABLE_CONFIG_ERROR]
+
 	const errors = parseConfigErrors(stored)
 	if (errors.length > 0) return errors
 
-	return [
-		problem === "config-missing"
-			? NO_CONFIG_ERROR
-			: {
-					code: UNREADABLE_CONFIG,
-					message:
-						"Kobun could not reach or read this repository's configuration. Refresh the configuration to try again.",
-					path: "",
-				},
-	]
+	return [problem === "config-missing" ? NO_CONFIG_ERROR : INVALID_CONFIG_ERROR]
 }
 
 function UnreadableConfigAlert({ message }: { message: string }) {

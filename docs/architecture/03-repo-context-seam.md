@@ -98,7 +98,9 @@ behavior.
 **Implementation note:** two parallel loaders (layout + child route) can both cross the TTL
 and race the opportunistic row rewrite. Last-write-wins on identical data is benign, but the
 rewrite must not clobber a concurrent dashboard sync's richer update (sync also writes
-`configError`/`status`).
+`configError`/`status`). As built, only the Project's own `status` is the sync's alone;
+`configError` moved to the cache, so the two writers race on it exactly as they do on
+`configStatus` (ADR 0003, second amendment).
 
 ## Dependencies / sequencing
 

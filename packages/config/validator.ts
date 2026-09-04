@@ -32,6 +32,22 @@ export const validateConfig = (
 		}
 	}
 
+	// A YAML document that is empty, or holds only comments, parses to `null`,
+	// and a file holding a bare scalar parses to one — neither is a Config, and
+	// reading a key off the first throws.
+	if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+		return {
+			config: null,
+			errors: [
+				{
+					code: "parse_error",
+					message: "Configuration file is empty or is not an object.",
+					path: "",
+				},
+			],
+		}
+	}
+
 	const parsedRaw = parsed as Record<string, unknown>
 	const errors: ConfigError[] = []
 
@@ -123,6 +139,18 @@ export const validateConfig = (
 
 	const hasAnything =
 		Object.keys(collections).length > 0 || Object.keys(singletons).length > 0
+
+	// A Config declaring an empty `collections` map is refused like any other
+	// that declares nothing — and until now it was the one way to be refused
+	// with nothing said, which left the dashboard inventing a reason.
+	if (!hasAnything && errors.length === 0) {
+		errors.push({
+			code: "no_collections",
+			message:
+				"Configuration declares no collections and no singletons. Declare at least one.",
+			path: "collections",
+		})
+	}
 
 	const config: NormalizedConfig | null = hasAnything
 		? {
