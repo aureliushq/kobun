@@ -3,7 +3,6 @@ export const PATHS = {
 	COLLECTIONS: "collections",
 	EDITOR: "editor/collections",
 	LOGIN: "/login",
-	SETTINGS: "/settings",
 	SETUP: "/setup",
 	SINGLETONS: "editor/singletons",
 }

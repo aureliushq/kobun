@@ -8,7 +8,6 @@ import {
 	HouseIcon,
 	InfoIcon,
 	LogOutIcon,
-	SettingsIcon,
 } from "lucide-react"
 import { useState } from "react"
 import { Form, Link, useLocation } from "react-router"
@@ -304,17 +303,6 @@ const DashboardSidebar = ({
 				<SidebarFooter className="px-0">
 					<SidebarGroup>
 						<SidebarMenu>
-							<SidebarMenuItem>
-								<SidebarMenuButton
-									isActive={location.pathname === PATHS.SETTINGS}
-									render={
-										<Link className="sidebar-menu-button" to={PATHS.SETTINGS} />
-									}
-								>
-									<SettingsIcon />
-									<span>Settings</span>
-								</SidebarMenuButton>
-							</SidebarMenuItem>
 							<SidebarMenuItem>
 								<Form
 									action="/api/dashboard-actions"
