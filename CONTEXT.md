@@ -23,6 +23,8 @@ Glossary of domain terms. Keep implementation details out — this is vocabulary
 
 - **Project** — a user's connection of one GitHub repository to Kobun, through a GitHub App installation. All content access happens through a Project; a repo the user doesn't have a Project for is invisible to them.
 - **Config** — a Project's parsed and validated Kobun configuration, declaring its Collections and Singletons. Lives as a file in the repository; a Project whose Config is missing or invalid has no browsable content.
+- **Disconnect** — removing a Project. Kobun forgets the repository and deletes the **Drafts** it held; the **Sources** are untouched and the GitHub App installation remains, so the same repository can be connected again. The only act that destroys a Dirty Draft in bulk.
+- **Preference** — an account-scoped choice about how Kobun looks and behaves for one person. A Preference follows the writer across every Project, is held by Kobun rather than by any repository, and never changes what a **Commit** writes — anything that would is the **Config**'s.
 
 ## Content structure
 

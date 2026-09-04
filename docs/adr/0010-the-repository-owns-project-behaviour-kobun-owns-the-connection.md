@@ -1,0 +1,30 @@
+---
+status: accepted
+---
+
+# The repository owns Project behaviour; Kobun owns the connection
+
+Kobun had no settings page, and a sidebar link that pretended otherwise ([#117](https://github.com/aureliushq/kobun/issues/117)). Building one first needs an answer to a question the product had never been asked: when a writer wants to change how Kobun behaves, who is supposed to hold that answer? The obvious reading — a settings page holds settings — is the wrong one here, because Kobun is git-backed and a Project's **Config** already holds a great deal of it. Collections, Singletons, schemas and Features are declared in `.kobun.json` in the writer's own repository, and a second place to declare things about the same repository would be a second source of truth for the same subject.
+
+The line is drawn by **what a setting is about**, not by who happens to change it or how often.
+
+**A setting about the repository's content belongs in the Config.** A commit message template, a target branch, the format a publish timestamp is stamped in, the way YAML is emitted, the default sort of a Collection's list — every one of these describes the repository, shows up in its diffs, and should be the same for everyone who writes into it. Putting them in the repository makes them versioned, reviewable in a pull request, portable when the writer leaves Kobun, and true for a team rather than for whoever configured it last. A Project settings page therefore **shows** these values and links to the file that declares them. It does not edit them.
+
+**A setting about the connection belongs to Kobun.** Which repository a Project points at, whether the GitHub App can still see it, whether the Config last parsed, and whether the Project should exist at all. None of this can live in the repository, because it is the relationship between the repository and Kobun rather than a fact about the content — and a **Disconnect** control that lived in the file it deletes would be absurd.
+
+**A Preference is neither.** It is one person's choice about how Kobun looks and behaves for them — whether the properties panel starts open, how wide the writing column is, whether dates read as "3 months ago" or as a date. It follows the writer across every Project, so it cannot belong to any one repository, and it is not shared with the team, so it must not. Preferences live in a `userPreference` table in Kobun's database, keyed by user. The test that keeps the boundary honest: **a Preference never changes what a Commit writes.** Anything that would is the Config's.
+
+## Consequences
+
+- The settings surface is two pages, because it is two scopes: `/:owner/:name/settings` for the Project and `/settings` for the account. The account page gets its own layout rather than borrowing the dashboard's — the dashboard layout's entire data contract is an active Project, resolved by `requireProjectPage` and read by both the sidebar and the header breadcrumb, and making it optional would push nullability through all three to save one file.
+- **Theme stays a cookie**, and this is the one place the rule is bent. `app/root.tsx` reads it server-side so the first byte paints in the right theme, and `/login` and `/setup` render before there is a user to look up — a `userPreference` row cannot answer for someone who is not signed in yet. `packages/ui/theme.server.ts` keeps the job. Every other Preference is reachable only from authenticated surfaces, so the database is always available to them.
+- Several things a writer might reasonably expect on a settings page are not settable there, and the page has to say why rather than stay silent: the commit message template, the timestamp format and the YAML output style are all Config's, and the page links to the file instead of offering a field. This is the cost of the rule, and it is paid visibly.
+- A Project's settings page must work when its Config does not. [ADR-0007](./0007-a-project-with-no-config-still-has-a-dashboard.md) already says a Project with no Config still has a dashboard; the same holds here with more force, because a broken Config is exactly when a writer goes looking for the connection controls.
+- Some things this rule classifies are not settings yet at all. A target branch has nowhere to be declared because no branch parameter exists anywhere in the write path — `packages/github/octokit.server.ts` passes no `branch`, so every write lands on the repo's default branch. Naming its owner does not build it; it says which side builds it when someone does.
+- The rule also says what is *not* a setting. `app/core/project-context/config-cache.ts` states that its TTL is the staleness bound rather than an optimization knob ([ADR-0003](./0003-config-served-from-d1-cache-with-ttl-revalidation.md)); a value a module declares as its contract does not become a Preference merely because it is a number.
+
+## Considered options
+
+- **Kobun's database holds everything, and the settings page edits it all.** The page is simpler, every field is editable without a commit, and it works when the Config is broken. Rejected because it quietly undoes the premise: a writer's commit conventions and content layout would become invisible to their repository, unversioned, unreviewable, absent for their collaborators, and lost the day they stop using Kobun. Kobun would own facts about content it does not own.
+- **The Config declares a default and a Kobun-side value overrides it.** The most flexible, and the answer if a team default and a personal override ever genuinely diverge. Rejected for now: it is two sources of truth with a precedence rule to explain in the UI, for a product in alpha where no such conflict has been observed. It remains reachable from the rule as written — an override layer can be added later; unpicking one cannot.
+- **Preferences in cookies, extending the theme pattern.** No schema, no migration, no loader changes. Rejected because a preference that does not follow the writer to their other browser, their laptop, or past a cleared cookie jar is not really remembered — and unlike theme, none of these need to answer before there is a user.
