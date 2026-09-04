@@ -43,21 +43,27 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
 	}
 }
 
+/**
+ * The three things the header can ask the editor to do. Save and Save to GitHub
+ * differ in target and nothing else; Publish means something else entirely, and
+ * exists only where the Collection has a Publication State to declare (ADR-0008).
+ */
+type EditorAction = "save" | "commit" | "publish"
+
 const EditorLayout = ({ loaderData }: Route.ComponentProps) => {
 	const { parentLabel, parentPath } = loaderData
 	const [controls, setControls] = useState<EditorLayoutControls | null>(null)
-	const [pendingAction, setPendingAction] = useState<"save" | "publish" | null>(
-		null,
-	)
+	const [pendingAction, setPendingAction] = useState<EditorAction | null>(null)
 	const [actionError, setActionError] = useState<string | null>(null)
 	const contextValue = useMemo(() => ({ setControls }), [])
 
-	const runAction = async (action: "save" | "publish") => {
-		if (!controls) return
+	const runAction = async (action: EditorAction) => {
+		const run = controls?.[action]
+		if (!run) return
 		setPendingAction(action)
 		setActionError(null)
 		try {
-			await controls[action]()
+			await run()
 		} catch (error) {
 			setActionError(
 				error instanceof Error ? error.message : "Editor action failed",
@@ -134,18 +140,39 @@ const EditorLayout = ({ loaderData }: Route.ComponentProps) => {
 						>
 							Save
 						</Button>
+						{/* Two buttons for now; #107 folds them into one split
+						    control that remembers which target the writer chose. */}
 						<Button
 							type="button"
+							variant="outline"
 							disabled={
-								!controls?.canPublish ||
+								!controls?.canCommit ||
 								controls.autosaveState.isSaving ||
 								pendingAction !== null
 							}
-							title={controls?.publishDisabledReason}
-							onClick={() => void runAction("publish")}
+							onClick={() => void runAction("commit")}
 						>
-							{pendingAction === "publish" ? "Publishing…" : "Publish"}
+							{pendingAction === "commit"
+								? "Saving to GitHub…"
+								: "Save to GitHub"}
 						</Button>
+						{/* Absent, not disabled, where the Collection has no `publish`
+						    Feature: there is nothing for it to do that Save to GitHub
+						    does not already do. */}
+						{controls?.publish ? (
+							<Button
+								type="button"
+								disabled={
+									!controls.canPublish ||
+									controls.autosaveState.isSaving ||
+									pendingAction !== null
+								}
+								title={controls.publishDisabledReason}
+								onClick={() => void runAction("publish")}
+							>
+								{pendingAction === "publish" ? "Publishing…" : "Publish"}
+							</Button>
+						) : null}
 					</div>
 				</header>
 				<section className="flex-1 overflow-auto">

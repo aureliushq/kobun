@@ -116,7 +116,9 @@ export function CollectionItemEditor({
 	const fieldsRef = useRef(fields)
 	const [metadataDirty, setMetadataDirty] = useState(false)
 	const [metadataGeneration, setMetadataGeneration] = useState(0)
-	const [isPublishing, setIsPublishing] = useState(false)
+	// Either commit holds the editor: the Draft is deleted underneath it, so
+	// nothing may be typed into a document whose Source is mid-flight.
+	const [isCommitting, setIsCommitting] = useState(false)
 	const { isMobile, isOpen: isPropertiesOpen, setIsOpen, toggle } = panel
 	const [isEditorReady, setIsEditorReady] = useState(false)
 	const [editorInstance, setEditorInstance] = useState<Editor | null>(null)
@@ -201,6 +203,8 @@ export function CollectionItemEditor({
 						draftDeleted?: boolean
 						draftId?: string | null
 						error?: string
+						fields?: FieldRecord | null
+						itemPath?: string
 						revision?: number | null
 						collectionPath?: string
 					} = {}
@@ -224,11 +228,31 @@ export function CollectionItemEditor({
 						canonicalMetadata(fieldsSnapshot)
 					)
 						setMetadataDirty(false)
-					// Awaited so the editor stays in its publishing state until the
+					// What the commit actually wrote, stamps included. A Save to GitHub
+					// leaves the writer here with the Draft already deleted, so fields
+					// still holding pre-stamp values would read as Dirty against the
+					// Source the commit just created.
+					if (
+						result.fields &&
+						canonicalMetadata(fieldsRef.current) ===
+							canonicalMetadata(fieldsSnapshot)
+					) {
+						fieldsRef.current = result.fields
+						setFields(result.fields)
+					}
+					// Awaited so the editor stays in its committing state until the
 					// collection page has actually loaded, rather than sitting idle and
 					// re-clickable while its loader runs.
 					if (intent === EditorActionIntents.PUBLISH && result.collectionPath) {
 						await navigate(result.collectionPath, { replace: true })
+						return
+					}
+					// A Save to GitHub turned this new item into one the repository
+					// names. The URL has to follow, or the next keystroke mints a
+					// second Draft with no Source and the commit after it is refused
+					// as a duplicate slug.
+					if (result.itemPath) {
+						await navigate(result.itemPath, { replace: true })
 						return
 					}
 					if (mode === "new" && draftIdRef.current)
@@ -258,12 +282,21 @@ export function CollectionItemEditor({
 		await editorRef.current.save()
 	}, [])
 
+	const commit = useCallback(async () => {
+		setIsCommitting(true)
+		try {
+			await editorRef.current?.commit()
+		} finally {
+			setIsCommitting(false)
+		}
+	}, [])
+
 	const publish = useCallback(async () => {
-		setIsPublishing(true)
+		setIsCommitting(true)
 		try {
 			await editorRef.current?.publish()
 		} finally {
-			setIsPublishing(false)
+			setIsCommitting(false)
 		}
 	}, [])
 
@@ -271,6 +304,8 @@ export function CollectionItemEditor({
 		() => ({
 			onAutoSave: (markdown: string) =>
 				sendAction(EditorActionIntents.SAVE, markdown),
+			onCommit: (markdown: string) =>
+				sendAction(EditorActionIntents.COMMIT, markdown),
 			onPublish: (markdown: string) =>
 				sendAction(EditorActionIntents.PUBLISH, markdown),
 		}),
@@ -290,10 +325,14 @@ export function CollectionItemEditor({
 	const controls = useMemo(
 		() => ({
 			autosaveState: combinedAutosaveState,
-			canPublish: canPublish && !pending && isEditorReady && !isPublishing,
-			canSave: !pending && isEditorReady && !isPublishing,
+			canCommit: !pending && isEditorReady && !isCommitting,
+			canPublish: canPublish && !pending && isEditorReady && !isCommitting,
+			canSave: !pending && isEditorReady && !isCommitting,
+			commit,
 			isPropertiesOpen,
-			publish,
+			// Absent rather than disabled where the Collection has no `publish`
+			// Feature: the header renders no button at all (ADR-0008).
+			publish: canPublish ? publish : undefined,
 			publishDisabledReason: publishDisabledReason ?? undefined,
 			save,
 			toggleProperties: toggle,
@@ -301,9 +340,10 @@ export function CollectionItemEditor({
 		[
 			combinedAutosaveState,
 			canPublish,
+			commit,
 			isEditorReady,
 			isPropertiesOpen,
-			isPublishing,
+			isCommitting,
 			pending,
 			publish,
 			publishDisabledReason,
@@ -319,7 +359,7 @@ export function CollectionItemEditor({
 			metadataGeneration === 0 ||
 			!metadataDirty ||
 			!editorRef.current ||
-			isPublishing
+			isCommitting
 		)
 			return
 		const timeout = window.setTimeout(() => {
@@ -328,7 +368,7 @@ export function CollectionItemEditor({
 			})
 		}, 1000)
 		return () => window.clearTimeout(timeout)
-	}, [isPublishing, metadataDirty, metadataGeneration, pending])
+	}, [isCommitting, metadataDirty, metadataGeneration, pending])
 
 	useEffect(() => {
 		const handleBeforeUnload = (event: BeforeUnloadEvent) => {
@@ -345,7 +385,7 @@ export function CollectionItemEditor({
 			field={field}
 			value={fields[key]}
 			onChange={(value) => updateField(key, value)}
-			disabled={pending || isPublishing}
+			disabled={pending || isCommitting}
 			assetBaseUrl={assetBaseUrl}
 		/>
 	)
@@ -377,7 +417,7 @@ export function CollectionItemEditor({
 							<CollectionTitleField
 								value={String(fields[titleKey] ?? "")}
 								placeholder={titleField.placeholder}
-								disabled={pending || isPublishing}
+								disabled={pending || isCommitting}
 								onChange={(value) => updateField(titleKey, value)}
 								onCommit={() => editorRef.current?.focus("start")}
 							/>
@@ -393,7 +433,7 @@ export function CollectionItemEditor({
 							initialContent={opened.content}
 							onAutosaveStateChange={setAutosaveState}
 							persistence={persistence}
-							readOnly={isPublishing}
+							readOnly={isCommitting}
 						/>
 					)}
 				</div>

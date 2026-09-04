@@ -17,16 +17,18 @@ import { editorDraft } from "@/db/schema/app-schema"
 import { isDraftDirty } from "./draft-state"
 import {
 	stampAtCreation,
-	stampAtPublish,
+	stampTimestamps,
 	withoutCreationStamps,
+	withPublishedStatus,
 } from "./managed-stamps"
 import type {
+	CommitAction,
+	CommitInput,
+	CommitResult,
 	DraftRow,
 	DraftsContext,
 	OpenInput,
 	OpenResult,
-	PublishInput,
-	PublishResult,
 	ResolvedSaveInput,
 	ResolvedSource,
 	SaveInput,
@@ -277,11 +279,23 @@ export function createDrafts(context: DraftsContext) {
 	}
 
 	/**
-	 * Everything that must hold before a Draft may reach the repository, reported
-	 * together so the writer sees every problem at once rather than one per
-	 * attempt.
+	 * What must hold before a Draft may reach the repository at all: the Slug
+	 * becomes a filename, so it is constrained beyond being present. A commit with
+	 * no usable filename has nowhere to land, whichever action asked for it.
 	 */
-	function validatePublish(input: ResolvedSaveInput, slug: string) {
+	function validateSlug(slug: string) {
+		return slug && SLUG_PATTERN.test(slug)
+			? []
+			: ["Slug must be a valid nonempty filename slug"]
+	}
+
+	/**
+	 * What must hold before a Draft may be called finished. "Required" is a claim
+	 * about a *finished* item and Publish is the action that makes that claim, so
+	 * holding it against a Save to GitHub would make the backup useless for the
+	 * half-written post it exists for (ADR-0008).
+	 */
+	function validateContent(input: ResolvedSaveInput) {
 		const errors = validateMetadata(collection.schema, input.fields)
 		const documentRequired = Object.values(collection.schema).some(
 			(field) => field.type === "document" && field.required,
@@ -289,11 +303,21 @@ export function createDrafts(context: DraftsContext) {
 		if (documentRequired && !input.markdown.trim()) {
 			errors.push("Document content is required")
 		}
-		// The Slug becomes a filename, so it is constrained beyond being present.
-		if (!slug || !SLUG_PATTERN.test(slug)) {
-			errors.push("Slug must be a valid nonempty filename slug")
-		}
 		return errors
+	}
+
+	/**
+	 * Every gate a writer can fail, reported together so they see every problem at
+	 * once rather than one per attempt.
+	 */
+	function validateCommit(
+		input: ResolvedSaveInput,
+		slug: string,
+		action: CommitAction,
+	) {
+		return action === "publish"
+			? [...validateContent(input), ...validateSlug(slug)]
+			: validateSlug(slug)
 	}
 
 	/**
@@ -402,11 +426,12 @@ export function createDrafts(context: DraftsContext) {
 	 * gate has passed by the time this runs; what is left is the chain that must
 	 * not come apart — commit, sync, delete-when-Synced (ADR-0001).
 	 */
-	async function commit(
+	async function commitToSource(
 		input: ResolvedSaveInput,
 		draft: DraftRow,
 		itemSlug: string,
-	): Promise<PublishResult> {
+		action: CommitAction,
+	): Promise<CommitResult> {
 		const { source } = input
 		// A new item has no Source yet, so its Slug decides where it lands.
 		const path =
@@ -423,7 +448,12 @@ export function createDrafts(context: DraftsContext) {
 				source ? { raw: source.raw } : undefined,
 			),
 			expectedSha: source?.sha,
-			message: `${source ? "Update" : "Create"} ${path} with Kobun`,
+			// The publish is the notable event in a reviewer's history; a plain
+			// commit is a file change (ADR-0008).
+			message:
+				action === "publish"
+					? `Publish ${path} with Kobun`
+					: `${source ? "Update" : "Create"} ${path} with Kobun`,
 			path,
 		})
 		if (!committed.ok) return { code: "stale-source", ok: false }
@@ -439,9 +469,10 @@ export function createDrafts(context: DraftsContext) {
 			return {
 				commitSha: committed.commitSha,
 				draftId: draft.id,
+				fields: input.fields,
 				itemSlug,
 				ok: true,
-				outcome: "published-unsynced",
+				outcome: "committed-unsynced",
 			}
 		}
 		const draftDeleted = await deleteSyncedDraft(synced)
@@ -449,9 +480,10 @@ export function createDrafts(context: DraftsContext) {
 			commitSha: committed.commitSha,
 			draftDeleted,
 			draftId: draft.id,
+			fields: input.fields,
 			itemSlug,
 			ok: true,
-			outcome: "published",
+			outcome: "committed",
 			revision: draftDeleted ? null : draft.revision,
 		}
 	}
@@ -464,36 +496,59 @@ export function createDrafts(context: DraftsContext) {
 	 * (ADR-0001). What follows the gates is a chain that must not be split across
 	 * a seam: commit, sync the Draft to what landed, and delete it once the Source
 	 * has caught up.
+	 *
+	 * Both actions run all of this; they differ in what they stamp, what they gate
+	 * on, and what the commit message says (ADR-0008).
 	 */
-	async function publishResolved(
+	async function commitResolved(
 		input: ResolvedSaveInput,
-	): Promise<PublishResult> {
-		// Whether this publish needs a commit at all is decided against unstamped
-		// values, and the stamp lands before the Draft is persisted. The other way
-		// round, a Draft that survives the publish would disagree with its Source
-		// forever — it would hold the values the commit did not — and every later
-		// publish would commit a fresh timestamp (ADR-0005). A publish that commits
-		// nothing stamps nothing, so a refusal cannot turn a Clean Draft Dirty.
-		const unchanged = matchesSource(input)
+		action: CommitAction,
+	): Promise<CommitResult> {
+		// Publication State is declared *before* the comparison, so a transition is
+		// itself the change that gets committed: a Publish over a Source already
+		// committed as `draft` differs, and commits. No clock enters the comparison
+		// and the stamp is idempotent, so it reaches a fixed point in one step —
+		// publishing an item already `published` still compares equal and commits
+		// nothing (ADR-0008).
+		const intent: ResolvedSaveInput =
+			action === "publish"
+				? {
+						...input,
+						fields: withPublishedStatus(collection.schema, input.fields),
+					}
+				: input
+
+		// The timestamps are observational, so they land only once the comparison
+		// has decided there is a change — and before the Draft is persisted. The
+		// other way round, a Draft that survives the commit would disagree with its
+		// Source forever and every later commit would write a fresh timestamp
+		// (ADR-0005, #87). A commit that commits nothing stamps nothing, so a
+		// refusal cannot turn a Clean Draft Dirty.
+		const unchanged = matchesSource(intent)
 		const stamped: ResolvedSaveInput = unchanged
 			? input
 			: {
-					...input,
-					fields: stampAtPublish({
-						fields: input.fields,
+					...intent,
+					fields: stampTimestamps({
+						action,
+						fields: intent.fields,
 						now: now(),
 						schema: collection.schema,
-						source: input.source,
+						source: intent.source,
 					}),
 				}
 
-		// The writer's content is persisted before any gate runs: a publish we
-		// refuse must still keep what they typed.
-		const written = await writeDraft(stamped)
+		// The writer's content is persisted before any gate runs: a commit we
+		// refuse must still keep what they typed — and keep it as they typed it.
+		// Nothing the action would stamp goes in yet, because a commit that never
+		// happened must leave nothing behind: a `status: published` from a refused
+		// Publish would be committed verbatim by the next Save to GitHub, which is
+		// the one thing Save to GitHub must never do (ADR-0008).
+		const written = await writeDraft(input)
 		if (!written.ok) return written
 
 		const slug = effectiveSlug(stamped.fields)
-		const errors = validatePublish(stamped, slug)
+		const errors = validateCommit(stamped, slug, action)
 		if (errors.length) return { code: "validation", errors, ok: false }
 		if (await isSlugTaken(slug, stamped.source)) {
 			return { code: "duplicate-slug", ok: false, slug }
@@ -501,7 +556,7 @@ export function createDrafts(context: DraftsContext) {
 
 		const draft = written.draft
 		// The Draft was built on a version of the Source that is no longer there:
-		// publishing would drop whatever replaced it.
+		// committing would drop whatever replaced it.
 		if (
 			stamped.source &&
 			draft.sourceSha &&
@@ -511,7 +566,7 @@ export function createDrafts(context: DraftsContext) {
 		}
 
 		// Content the Source already holds needs no commit — and no Draft. Skipping
-		// it keeps a publish the writer changed nothing in out of the history.
+		// it keeps a commit the writer changed nothing in out of the history.
 		if (unchanged) {
 			if (!(await deleteDraft(draft))) {
 				return { code: "revision-conflict", ok: false }
@@ -523,7 +578,20 @@ export function createDrafts(context: DraftsContext) {
 				outcome: "matches-source",
 			}
 		}
-		return commit(stamped, draft, slug)
+
+		// Every gate has passed, so this commit is happening — and now the stamps
+		// go into the Draft, still before the commit itself. A Draft that outlives
+		// the commit then holds exactly what was committed, which is what keeps the
+		// churn bug from returning (#87). A Collection with no Managed Fields has
+		// nothing to add here and this writes nothing.
+		const restamped = await writeDraft({
+			...stamped,
+			draftId: draft.id,
+			expectedRevision: draft.revision,
+		})
+		if (!restamped.ok) return restamped
+
+		return commitToSource(stamped, restamped.draft, slug, action)
 	}
 
 	/**
@@ -678,12 +746,23 @@ export function createDrafts(context: DraftsContext) {
 		return saveResolved(resolved)
 	}
 
-	/** Commit the Draft for the item the caller addressed to its Source. */
-	async function publish(input: PublishInput): Promise<PublishResult> {
+	/**
+	 * Write the Draft for the item the caller addressed to its Source, and nothing
+	 * else. Publication State is left exactly as it was found, so what lands is
+	 * whatever the writer's fields already said (ADR-0008).
+	 */
+	async function commit(input: CommitInput): Promise<CommitResult> {
 		const resolved = await resolveTarget(input)
 		if (!resolved) return { code: "not-found", ok: false }
-		return publishResolved(resolved)
+		return commitResolved(resolved, "commit")
 	}
 
-	return { open, publish, save }
+	/** Commit the Draft, and declare the item published while doing it. */
+	async function publish(input: CommitInput): Promise<CommitResult> {
+		const resolved = await resolveTarget(input)
+		if (!resolved) return { code: "not-found", ok: false }
+		return commitResolved(resolved, "publish")
+	}
+
+	return { commit, open, publish, save }
 }

@@ -147,6 +147,17 @@ export const TEST_COLLECTION_WITH_FEATURES: Collection = resolveCollection({
 	schema: TEST_SCHEMA,
 })
 
+/**
+ * Timestamps on, `publish` off: the Collection that has no Publication State to
+ * declare, and for which Save to GitHub is the only path to the repository.
+ */
+export const TEST_COLLECTION_WITHOUT_PUBLISH: Collection = resolveCollection({
+	features: { timestamps: { createdAt: true, updatedAt: true } },
+	format: "md",
+	label: "Posts",
+	schema: TEST_SCHEMA,
+})
+
 export function createDraftsTestHarness(
 	options: {
 		collection?: Collection

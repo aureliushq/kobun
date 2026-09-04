@@ -105,6 +105,22 @@ describe("RichTextEditor autosave", () => {
 		expect(ref.current?.hasUnsavedChanges()).toBe(false)
 	})
 
+	it("commits the current markdown and marks it saved", async () => {
+		const testEditor = createTestEditor("Initial")
+		mocks.useEditor.mockReturnValue(testEditor.editor)
+		const onCommit = vi.fn()
+		const ref = createRef<EditorRefApi>()
+		render(<RichTextEditor ref={ref} persistence={{ onCommit }} />)
+
+		act(() => testEditor.update("Current content"))
+		await act(async () => ref.current?.commit())
+
+		expect(onCommit).toHaveBeenCalledWith("Current content")
+		// The bytes reached the repository and the writer stays in the editor, so
+		// warning them about unsaved work would be a lie.
+		expect(ref.current?.hasUnsavedChanges()).toBe(false)
+	})
+
 	it("publishes the current markdown without changing dirty state", async () => {
 		const testEditor = createTestEditor("Initial")
 		mocks.useEditor.mockReturnValue(testEditor.editor)

@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react"
+import { act, render, screen, waitFor } from "@testing-library/react"
 import { MemoryRouter } from "react-router"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import type { Collection, ResolvedField } from "@/config/types"
@@ -34,12 +34,16 @@ vi.mock("@/editor", () => ({
 	EditorWordCount: () => null,
 	RichTextEditor: (props: {
 		initialContent?: string
+		persistence?: { onCommit?: (markdown: string) => Promise<void> }
 		ref?: (api: unknown) => void
 	}) => {
 		mocks.richTextEditor(props.initialContent)
 		props.ref?.({
 			focus: vi.fn(),
 			getEditor: () => null,
+			// The one handler a test drives, so a commit reaches the route the way
+			// the real editor sends it.
+			commit: () => props.persistence?.onCommit?.(props.initialContent ?? ""),
 			hasUnsavedChanges: () => false,
 			publish: vi.fn(),
 			save: vi.fn(),
@@ -75,13 +79,17 @@ const panel: PropertiesPanel = {
 	toggle: vi.fn(),
 }
 
-function editor(content: OpenedContent | null, mode: "item" | "new" = "item") {
+function editor(
+	content: OpenedContent | null,
+	mode: "item" | "new" = "item",
+	canPublish = true,
+) {
 	const setControls = vi.fn()
 	const view = render(
 		<MemoryRouter>
 			<EditorLayoutContext.Provider value={{ setControls }}>
 				<CollectionItemEditor
-					canPublish={true}
+					canPublish={canPublish}
 					mode={mode}
 					name="site"
 					opened={content}
@@ -143,10 +151,11 @@ describe("a Collection Item whose content has not arrived", () => {
 		}
 	})
 
-	it("holds Save and Publish back, so neither can act on half a draft", () => {
+	it("holds every action back, so none can act on half a draft", () => {
 		const { setControls } = editor(null)
 
 		expect(lastControls(setControls)?.canSave).toBe(false)
+		expect(lastControls(setControls)?.canCommit).toBe(false)
 		expect(lastControls(setControls)?.canPublish).toBe(false)
 	})
 
@@ -186,11 +195,64 @@ describe("a Collection Item whose content has arrived", () => {
 		expect(screen.getByDisplayValue("A summary")).not.toBeDisabled()
 	})
 
-	it("hands Save and Publish back", () => {
+	it("hands Save, Save to GitHub and Publish back", () => {
 		const { setControls } = editor(opened())
 
 		expect(lastControls(setControls)?.canSave).toBe(true)
+		expect(lastControls(setControls)?.canCommit).toBe(true)
 		expect(lastControls(setControls)?.canPublish).toBe(true)
+	})
+})
+
+describe("a Collection with no publish feature", () => {
+	// Absent rather than disabled: there is no Publication State to declare, so
+	// there is nothing Publish would do that Save to GitHub does not (ADR-0008).
+	it("offers the header no Publish at all", () => {
+		const { setControls } = editor(opened(), "item", false)
+
+		expect(lastControls(setControls)?.publish).toBeUndefined()
+	})
+
+	it("still offers Save to GitHub, the only path to the repository", () => {
+		const { setControls } = editor(opened(), "item", false)
+
+		expect(lastControls(setControls)?.canCommit).toBe(true)
+		expect(lastControls(setControls)?.commit).toBeTypeOf("function")
+	})
+})
+
+describe("a commit that answers with what it wrote", () => {
+	// A Save to GitHub leaves the writer here with the Draft already deleted, so
+	// the panel has to show what landed rather than what it sent — otherwise the
+	// system's own stamps read as unsaved work (ADR-0008).
+	it("shows the committed Data in the properties panel", async () => {
+		vi.mocked(fetch).mockResolvedValue(
+			new Response(
+				JSON.stringify({
+					draftDeleted: true,
+					fields: {
+						slug: "hello",
+						status: "published",
+						summary: "The stamped summary",
+						title: "Hello world",
+					},
+					ok: true,
+				}),
+			),
+		)
+		const { setControls } = editor(opened())
+
+		await act(async () => {
+			await lastControls(setControls)?.commit()
+		})
+
+		const [, request] = vi.mocked(fetch).mock.calls[0] ?? []
+		expect(JSON.parse(String(request?.body))).toMatchObject({
+			intent: "commit",
+		})
+		await waitFor(() => {
+			expect(screen.getByDisplayValue("The stamped summary")).toBeVisible()
+		})
 	})
 })
 

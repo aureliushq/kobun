@@ -108,8 +108,15 @@ export type SaveResult =
 	/** A new item nobody has written into: there is no Draft, and no need for one. */
 	| { draftId: null; ok: true; outcome: "unwritten"; revision: null }
 
-/** Publishing carries the same content a save does; only the intent differs. */
-export type PublishInput = SaveInput
+/** Committing carries the same content a save does; only the target differs. */
+export type CommitInput = SaveInput
+
+/**
+ * Which of the two commit paths this is. Both write the Draft's content to its
+ * Source; only Publish also declares the item published, and it is the only
+ * thing that writes Publication State (ADR-0008).
+ */
+export type CommitAction = "commit" | "publish"
 
 /**
  * A transition the module refused. Every gate reports itself, so the caller can
@@ -121,7 +128,7 @@ export type DraftRefusal =
 	| { code: "not-found" | "revision-conflict" | "stale-source"; ok: false }
 	| { code: "validation"; errors: string[]; ok: false }
 
-export type PublishResult =
+export type CommitResult =
 	| DraftRefusal
 	/** The content already matched the Source: the Draft is gone, nothing was committed. */
 	| { draftId: string; itemSlug: string; ok: true; outcome: "matches-source" }
@@ -130,9 +137,16 @@ export type PublishResult =
 			commitSha?: string
 			draftDeleted: boolean
 			draftId: string
+			/**
+			 * The Data as it was committed, stamps included. A Save to GitHub leaves
+			 * the writer in the editor, so the caller needs what landed rather than
+			 * what it sent — state holding pre-stamp values would read as Dirty
+			 * against the Source the commit just created.
+			 */
+			fields: FieldRecord
 			itemSlug: string
 			ok: true
-			outcome: "published"
+			outcome: "committed"
 			revision: number | null
 	  }
 	/**
@@ -143,7 +157,8 @@ export type PublishResult =
 	| {
 			commitSha?: string
 			draftId: string
+			fields: FieldRecord
 			itemSlug: string
 			ok: true
-			outcome: "published-unsynced"
+			outcome: "committed-unsynced"
 	  }

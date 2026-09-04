@@ -12,6 +12,7 @@
 export type { CollectionDraft } from "./collection-drafts"
 export { listCollectionDrafts } from "./collection-drafts"
 export {
+	getCollectionItemEditorPath,
 	getCollectionPath,
 	getDraftEditorPath,
 	isDraftAdoptionNavigation,

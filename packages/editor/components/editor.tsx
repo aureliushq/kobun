@@ -121,6 +121,20 @@ export const RichTextEditor = forwardRef<EditorRefApi, RichTextEditorProps>(
 					await persistence.onAutoSave(markdown)
 					autosave.markContentSaved(markdown)
 				},
+				commit: async () => {
+					if (!editor)
+						throw new Error("Cannot commit before the editor is ready.")
+					if (!persistence?.onCommit) {
+						throw new Error(
+							"Cannot commit without a persistence.onCommit handler.",
+						)
+					}
+					// Unlike `publish`, the writer stays here afterwards, and the bytes
+					// are in the repository: there is nothing left unsaved to warn about.
+					const markdown = editor.getMarkdown()
+					await persistence.onCommit(markdown)
+					autosave.markContentSaved(markdown)
+				},
 				publish: async () => {
 					if (!editor)
 						throw new Error("Cannot publish before the editor is ready.")

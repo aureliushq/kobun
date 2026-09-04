@@ -24,5 +24,6 @@ export enum DashboardActionIntents {
 
 export enum EditorActionIntents {
 	SAVE = "save",
+	COMMIT = "commit",
 	PUBLISH = "publish",
 }

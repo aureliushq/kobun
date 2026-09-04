@@ -105,13 +105,14 @@ If omitted, `maxFileSize` defaults to 5 MB and accepted MIME types default to `i
 ```ts
 interface PersistenceAdapter {
   onAutoSave?: (markdown: string) => void | Promise<void>
+  onCommit?: (markdown: string) => void | Promise<void>
   onPublish?: (markdown: string) => void | Promise<void>
 }
 ```
 
-`onAutoSave` is debounced, skipped when content is unchanged, and may run asynchronously. `onPublish` only runs when the consumer calls `ref.publish()`; the editor does not render its own publish button. Persistence errors reject the corresponding `save()` or `publish()` call.
+`onAutoSave` is debounced, skipped when content is unchanged, and may run asynchronously. `onCommit` and `onPublish` only run when the consumer calls `ref.commit()` or `ref.publish()`; the editor renders neither button. Persistence errors reject the corresponding call.
 
-In Kobun, collection documents use D1 drafts for `onAutoSave` and commit the serialized Markdown file to GitHub through Octokit for `onPublish`.
+In Kobun, collection documents use D1 drafts for `onAutoSave`, and commit the serialized Markdown file to GitHub through Octokit for both `onCommit` and `onPublish` — the two differ in what the commit declares, not in where it goes.
 
 ## Imperative API
 
@@ -119,6 +120,7 @@ In Kobun, collection documents use D1 drafts for `onAutoSave` and commit the ser
 const editorRef = useRef<EditorRefApi>(null)
 
 await editorRef.current?.save()
+await editorRef.current?.commit()
 await editorRef.current?.publish()
 editorRef.current?.setMarkdown("# Replacement")
 editorRef.current?.focus("end")
@@ -133,6 +135,7 @@ editorRef.current?.focus("end")
 | `focus(position?)` | `void` | Focuses `"start"`, `"end"`, `"all"`, or the current selection. |
 | `hasUnsavedChanges()` | `boolean` | Reports whether content differs from the saved baseline. |
 | `save()` | `Promise<void>` | Immediately invokes `onAutoSave` and marks that snapshot saved. |
+| `commit()` | `Promise<void>` | Invokes `onCommit` with current Markdown and marks that snapshot saved. |
 | `publish()` | `Promise<void>` | Invokes `onPublish` with current Markdown. |
 | `clear()` | `void` | Clears document content. |
 | `getEditor()` | `Editor \| null` | Returns the underlying Tiptap editor for advanced integrations. |
