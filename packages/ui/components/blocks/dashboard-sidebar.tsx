@@ -70,7 +70,6 @@ const DashboardSidebar = ({
 }) => {
 	const { isMobile } = useSidebar()
 	const [aboutOpen, setAboutOpen] = useState(false)
-	const basePath = ""
 	// A Project whose Config could not be read has nothing to navigate to, and
 	// its dashboard is where it says why (ADR-0007).
 	const collections = config?.collections ?? {}
@@ -96,7 +95,8 @@ const DashboardSidebar = ({
 					<div className="flex items-center justify-between px-2">
 						<Link
 							className="flex h-12 w-full items-center justify-start"
-							to={basePath}
+							prefetch="intent"
+							to={pathname}
 						>
 							{resolvedTheme === "light" ? <Logo /> : <LogoDark />}
 						</Link>
