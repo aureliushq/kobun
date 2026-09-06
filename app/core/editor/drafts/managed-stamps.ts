@@ -1,7 +1,7 @@
 import { managedField } from "@/config/features"
 import type { ResolvedField } from "@/config/types"
 import type { FieldRecord } from "@/core/editor/collection-metadata"
-import type { ResolvedSource } from "./types"
+import type { CommitAction, ResolvedSource } from "./types"
 
 type ResolvedSchema = Record<string, ResolvedField>
 
@@ -67,23 +67,49 @@ export function withoutCreationStamps(
 }
 
 /**
- * The values the system writes as a Draft reaches its Source. Nothing here ever
- * discards what the writer typed: the two write-once timestamps keep a value
- * they already have, and `updatedAt` keeps one the writer moved off the
- * Source's.
+ * Publication State, as the act of publishing declares it.
  *
- * Must be applied *before* the Draft is persisted, gated on a comparison
- * computed against unstamped values — see `publishResolved` (ADR-0005).
+ * Clock-free and idempotent, which is what lets it be applied *before* the
+ * matches-Source comparison: the transition is then itself the change that gets
+ * committed, and a second Publish of an item already `published` compares equal
+ * and commits nothing (ADR-0008).
+ *
+ * `status` is written by Publish and by nothing else, and Publish always writes
+ * `published` — including onto a Source that has no `status` key, which #87
+ * forbade. The fear that rule guarded against is closed by construction instead:
+ * ordinary editing goes through Save to GitHub, which never touches `status`, so
+ * a typo fix cannot unpublish anything whatever the Source carries.
+ */
+export function withPublishedStatus(
+	schema: ResolvedSchema,
+	fields: FieldRecord,
+): FieldRecord {
+	if (!isManaged(schema, "status")) return fields
+	return { ...fields, status: "published" }
+}
+
+/**
+ * The timestamps the system writes as a Draft reaches its Source. Nothing here
+ * ever discards what the writer typed: the two write-once values keep one they
+ * already have, and `updatedAt` keeps one the writer moved off the Source's.
+ *
+ * Observational rather than declarative, so these land *after* the comparison
+ * has decided there is a change, and before the Draft is persisted — see
+ * `commitResolved`. The other way round, a Draft that survives the commit would
+ * hold values its Source lacks, the comparison would never match again, and
+ * every later commit would write a fresh timestamp forever (ADR-0005, #87).
  *
  * The keys are the ones `MANAGED_FIELDS` contributes (`packages/config`): a
  * Feature that adds a fifth Field needs its rule here too.
  */
-export function stampAtPublish({
+export function stampTimestamps({
+	action,
 	fields,
 	now,
 	schema,
 	source,
 }: {
+	action: CommitAction
 	fields: FieldRecord
 	now: Date
 	schema: ResolvedSchema
@@ -93,33 +119,26 @@ export function stampAtPublish({
 	const instant = now.toISOString()
 
 	// Write-once, and backfilled onto a Source that predates the Feature: each
-	// records a moment in the file's life Kobun was present for. "Already set"
-	// is about the value being committed, not the one the Source holds, so a
-	// writer who clears the field is asking for it to be stamped again.
-	for (const key of ["createdAt", "publishedAt"]) {
+	// records a moment in the file's life Kobun was present for. "Already set" is
+	// about the value being committed, not the one the Source holds, so a writer
+	// who clears the field is asking for it to be stamped again.
+	//
+	// `publishedAt` is a fact about publication, so only the action that publishes
+	// may write it: a Save to GitHub leaves it exactly as it found it (ADR-0008).
+	const writeOnce =
+		action === "publish" ? ["createdAt", "publishedAt"] : ["createdAt"]
+	for (const key of writeOnce) {
 		if (isManaged(schema, key) && isUnset(stamped[key])) stamped[key] = instant
 	}
 
-	// A fact about when the bytes changed, so it advances on every publish —
-	// including the first — unless the writer set it themselves.
+	// A fact about when the bytes changed, so it advances on every commit —
+	// including the first, and whichever action committed — unless the writer set
+	// it themselves.
 	if (
 		isManaged(schema, "updatedAt") &&
 		!isEdited(stamped.updatedAt, source?.frontmatter.updatedAt)
 	) {
 		stamped.updatedAt = instant
-	}
-
-	// Publication State is the writer's intent about content Kobun may not have
-	// authored, and there is no correct guess available: it is written only for
-	// an Item Kobun is creating. Where the Source already exists it passes
-	// through untouched — never added when absent, never overwritten when
-	// present, whatever it says.
-	//
-	// Creating is the one place a writer's choice does not survive, because
-	// until "Save to GitHub" exists every file Kobun commits is published by
-	// construction, and a `draft` in the repository would be a lie (ADR-0005).
-	if (isManaged(schema, "status") && source === null) {
-		stamped.status = "published"
 	}
 
 	return stamped

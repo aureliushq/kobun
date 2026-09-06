@@ -44,6 +44,18 @@ const DOCUMENT_QUIRKS = [
 		name: "a datetime carrying a time component",
 		raw: "---\npublishedAt: 2026-07-14T09:30:00.000Z\n---\nBody\n",
 	},
+	{
+		name: "a datetime with no zone",
+		raw: "---\npublishedAt: 2026-07-14T09:30:00\n---\nBody\n",
+	},
+	{
+		name: "a datetime at midnight UTC",
+		raw: "---\npublishedAt: 2026-07-14T00:00:00.000Z\n---\nBody\n",
+	},
+	{
+		name: "a datetime carrying an offset rather than Z",
+		raw: "---\npublishedAt: 2026-07-14T09:30:00+05:30\n---\nBody\n",
+	},
 ]
 
 const DATA_QUIRKS: Array<{ format: Format; name: string; raw: string }> = [
@@ -237,6 +249,122 @@ describe("frontmatter dates", () => {
 			serializeDocument({ ...document, body: "Updated\n" }, "md", { raw }),
 		).toBe("---\npublished: 2026-07-14\n---\nUpdated\n")
 	})
+
+	// A zone is what makes a datetime name one moment rather than a different
+	// one per timezone, so a value that arrives without a zone has to stay
+	// without one and be refused. Inventing UTC here would answer the question
+	// "when did this happen?" on the writer's behalf.
+	it("leaves a zoneless datetime zoneless rather than deciding it meant UTC", () => {
+		const document = parseDocument(
+			"---\npublishedAt: 2026-07-14T09:30:00\n---\nBody\n",
+			"md",
+		)
+
+		expect(document.data.publishedAt).toBe("2026-07-14T09:30:00")
+	})
+
+	// The mirror case: an instant that lands exactly on the UTC day boundary is
+	// still an instant, and truncating it to a day both destroys the time and
+	// makes the value fail the validation it previously passed.
+	it("keeps a midnight-UTC datetime whole rather than collapsing it to a day", () => {
+		const document = parseDocument(
+			"---\npublishedAt: 2026-07-14T00:00:00.000Z\n---\nBody\n",
+			"md",
+		)
+
+		expect(document.data.publishedAt).toBe("2026-07-14T00:00:00.000Z")
+	})
+
+	// The round-trip law cannot see this one: both sides of its comparison parse
+	// the same way, so a carriage return folded into a value survives it
+	// unnoticed. gray-matter cuts the frontmatter block by byte offset and hands
+	// the parser a dangling CR, which lands in the value of whatever scalar it
+	// ends — and a date carrying one fails the `date` Field's validator.
+	it("does not fold a CRLF Source's line ending into the value", () => {
+		const document = parseDocument(
+			"---\r\npublished: 2026-07-14\r\n---\r\nBody\r\n",
+			"md",
+		)
+
+		expect(document.data.published).toBe("2026-07-14")
+	})
+
+	// js-yaml had to quote a date-shaped string on the way out, because unquoted
+	// it would have read back as a `Date` — so the writer's first Data edit
+	// rewrote a line they had not touched. Writing and reading the same spelling
+	// means an edit changes only what was edited.
+	it("re-stringifies a date without quoting it, so a second pass is a no-op", () => {
+		const raw = "---\npublished: 2026-07-14\n---\nBody\n"
+		const rewritten = serializeDocument(
+			{ data: { published: "2026-07-14", title: "Added" }, body: "Body\n" },
+			"md",
+			{ raw },
+		)
+
+		expect(rewritten).toBe(
+			"---\npublished: 2026-07-14\ntitle: Added\n---\nBody\n",
+		)
+		expect(parseDocument(rewritten, "md").data.published).toBe("2026-07-14")
+	})
+})
+
+/**
+ * A Format says how a Source's bytes are encoded, not what they mean. So the
+ * same authored scalar has to read back as the same value whichever Format
+ * carries it — the law both of the date bugs broke, by parsing md/mdx
+ * frontmatter with a different YAML implementation than `.yaml` Sources.
+ *
+ * json is the reference: it has only strings, so it cannot be the one that
+ * disagrees.
+ */
+describe("a scalar means the same thing in every Format", () => {
+	const SCALARS = [
+		{ name: "a date", scalar: "2026-07-14" },
+		{ name: "a datetime with no zone", scalar: "2026-07-14T09:30:00" },
+		{ name: "a datetime at midnight UTC", scalar: "2026-07-14T00:00:00.000Z" },
+		{ name: "a datetime with an offset", scalar: "2026-07-14T09:30:00+05:30" },
+		{ name: "a clock time", scalar: "09:30:00" },
+	]
+
+	for (const { name, scalar } of SCALARS) {
+		it(`reads ${name} as the text the writer authored`, () => {
+			const sources: Array<[Format, string]> = [
+				["md", `---\npublishedAt: ${scalar}\n---\nBody\n`],
+				["mdx", `---\npublishedAt: ${scalar}\n---\nBody\n`],
+				["yaml", `publishedAt: ${scalar}\n`],
+				["json", `{"publishedAt": "${scalar}"}\n`],
+			]
+
+			for (const [format, raw] of sources) {
+				expect(parseDocument(raw, format).data.publishedAt).toBe(scalar)
+			}
+		})
+	}
+})
+
+/**
+ * The other half of reading frontmatter as YAML 1.2 core: the 1.1 spellings
+ * js-yaml used to special-case now behave in `md`/`mdx` exactly as they always
+ * have in `.yaml` Sources. Pinned because it is the user-visible part of the
+ * change, and because "both Formats agree" is the point even where the value
+ * they agree on is not the one YAML 1.1 would have given (ADR-0009).
+ */
+describe("the YAML 1.1 spellings", () => {
+	const SPELLINGS = [
+		{ name: "an unquoted yes", scalar: "yes", value: "yes" },
+		{ name: "an unquoted off", scalar: "off", value: "off" },
+		{ name: "a leading-zero number", scalar: "0644", value: 644 },
+		{ name: "an unquoted true", scalar: "true", value: true },
+	]
+
+	for (const { name, scalar, value } of SPELLINGS) {
+		it(`reads ${name} the same way in md as in yaml`, () => {
+			expect(
+				parseDocument(`---\nflag: ${scalar}\n---\nBody\n`, "md").data.flag,
+			).toBe(value)
+			expect(parseDocument(`flag: ${scalar}\n`, "yaml").data.flag).toBe(value)
+		})
+	}
 })
 
 describe("a data-only Format given a Body", () => {

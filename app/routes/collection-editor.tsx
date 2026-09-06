@@ -5,6 +5,9 @@ import {
 	type ShouldRevalidateFunctionArgs,
 	useParams,
 } from "react-router"
+import { managedField } from "@/config/features"
+import type { Collection } from "@/config/types"
+import { SET_PRIMARY_ACTION_PATH } from "@/core/components/layouts/use-primary-editor-action"
 import {
 	CollectionItemEditor,
 	type OpenedContent,
@@ -14,6 +17,7 @@ import type { FieldRecord } from "@/core/editor/collection-metadata"
 import {
 	type DraftRefusal,
 	type DraftTarget,
+	getCollectionItemEditorPath,
 	getCollectionPath,
 	isDraftAdoptionNavigation,
 	type SaveInput,
@@ -61,6 +65,18 @@ async function resolveCollectionEditorContext({
 		projectRow,
 		sourceStore: createGithubSourceStore({ env, installationId, name, owner }),
 	}
+}
+
+/**
+ * Whether this Collection has a Publication State for Publish to declare.
+ *
+ * Asked of the resolved schema rather than of the `features` block: Features
+ * expand into Managed Fields once, and consumers see plain Fields and need no
+ * knowledge that Features exist (ADR-0005). The `status` Field is the whole of
+ * what Publish writes, so its presence is the question.
+ */
+function hasPublicationState(collection: Collection) {
+	return managedField(collection.schema, "status") !== null
 }
 
 /** Where the writer came from, and where a publish sends them back to. */
@@ -152,9 +168,14 @@ function getDraftTarget(
 export function shouldRevalidate({
 	currentUrl,
 	defaultShouldRevalidate,
+	formAction,
 	nextUrl,
 }: ShouldRevalidateFunctionArgs) {
 	if (isDraftAdoptionNavigation(currentUrl, nextUrl)) return false
+	// Choosing which target the header's primary button runs is chrome. It says
+	// nothing about the item being edited, and re-reading the Source would cost
+	// a GitHub round trip for a menu click made mid-sentence.
+	if (formAction === SET_PRIMARY_ACTION_PATH) return false
 	return defaultShouldRevalidate
 }
 
@@ -167,6 +188,7 @@ function openedContent(
 		draftId: opened.draftId,
 		fields: opened.fields,
 		revision: opened.revision,
+		dirty: opened.dirty,
 	}
 }
 
@@ -203,7 +225,10 @@ export async function loader(args: Route.LoaderArgs) {
 
 	// Everything the shell is built from, and the only half that may redirect.
 	const shell = {
-		canPublish: true,
+		// Publish is absent where the Collection has no Publication State to
+		// declare; Save to GitHub is then the only path to the repository
+		// (ADR-0008).
+		canPublish: hasPublicationState(resolved.collection),
 		name: resolved.name,
 		owner: resolved.owner,
 		publishDisabledReason: null,
@@ -242,6 +267,7 @@ async function readActionPayload(
 	const value = (await request.json()) as Partial<EditorActionPayload>
 	if (
 		(value.intent !== EditorActionIntents.SAVE &&
+			value.intent !== EditorActionIntents.COMMIT &&
 			value.intent !== EditorActionIntents.PUBLISH) ||
 		typeof value.markdown !== "string" ||
 		!value.fields ||
@@ -295,52 +321,89 @@ export async function action(args: Route.ActionArgs) {
 		})
 	}
 
-	const published = await drafts.publish(input)
-	if (!published.ok) return draftRefusalResponse(published)
+	const publishing = payload.intent === EditorActionIntents.PUBLISH
+	// The button is absent where the Feature is off, so a publish arriving here is
+	// not a writer's choice; refusing it is what makes Save to GitHub the only
+	// commit path rather than only looking like it.
+	if (publishing && !hasPublicationState(resolved.collection)) {
+		throw new Response("This collection has no publish feature", {
+			status: 400,
+		})
+	}
 
+	const committed = publishing
+		? await drafts.publish(input)
+		: await drafts.commit(input)
+	if (!committed.ok) return draftRefusalResponse(committed)
+
+	// The Data as it was committed, so the properties panel reflects what the
+	// system stamped without a reload. A Save to GitHub leaves the writer in the
+	// editor, so state holding pre-stamp values would read as Dirty against the
+	// Source it just created.
+	const fields =
+		committed.outcome === "matches-source" ? null : committed.fields
 	// Publishing ends the editing session: the writer goes back to the list they
-	// came from, whichever way the publish landed.
-	const collectionPath = collectionPathFor(resolved)
-	if (published.outcome === "matches-source") {
+	// came from, whichever way the publish landed. A Save to GitHub stays put —
+	// unless it just turned a new item into one the repository names, which the
+	// URL has to follow or the next keystroke mints a second Draft.
+	const collectionPath = publishing ? collectionPathFor(resolved) : undefined
+	const itemPath =
+		publishing ||
+		target.mode !== "new" ||
+		committed.outcome === "matches-source"
+			? undefined
+			: getCollectionItemEditorPath(
+					{ repoName: resolved.name, repoOwnerLogin: resolved.owner },
+					resolved.collectionSlug,
+					committed.itemSlug,
+				)
+
+	if (committed.outcome === "matches-source") {
 		return Response.json({
 			ok: true,
 			commitSha: null,
 			draftDeleted: true,
-			draftId: published.draftId,
+			draftId: committed.draftId,
 			collectionPath,
 		})
 	}
-	if (published.outcome === "published-unsynced") {
+	if (committed.outcome === "committed-unsynced") {
 		return Response.json({
 			ok: true,
-			commitSha: published.commitSha,
-			draftId: published.draftId,
+			commitSha: committed.commitSha,
+			draftId: committed.draftId,
 			draftSynced: false,
 			collectionPath,
+			fields,
+			itemPath,
 		})
 	}
-	// A publish that reached the repository and reconciled its Draft. The two
+	// A commit that reached the repository and reconciled its Draft. The two
 	// outcomes above return before this: one committed nothing, the other lost
 	// the sync race — neither was tracked before the lifecycle moved into the
 	// module, and this merge is not the place to start.
-	const posthog = args.context.get(posthogContext)
-	posthog?.capture({
-		event: "content_published",
-		properties: {
-			collection_slug: resolved.collectionSlug,
-			repo_owner: resolved.owner,
-			repo_name: resolved.name,
-			editor_mode: target.mode,
-		},
-	})
+	if (publishing) {
+		const posthog = args.context.get(posthogContext)
+		posthog?.capture({
+			event: "content_published",
+			properties: {
+				collection_slug: resolved.collectionSlug,
+				repo_owner: resolved.owner,
+				repo_name: resolved.name,
+				editor_mode: target.mode,
+			},
+		})
+	}
 
 	return Response.json({
 		ok: true,
-		commitSha: published.commitSha,
-		draftDeleted: published.draftDeleted,
-		draftId: published.draftId,
-		revision: published.revision,
+		commitSha: committed.commitSha,
+		draftDeleted: committed.draftDeleted,
+		draftId: committed.draftId,
+		revision: committed.revision,
 		collectionPath,
+		fields,
+		itemPath,
 	})
 }
 

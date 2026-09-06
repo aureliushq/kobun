@@ -8,7 +8,6 @@ import {
 	HouseIcon,
 	InfoIcon,
 	LogOutIcon,
-	SettingsIcon,
 } from "lucide-react"
 import { useState } from "react"
 import { Form, Link, useLocation } from "react-router"
@@ -70,7 +69,6 @@ const DashboardSidebar = ({
 }) => {
 	const { isMobile } = useSidebar()
 	const [aboutOpen, setAboutOpen] = useState(false)
-	const basePath = ""
 	// A Project whose Config could not be read has nothing to navigate to, and
 	// its dashboard is where it says why (ADR-0007).
 	const collections = config?.collections ?? {}
@@ -96,7 +94,8 @@ const DashboardSidebar = ({
 					<div className="flex items-center justify-between px-2">
 						<Link
 							className="flex h-12 w-full items-center justify-start"
-							to={basePath}
+							prefetch="intent"
+							to={pathname}
 						>
 							{resolvedTheme === "light" ? <Logo /> : <LogoDark />}
 						</Link>
@@ -304,17 +303,6 @@ const DashboardSidebar = ({
 				<SidebarFooter className="px-0">
 					<SidebarGroup>
 						<SidebarMenu>
-							<SidebarMenuItem>
-								<SidebarMenuButton
-									isActive={location.pathname === PATHS.SETTINGS}
-									render={
-										<Link className="sidebar-menu-button" to={PATHS.SETTINGS} />
-									}
-								>
-									<SettingsIcon />
-									<span>Settings</span>
-								</SidebarMenuButton>
-							</SidebarMenuItem>
 							<SidebarMenuItem>
 								<Form
 									action="/api/dashboard-actions"

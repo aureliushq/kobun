@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest"
+import { NO_CONFIG_ERROR } from "@/config/errors"
 import { ConfigStatus, ProjectStatus } from "@/db/types"
 import { CONFIG_PATHS } from "@/ui/lib/constants"
 import { CONFIG_CACHE_TTL_MS } from "./config-cache"
@@ -167,7 +168,11 @@ test.each([
 })
 
 test("keeps the cached parse when the repository reports the Config unchanged", async () => {
-	const { configSource, projectContext, readProject } = setup(cached())
+	// Nothing was read, so nothing is news — including the Config error, which
+	// still describes the file this 304 is about.
+	const { configSource, projectContext, readProject } = setup(
+		cached({ configError: '[{"code":"partial"}]' }),
+	)
 	vi.advanceTimersByTime(CONFIG_CACHE_TTL_MS)
 
 	expect(await projectContext.resolve(TARGET)).toMatchObject({
@@ -181,6 +186,7 @@ test("keeps the cached parse when the repository reports the Config unchanged", 
 		new Date(NOW.getTime() + CONFIG_CACHE_TTL_MS),
 	)
 	expect(row.configData).toBe(JSON.stringify(TEST_CONFIG))
+	expect(row.configError).toBe('[{"code":"partial"}]')
 	expect(row.configSha).toBe("sha-1")
 })
 
@@ -221,10 +227,11 @@ test("re-parses and rewrites the row when the Config changed", async () => {
 	)
 })
 
-test("leaves the Config error, the Project status, and the update time alone", async () => {
-	// The dashboard sync owns the first two, and setup orders its recent
-	// Projects by the third — a revalidation is news about the Config, not a
-	// change to the Project.
+test("leaves the Project status and the update time alone", async () => {
+	// The dashboard sync owns the first, and setup orders its recent Projects
+	// by the second — a revalidation is news about the Config, not a change to
+	// the Project. The Config error is news about the Config, so it is not on
+	// this list (ADR-0003 amendment).
 	const { configSource, projectContext, readProject } = setup(
 		cached({
 			configError: '[{"code":"stale"}]',
@@ -238,10 +245,21 @@ test("leaves the Config error, the Project status, and the update time alone", a
 	await projectContext.resolve(TARGET)
 
 	const row = readProject()
-	expect(row.configError).toBe('[{"code":"stale"}]')
 	expect(row.status).toBe(ProjectStatus.DISCONNECTED)
 	expect(row.updatedAt).toEqual(before.updatedAt)
 	expect(row.configCheckedAt).not.toEqual(before.configCheckedAt)
+})
+
+test("clears a stale Config error once the Config validates again", async () => {
+	const { configSource, projectContext, readProject } = setup(
+		cached({ configError: '[{"code":"stale"}]' }),
+	)
+	configSource.put(TEST_CONFIG_PATH, TEST_CONFIG_JSON)
+	vi.advanceTimersByTime(CONFIG_CACHE_TTL_MS)
+
+	await projectContext.resolve(TARGET)
+
+	expect(readProject().configError).toBe("")
 })
 
 test("reports a Config that stopped validating, without looking elsewhere", async () => {
@@ -261,6 +279,33 @@ test("reports a Config that stopped validating, without looking elsewhere", asyn
 	const row = readProject()
 	expect(row.configData).toBeNull()
 	expect(row.configStatus).toBe(ConfigStatus.ERROR)
+	// The dashboard renders this column, so the diagnosis has to come from
+	// whichever path last looked at the repository (ADR-0003 amendment).
+	const errors = JSON.parse(row.configError ?? "[]")
+	expect(errors).toHaveLength(1)
+	expect(errors[0].code).toBe("parse_error")
+	// A parse error is about a file, and the validator does not know which one.
+	expect(errors[0].path).toBe(TEST_CONFIG_PATH)
+})
+
+test("replaces stale validation errors when the Config is deleted", async () => {
+	const { configSource, projectContext, readProject } = setup(
+		cached({
+			configData: null,
+			configError: '[{"code":"invalid_type","message":"stale","path":"x"}]',
+			configStatus: ConfigStatus.ERROR,
+		}),
+	)
+	configSource.remove(TEST_CONFIG_PATH)
+	vi.advanceTimersByTime(CONFIG_CACHE_TTL_MS)
+
+	expect(await projectContext.resolve(TARGET)).toMatchObject({
+		configProblem: "config-missing",
+		ok: true,
+	})
+
+	const errors = JSON.parse(readProject().configError ?? "[]")
+	expect(errors).toEqual([NO_CONFIG_ERROR])
 })
 
 test("picks up a Config that has been fixed once the window closes", async () => {
@@ -357,7 +402,7 @@ test("refuses without remembering when an unreachable repository is all there is
 
 	expect(await projectContext.resolve(TARGET)).toMatchObject({
 		config: null,
-		configProblem: "config-invalid",
+		configProblem: "config-unreadable",
 		ok: true,
 	})
 	expect(readProject()).toEqual(before)
@@ -385,6 +430,27 @@ test("recovers a Config restored byte for byte after a sync marked it missing", 
 	})
 })
 
+test("keeps the Config error when a rotated ETag turns out to be the same file", async () => {
+	// The row's ETag is stale but its sha is not, so nothing is re-parsed — and
+	// what nothing was re-parsed from is what the stored errors still describe.
+	const { configSource, projectContext, readProject } = setup(
+		cached({ configError: '[{"code":"partial"}]', configEtag: '"rotated"' }),
+	)
+	vi.advanceTimersByTime(CONFIG_CACHE_TTL_MS)
+
+	expect(await projectContext.resolve(TARGET)).toMatchObject({
+		config: TEST_CONFIG,
+		ok: true,
+	})
+	expect(configSource.calls).toEqual([
+		{ etag: '"rotated"', path: TEST_CONFIG_PATH },
+	])
+
+	const row = readProject()
+	expect(row.configEtag).toBe('"etag-1"')
+	expect(row.configError).toBe('[{"code":"partial"}]')
+})
+
 test("spends no read on a stored path no Config lives at", async () => {
 	const { configSource, projectContext } = setup(
 		cached({ configPath: "kobun.config.ts" }),
@@ -398,8 +464,8 @@ test("spends no read on a stored path no Config lives at", async () => {
 test("survives two loaders revalidating the same Project at once", async () => {
 	// A layout and the page inside it can cross the window together. Both write
 	// the same thing, so last-write-wins leaves the row coherent either way —
-	// and neither reaches the columns a dashboard sync running alongside them
-	// owns, so the race cannot cost that sync its answer.
+	// and neither reaches the Project's own status or update time, so the race
+	// cannot cost a dashboard sync running alongside them its answer.
 	const { configSource, projectContext, readProject } = setup(
 		cached({
 			configError: '[{"code":"stale"}]',
@@ -422,7 +488,7 @@ test("survives two loaders revalidating the same Project at once", async () => {
 	expect(row.configEtag).toBe('"etag-2"')
 	expect(row.configSha).toBe("sha-2")
 	expect(row.configStatus).toBe(ConfigStatus.PRESENT)
-	expect(row.configError).toBe('[{"code":"stale"}]')
+	expect(row.configError).toBe("")
 	expect(row.status).toBe(ProjectStatus.DISCONNECTED)
 	expect(row.updatedAt).toEqual(before.updatedAt)
 })

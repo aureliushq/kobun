@@ -25,7 +25,6 @@ import { useTheme } from "@/ui/hooks/use-theme"
 import { DashboardActionIntents } from "@/ui/lib/types"
 
 const DashboardHeader = () => {
-	const basePath = ""
 	const { theme, setTheme } = useTheme()
 	const params = useParams()
 
@@ -36,7 +35,14 @@ const DashboardHeader = () => {
 			<Breadcrumb>
 				<BreadcrumbList>
 					<BreadcrumbItem>
-						<BreadcrumbLink render={<Link to={basePath} />}>
+						<BreadcrumbLink
+							render={
+								<Link
+									prefetch="intent"
+									to={`/${params.owner}/${params.name}`}
+								/>
+							}
+						>
 							Home
 						</BreadcrumbLink>
 					</BreadcrumbItem>

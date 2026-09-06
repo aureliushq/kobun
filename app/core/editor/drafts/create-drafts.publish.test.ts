@@ -7,7 +7,7 @@ import {
 	type DraftsTestHarness,
 	TEST_DIRECTORY_PATH,
 } from "./test-harness"
-import type { DraftContent, PublishInput } from "./types"
+import type { CommitInput, DraftContent } from "./types"
 
 const FIELDS = { slug: "hello", title: "Hello" }
 const SOURCE_PATH = `${TEST_DIRECTORY_PATH}/hello.md`
@@ -33,14 +33,14 @@ const CONTENT: DraftContent = {
 	markdown: "Published body",
 }
 
-function publishItem(overrides: Partial<DraftContent> = {}): PublishInput {
+function publishItem(overrides: Partial<DraftContent> = {}): CommitInput {
 	return { ...CONTENT, ...overrides, mode: "item", slug: "hello" }
 }
 
 function publishNewItem(
 	draftId: string | null,
 	overrides: Partial<DraftContent> = {},
-): PublishInput {
+): CommitInput {
 	return { ...CONTENT, ...overrides, draftId, mode: "new" }
 }
 
@@ -198,7 +198,7 @@ test("commits a dirty draft, syncs it, and deletes it", async () => {
 		draftId: seeded.id,
 		itemSlug: "hello",
 		ok: true,
-		outcome: "published",
+		outcome: "committed",
 		revision: null,
 	})
 	// The writer touched only the body, so their frontmatter block comes back
@@ -225,7 +225,7 @@ test("re-stringifies the frontmatter when the metadata changed", async () => {
 		}),
 	)
 
-	expect(result).toMatchObject({ ok: true, outcome: "published" })
+	expect(result).toMatchObject({ ok: true, outcome: "committed" })
 	// Nothing of the original block is owed back once the Data has changed: the
 	// document is re-stringified, trailing newline and all.
 	expect(sourceStore.get(SOURCE_PATH)?.content).toBe(
@@ -247,7 +247,7 @@ test("creates the source file when publishing a new item", async () => {
 		draftId: seeded.id,
 		itemSlug: "new-post",
 		ok: true,
-		outcome: "published",
+		outcome: "committed",
 	})
 	expect(sourceStore.get(`${TEST_DIRECTORY_PATH}/new-post.md`)?.content).toBe(
 		"---\nslug: new-post\ntitle: New post\n---\nPublished body\n",
@@ -265,7 +265,7 @@ test("publishes a new item the writer never saved", async () => {
 		draftDeleted: true,
 		itemSlug: "new-post",
 		ok: true,
-		outcome: "published",
+		outcome: "committed",
 	})
 	expect(sourceStore.get(`${TEST_DIRECTORY_PATH}/new-post.md`)?.content).toBe(
 		"---\nslug: new-post\ntitle: New post\n---\nPublished body\n",
@@ -395,9 +395,10 @@ test("repoints the draft at the new source when the sync loses the race", async 
 	expect(result).toEqual({
 		commitSha: `commit-${committed?.sha}`,
 		draftId: seeded.id,
+		fields: FIELDS,
 		itemSlug: "hello",
 		ok: true,
-		outcome: "published-unsynced",
+		outcome: "committed-unsynced",
 	})
 	// The draft keeps the other session's work, but now tracks what we committed,
 	// so its next save is not refused against a sha that no longer exists.

@@ -17,11 +17,13 @@ export interface ImageUploadAdapter {
 
 export interface PersistenceAdapter {
 	onAutoSave?: (markdown: string) => void | Promise<void>
+	onCommit?: (markdown: string) => void | Promise<void>
 	onPublish?: (markdown: string) => void | Promise<void>
 }
 
 export interface EditorRefApi {
 	clear: () => void
+	commit: () => Promise<void>
 	focus: (position?: "start" | "end" | "all") => void
 	getEditor: () => Editor | null
 	getHTML: () => string

@@ -15,7 +15,7 @@ Four things the decision above left open, settled while building it:
 - **A Config that disappears keeps the path it was last found at**, diverging from `syncProjectConfig`'s reset to `.kobun.json`. The path is a memory of where this Project's Config lives, and so the best first guess when a deleted one is restored.
 - **A repository that cannot be reached is not a Config that is broken.** Where the old live fetch turned every non-404 failure into a parse error, the cache serves the stale Config if it has one and, either way, writes nothing. A Project with nothing cached still refuses during a blip — the resolver has no vocabulary for "unavailable" — but because the blip is never written down, the very next request recovers, rather than the next window. Only the port is guarded: a failed database write is a real failure and still propagates. For related reasons the row rewrite carries `updatedAt` through by hand — revalidating is news about the Config, not a change to the Project, and setup orders its recent-Projects list by that column. A dashboard sync landing between the read and the rewrite has its `updatedAt` rolled back by a few milliseconds; that is the accepted last-write-wins race, and far cheaper than reordering the list on every navigation.
 
-The rewrite touches only `configCheckedAt`, `configData`, `configEtag`, `configPath`, `configSha`, and `configStatus`. `configError` and the Project's own `status` stay with the dashboard sync that writes them.
+The rewrite touches only `configCheckedAt`, `configData`, `configEtag`, `configPath`, `configSha`, and `configStatus`. `configError` and the Project's own `status` stay with the dashboard sync that writes them. (`configError` no longer does — see the second amendment below.)
 
 ## Amendment: connecting a repository goes through the sync
 
@@ -36,6 +36,39 @@ revalidate unconditionally, which is why that rule is stated over the row's cont
 over who wrote it. And a Project whose sync fails now survives as a row with `configStatus`
 `UNKNOWN` and no check time, where before the failure left no row at all: unservable, so the very
 next navigation resolves it against GitHub, which is the same self-healing the blip case relies on.
+
+## Amendment: `configError` follows `configStatus`
+
+Settled while closing #81, and named as the obvious next step by
+[ADR-0007](./0007-a-project-with-no-config-still-has-a-dashboard.md).
+
+The rule above split one fact across two writers. `configStatus` said *that* the Config could not
+be read and was kept fresh by the cache; `configError` said *what* was wrong with it and was
+written only by `syncProjectConfig`, which runs on connect and on "Refresh configuration" and
+never in between. So the dashboard, which renders `configError`, described whatever the
+repository looked like at the last sync rather than at the navigation the reader is making:
+
+- a Config that was invalid at connect and then *deleted* resolved `MISSING`, over stored errors
+  still naming the fields of a file that is no longer there;
+- a Config that broke *after* connecting resolved `ERROR` with nothing stored, so the dashboard
+  fell back to a message that says nothing.
+
+`configError` is news about the Config, so it now moves with the other Config columns: every
+`recordCheck` that writes a status writes the matching errors, a probe that finds nothing stores
+`no_config`, and the two paths that re-parse nothing — a `304`, and a rotated ETag over a
+matching sha — carry the stored errors through untouched. The Project's own `status` stays with
+the sync, which is the half of the old rule that was about a different fact.
+
+Two things fell out of it. A `parse_error` is now scoped to the path it was read from, because
+the validator is told the Format and not the file — by `scopeConfigErrors` in
+`packages/config/errors.ts`, beside the `parseConfigErrors` that reads the column back, so both
+writers spell it the same way and neither renders an empty filename. And `ConfigProblem` gained
+a third member,
+`config-unreadable`: with fresh errors behind `config-invalid`, that arm now means "kobun read
+this and it is broken", which is exactly what an unreachable repository must not be reported as
+— the vocabulary this ADR noted was missing. The resolver reports `config-invalid` only for a
+status the cache actually wrote as `ERROR`, and everything else it cannot classify as
+`config-unreadable`.
 
 ## Considered options
 

@@ -21,15 +21,16 @@ function refuse(reason: ProjectContextRefusal): RefusedProjectContext {
 }
 
 /**
- * Which of the two things a Config that did not arrive is. A status of
- * `PRESENT` with no parsed Config is a resolver that contradicted itself;
- * calling that invalid keeps a browsable Project from ever being built over a
- * Config that isn't there.
+ * Which of the three things a Config that did not arrive is. Only a status the
+ * cache actually wrote is a statement about the repository: everything else —
+ * an unreachable GitHub, a row no writer has classified yet, a `PRESENT` that
+ * carries no parsed Config and so contradicts itself — is the resolver saying
+ * it does not know, which is not the same as saying the Config is broken.
  */
 function problemWith(resolution: ConfigResolution): ConfigProblem {
-	return resolution.status === ConfigStatus.MISSING
-		? "config-missing"
-		: "config-invalid"
+	if (resolution.status === ConfigStatus.MISSING) return "config-missing"
+	if (resolution.status === ConfigStatus.ERROR) return "config-invalid"
+	return "config-unreadable"
 }
 
 /**

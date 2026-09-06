@@ -6,7 +6,11 @@ import { ConfigStatus, type Project, ProjectStatus } from "@/db/types"
 import { getGithubFileContent } from "@/github/octokit.server"
 import type { InstallationID } from "@/types/github"
 import { CONFIG_PATHS } from "@/ui/lib/constants"
-import { NO_CONFIG_ERROR } from "./errors"
+import {
+	NO_CONFIG_ERROR,
+	scopeConfigErrors,
+	storedConfigErrors,
+} from "./errors"
 import type { ConfigError, NormalizedConfig } from "./types"
 import { configFileFormat, validateConfig } from "./validator"
 
@@ -40,7 +44,12 @@ export const fetchAndParseConfig = async (
 				path,
 			)
 			const result = validateConfig(file.content, configFileFormat(path))
-			return { ...result, filePath: path, sha: file.sha }
+			return {
+				...result,
+				errors: scopeConfigErrors(result.errors, path),
+				filePath: path,
+				sha: file.sha,
+			}
 		} catch (error) {
 			if (error instanceof Error && "status" in error && error.status === 404) {
 			} else {
@@ -87,10 +96,7 @@ export const syncProjectConfig = async (
 		.set({
 			configCheckedAt: new Date(),
 			configData: JSON.stringify(configResult.config),
-			configError:
-				configResult.errors.length > 0
-					? JSON.stringify(configResult.errors)
-					: "",
+			configError: storedConfigErrors(configResult.errors),
 			configPath: configResult.filePath ?? CONFIG_PATHS[0],
 			configSha: configResult.sha,
 			configStatus,

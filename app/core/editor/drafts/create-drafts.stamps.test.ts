@@ -10,7 +10,7 @@ import {
 	TEST_COLLECTION_WITH_FEATURES,
 	TEST_DIRECTORY_PATH,
 } from "./test-harness"
-import type { DraftContent, PublishInput } from "./types"
+import type { CommitInput, DraftContent } from "./types"
 
 /**
  * The values a Feature contributes are the system's to write — and never over
@@ -66,7 +66,7 @@ async function draftData(id: string) {
 	return JSON.parse(draft?.metadata ?? "null") as Record<string, unknown>
 }
 
-function publishItem(overrides: Partial<DraftContent> = {}): PublishInput {
+function publishItem(overrides: Partial<DraftContent> = {}): CommitInput {
 	return {
 		expectedRevision: null,
 		fields: FIELDS,
@@ -77,7 +77,7 @@ function publishItem(overrides: Partial<DraftContent> = {}): PublishInput {
 	}
 }
 
-function newItem(overrides: Partial<DraftContent> = {}): PublishInput {
+function newItem(overrides: Partial<DraftContent> = {}): CommitInput {
 	return {
 		expectedRevision: null,
 		fields: FIELDS,
@@ -151,7 +151,7 @@ test("writes every managed field when it publishes an item it created", async ()
 	expect(result).toMatchObject({
 		itemSlug: "world",
 		ok: true,
-		outcome: "published",
+		outcome: "committed",
 	})
 	expect(committedData(`${TEST_DIRECTORY_PATH}/world.md`)).toEqual({
 		createdAt: CREATED,
@@ -163,19 +163,23 @@ test("writes every managed field when it publishes an item it created", async ()
 	})
 })
 
-test("backfills the three timestamps onto a source that lacks them, and no status", async () => {
+test("backfills the three timestamps and a status onto a source that lacks them", async () => {
 	const { drafts } = setup()
 	putSource(FIELDS)
 
 	const result = await drafts.publish(publishItem())
 
-	expect(result).toMatchObject({ ok: true, outcome: "published" })
-	// Publication State is the writer's intent about content Kobun did not
-	// author, and there is no correct guess: the key stays absent.
+	expect(result).toMatchObject({ ok: true, outcome: "committed" })
+	// Publish is the one thing that writes Publication State and it always writes
+	// `published` — including onto a pre-existing Source with no `status` key,
+	// which #87 forbade. The button exists only where the config author turned the
+	// Feature on, which is itself the statement that `status` is Kobun's to manage
+	// here (ADR-0008).
 	expect(committedData()).toEqual({
 		...FIELDS,
 		createdAt: CREATED,
 		publishedAt: CREATED,
+		status: "published",
 		updatedAt: CREATED,
 	})
 })
@@ -186,6 +190,7 @@ test("advances updatedAt on a later publish and keeps createdAt and publishedAt"
 		...FIELDS,
 		createdAt: CREATED,
 		publishedAt: CREATED,
+		status: "published",
 		updatedAt: CREATED,
 	}
 	putSource(stamped)
@@ -216,29 +221,71 @@ test("commits a managed field the writer edited", async () => {
 	putSource(source)
 	tick(LATER)
 
-	// Backdating an imported post's publication date, and taking it back to a
-	// draft, are ordinary writing work (ADR-0005, as amended).
+	// Backdating an imported post's publication date is ordinary writing work
+	// (ADR-0005, as amended). Taking it back to a draft is too — but through Save
+	// to GitHub, since Publish is the act of declaring it published.
 	await drafts.publish(
-		publishItem({
-			fields: { ...source, publishedAt: BACKDATED, status: "draft" },
-		}),
+		publishItem({ fields: { ...source, publishedAt: BACKDATED } }),
 	)
 
 	expect(committedData()).toMatchObject({
 		publishedAt: BACKDATED,
-		status: "draft",
+		status: "published",
 	})
 })
 
-test("leaves a status it did not write untouched", async () => {
+test("commits a publication state transition with nothing else to commit", async () => {
 	const { drafts } = setup()
 	const source = { ...FIELDS, status: "draft" }
 	putSource(source)
 
-	await drafts.publish(publishItem({ fields: source }))
+	// Byte for byte what the Source already holds — except the state the writer
+	// pressed Publish to declare.
+	const result = await drafts.publish(
+		publishItem({ fields: source, markdown: SOURCE_BODY }),
+	)
 
-	// An ordinary edit must not silently publish a live draft.
-	expect(committedData()).toMatchObject({ status: "draft" })
+	// The intent stamp lands before the comparison, so the transition is itself
+	// the change and the matches-Source short-circuit cannot swallow it.
+	expect(result).toMatchObject({ ok: true, outcome: "committed" })
+	expect(committedData()).toMatchObject({ status: "published" })
+})
+
+test("flips a committed draft to published when nothing else changed", async () => {
+	const { drafts } = setup()
+	const opened = await drafts.open({ draftId: null, mode: "new" })
+	invariant(opened.ok, "a new item always opens")
+
+	// Save to GitHub commits whatever the writer's fields already said, which for
+	// a new item is the `draft` the Status Field defaults to.
+	const committed = await drafts.commit(
+		newItem({ fields: { ...opened.fields, ...FIELDS } }),
+	)
+	expect(committed).toMatchObject({ ok: true, outcome: "committed" })
+	expect(committedData()).toMatchObject({ publishedAt: "", status: "draft" })
+
+	// Reopening reads Publication State from the Source; the Draft is gone.
+	const reopened = await drafts.open({ mode: "item", slug: "hello" })
+	invariant(reopened.ok, "the committed item opens")
+	expect(reopened.fields).toMatchObject({ status: "draft" })
+	tick(LATER)
+
+	const published = await drafts.publish(
+		publishItem({
+			expectedRevision: reopened.revision,
+			fields: reopened.fields,
+			markdown: reopened.content,
+		}),
+	)
+
+	expect(published).toMatchObject({ ok: true, outcome: "committed" })
+	expect(committedData()).toMatchObject({
+		createdAt: CREATED,
+		// Only the action that publishes may write it, so this is the first time.
+		publishedAt: LATER,
+		status: "published",
+		updatedAt: LATER,
+	})
 })
 
 test("commits nothing when the writer changed nothing", async () => {
@@ -287,7 +334,7 @@ test("commits nothing on a second publish after the sync lost its race", async (
 
 	const first = await drafts.publish(publishItem({ expectedRevision: 2 }))
 
-	expect(first).toMatchObject({ ok: true, outcome: "published-unsynced" })
+	expect(first).toMatchObject({ ok: true, outcome: "committed-unsynced" })
 	// The stamp landed before the Draft was persisted, so a Draft that outlives
 	// the publish still agrees with the Source the commit created. The other way
 	// round it would disagree forever, and every later publish would commit a
@@ -331,14 +378,64 @@ test("keeps what the writer typed when a gate refuses the publish", async () => 
 	)
 
 	expect(result).toEqual({ code: "duplicate-slug", ok: false, slug: "taken" })
-	// The Draft keeps a bumped `updatedAt` it never committed. Harmless: the
-	// Draft is not the Source, and the next successful publish restamps it.
-	expect(await draftData(seeded.id)).toMatchObject({
+	// Exactly what the writer typed, and nothing the refused publish would have
+	// stamped: the stamps go in only once every gate has passed. A `status:
+	// published` left behind here is the one that matters — the next Save to
+	// GitHub would commit it verbatim.
+	expect(await draftData(seeded.id)).toEqual({
 		publishedAt: BACKDATED,
 		slug: "taken",
 		title: "Hello",
-		updatedAt: CREATED,
 	})
+})
+
+test("names the commit for the publication it is", async () => {
+	const { drafts, sourceStore } = setup()
+	putSource(FIELDS)
+	const write = vi.spyOn(sourceStore, "write")
+
+	await drafts.publish(publishItem())
+
+	// The publish is the notable event in a reviewer's history; a plain commit is
+	// a file change (ADR-0008).
+	expect(write.mock.calls[0]?.[0]).toMatchObject({
+		message: `Publish ${SOURCE_PATH} with Kobun`,
+	})
+})
+
+test("stamps nothing into the draft when a refused publish never happened", async () => {
+	const { drafts } = setup()
+	const source = putSource({ ...FIELDS, status: "draft" })
+	const seeded = harness.seedDraft({
+		itemSlug: "hello",
+		markdown: DRAFT_BODY,
+		metadata: JSON.stringify(FIELDS),
+		publishedRevision: 1,
+		revision: 2,
+		sourcePath: SOURCE_PATH,
+		sourceSha: source.sha,
+	})
+
+	const result = await drafts.publish(
+		publishItem({
+			expectedRevision: 2,
+			fields: { ...FIELDS, status: "draft", title: 42 },
+		}),
+	)
+
+	expect(result).toMatchObject({ code: "validation", ok: false })
+	expect(await draftData(seeded.id)).toMatchObject({ status: "draft" })
+
+	// The publish did not happen, so the Save to GitHub after it commits the
+	// writer's own `draft` — not an intent the refusal left lying around.
+	await drafts.commit(
+		publishItem({
+			expectedRevision: 3,
+			fields: { ...FIELDS, status: "draft" },
+		}),
+	)
+
+	expect(committedData()).toMatchObject({ status: "draft" })
 })
 
 test("keeps what the writer typed when validation refuses the publish", async () => {

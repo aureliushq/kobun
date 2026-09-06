@@ -53,6 +53,7 @@ test("opens a new item on the schema defaults without minting a draft", async ()
 		ok: true,
 		revision: null,
 		source: null,
+		dirty: false,
 	})
 	expect(await harness.db.select().from(editorDraft)).toEqual([])
 })
@@ -74,6 +75,7 @@ test("opens a minted draft by id", async () => {
 		ok: true,
 		revision: 2,
 		source: null,
+		dirty: true,
 	})
 })
 
@@ -239,4 +241,58 @@ test("leaves a dirty draft alone when its source moved", async () => {
 		revision: 3,
 		sourceSha: source.sha,
 	})
+})
+
+/**
+ * Whether the repository is behind — the Draft holds bytes the Source does not.
+ * The editor warns a writer walking away from that when Save to GitHub is the
+ * primary (#107), so `open` reports the classification it already computes
+ * rather than leaving the browser to guess it from the presence of a Draft row.
+ */
+test("reports an item with no draft as fully in the repository", async () => {
+	const { drafts } = setup()
+
+	const result = await drafts.open({ mode: "item", slug: "hello" })
+
+	expect(result).toMatchObject({ ok: true, dirty: false })
+})
+
+test("reports a dirty draft as work the repository does not have", async () => {
+	const { drafts, source } = setup()
+	seedSourceBackedDraft({
+		markdown: "Draft body",
+		publishedRevision: 1,
+		revision: 2,
+		sourceSha: source.sha,
+	})
+
+	const result = await drafts.open({ mode: "item", slug: "hello" })
+
+	expect(result).toMatchObject({ ok: true, dirty: true })
+})
+
+// A Clean Draft has a row and is still fully in the repository, which is why
+// "a Draft exists" would be the wrong question to ask.
+test("reports a clean draft as fully in the repository", async () => {
+	const { drafts, source } = setup()
+	seedSourceBackedDraft({
+		markdown: "Stale draft body",
+		publishedRevision: 2,
+		revision: 2,
+		sourceSha: source.sha,
+	})
+
+	const result = await drafts.open({ mode: "item", slug: "hello" })
+
+	expect(result).toMatchObject({ ok: true, dirty: false })
+})
+
+// A new item's Draft has never been committed, so it is Dirty by definition.
+test("reports a new item's draft as work the repository does not have", async () => {
+	const { drafts } = setup()
+	const seeded = harness.seedDraft({ markdown: "Draft body", revision: 1 })
+
+	const result = await drafts.open({ draftId: seeded.id, mode: "new" })
+
+	expect(result).toMatchObject({ ok: true, dirty: true })
 })

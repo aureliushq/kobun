@@ -28,7 +28,7 @@ function collectionEditorPath(
 }
 
 /** The editor for an item the repository already holds. */
-function getCollectionItemEditorPath(
+export function getCollectionItemEditorPath(
 	project: ProjectLocation,
 	collectionSlug: string,
 	itemSlug: string,

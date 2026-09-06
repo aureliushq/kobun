@@ -10,5 +10,5 @@
  * wanted to compare two Data values — which is exactly what the collection
  * editor's dirty check wants.
  */
-export { canonicalMetadata, normalizeMetadata } from "./normalize"
+export { canonicalMetadata } from "./normalize"
 export { type ContentDocument, ContentParseError } from "./types"

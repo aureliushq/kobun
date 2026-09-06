@@ -1,32 +1,15 @@
 /**
- * Data normalization and comparison — the two schema-free operations the
- * Content Document needs. `normalizeMetadata` puts parsed Data into the one
- * shape the rest of the app transports (notably, YAML `Date` objects become
- * `yyyy-mm-dd` strings); `canonicalMetadata` answers "is this Data the same
- * Data?" independent of key order, which is what the fidelity law compares.
- *
- * Neither knows anything about a schema or a Field type — that lives in
+ * Data comparison: `canonicalMetadata` answers "is this Data the same Data?"
+ * independent of key order, which is what the fidelity law compares. It knows
+ * nothing about a schema or a Field type — that lives in
  * `@/core/editor/collection-metadata`.
+ *
+ * There is deliberately no normalization step alongside it. Every Format is
+ * parsed by a parser that emits only JSON-shaped values, so parsed Data needs
+ * no coercion before the rest of the app transports it (see ADR-0009).
  */
 
 type DataRecord = Record<string, unknown>
-
-export function normalizeMetadata(value: unknown): unknown {
-	if (value instanceof Date) {
-		const iso = value.toISOString()
-		return iso.endsWith("T00:00:00.000Z") ? iso.slice(0, 10) : iso
-	}
-	if (Array.isArray(value)) return value.map(normalizeMetadata)
-	if (value && typeof value === "object") {
-		return Object.fromEntries(
-			Object.entries(value as DataRecord).map(([key, item]) => [
-				key,
-				normalizeMetadata(item),
-			]),
-		)
-	}
-	return value
-}
 
 export function canonicalMetadata(value: unknown): string {
 	if (Array.isArray(value)) return `[${value.map(canonicalMetadata).join(",")}]`

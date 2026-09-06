@@ -14,10 +14,10 @@
  * derivation. That lives in `@/core/editor/collection-metadata`.
  */
 
-import YAML from "yaml"
 import type { Format } from "@/config/types"
 import { parseFrontmatter, stringifyFrontmatter } from "@/lib/frontmatter"
-import { canonicalMetadata, normalizeMetadata } from "./normalize"
+import { yamlCodec } from "@/lib/yaml"
+import { canonicalMetadata } from "./normalize"
 import { type ContentDocument, ContentParseError } from "./types"
 
 /**
@@ -38,10 +38,7 @@ const DATA_CODECS = {
 		stringify: (data: Record<string, unknown>) =>
 			JSON.stringify(data, null, "\t"),
 	},
-	yaml: {
-		parse: (raw: string) => YAML.parse(raw),
-		stringify: (data: Record<string, unknown>) => YAML.stringify(data),
-	},
+	yaml: yamlCodec,
 }
 
 type DataOnlyFormat = keyof typeof DATA_CODECS
@@ -70,7 +67,7 @@ function asData(
 			new TypeError(`Expected an object at the root of a ${format} document`),
 		)
 	}
-	return normalizeMetadata(parsed) as Record<string, unknown>
+	return parsed as Record<string, unknown>
 }
 
 export function parseDocument(raw: string, format: Format): ContentDocument {
@@ -87,7 +84,7 @@ export function parseDocument(raw: string, format: Format): ContentDocument {
 	try {
 		const parsed = parseFrontmatter(raw)
 		return {
-			data: normalizeMetadata(parsed.data) as Record<string, unknown>,
+			data: parsed.data,
 			body: parsed.content,
 		}
 	} catch (cause) {

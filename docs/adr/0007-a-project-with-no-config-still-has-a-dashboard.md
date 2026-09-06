@@ -40,16 +40,18 @@ a `config` that is non-null is by definition one that parsed. Those two arms wer
 They now render from `project.configError` — the JSON error list `syncProjectConfig` writes
 when a repository is connected and on every "Refresh configuration" — falling back to a
 message keyed by the problem when the column holds nothing to read. That fallback gets an
-alert of its own rather than the validation one: `config-invalid` is also what an
-*unreachable* repository resolves to (ADR 0003 gave the resolver no vocabulary for
-"unavailable"), and a writer whose Config is fine must not be told it is broken.
+alert of its own rather than the validation one: `config-invalid` was also what an
+*unreachable* repository resolved to (ADR 0003 gave the resolver no vocabulary for
+"unavailable"), and a writer whose Config is fine must not be told it is broken. That second
+meaning has since been given its own name — see the paragraph below.
 
-That column is written by the sync and not by the config cache ([ADR 0003](./0003-config-served-from-d1-cache-with-ttl-revalidation.md)),
-so a Config that breaks *after* connecting shows the fallback message until the writer
-refreshes. The headline is always right, because the problem is resolved fresh; only the
-detail can lag. Teaching the cache to write `configError` would fix that and is the obvious
-next step if the fallback proves too thin — it is left out here because this ticket is about
-the redirect, and the moment the detail matters most is the moment it is freshest.
+That column was written by the sync and not by the config cache ([ADR 0003](./0003-config-served-from-d1-cache-with-ttl-revalidation.md)),
+so a Config that broke *after* connecting showed the fallback message until the writer
+refreshed. The headline was always right, because the problem is resolved fresh; only the
+detail could lag. Teaching the cache to write `configError` was left out here because this
+ticket is about the redirect — it is done in [ADR 0003's second amendment](./0003-config-served-from-d1-cache-with-ttl-revalidation.md#amendment-configerror-follows-configstatus)
+(#81), which also splits `config-unreadable` out of `config-invalid` so the fallback stops
+standing in for two different things.
 
 ## Considered options
 
