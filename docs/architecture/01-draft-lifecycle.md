@@ -2,6 +2,11 @@
 
 **Strength:** Strong · **Top recommendation — start here**
 
+> Historical record of the pre-refactor code, as of 2026-07-23. The module it proposes now
+> exists as `app/core/editor/drafts/`, and the columns named below as `publishedRevision` /
+> `publishedAt` are `committedRevision` / `committedAt` since [#126](https://github.com/aureliushq/kobun/issues/126)
+> ([ADR-0008](../adr/0008-commit-and-publish-are-separate-acts.md)).
+
 > One-line: the draft ↔ published reconciliation state machine (optimistic concurrency
 > against GitHub) lives entirely inline in a route's `loader` + `action`. Extract it into a
 > deep **Draft** module so the concurrency logic becomes unit-testable and the stubbed

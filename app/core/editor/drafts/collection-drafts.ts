@@ -24,7 +24,7 @@ export interface CollectionDraft {
 	heading: string
 	href: string
 	id: string
-	publishedRevision: number | null
+	committedRevision: number | null
 	revision: number
 	sourcePath: string | null
 }
@@ -53,8 +53,8 @@ export async function listCollectionDrafts(
 			eq(editorDraft.projectId, project.id),
 			eq(editorDraft.collectionSlug, collectionSlug),
 			or(
-				isNull(editorDraft.publishedRevision),
-				sql`${editorDraft.revision} > ${editorDraft.publishedRevision}`,
+				isNull(editorDraft.committedRevision),
+				sql`${editorDraft.revision} > ${editorDraft.committedRevision}`,
 			),
 		),
 	})
@@ -65,7 +65,7 @@ export async function listCollectionDrafts(
 		heading: draftHeading(draft, collection),
 		href: getDraftEditorPath(draft, project),
 		id: draft.id,
-		publishedRevision: draft.publishedRevision,
+		committedRevision: draft.committedRevision,
 		revision: draft.revision,
 		sourcePath: draft.sourcePath,
 	}))

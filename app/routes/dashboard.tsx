@@ -100,9 +100,9 @@ async function loadDashboardDrafts(db: ProjectContextDatabase, userId: string) {
 		.where(
 			and(
 				inArray(editorDraft.projectId, projectIds),
-				isNotNull(editorDraft.publishedRevision),
-				isNotNull(editorDraft.publishedAt),
-				sql`${editorDraft.revision} = ${editorDraft.publishedRevision}`,
+				isNotNull(editorDraft.committedRevision),
+				isNotNull(editorDraft.committedAt),
+				sql`${editorDraft.revision} = ${editorDraft.committedRevision}`,
 			),
 		)
 
@@ -137,7 +137,7 @@ async function loadDashboardDrafts(db: ProjectContextDatabase, userId: string) {
 				repoName: draft.project.repoName,
 				repoOwnerLogin: draft.project.repoOwnerLogin,
 			},
-			publishedRevision: draft.publishedRevision,
+			committedRevision: draft.committedRevision,
 			revision: draft.revision,
 			sourcePath: draft.sourcePath,
 			updatedAt: draft.updatedAt,

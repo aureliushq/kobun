@@ -50,7 +50,7 @@ function draft(overrides: Partial<CollectionDraft> = {}): CollectionDraft {
 		heading: "A new thought…",
 		href: `${EDITOR_BASE}/new?draft=draft-1`,
 		id: "draft-1",
-		publishedRevision: null,
+		committedRevision: null,
 		revision: 1,
 		sourcePath: null,
 		...overrides,
@@ -235,7 +235,7 @@ describe("a Draft over a Collection Item", () => {
 	const OVER_HELLO = draft({
 		heading: "Hello world, revised",
 		href: `${EDITOR_BASE}/item/hello-world`,
-		publishedRevision: 1,
+		committedRevision: 1,
 		revision: 2,
 		sourcePath: "content/posts/hello-world.md",
 	})

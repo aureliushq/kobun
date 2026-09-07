@@ -43,6 +43,13 @@
       "when": 1788761061514,
       "tag": "0005_collection_listing_cache",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1788765168190,
+      "tag": "0006_committed_revision",
+      "breakpoints": true
     }
   ]
 }

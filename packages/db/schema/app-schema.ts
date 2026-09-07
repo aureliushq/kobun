@@ -120,8 +120,8 @@ export const editorDraft = sqliteTable(
 		markdown: text("markdown").notNull().default(""),
 		metadata: text("metadata"),
 		revision: integer("revision").notNull().default(0),
-		publishedRevision: integer("published_revision"),
-		publishedAt: integer("published_at", { mode: "timestamp_ms" }),
+		committedRevision: integer("committed_revision"),
+		committedAt: integer("committed_at", { mode: "timestamp_ms" }),
 		createdAt: integer("created_at", { mode: "timestamp_ms" })
 			.default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
 			.notNull(),
@@ -140,7 +140,7 @@ export const editorDraft = sqliteTable(
 			table.projectId,
 			table.sourcePath,
 		),
-		index("editor_draft_publishedAt_idx").on(table.publishedAt),
+		index("editor_draft_committedAt_idx").on(table.committedAt),
 	],
 )
 

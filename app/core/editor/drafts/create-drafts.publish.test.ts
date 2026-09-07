@@ -63,7 +63,7 @@ test("refuses a publish whose metadata is invalid, keeping the draft", async () 
 	const { drafts, source } = setup()
 	const seeded = seedSourceBackedDraft({
 		markdown: "Draft body",
-		publishedRevision: 1,
+		committedRevision: 1,
 		revision: 2,
 		sourceSha: source.sha,
 	})
@@ -175,7 +175,7 @@ test("refuses a publish whose source moved on github", async () => {
 	const { drafts, source } = setup()
 	seedSourceBackedDraft({
 		markdown: "Draft body",
-		publishedRevision: 1,
+		committedRevision: 1,
 		revision: 2,
 		sourceSha: "sha-the-draft-was-built-on",
 	})
@@ -190,7 +190,7 @@ test("refuses a publish the source store reports as stale", async () => {
 	const { drafts, source, sourceStore } = setup()
 	seedSourceBackedDraft({
 		markdown: "Draft body",
-		publishedRevision: 1,
+		committedRevision: 1,
 		revision: 2,
 		sourceSha: source.sha,
 	})
@@ -207,7 +207,7 @@ test("commits a dirty draft, syncs it, and deletes it", async () => {
 	const { db, drafts, source, sourceStore } = setup()
 	const seeded = seedSourceBackedDraft({
 		markdown: "Draft body",
-		publishedRevision: 1,
+		committedRevision: 1,
 		revision: 2,
 		sourceSha: source.sha,
 	})
@@ -234,7 +234,7 @@ test("re-stringifies the frontmatter when the metadata changed", async () => {
 	const { drafts, source, sourceStore } = setup()
 	seedSourceBackedDraft({
 		markdown: "Draft body",
-		publishedRevision: 1,
+		committedRevision: 1,
 		revision: 2,
 		sourceSha: source.sha,
 	})
@@ -298,7 +298,7 @@ test("refuses a publish carrying a stale expected revision", async () => {
 	const { drafts, source } = setup()
 	const seeded = seedSourceBackedDraft({
 		markdown: "Draft body",
-		publishedRevision: 1,
+		committedRevision: 1,
 		revision: 2,
 		sourceSha: source.sha,
 	})
@@ -336,7 +336,7 @@ test("deletes the draft without committing when the content matches the source",
 	const { db, drafts, source, sourceStore } = setup()
 	const seeded = seedSourceBackedDraft({
 		markdown: "Draft body",
-		publishedRevision: 1,
+		committedRevision: 1,
 		revision: 2,
 		sourceSha: source.sha,
 	})
@@ -360,7 +360,7 @@ test("refuses a matching publish whose draft moved before the delete", async () 
 	const { db, drafts, source, sourceStore } = setup()
 	const seeded = seedSourceBackedDraft({
 		markdown: SOURCE_BODY,
-		publishedRevision: 1,
+		committedRevision: 1,
 		revision: 2,
 		sourceSha: source.sha,
 	})
@@ -395,7 +395,7 @@ test("repoints the draft at the new source when the sync loses the race", async 
 	const { db, drafts, source, sourceStore } = setup()
 	const seeded = seedSourceBackedDraft({
 		markdown: "Draft body",
-		publishedRevision: 1,
+		committedRevision: 1,
 		revision: 2,
 		sourceSha: source.sha,
 	})
@@ -425,7 +425,7 @@ test("repoints the draft at the new source when the sync loses the race", async 
 	// so its next save is not refused against a sha that no longer exists.
 	expect(await harness.readDraft(seeded.id)).toMatchObject({
 		itemSlug: "hello",
-		publishedRevision: 1,
+		committedRevision: 1,
 		revision: 4,
 		sourcePath: SOURCE_PATH,
 		sourceSha: committed?.sha,
