@@ -1,8 +1,12 @@
 import type { InstallationID } from "@/types/github"
 
 /**
- * Where a Config is read from. GitHub coordinates, deliberately: "repo" is
+ * Which repository to read from. GitHub coordinates, deliberately: "repo" is
  * GitHub-side vocabulary, and a Project is the thing a user connects to one.
+ *
+ * Stated here because the Config was the first thing read through it, but it
+ * says nothing about Configs — the Collection listing's port addresses a
+ * repository the same way (ADR 0011).
  */
 export interface RepositoryAddress {
 	installationId: InstallationID

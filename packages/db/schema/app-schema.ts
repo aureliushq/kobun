@@ -2,6 +2,7 @@ import { relations, sql } from "drizzle-orm"
 import {
 	index,
 	integer,
+	primaryKey,
 	sqliteTable,
 	text,
 	uniqueIndex,
@@ -143,6 +144,40 @@ export const editorDraft = sqliteTable(
 	],
 )
 
+/**
+ * One Collection's directory listing, as the Collection page renders it. A
+ * cache row and nothing else: it exists only because a check succeeded, which
+ * is why every column but the validators is `NOT NULL` — there is no
+ * "connected but never read" state to model here the way there is on `project`.
+ *
+ * Keyed by the directory rather than by the Collection's slug, because the
+ * directory is what GitHub holds and what a commit writes into. Renaming a
+ * Collection in the Config leaves no orphan, and two Collections pointed at one
+ * directory correctly share a row.
+ *
+ * No `createdAt`/`updatedAt`: nobody reads this row's age, `checkedAt` is the
+ * only time that means anything, and `$onUpdate` is the very thing the Config
+ * cache has to work around when it rewrites a row (ADR-0003).
+ */
+export const collectionListing = sqliteTable(
+	"collection_listing",
+	{
+		projectId: text("project_id")
+			.notNull()
+			.references(() => project.id, { onDelete: "cascade" }),
+		directoryPath: text("directory_path").notNull(),
+		items: text("items").notNull(),
+		entriesHash: text("entries_hash").notNull(),
+		etag: text("etag"),
+		checkedAt: integer("checked_at", { mode: "timestamp_ms" }).notNull(),
+	},
+	// The composite key is the only index this table needs: its left prefix is
+	// `project_id`, and nothing here ever looks a listing up by anything but the
+	// pair. (`editorDraft` carries a separate one because its own key is a
+	// surrogate id.)
+	(table) => [primaryKey({ columns: [table.projectId, table.directoryPath] })],
+)
+
 export const githubInstallationRelations = relations(
 	githubInstallation,
 	({ many }) => ({
@@ -175,7 +210,18 @@ export const projectRelations = relations(project, ({ many, one }) => ({
 		references: [githubInstallation.id],
 	}),
 	editorDrafts: many(editorDraft),
+	collectionListings: many(collectionListing),
 }))
+
+export const collectionListingRelations = relations(
+	collectionListing,
+	({ one }) => ({
+		project: one(project, {
+			fields: [collectionListing.projectId],
+			references: [project.id],
+		}),
+	}),
+)
 
 export const editorDraftRelations = relations(editorDraft, ({ one }) => ({
 	project: one(project, {
