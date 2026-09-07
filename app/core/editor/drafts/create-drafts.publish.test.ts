@@ -109,7 +109,12 @@ test("refuses a publish with no body when the document is required", async () =>
 	})
 })
 
-const BAD_SLUG_ERRORS = ["Slug must be a valid nonempty filename slug"]
+const EMPTY_SLUG_ERRORS = [
+	"Slug is required — it becomes the file's name. A title with no letters or digits derives none, so type one.",
+]
+const MALFORMED_SLUG_ERRORS = [
+	"Slug must be lowercase letters and numbers separated by single hyphens",
+]
 
 test("refuses a publish whose slug is empty", async () => {
 	const { drafts } = setup()
@@ -120,7 +125,7 @@ test("refuses a publish whose slug is empty", async () => {
 
 	expect(result).toEqual({
 		code: "validation",
-		errors: BAD_SLUG_ERRORS,
+		errors: EMPTY_SLUG_ERRORS,
 		ok: false,
 	})
 })
@@ -134,7 +139,23 @@ test("refuses a publish whose slug would not survive as a filename", async () =>
 
 	expect(result).toEqual({
 		code: "validation",
-		errors: BAD_SLUG_ERRORS,
+		errors: MALFORMED_SLUG_ERRORS,
+		ok: false,
+	})
+})
+
+test("refuses a publish whose slug derivation could never have produced", async () => {
+	const { drafts } = setup()
+
+	// The Slug gate reads the same on both actions (ADR-0008), so the alphabet is
+	// pinned here as well as on the commit.
+	const result = await drafts.publish(
+		publishItem({ fields: { slug: "My_Post", title: "Hello" } }),
+	)
+
+	expect(result).toEqual({
+		code: "validation",
+		errors: MALFORMED_SLUG_ERRORS,
 		ok: false,
 	})
 })

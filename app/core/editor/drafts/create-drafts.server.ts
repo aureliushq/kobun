@@ -12,6 +12,7 @@ import {
 	type FieldRecord,
 	getSlugField,
 	validateMetadata,
+	validateSlug,
 } from "@/core/editor/collection-metadata"
 import { editorDraft } from "@/db/schema/app-schema"
 import { isDraftDirty } from "./draft-state"
@@ -35,9 +36,6 @@ import type {
 	SaveResult,
 	WriteDraftResult,
 } from "./types"
-
-/** A Slug has to survive being a filename in the repository. */
-const SLUG_PATTERN = /^[a-z0-9][a-z0-9._-]*$/i
 
 /**
  * Guard a nullable column against the value we read from it. `= NULL` matches
@@ -279,17 +277,6 @@ export function createDrafts(context: DraftsContext) {
 	}
 
 	/**
-	 * What must hold before a Draft may reach the repository at all: the Slug
-	 * becomes a filename, so it is constrained beyond being present. A commit with
-	 * no usable filename has nowhere to land, whichever action asked for it.
-	 */
-	function validateSlug(slug: string) {
-		return slug && SLUG_PATTERN.test(slug)
-			? []
-			: ["Slug must be a valid nonempty filename slug"]
-	}
-
-	/**
 	 * What must hold before a Draft may be called finished. "Required" is a claim
 	 * about a *finished* item and Publish is the action that makes that claim, so
 	 * holding it against a Save to GitHub would make the backup useless for the
@@ -309,6 +296,13 @@ export function createDrafts(context: DraftsContext) {
 	/**
 	 * Every gate a writer can fail, reported together so they see every problem at
 	 * once rather than one per attempt.
+	 *
+	 * The Slug is gated on both actions and metadata validation on neither but
+	 * Publish (ADR-0008): the Slug becomes a filename, and a commit with no usable
+	 * filename has nowhere to land whichever action asked for it, while "required"
+	 * is a claim about a finished item. What a Slug may be spelled with is one
+	 * rule with the derivation that has to satisfy it, so it is `validateSlug` in
+	 * the metadata module rather than a second spelling here.
 	 */
 	function validateCommit(
 		input: ResolvedSaveInput,
@@ -324,6 +318,10 @@ export function createDrafts(context: DraftsContext) {
 	 * Whether some other item in this collection already answers to `slug`. A
 	 * Collection Item is addressed by its Slug, so committing over a taken one
 	 * would publish this Draft on top of someone else's item.
+	 *
+	 * `validateCommit` runs first, so this is only ever asked of a Slug that could
+	 * be a filename at all — the third and last of the rules a Slug answers to,
+	 * and the only one that needs the repository rather than the string.
 	 */
 	async function isSlugTaken(slug: string, source: ResolvedSource | null) {
 		const files = await sourceStore.list(directoryPath)

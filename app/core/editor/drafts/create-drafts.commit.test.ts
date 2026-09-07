@@ -3,6 +3,7 @@ import invariant from "tiny-invariant"
 import { afterEach, expect, test, vi } from "vitest"
 import { collectionSchema } from "@/config/schema"
 import { parseDocument } from "@/core/content/document.server"
+import { SLUG_MAX_LENGTH } from "@/core/editor/collection-metadata"
 import { editorDraft } from "@/db/schema/app-schema"
 import { stringifyFrontmatter } from "@/lib/frontmatter"
 import {
@@ -184,7 +185,12 @@ test("commits with a required document empty", async () => {
 	expect(result).toMatchObject({ ok: true, outcome: "committed" })
 })
 
-const BAD_SLUG_ERRORS = ["Slug must be a valid nonempty filename slug"]
+const EMPTY_SLUG_ERRORS = [
+	"Slug is required — it becomes the file's name. A title with no letters or digits derives none, so type one.",
+]
+const MALFORMED_SLUG_ERRORS = [
+	"Slug must be lowercase letters and numbers separated by single hyphens",
+]
 
 test("refuses a commit whose slug is empty", async () => {
 	const { drafts } = setup()
@@ -195,7 +201,7 @@ test("refuses a commit whose slug is empty", async () => {
 
 	expect(result).toEqual({
 		code: "validation",
-		errors: BAD_SLUG_ERRORS,
+		errors: EMPTY_SLUG_ERRORS,
 		ok: false,
 	})
 })
@@ -209,7 +215,39 @@ test("refuses a commit whose slug would not survive as a filename", async () => 
 
 	expect(result).toEqual({
 		code: "validation",
-		errors: BAD_SLUG_ERRORS,
+		errors: MALFORMED_SLUG_ERRORS,
+		ok: false,
+	})
+})
+
+test("refuses a commit whose slug derivation could never have produced", async () => {
+	const { drafts } = setup()
+
+	// A filename this would survive as, but not a Slug `slugify` can emit: the
+	// alphabet is one rule, so a hand-typed Slug answers to it too.
+	const result = await drafts.commit(
+		commitNewItem(null, { fields: { slug: "My_Post", title: "Hello" } }),
+	)
+
+	expect(result).toEqual({
+		code: "validation",
+		errors: MALFORMED_SLUG_ERRORS,
+		ok: false,
+	})
+})
+
+test("refuses a commit whose slug is longer than a Slug may be", async () => {
+	const { drafts } = setup()
+
+	const result = await drafts.commit(
+		commitNewItem(null, {
+			fields: { slug: "a".repeat(SLUG_MAX_LENGTH + 1), title: "Hello" },
+		}),
+	)
+
+	expect(result).toEqual({
+		code: "validation",
+		errors: [`Slug must be ${SLUG_MAX_LENGTH} characters or fewer`],
 		ok: false,
 	})
 })

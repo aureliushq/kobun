@@ -31,7 +31,7 @@ Glossary of domain terms. Keep implementation details out — this is vocabulary
 - **Collection** — a directory of content items sharing a schema, addressed by slug.
 - **Collection Item** — one Source file within a Collection, addressed by its slug.
 - **Singleton** — a single fixed Source file with its own schema; no slug, no directory.
-- **Slug** — the identifier of a Collection Item within its Collection; must be unique across the Collection's directory.
+- **Slug** — the identifier of a Collection Item within its Collection, and the name of its file; must be unique across the Collection's directory, and drawn from one restricted alphabet whether it was derived from its source Field or typed over by the writer. A title that alphabet cannot spell derives no Slug, and the writer names the item instead.
 - **Field** — one named entry in a Collection or Singleton schema: a label plus either a Field Type or a Role.
 - **Field Type** — the kind of value a Field holds, determining how it is defaulted, validated, shown, and edited: `text · url · date · datetime · boolean · image · select · multi_select · array · object`. Every Field Type carries an ordinary value.
 - **Container** — a Field Type whose value holds other Fields' values: `array` (rows of items) and `object` (named sub-fields). Container behavior is defined in terms of its children's behavior.
