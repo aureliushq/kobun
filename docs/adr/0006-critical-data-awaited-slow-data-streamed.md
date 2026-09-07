@@ -236,6 +236,14 @@ other, and neither knows about the other. What they share is a column, because a
 writer looking at a row wants to know who holds the newer copy before they want
 to know what the committed file says about itself.
 
+> **Reversed by [ADR-0008](./0008-commit-and-publish-are-separate-acts.md)
+> ([#127](https://github.com/aureliushq/kobun/issues/127)).** The reasoning above
+> holds only while Publish is the only path to the repository, which makes the two
+> questions answers to each other. Save to GitHub makes them independent, and a
+> Draft standing in for the Publication State its Source records becomes a lie.
+> The column now carries both facts as two badges rather than one, and
+> `draftMarker` has replaced `draftState`.
+
 ## Considered options
 
 - **Await everything (status quo)** — one code path and no partial states, but first paint is coupled to the p99 of every origin the loader touches, including one that only feeds a decoration.

@@ -17,7 +17,11 @@ export {
 	getDraftEditorPath,
 	isDraftAdoptionNavigation,
 } from "./draft-paths"
-export type { DraftState } from "./draft-state"
-export { draftState, isDraftDirty } from "./draft-state"
+export type { DraftMarker } from "./draft-state"
+export {
+	DRAFT_MARKER_LABELS,
+	draftMarker,
+	isDraftDirty,
+} from "./draft-state"
 export { draftHeading } from "./draft-summary"
 export type { DraftRefusal, DraftTarget, SaveInput } from "./types"

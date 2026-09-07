@@ -32,8 +32,9 @@ import {
 import { getSlugField } from "@/core/editor/collection-metadata"
 import {
 	type CollectionDraft,
-	type DraftState,
-	draftState,
+	DRAFT_MARKER_LABELS,
+	type DraftMarker,
+	draftMarker,
 } from "@/core/editor/drafts"
 import { resolveTitleKey } from "@/core/fields"
 import { Badge } from "@/ui/components/base/badge"
@@ -42,7 +43,9 @@ import { Input } from "@/ui/components/base/input"
 import {
 	Select,
 	SelectContent,
+	SelectGroup,
 	SelectItem,
+	SelectLabel,
 	SelectTrigger,
 	SelectValue,
 } from "@/ui/components/base/select"
@@ -75,36 +78,28 @@ export type CollectionItem = {
 export type CollectionListing = CollectionItem[] | "pending" | "unavailable"
 
 /**
- * What the Status column says. The Publication States a Source records, plus
- * the two a Draft is in — one column carrying both vocabularies, because a row
- * is one thing to a writer and what they want to know about a Draft is that it
- * is one.
+ * The Draft markers the filter offers. `COMMITTED` is left out because the
+ * listing only asks for Dirty Drafts, and a filter offering a state no row can
+ * be in is a control that answers nothing.
  */
-type RowStatus = Status | "UNPUBLISHED" | "UNPUBLISHED_CHANGES"
+const MARKER_OPTIONS: { label: string; value: DraftMarker }[] = (
+	["NOT_IN_REPOSITORY", "UNCOMMITTED_CHANGES"] as DraftMarker[]
+).map((value) => ({ label: DRAFT_MARKER_LABELS[value], value }))
 
 /**
- * What this column calls each state a Draft is in. `clean` is unreachable from
- * this page — the listing only asks for Dirty Drafts — but it is the honest
- * answer for a Draft whose Source has caught up, and a total map cannot be
- * read as the column having an opinion it does not have.
+ * A row's two facts, kept apart. `publication` is read off the Source and only
+ * off the Source; `marker` is the Draft standing beside it. Either can be
+ * absent — a Draft with no Source has no Publication State to show, and an item
+ * nobody is editing has no Draft — and neither ever stands in for the other
+ * (ADR-0008, #127).
  */
-const DRAFT_STATUS: Record<DraftState, RowStatus> = {
-	clean: "PUBLISHED",
-	dirty: "UNPUBLISHED_CHANGES",
-	"never-published": "UNPUBLISHED",
-}
-
-const DRAFT_STATUS_OPTIONS: { label: string; value: RowStatus }[] = [
-	{ label: "Unpublished", value: "UNPUBLISHED" },
-	{ label: "Unpublished changes", value: "UNPUBLISHED_CHANGES" },
-]
-
 type Row = {
 	createdAt: number | undefined
 	/** Where the row opens. A Draft brought its own; an item builds one. */
 	href: string
 	id: string
-	status: RowStatus
+	marker: DraftMarker | null
+	publication: Status | null
 	title: string
 }
 
@@ -113,19 +108,23 @@ function formatRelative(ts: number | undefined): string {
 	return formatDistanceToNow(new Date(ts), { addSuffix: true })
 }
 
-const STATUS_CLASSES: Record<RowStatus, string> = {
+const PUBLICATION_CLASSES: Record<Status, string> = {
 	PUBLISHED:
 		"bg-green-500/15 text-green-700 border-green-500/30 dark:text-green-400",
 	DRAFT: "bg-red-500/15 text-red-700 border-red-500/30 dark:text-red-400",
 	SCHEDULED:
 		"bg-blue-500/15 text-blue-700 border-blue-500/30 dark:text-blue-400",
-	// Amber for both, so a Draft reads as work in hand rather than as one more
-	// Publication State: the two say the same thing about who has the newer copy.
-	UNPUBLISHED:
-		"bg-amber-500/15 text-amber-700 border-amber-500/30 dark:text-amber-400",
-	UNPUBLISHED_CHANGES:
-		"bg-amber-500/15 text-amber-700 border-amber-500/30 dark:text-amber-400",
 }
+
+// One amber for every marker, and amber for nothing else: a Draft reads as work
+// in hand rather than as one more Publication State, which is the whole point of
+// its badge sitting beside that one instead of on top of it. A colour per marker
+// would say the markers differ in kind, and they do not — only in news.
+const MARKER_CLASS =
+	"bg-amber-500/15 text-amber-700 border-amber-500/30 dark:text-amber-400"
+
+const ALL_STATUSES_VALUE = "all"
+const ALL_STATUSES_LABEL = "All statuses"
 
 const SORT_LABELS: Record<string, string> = {
 	"createdAt:desc": "Sort by: Newest",
@@ -243,9 +242,11 @@ export function CollectionTable({
 					deriveCreatedAt(collection.schema, item.data),
 				href: draft?.href ?? `${editorBase}/item/${encodeURIComponent(slug)}`,
 				id: item.path,
-				status: draft
-					? DRAFT_STATUS[draftState(draft)]
-					: deriveStatus(collection.schema, item.data),
+				marker: draft ? draftMarker(draft) : null,
+				// Off the Source, always. A Draft says who holds the newer copy; it
+				// has no standing to say what the site should do with the file that
+				// is already in the repository (ADR-0008).
+				publication: deriveStatus(collection.schema, item.data),
 				// The Draft holds the newer title, and a row is best named after
 				// what it opens rather than after the version already moved past.
 				title: draft?.heading ?? title,
@@ -270,7 +271,11 @@ export function CollectionTable({
 					deriveCreatedAt(collection.schema, draft.data) ?? draft.createdAt,
 				href: draft.href,
 				id: `draft:${draft.id}`,
-				status: DRAFT_STATUS[draftState(draft)],
+				marker: draftMarker(draft),
+				// No Source, so no Publication State to read off one. Reading the
+				// Draft's own `status` would put an item on the shelf the repository
+				// has never heard of.
+				publication: null,
 				title: draft.heading,
 			}))
 
@@ -284,13 +289,33 @@ export function CollectionTable({
 		slugFieldKey,
 	])
 
-	const statuses = useMemo<{ label: string; value: RowStatus }[]>(
-		() => [...statusOptions(collection.schema), ...DRAFT_STATUS_OPTIONS],
+	const publicationOptions = useMemo(
+		() => statusOptions(collection.schema),
 		[collection.schema],
 	)
-	const statusFilters = useMemo(
-		() => [{ label: "All statuses", value: "all" }, ...statuses],
-		[statuses],
+	// Grouped rather than pooled, so the filter says which of the two facts each
+	// option asks about — "Draft" and "Not in repository" are answers to
+	// different questions, and one flat list read as if they were the same one.
+	const filterGroups = useMemo(
+		() => [
+			{ label: "Publication", options: publicationOptions },
+			{ label: "Repository", options: MARKER_OPTIONS },
+		],
+		[publicationOptions],
+	)
+	// The trigger's wording is read off the very list the menu is built from,
+	// so an option can never render in one and go unnamed in the other.
+	const filterLabels = useMemo(
+		() =>
+			new Map<string, string>([
+				[ALL_STATUSES_VALUE, ALL_STATUSES_LABEL],
+				...filterGroups.flatMap((group) =>
+					group.options.map(
+						({ label, value }) => [value, label] as [string, string],
+					),
+				),
+			]),
+		[filterGroups],
 	)
 
 	const [sorting, setSorting] = useState<SortingState>([
@@ -330,22 +355,40 @@ export function CollectionTable({
 				},
 			},
 			{
-				accessorKey: "status",
+				id: "status",
+				// Sorted on whichever fact the row leads with, since a row with no
+				// Source has only the marker to be ordered by.
+				accessorFn: (row) => row.publication ?? row.marker ?? "",
 				header: ({ column }) => (
 					<SortableHeader column={column} disabled={pending} label="Status" />
 				),
 				cell: ({ row }) => (
-					<Badge
-						variant="outline"
-						className={`uppercase ${STATUS_CLASSES[row.original.status]}`}
-					>
-						{statuses.find(({ value }) => value === row.original.status)
-							?.label ?? row.original.status}
-					</Badge>
+					<div className="flex flex-wrap items-center gap-1.5">
+						{row.original.publication && (
+							<Badge
+								variant="outline"
+								className={`uppercase ${PUBLICATION_CLASSES[row.original.publication]}`}
+							>
+								{publicationOptions.find(
+									({ value }) => value === row.original.publication,
+								)?.label ?? row.original.publication}
+							</Badge>
+						)}
+						{/* A Clean Draft holds nothing the Source lacks, so it has no
+						    news and gets no badge. */}
+						{row.original.marker && row.original.marker !== "COMMITTED" && (
+							<Badge variant="outline" className={`uppercase ${MARKER_CLASS}`}>
+								{DRAFT_MARKER_LABELS[row.original.marker]}
+							</Badge>
+						)}
+					</div>
 				),
 				filterFn: (row, _columnId, filterValue) => {
 					if (!filterValue || filterValue === "all") return true
-					return row.original.status === filterValue
+					return (
+						row.original.publication === filterValue ||
+						row.original.marker === filterValue
+					)
 				},
 			},
 			{
@@ -360,7 +403,7 @@ export function CollectionTable({
 				sortUndefined: "last",
 			},
 		],
-		[pending, statuses],
+		[pending, publicationOptions],
 	)
 
 	const table = useReactTable({
@@ -377,7 +420,8 @@ export function CollectionTable({
 	})
 
 	const statusFilterValue =
-		(table.getColumn("status")?.getFilterValue() as string | undefined) ?? "all"
+		(table.getColumn("status")?.getFilterValue() as string | undefined) ??
+		ALL_STATUSES_VALUE
 
 	const pageIndex = table.getState().pagination.pageIndex
 	const pageSize = table.getState().pagination.pageSize
@@ -408,22 +452,29 @@ export function CollectionTable({
 						onValueChange={(v) =>
 							table
 								.getColumn("status")
-								?.setFilterValue(v === "all" ? undefined : v)
+								?.setFilterValue(v === ALL_STATUSES_VALUE ? undefined : v)
 						}
 					>
 						<SelectTrigger aria-label="Filter by status" className="w-56">
-							<SelectValue placeholder="All statuses">
+							<SelectValue placeholder={ALL_STATUSES_LABEL}>
 								{(value) =>
-									statusFilters.find((option) => option.value === value)
-										?.label ?? "All statuses"
+									filterLabels.get(value as string) ?? ALL_STATUSES_LABEL
 								}
 							</SelectValue>
 						</SelectTrigger>
 						<SelectContent>
-							{statusFilters.map(({ label, value }) => (
-								<SelectItem key={value} value={value}>
-									{label}
-								</SelectItem>
+							<SelectItem value={ALL_STATUSES_VALUE}>
+								{ALL_STATUSES_LABEL}
+							</SelectItem>
+							{filterGroups.map((group) => (
+								<SelectGroup key={group.label}>
+									<SelectLabel>{group.label}</SelectLabel>
+									{group.options.map(({ label, value }) => (
+										<SelectItem key={value} value={value}>
+											{label}
+										</SelectItem>
+									))}
+								</SelectGroup>
 							))}
 						</SelectContent>
 					</Select>
