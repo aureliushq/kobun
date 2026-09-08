@@ -34,6 +34,12 @@ export default [
 		route("/login", "routes/login.tsx"),
 		route("/setup", "routes/setup.tsx"),
 	]),
+	// Account-scoped, so there is no `/:owner/:name` parent to inherit from and
+	// no Project in the URL — which is the point, and the reason it cannot sit
+	// under the dashboard layout (ADR-0010).
+	layout("core/components/layouts/settings.tsx", [
+		route("/settings", "routes/settings.tsx"),
+	]),
 	...prefix("api", [
 		route("auth/*", "routes/api.auth.$.ts"),
 		route("dashboard-actions", "routes/api.dashboard-actions.ts"),
