@@ -49,6 +49,29 @@ export enum DateDisplay {
 	ABSOLUTE = "absolute",
 }
 
+/**
+ * The columns are plain `text()`, so nothing between a form field and the row
+ * enforces these vocabularies — SQLite will store whatever it is handed. These
+ * are where that enforcement lives, in the shape `isPrimaryEditorAction` in
+ * `app/core/editor/primary-action.ts` already uses.
+ *
+ * They sit here rather than in a `.server` module because the guard is needed on
+ * both sides: the settings page validates its own optimistic value in the
+ * browser before the round trip settles. This module imports the schema with
+ * `import type`, so reaching for it from the client costs nothing at runtime.
+ */
+export function isEditorWidth(value: unknown): value is EditorWidth {
+	return Object.values(EditorWidth).includes(value as EditorWidth)
+}
+
+export function isEditorFont(value: unknown): value is EditorFont {
+	return Object.values(EditorFont).includes(value as EditorFont)
+}
+
+export function isDateDisplay(value: unknown): value is DateDisplay {
+	return Object.values(DateDisplay).includes(value as DateDisplay)
+}
+
 export type GithubInstallation = typeof githubInstallation.$inferSelect
 export type Project = typeof project.$inferSelect
 export type UserPreference = typeof userPreference.$inferSelect

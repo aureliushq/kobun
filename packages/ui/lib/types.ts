@@ -22,6 +22,12 @@ export enum DashboardActionIntents {
 	REFRESH_CONFIGURATION = "refresh-configuration",
 }
 
+export enum SettingsActionIntents {
+	DELETE_ACCOUNT = "delete-account",
+	REVOKE_SESSION = "revoke-session",
+	UPDATE_PREFERENCE = "update-preference",
+}
+
 export enum EditorActionIntents {
 	SAVE = "save",
 	COMMIT = "commit",
