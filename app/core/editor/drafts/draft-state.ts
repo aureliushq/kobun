@@ -1,40 +1,58 @@
 /**
  * Whether the Draft holds anything its Source does not. A Draft that has never
- * been published is Dirty by definition; one published at an older Revision has
+ * been committed is Dirty by definition; one committed at an older Revision has
  * been typed into since. Every transition turns on this question — which is why
  * it is a pure function of two columns, callable from a browser that has a Draft
  * row and nothing else.
  */
 export function isDraftDirty(draft: {
-	publishedRevision: number | null
+	committedRevision: number | null
 	revision: number
 }) {
 	return (
-		draft.publishedRevision === null || draft.revision > draft.publishedRevision
+		draft.committedRevision === null || draft.revision > draft.committedRevision
 	)
 }
 
 /**
- * The three states a Draft can be found in, in the glossary's own words. Dirty
- * and Clean are the pair `isDraftDirty` answers; a Draft with no Published
- * Revision is Dirty too, but it is not the same news to a writer — it has
- * nothing in the repository behind it at all, so it gets its own name.
+ * What a surface says about a Draft *beside* its Source's Publication State,
+ * never in place of it (ADR-0008). The two answer different questions — is it
+ * in the repository, and what should the site do with it once there — and a
+ * Draft that hid the Source's answer was the collision this replaced (#127).
  *
- * Named for the lifecycle rather than for what a screen calls it. A surface
- * that shows a Draft has a reader to write for and picks its own words; what
- * must not be duplicated is the classification, and that is what this is.
+ * `NOT_IN_REPOSITORY` is narrower than "no Committed Revision": a Draft opened
+ * over a Source that already existed has none either, but the file is in the
+ * repository, so the news about it is that the repository is behind.
+ *
+ * `COMMITTED` is what a Clean Draft is — no news at all — which is why the
+ * Collection list, whose query only asks for Dirty Drafts, never shows it.
  */
-export type DraftState = "clean" | "dirty" | "never-published"
+export type DraftMarker =
+	| "COMMITTED"
+	| "NOT_IN_REPOSITORY"
+	| "UNCOMMITTED_CHANGES"
 
 /**
  * Which of the three a Draft is in. It lives beside `isDraftDirty` rather than
  * in either caller because the dashboard and the Collection list both ask it,
  * and two copies of a lifecycle drift.
  */
-export function draftState(draft: {
-	publishedRevision: number | null
+export function draftMarker(draft: {
+	committedRevision: number | null
 	revision: number
-}): DraftState {
-	if (draft.publishedRevision === null) return "never-published"
-	return isDraftDirty(draft) ? "dirty" : "clean"
+	sourcePath: string | null
+}): DraftMarker {
+	if (!isDraftDirty(draft)) return "COMMITTED"
+	return draft.sourcePath === null ? "NOT_IN_REPOSITORY" : "UNCOMMITTED_CHANGES"
+}
+
+/**
+ * The writer's words for each marker, spelled once. Both surfaces that show a
+ * Draft read them from here: the two had drifted apart into label tables that
+ * agreed only by luck, and one of them called a Clean Draft "Published" (#127).
+ */
+export const DRAFT_MARKER_LABELS: Record<DraftMarker, string> = {
+	COMMITTED: "In repository",
+	NOT_IN_REPOSITORY: "Not in repository",
+	UNCOMMITTED_CHANGES: "Uncommitted changes",
 }

@@ -53,7 +53,7 @@ function seedSourceBackedDraft(
 	return harness.seedDraft({
 		itemSlug: "hello",
 		metadata: JSON.stringify(FIELDS),
-		publishedRevision: 0,
+		committedRevision: 0,
 		sourcePath: SOURCE_PATH,
 		sourceSha: SOURCE_SHA,
 		...values,
@@ -166,7 +166,7 @@ test("inserts a draft on the first save of an existing item, tracking the source
 		markdown: "Draft body",
 		metadata: JSON.stringify(FIELDS),
 		projectId,
-		publishedRevision: 0,
+		committedRevision: 0,
 		revision: 1,
 		sourcePath: SOURCE_PATH,
 		sourceSha: SOURCE_SHA,
@@ -222,8 +222,8 @@ test("mints a new item's draft on its first save", async () => {
 		markdown: "Draft body",
 		metadata: JSON.stringify(FIELDS),
 		projectId,
-		// Never published, so Dirty from the moment it exists.
-		publishedRevision: null,
+		// Never committed, so Dirty from the moment it exists.
+		committedRevision: null,
 		revision: 1,
 		sourcePath: null,
 		sourceSha: null,

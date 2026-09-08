@@ -6,8 +6,11 @@ import {
 	applyMetadataDefaults,
 	defaultFieldValue,
 	getCollectionEditorFields,
+	SLUG_MAX_LENGTH,
+	slugify,
 	updateMetadataField,
 	validateMetadata,
+	validateSlug,
 } from "./collection-metadata"
 
 const publishedAt = { type: "datetime", label: "Published at" }
@@ -492,6 +495,21 @@ describe("field type validation", () => {
 		)
 	})
 
+	it("refuses a document nested in an object that carries no label", () => {
+		// The skip is a rule about the top level, not about the path built so far:
+		// an empty label used to read as "not nested" and let this through.
+		const schema = {
+			group: {
+				type: "object",
+				label: "",
+				fields: { body: { type: "document", label: "Body" } },
+			},
+		} as unknown as Record<string, Field>
+		expect(() => validateMetadata(schema, { group: { body: 1 } })).toThrow(
+			DocumentFieldError,
+		)
+	})
+
 	it("refuses a document declared as an array item", () => {
 		const schema = {
 			sections: {
@@ -518,5 +536,104 @@ describe("field type validation", () => {
 		expect(() => validateMetadata(schema, { group: {} })).toThrow(
 			DocumentFieldError,
 		)
+	})
+})
+
+const SLUG_REQUIRED =
+	"Slug is required — it becomes the file's name. A title with no letters or digits derives none, so type one."
+const SLUG_MALFORMED =
+	"Slug must be lowercase letters and numbers separated by single hyphens"
+const SLUG_TOO_LONG = `Slug must be ${SLUG_MAX_LENGTH} characters or fewer`
+
+describe("the Slug rule", () => {
+	it("derives only what the rule accepts", () => {
+		const titles = [
+			"Hello World",
+			"  Hello  ",
+			"Héllo Wörld",
+			"C++ & Rust!",
+			"2026 Review",
+			"!!!",
+			"日本語",
+			"a".repeat(200),
+			"word ".repeat(60),
+		]
+		for (const title of titles) {
+			const slug = slugify(title)
+			// The law: derivation emits nothing, or something validation accepts.
+			expect(slug === "" || validateSlug(slug).length === 0).toBe(true)
+		}
+	})
+
+	it("strips the marks NFKD decomposes rather than breaking the word on them", () => {
+		expect(slugify("Héllo Wörld")).toBe("hello-world")
+		expect(slugify("Crème Brûlée")).toBe("creme-brulee")
+	})
+
+	it("keeps whole words when it truncates", () => {
+		const slug = slugify("word ".repeat(60))
+		expect(slug.length).toBeLessThanOrEqual(SLUG_MAX_LENGTH)
+		expect(slug.endsWith("-")).toBe(false)
+		expect(slug).toBe(`${"word-".repeat(23)}word`)
+	})
+
+	it("cuts a single long word at the cap", () => {
+		expect(slugify("a".repeat(200))).toBe("a".repeat(SLUG_MAX_LENGTH))
+	})
+
+	it("does not cut a word it did not have to", () => {
+		// The derivation is 122 characters with the hyphen sitting exactly at the
+		// cap, so the whole first word fits and nothing needs giving up.
+		const slug = slugify(`${"a".repeat(SLUG_MAX_LENGTH)} b`)
+		expect(slug).toBe("a".repeat(SLUG_MAX_LENGTH))
+	})
+
+	it("derives nothing from a title with no letters or digits", () => {
+		expect(slugify("!!!")).toBe("")
+		expect(slugify("日本語")).toBe("")
+	})
+
+	it("asks for a Slug that is missing", () => {
+		expect(validateSlug("")).toEqual([SLUG_REQUIRED])
+	})
+
+	it("refuses a Slug derivation could never have produced", () => {
+		for (const slug of [
+			"Hello",
+			"my.post",
+			"my_post",
+			"../secrets",
+			"-lead",
+			"trail-",
+			"a--b",
+			"héllo",
+		]) {
+			expect(validateSlug(slug)).toEqual([SLUG_MALFORMED])
+		}
+	})
+
+	it("refuses a Slug that is too long", () => {
+		expect(validateSlug("a".repeat(SLUG_MAX_LENGTH + 1))).toEqual([
+			SLUG_TOO_LONG,
+		])
+	})
+
+	it("reports both reasons when both hold", () => {
+		expect(validateSlug("A".repeat(SLUG_MAX_LENGTH + 1))).toEqual([
+			SLUG_MALFORMED,
+			SLUG_TOO_LONG,
+		])
+	})
+
+	it("accepts what derivation emits", () => {
+		for (const slug of [
+			"hello",
+			"hello-world",
+			"2026",
+			"a",
+			"a".repeat(SLUG_MAX_LENGTH),
+		]) {
+			expect(validateSlug(slug)).toEqual([])
+		}
 	})
 })

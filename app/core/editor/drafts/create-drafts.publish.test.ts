@@ -63,7 +63,7 @@ test("refuses a publish whose metadata is invalid, keeping the draft", async () 
 	const { drafts, source } = setup()
 	const seeded = seedSourceBackedDraft({
 		markdown: "Draft body",
-		publishedRevision: 1,
+		committedRevision: 1,
 		revision: 2,
 		sourceSha: source.sha,
 	})
@@ -109,7 +109,12 @@ test("refuses a publish with no body when the document is required", async () =>
 	})
 })
 
-const BAD_SLUG_ERRORS = ["Slug must be a valid nonempty filename slug"]
+const EMPTY_SLUG_ERRORS = [
+	"Slug is required — it becomes the file's name. A title with no letters or digits derives none, so type one.",
+]
+const MALFORMED_SLUG_ERRORS = [
+	"Slug must be lowercase letters and numbers separated by single hyphens",
+]
 
 test("refuses a publish whose slug is empty", async () => {
 	const { drafts } = setup()
@@ -120,7 +125,7 @@ test("refuses a publish whose slug is empty", async () => {
 
 	expect(result).toEqual({
 		code: "validation",
-		errors: BAD_SLUG_ERRORS,
+		errors: EMPTY_SLUG_ERRORS,
 		ok: false,
 	})
 })
@@ -134,7 +139,23 @@ test("refuses a publish whose slug would not survive as a filename", async () =>
 
 	expect(result).toEqual({
 		code: "validation",
-		errors: BAD_SLUG_ERRORS,
+		errors: MALFORMED_SLUG_ERRORS,
+		ok: false,
+	})
+})
+
+test("refuses a publish whose slug derivation could never have produced", async () => {
+	const { drafts } = setup()
+
+	// The Slug gate reads the same on both actions (ADR-0008), so the alphabet is
+	// pinned here as well as on the commit.
+	const result = await drafts.publish(
+		publishItem({ fields: { slug: "My_Post", title: "Hello" } }),
+	)
+
+	expect(result).toEqual({
+		code: "validation",
+		errors: MALFORMED_SLUG_ERRORS,
 		ok: false,
 	})
 })
@@ -154,7 +175,7 @@ test("refuses a publish whose source moved on github", async () => {
 	const { drafts, source } = setup()
 	seedSourceBackedDraft({
 		markdown: "Draft body",
-		publishedRevision: 1,
+		committedRevision: 1,
 		revision: 2,
 		sourceSha: "sha-the-draft-was-built-on",
 	})
@@ -169,7 +190,7 @@ test("refuses a publish the source store reports as stale", async () => {
 	const { drafts, source, sourceStore } = setup()
 	seedSourceBackedDraft({
 		markdown: "Draft body",
-		publishedRevision: 1,
+		committedRevision: 1,
 		revision: 2,
 		sourceSha: source.sha,
 	})
@@ -186,7 +207,7 @@ test("commits a dirty draft, syncs it, and deletes it", async () => {
 	const { db, drafts, source, sourceStore } = setup()
 	const seeded = seedSourceBackedDraft({
 		markdown: "Draft body",
-		publishedRevision: 1,
+		committedRevision: 1,
 		revision: 2,
 		sourceSha: source.sha,
 	})
@@ -213,7 +234,7 @@ test("re-stringifies the frontmatter when the metadata changed", async () => {
 	const { drafts, source, sourceStore } = setup()
 	seedSourceBackedDraft({
 		markdown: "Draft body",
-		publishedRevision: 1,
+		committedRevision: 1,
 		revision: 2,
 		sourceSha: source.sha,
 	})
@@ -277,7 +298,7 @@ test("refuses a publish carrying a stale expected revision", async () => {
 	const { drafts, source } = setup()
 	const seeded = seedSourceBackedDraft({
 		markdown: "Draft body",
-		publishedRevision: 1,
+		committedRevision: 1,
 		revision: 2,
 		sourceSha: source.sha,
 	})
@@ -315,7 +336,7 @@ test("deletes the draft without committing when the content matches the source",
 	const { db, drafts, source, sourceStore } = setup()
 	const seeded = seedSourceBackedDraft({
 		markdown: "Draft body",
-		publishedRevision: 1,
+		committedRevision: 1,
 		revision: 2,
 		sourceSha: source.sha,
 	})
@@ -339,7 +360,7 @@ test("refuses a matching publish whose draft moved before the delete", async () 
 	const { db, drafts, source, sourceStore } = setup()
 	const seeded = seedSourceBackedDraft({
 		markdown: SOURCE_BODY,
-		publishedRevision: 1,
+		committedRevision: 1,
 		revision: 2,
 		sourceSha: source.sha,
 	})
@@ -374,7 +395,7 @@ test("repoints the draft at the new source when the sync loses the race", async 
 	const { db, drafts, source, sourceStore } = setup()
 	const seeded = seedSourceBackedDraft({
 		markdown: "Draft body",
-		publishedRevision: 1,
+		committedRevision: 1,
 		revision: 2,
 		sourceSha: source.sha,
 	})
@@ -404,7 +425,7 @@ test("repoints the draft at the new source when the sync loses the race", async 
 	// so its next save is not refused against a sha that no longer exists.
 	expect(await harness.readDraft(seeded.id)).toMatchObject({
 		itemSlug: "hello",
-		publishedRevision: 1,
+		committedRevision: 1,
 		revision: 4,
 		sourcePath: SOURCE_PATH,
 		sourceSha: committed?.sha,

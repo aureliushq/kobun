@@ -238,6 +238,57 @@ export async function listGithubDirectoryFiles(
 }
 
 /**
+ * List a directory's entries — names and shas, never bytes — conditionally on
+ * an ETag.
+ *
+ * A sibling of `listGithubDirectoryFiles` rather than an option on it: that one
+ * is a GraphQL Tree query that pulls the full text of every file, and this is
+ * the cheap REST call that decides whether spending it would buy anything. A
+ * GraphQL response carries no ETag, so the conditional half has to be REST.
+ * GitHub answers an unchanged directory with a 304, which costs no rate limit —
+ * and which octokit, like a missing directory, reports by throwing. Callers
+ * classify both with `hasStatus`; what they mean is the caller's vocabulary,
+ * not this module's.
+ *
+ * A path naming a file rather than a directory answers with no entries, which
+ * is what the Tree query above says about the same path.
+ */
+export async function listGithubDirectoryEntriesConditional(
+	env: Env,
+	installationId: InstallationID,
+	owner: string,
+	repo: string,
+	path: string,
+	etag?: string | null,
+): Promise<{
+	entries: Array<{ name: string; sha: string }>
+	etag: string | null
+}> {
+	const octokit = getGithubInstallationOctokit(env, installationId)
+
+	const response = await octokit.repos.getContent({
+		owner,
+		repo,
+		path,
+		headers: {
+			...GITHUB_HEADERS,
+			...(etag ? { "if-none-match": etag } : {}),
+		},
+	})
+
+	const responseEtag = response.headers.etag ?? null
+	const { data } = response
+	if (!Array.isArray(data)) return { entries: [], etag: responseEtag }
+
+	// Directory entries carry no content — the whole reason this call is cheap.
+	// `sha` is the blob's object id, the same value the Tree query calls `oid`.
+	return {
+		entries: data.map((entry) => ({ name: entry.name, sha: entry.sha })),
+		etag: responseEtag,
+	}
+}
+
+/**
  * Read a single file's raw bytes from a repository.
  * Use for binary content; for text prefer getGithubFileContent.
  */

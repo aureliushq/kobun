@@ -19,9 +19,9 @@ import type { ConfigError } from "@/config/types"
 import type { loader as dashboardLayoutLoader } from "@/core/components/layouts/dashboard"
 import { envContext } from "@/core/context"
 import {
-	type DraftState,
+	DRAFT_MARKER_LABELS,
 	draftHeading,
-	draftState,
+	draftMarker,
 	getDraftEditorPath,
 	isDraftDirty,
 } from "@/core/editor/drafts"
@@ -63,17 +63,6 @@ import type { Route } from "./+types/dashboard"
 const DISCARD_DRAFT_INTENT = "discard-draft"
 
 /**
- * What a card calls each state a Draft can be in. "Unsaved changes" is gone:
- * the changes are saved — kobun has them — they are just not published, which
- * is also what the Collection list says about the same Draft.
- */
-const DRAFT_STATE_LABELS: Record<DraftState, string> = {
-	clean: "Published",
-	dirty: "Unpublished changes",
-	"never-published": "Unpublished",
-}
-
-/**
  * Three round-trips before a single Draft can be listed, none of which decides
  * whether this page may be seen — so the page does not wait on them (ADR 0006).
  *
@@ -100,9 +89,9 @@ async function loadDashboardDrafts(db: ProjectContextDatabase, userId: string) {
 		.where(
 			and(
 				inArray(editorDraft.projectId, projectIds),
-				isNotNull(editorDraft.publishedRevision),
-				isNotNull(editorDraft.publishedAt),
-				sql`${editorDraft.revision} = ${editorDraft.publishedRevision}`,
+				isNotNull(editorDraft.committedRevision),
+				isNotNull(editorDraft.committedAt),
+				sql`${editorDraft.revision} = ${editorDraft.committedRevision}`,
 			),
 		)
 
@@ -137,7 +126,7 @@ async function loadDashboardDrafts(db: ProjectContextDatabase, userId: string) {
 				repoName: draft.project.repoName,
 				repoOwnerLogin: draft.project.repoOwnerLogin,
 			},
-			publishedRevision: draft.publishedRevision,
+			committedRevision: draft.committedRevision,
 			revision: draft.revision,
 			sourcePath: draft.sourcePath,
 			updatedAt: draft.updatedAt,
@@ -337,8 +326,8 @@ function DiscardDraftDialog({ draftId }: { draftId: string }) {
 				<AlertDialogHeader>
 					<AlertDialogTitle>Discard this draft?</AlertDialogTitle>
 					<AlertDialogDescription>
-						This can&apos;t be undone. The draft and any unpublished changes
-						will be permanently deleted.
+						This can&apos;t be undone. The draft and any changes the repository
+						does not have will be permanently deleted.
 					</AlertDialogDescription>
 				</AlertDialogHeader>
 				<AlertDialogFooter>
@@ -372,13 +361,17 @@ function DraftsSection({ drafts }: { drafts: DashboardDraft[] }) {
 			<div>
 				<h3 className="font-medium text-base">Drafts</h3>
 				<p className="text-muted-foreground text-sm">
-					Continue editing unpublished work.
+					Continue editing work in progress.
 				</p>
 			</div>
 			{drafts.map((draft) => {
 				const dirty = isDraftDirty(draft)
 				const href = getDraftEditorPath(draft, draft.project)
-				const state = DRAFT_STATE_LABELS[draftState(draft)]
+				// Where the Draft stands with the repository, and nothing more. A
+				// card never fetches the Source, so it has no Publication State to
+				// read — and the label that used to call a Clean Draft "Published"
+				// was answering a question it had not asked (ADR-0008, #127).
+				const state = DRAFT_MARKER_LABELS[draftMarker(draft)]
 				return (
 					<Card key={draft.id} size="sm">
 						{/* An explicit `minmax(0, 1fr)` column: the header's implicit one

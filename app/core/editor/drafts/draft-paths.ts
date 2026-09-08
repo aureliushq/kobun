@@ -37,7 +37,7 @@ export function getCollectionItemEditorPath(
 }
 
 /**
- * The editor for an item that has never been published. It carries its Draft in
+ * The editor for an item that has never been committed. It carries its Draft in
  * the query string, since nothing in the repository names it yet.
  */
 function getNewItemEditorPath(

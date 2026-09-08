@@ -68,7 +68,7 @@ export type OpenResult =
 			fields: FieldRecord
 			ok: true
 			revision: number | null
-			/** Absent for a new item, which has no Source until it is published. */
+			/** Absent for a new item, which has no Source until it is committed. */
 			source: ResolvedSource | null
 			/**
 			 * Whether the Draft holds work the Source lacks — **Dirty**, and the

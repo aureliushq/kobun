@@ -2,6 +2,8 @@ import { fireEvent, render, screen, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { MemoryRouter } from "react-router"
 import { describe, expect, it } from "vitest"
+import { expandFeatures } from "@/config/features"
+import { collectionSchema } from "@/config/schema"
 import type { Collection, ResolvedField } from "@/config/types"
 import type { CollectionDraft } from "@/core/editor/drafts"
 
@@ -31,6 +33,27 @@ const SCHEMA = {
 
 const POSTS = { label: "Posts", schema: SCHEMA } as unknown as Collection
 
+/**
+ * The same Collection with the `publish` Feature on, parsed and expanded
+ * through the real config path so its Managed `status` Field is the one a
+ * writer's Config would produce rather than a lookalike.
+ */
+const PUBLISHING_POSTS: Collection = (() => {
+	const { collection } = expandFeatures(
+		collectionSchema.parse({
+			features: { publish: true },
+			format: "md",
+			label: "Posts",
+			schema: {
+				slug: { from: "title", label: "Slug", type: "slug" },
+				title: { label: "Title", type: "text" },
+			},
+		}),
+	)
+	if (!collection) throw new Error("the publishing fixture must expand")
+	return collection
+})()
+
 const EDITOR_BASE = "/acme/site/collections/posts/editor"
 
 function item(overrides: Partial<CollectionItem> = {}): CollectionItem {
@@ -50,18 +73,22 @@ function draft(overrides: Partial<CollectionDraft> = {}): CollectionDraft {
 		heading: "A new thought…",
 		href: `${EDITOR_BASE}/new?draft=draft-1`,
 		id: "draft-1",
-		publishedRevision: null,
+		committedRevision: null,
 		revision: 1,
 		sourcePath: null,
 		...overrides,
 	}
 }
 
-function list(listing: CollectionListing, drafts: CollectionDraft[] = []) {
+function list(
+	listing: CollectionListing,
+	drafts: CollectionDraft[] = [],
+	collection: Collection = POSTS,
+) {
 	return render(
 		<MemoryRouter>
 			<CollectionTable
-				collection={POSTS}
+				collection={collection}
 				drafts={drafts}
 				editorBase={EDITOR_BASE}
 				listing={listing}
@@ -201,10 +228,15 @@ describe("a Draft with no Source behind it", () => {
 		).toHaveAttribute("href", `${EDITOR_BASE}/new?draft=draft-1`)
 	})
 
-	it("says it has never been published", () => {
-		list([], [draft()])
+	// It has no Source, so there is no Publication State to read off one, and
+	// guessing at the Draft's own `status` would put an item on the shelf that
+	// the repository has never heard of (#127).
+	it("says only that it is not in the repository", () => {
+		list([], [draft()], PUBLISHING_POSTS)
 
-		expect(screen.getByText("Unpublished")).toBeInTheDocument()
+		expect(screen.getByText("Not in repository")).toBeInTheDocument()
+		expect(screen.queryByText("Draft")).not.toBeInTheDocument()
+		expect(screen.queryByText("Published")).not.toBeInTheDocument()
 	})
 
 	// A Draft's own Data is what it would be committed as, so the date column
@@ -235,7 +267,7 @@ describe("a Draft over a Collection Item", () => {
 	const OVER_HELLO = draft({
 		heading: "Hello world, revised",
 		href: `${EDITOR_BASE}/item/hello-world`,
-		publishedRevision: 1,
+		committedRevision: 1,
 		revision: 2,
 		sourcePath: "content/posts/hello-world.md",
 	})
@@ -249,7 +281,7 @@ describe("a Draft over a Collection Item", () => {
 	it("says it holds changes the repository does not have", () => {
 		list([item()], [OVER_HELLO])
 
-		expect(screen.getByText("Unpublished changes")).toBeInTheDocument()
+		expect(screen.getByText("Uncommitted changes")).toBeInTheDocument()
 	})
 
 	// The Draft holds the newer title, and a row should be named after what it
@@ -298,6 +330,65 @@ describe("a Draft over a Collection Item", () => {
 	})
 })
 
+/**
+ * The two facts a row carries, and the four combinations Save to GitHub (#91)
+ * made reachable. Publication State comes from the Source and only from the
+ * Source; the Draft beside it is a marker, never a replacement (ADR-0008).
+ */
+describe("Publication State and the Draft beside it", () => {
+	const HELLO = "content/posts/hello-world.md"
+	const over = (overrides: Partial<CollectionDraft> = {}) =>
+		draft({
+			heading: "Hello world, revised",
+			href: `${EDITOR_BASE}/item/hello-world`,
+			committedRevision: 1,
+			revision: 2,
+			sourcePath: HELLO,
+			...overrides,
+		})
+	const committed = (status: string) =>
+		item({ data: { slug: "hello-world", status, title: "Hello world" } })
+
+	it("reads a committed draft as Draft, with nothing pending", () => {
+		list([committed("draft")], [], PUBLISHING_POSTS)
+
+		expect(screen.getByText("Draft")).toBeInTheDocument()
+		expect(screen.queryByText("Uncommitted changes")).not.toBeInTheDocument()
+	})
+
+	// The collision this ticket exists to end: the Draft used to win the column
+	// outright, and a Clean one of them read as "Published".
+	it("keeps saying Draft when a Draft sits over a committed draft", () => {
+		list([committed("draft")], [over()], PUBLISHING_POSTS)
+
+		expect(screen.getByText("Draft")).toBeInTheDocument()
+		expect(screen.getByText("Uncommitted changes")).toBeInTheDocument()
+	})
+
+	it("reads a live item as Published, with nothing pending", () => {
+		list([committed("published")], [], PUBLISHING_POSTS)
+
+		expect(screen.getByText("Published")).toBeInTheDocument()
+		expect(screen.queryByText("Uncommitted changes")).not.toBeInTheDocument()
+	})
+
+	it("keeps saying Published when a Draft sits over a live item", () => {
+		list([committed("published")], [over()], PUBLISHING_POSTS)
+
+		expect(screen.getByText("Published")).toBeInTheDocument()
+		expect(screen.getByText("Uncommitted changes")).toBeInTheDocument()
+	})
+
+	// `deriveStatus` is untouched by the split: a Collection that never turned
+	// the Feature on still sniffs the conventional keys, and a Source with no
+	// `status` at all is still live rather than swept off the shelf.
+	it("still reads an absent status as Published without the publish Feature", () => {
+		list([item()])
+
+		expect(screen.getByText("Published")).toBeInTheDocument()
+	})
+})
+
 describe("the page's controls", () => {
 	const DRAFTS = [draft({ heading: "Unpublished thing" })]
 
@@ -314,18 +405,66 @@ describe("the page's controls", () => {
 		).toBeInTheDocument()
 	})
 
-	it("filters down to the Drafts by the state they are in", async () => {
+	it("filters down to the Drafts by where they stand with the repository", async () => {
 		const user = userEvent.setup()
 		const { container } = list([item()], DRAFTS)
 
 		await user.click(screen.getByRole("combobox", { name: "Filter by status" }))
-		await user.click(await screen.findByRole("option", { name: "Unpublished" }))
+		await user.click(
+			await screen.findByRole("option", { name: "Not in repository" }),
+		)
 
 		const rows = bodyRows(container)
 		expect(rows).toHaveLength(1)
 		expect(
 			within(rows[0] as HTMLElement).getByText("Unpublished thing"),
 		).toBeInTheDocument()
+	})
+
+	// Both facts are filterable, and the one names which it filters on: a row
+	// whose Draft is Dirty is still a Published row, which the old single
+	// column could not express and so could not filter for either.
+	it("filters on Publication State without losing a row that has a Draft", async () => {
+		const user = userEvent.setup()
+		const { container } = list(
+			[
+				item({
+					data: {
+						slug: "hello-world",
+						status: "published",
+						title: "Hello world",
+					},
+				}),
+			],
+			[
+				draft({
+					heading: "Hello world, revised",
+					committedRevision: 1,
+					revision: 2,
+					sourcePath: "content/posts/hello-world.md",
+				}),
+			],
+			PUBLISHING_POSTS,
+		)
+
+		await user.click(screen.getByRole("combobox", { name: "Filter by status" }))
+		await user.click(await screen.findByRole("option", { name: "Published" }))
+
+		const rows = bodyRows(container)
+		expect(rows).toHaveLength(1)
+		expect(
+			within(rows[0] as HTMLElement).getByText("Uncommitted changes"),
+		).toBeInTheDocument()
+	})
+
+	it("names the fact each group of the filter filters on", async () => {
+		const user = userEvent.setup()
+		list([item()], DRAFTS, PUBLISHING_POSTS)
+
+		await user.click(screen.getByRole("combobox", { name: "Filter by status" }))
+
+		expect(await screen.findByText("Publication")).toBeInTheDocument()
+		expect(screen.getByText("Repository")).toBeInTheDocument()
 	})
 })
 

@@ -13,6 +13,10 @@ import {
 	type OpenedContent,
 	usePropertiesPanel,
 } from "@/core/editor/collection-item-editor"
+import {
+	invalidateCollectionListing,
+	withListingInvalidation,
+} from "@/core/editor/collection-listing-cache.server"
 import type { FieldRecord } from "@/core/editor/collection-metadata"
 import {
 	type DraftRefusal,
@@ -63,7 +67,13 @@ async function resolveCollectionEditorContext({
 		name,
 		owner,
 		projectRow,
-		sourceStore: createGithubSourceStore({ env, installationId, name, owner }),
+		// A commit changes the directory the Collection page lists, and that page
+		// serves its listing from D1 (ADR 0011). Composed here because this is
+		// the one place that knows both the store and the cache.
+		sourceStore: withListingInvalidation(
+			createGithubSourceStore({ env, installationId, name, owner }),
+			() => invalidateCollectionListing(db, projectRow.id, directoryPath),
+		),
 	}
 }
 

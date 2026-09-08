@@ -37,6 +37,13 @@ export function refuseDocument(
  * another's, which makes it normalization of the Data rather than behavior of
  * the Role, and that stays in the metadata module.
  *
+ * What a slug may be *spelled* with is not here either, for a different reason.
+ * That rule refuses a Save to GitHub, and a Save to GitHub never runs metadata
+ * validation (ADR-0008) — so a Role reached only through it could not enforce
+ * the rule on the action that needs it most. It also never sees an empty value,
+ * which the dispatcher answers for first. `validateSlug` in the metadata module
+ * states the whole rule instead; this validates only that the value is text.
+ *
  * The rich render is a code chip because a slug is an identifier the writer has
  * to copy exactly — it goes in a URL, and a proportional font hides the
  * difference between what it says and what it is. A summary line has no room

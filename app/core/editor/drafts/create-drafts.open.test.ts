@@ -115,7 +115,7 @@ test("shows the draft's content when the draft is dirty", async () => {
 	seedSourceBackedDraft({
 		markdown: "Draft body",
 		metadata: JSON.stringify({ title: "Draft title" }),
-		publishedRevision: 1,
+		committedRevision: 1,
 		revision: 2,
 		sourceSha: source.sha,
 	})
@@ -135,7 +135,7 @@ test("shows the source's content when the draft is clean", async () => {
 	const seeded = seedSourceBackedDraft({
 		markdown: "Stale draft body",
 		metadata: JSON.stringify({ title: "Stale title" }),
-		publishedRevision: 2,
+		committedRevision: 2,
 		revision: 2,
 		sourceSha: source.sha,
 	})
@@ -156,7 +156,7 @@ test("rebases a clean draft whose source moved", async () => {
 	const seeded = seedSourceBackedDraft({
 		markdown: "Published body",
 		metadata: JSON.stringify({ title: "Hello" }),
-		publishedRevision: 2,
+		committedRevision: 2,
 		revision: 2,
 		sourceSha: source.sha,
 	})
@@ -174,7 +174,7 @@ test("rebases a clean draft whose source moved", async () => {
 	expect(await harness.readDraft(seeded.id)).toMatchObject({
 		markdown: "Edited on GitHub",
 		metadata: null,
-		publishedRevision: 3,
+		committedRevision: 3,
 		revision: 3,
 		sourceSha: moved.sha,
 	})
@@ -185,7 +185,7 @@ test("falls back to a re-read when the rebase loses the race", async () => {
 	const seeded = seedSourceBackedDraft({
 		markdown: "Draft body",
 		metadata: JSON.stringify({ title: "Draft title" }),
-		publishedRevision: 3,
+		committedRevision: 3,
 		revision: 4,
 		sourceSha: source.sha,
 	})
@@ -195,7 +195,7 @@ test("falls back to a re-read when the rebase loses the race", async () => {
 	// and only a re-read can say what the draft now holds.
 	vi.spyOn(db.query.editorDraft, "findFirst").mockResolvedValueOnce({
 		...seeded,
-		publishedRevision: 3,
+		committedRevision: 3,
 		revision: 3,
 	})
 
@@ -210,7 +210,7 @@ test("falls back to a re-read when the rebase loses the race", async () => {
 	})
 	expect(await harness.readDraft(seeded.id)).toMatchObject({
 		markdown: "Draft body",
-		publishedRevision: 3,
+		committedRevision: 3,
 		revision: 4,
 		sourceSha: source.sha,
 	})
@@ -221,7 +221,7 @@ test("leaves a dirty draft alone when its source moved", async () => {
 	const seeded = seedSourceBackedDraft({
 		markdown: "Unpublished work",
 		metadata: JSON.stringify({ title: "Draft title" }),
-		publishedRevision: 2,
+		committedRevision: 2,
 		revision: 3,
 		sourceSha: source.sha,
 	})
@@ -237,7 +237,7 @@ test("leaves a dirty draft alone when its source moved", async () => {
 	})
 	expect(await harness.readDraft(seeded.id)).toMatchObject({
 		markdown: "Unpublished work",
-		publishedRevision: 2,
+		committedRevision: 2,
 		revision: 3,
 		sourceSha: source.sha,
 	})
@@ -261,7 +261,7 @@ test("reports a dirty draft as work the repository does not have", async () => {
 	const { drafts, source } = setup()
 	seedSourceBackedDraft({
 		markdown: "Draft body",
-		publishedRevision: 1,
+		committedRevision: 1,
 		revision: 2,
 		sourceSha: source.sha,
 	})
@@ -277,7 +277,7 @@ test("reports a clean draft as fully in the repository", async () => {
 	const { drafts, source } = setup()
 	seedSourceBackedDraft({
 		markdown: "Stale draft body",
-		publishedRevision: 2,
+		committedRevision: 2,
 		revision: 2,
 		sourceSha: source.sha,
 	})

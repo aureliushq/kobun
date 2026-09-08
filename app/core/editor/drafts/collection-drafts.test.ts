@@ -63,7 +63,7 @@ test("leaves out a clean draft, which holds nothing its source lacks", async () 
 	const { seedDraft } = setup()
 	seedDraft({
 		markdown: "Published",
-		publishedRevision: 2,
+		committedRevision: 2,
 		revision: 2,
 		sourcePath: SOURCE_PATH,
 	})
@@ -71,11 +71,11 @@ test("leaves out a clean draft, which holds nothing its source lacks", async () 
 	expect(await list()).toEqual([])
 })
 
-test("keeps a draft whose revision has run ahead of its published one", async () => {
+test("keeps a draft whose revision has run ahead of its committed one", async () => {
 	const { seedDraft } = setup()
 	seedDraft({
 		markdown: "Edited since",
-		publishedRevision: 2,
+		committedRevision: 2,
 		revision: 3,
 		sourcePath: SOURCE_PATH,
 	})
@@ -100,7 +100,7 @@ test("points a draft over a source at that item's editor", async () => {
 	seedDraft({
 		itemSlug: "hello",
 		markdown: "Edited",
-		publishedRevision: 1,
+		committedRevision: 1,
 		revision: 2,
 		sourcePath: SOURCE_PATH,
 	})

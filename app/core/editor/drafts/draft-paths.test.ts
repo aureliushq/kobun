@@ -7,7 +7,7 @@ import {
 
 const PROJECT = { repoName: "website", repoOwnerLogin: "acme" }
 
-test("addresses an unpublished draft by its own id", () => {
+test("addresses an uncommitted draft by its own id", () => {
 	expect(
 		getDraftEditorPath(
 			{
