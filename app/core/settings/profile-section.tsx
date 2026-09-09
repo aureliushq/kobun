@@ -1,27 +1,15 @@
 import { ExternalLinkIcon } from "lucide-react"
 import {
-	Avatar,
-	AvatarFallback,
-	AvatarImage,
-} from "@/ui/components/base/avatar"
-import {
 	Card,
 	CardContent,
 	CardDescription,
 	CardHeader,
 	CardTitle,
 } from "@/ui/components/base/card"
-
-export interface SettingsUser {
-	email: string
-	image: string | null
-	name: string
-}
-
-/** The first letter of a name, for the writer whose GitHub avatar will not load. */
-function initial(name: string) {
-	return name.trim().charAt(0).toUpperCase() || "?"
-}
+import {
+	type SignedInUser,
+	UserAvatar,
+} from "@/ui/components/blocks/user-avatar"
 
 /**
  * Who Kobun thinks the writer is.
@@ -32,7 +20,7 @@ function initial(name: string) {
  * they did. So this renders text and points at the place the values are
  * actually kept.
  */
-export function ProfileSection({ user }: { user: SettingsUser }) {
+export function ProfileSection({ user }: { user: SignedInUser }) {
 	return (
 		<Card>
 			<CardHeader>
@@ -52,10 +40,7 @@ export function ProfileSection({ user }: { user: SettingsUser }) {
 				</CardDescription>
 			</CardHeader>
 			<CardContent className="flex items-center gap-4">
-				<Avatar className="size-12">
-					{user.image ? <AvatarImage alt="" src={user.image} /> : null}
-					<AvatarFallback>{initial(user.name)}</AvatarFallback>
-				</Avatar>
+				<UserAvatar className="size-12" user={user} />
 				<dl className="grid gap-1">
 					<div className="flex gap-2">
 						<dt className="text-muted-foreground">Name</dt>
