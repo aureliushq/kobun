@@ -14,8 +14,8 @@ export const SET_PRIMARY_ACTION_PATH = "/api/set-editor-primary-action"
  * the same shape `useTheme` uses, and for the same reason: a `useState` seeded
  * from a loader goes stale the moment the loader revalidates, and then needs an
  * effect to un-stale it. `fetcher.formData` clears only once the loader has
- * re-read the cookie, so the label never flashes back to the old target on the
- * way through.
+ * re-read the row, so the label never flashes back to the old target on the way
+ * through.
  */
 export function usePrimaryEditorAction(fromLoader: PrimaryEditorAction) {
 	const fetcher = useFetcher()

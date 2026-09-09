@@ -76,9 +76,11 @@ export function isDateDisplay(value: unknown): value is DateDisplay {
  * The Preferences a writer can change from the account page.
  *
  * Narrower than the row in two ways. The bookkeeping columns are not a writer's
- * business, and `editorPrimaryAction` is not on the account page at all: it is
- * still the editor's own cookie until #143 moves it, and offering two places to
- * set one thing is worse than offering none.
+ * business, and `editorPrimaryAction` is not on the account page at all: the
+ * editor's split control is where a writer chooses it, and offering two places
+ * to set one thing is worse than offering none. `readEditorPrimaryAction` reads
+ * that column on its own, typed as the `string` it is stored as, because the
+ * pair it can hold is named in `app` and not here.
  *
  * The enum members are the point of restating the shape rather than deriving it
  * from `$inferSelect`. The columns are plain `text()`, so the row types them as

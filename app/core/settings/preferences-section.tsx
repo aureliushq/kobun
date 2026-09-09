@@ -270,8 +270,8 @@ function TimezonePreference({ value }: { value: string | null }) {
  * Every one of them follows the writer across every Project and none of them
  * changes what a Commit writes — the test ADR-0010 draws the line with. What is
  * not here is as deliberate: theme stays a cookie so the first byte can paint
- * in it, and the editor's save target is still the editor's own until #143
- * moves it.
+ * in it, and the editor's save target is a row like these but is chosen where it
+ * is used, from the split control in the editor's own header.
  *
  * Saved as they are changed rather than behind a Save button, matching the two
  * preference controls Kobun already had. There is nothing to lose by navigating

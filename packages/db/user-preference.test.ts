@@ -48,9 +48,9 @@ test("a writer who has changed nothing gets today's behaviour", () => {
 		editorFont: "sans",
 		// Must stay equal to DEFAULT_PRIMARY_EDITOR_ACTION in
 		// `app/core/editor/primary-action.ts`. Asserted as a literal rather than
-		// imported: `packages/db` does not depend on `app`, and #143 — which owns
-		// that module and is the first to need the two to agree — can check them
-		// against each other from the side where the import runs the right way.
+		// imported, because `packages/db` does not depend on `app`; the two are
+		// checked against each other in `app/core/editor/stored-primary-action.test.ts`,
+		// from the side where the import runs the right way.
 		editorPrimaryAction: "save",
 		editorWidth: "normal",
 		locale: null,
