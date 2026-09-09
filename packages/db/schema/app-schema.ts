@@ -7,6 +7,7 @@ import {
 	text,
 	uniqueIndex,
 } from "drizzle-orm/sqlite-core"
+import { DateDisplay, EditorFont, EditorWidth } from "../types"
 import { user } from "./auth-schema"
 
 export const githubInstallation = sqliteTable(
@@ -178,6 +179,70 @@ export const collectionListing = sqliteTable(
 	(table) => [primaryKey({ columns: [table.projectId, table.directoryPath] })],
 )
 
+/**
+ * One writer's Preferences: their own choices about how Kobun looks, following
+ * them across every Project (ADR-0010). A Preference never changes what a
+ * Commit writes — anything that would belongs in the repository's Config.
+ *
+ * `userId` is the key rather than a surrogate `id`, the way `collectionListing`
+ * keys on what it is about: one row per writer is the rule, and a primary key
+ * states it without a second unique index. The row is written the first time a
+ * writer changes something; until then the defaults below are the whole answer,
+ * which is why every one of them states today's hardcoded behaviour rather than
+ * an opinion — `properties_panel_open` matches `usePropertiesPanel`,
+ * `editor_primary_action` matches `DEFAULT_PRIMARY_EDITOR_ACTION` in
+ * `app/core/editor/primary-action.ts`, and so on down.
+ *
+ * `onDelete: "cascade"`, unlike `project` and `userInstallation`, which let a
+ * user's rows outlive them on purpose. Nothing here is worth keeping once the
+ * writer is gone, so it follows `session` and `account` instead.
+ *
+ * **No theme column.** Theme stays a cookie in `packages/ui/theme.server.ts`:
+ * `app/root.tsx` reads it server-side to paint the first byte, and `/login` and
+ * `/setup` render before there is a user to look a row up for (ADR-0010).
+ */
+export const userPreference = sqliteTable("user_preference", {
+	userId: text("user_id")
+		.primaryKey()
+		.references(() => user.id, { onDelete: "cascade" }),
+	propertiesPanelOpen: integer("properties_panel_open", { mode: "boolean" })
+		.notNull()
+		.default(true),
+	wordCountVisible: integer("word_count_visible", { mode: "boolean" })
+		.notNull()
+		.default(true),
+	sidebarOpen: integer("sidebar_open", { mode: "boolean" })
+		.notNull()
+		.default(true),
+	editorWidth: text("editor_width").notNull().default(EditorWidth.NORMAL),
+	editorFont: text("editor_font").notNull().default(EditorFont.SANS),
+	/**
+	 * `RELATIVE` is what the Collection list and a date Field's panel value do
+	 * today. It is not the whole story: a date Field's inline rendering spells
+	 * the day out on purpose (`app/core/fields/date.tsx`), because a distance is
+	 * not something to scan a list by. Whether this column overrides that
+	 * surface too is the reader's decision, not the schema's.
+	 */
+	dateDisplay: text("date_display").notNull().default(DateDisplay.RELATIVE),
+	/**
+	 * Null means the writer has stated no preference. Most surfaces already fall
+	 * back to the browser, but a date Field's inline rendering hardcodes `en-US`
+	 * (`app/core/fields/date.tsx`) — so honouring this column will change that
+	 * surface rather than merely parameterise it.
+	 */
+	locale: text("locale"),
+	/** Null means the writer has stated no preference; nothing reads a zone yet. */
+	timezone: text("timezone"),
+	editorPrimaryAction: text("editor_primary_action").notNull().default("save"),
+	createdAt: integer("created_at", { mode: "timestamp_ms" })
+		.default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+		.notNull(),
+	updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+		.default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+		.$onUpdate(() => /* @__PURE__ */ new Date())
+		.notNull(),
+})
+
 export const githubInstallationRelations = relations(
 	githubInstallation,
 	({ many }) => ({
@@ -227,5 +292,12 @@ export const editorDraftRelations = relations(editorDraft, ({ one }) => ({
 	project: one(project, {
 		fields: [editorDraft.projectId],
 		references: [project.id],
+	}),
+}))
+
+export const userPreferenceRelations = relations(userPreference, ({ one }) => ({
+	user: one(user, {
+		fields: [userPreference.userId],
+		references: [user.id],
 	}),
 }))

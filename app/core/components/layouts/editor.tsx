@@ -3,9 +3,10 @@ import { useCallback, useMemo, useState } from "react"
 import { Link, Outlet, useBeforeUnload, useBlocker } from "react-router"
 import invariant from "tiny-invariant"
 import { getCollectionPath } from "@/core/editor/drafts"
-import { getPrimaryEditorActionFromRequest } from "@/core/editor/primary-action"
+import { toPrimaryEditorAction } from "@/core/editor/primary-action"
 import { requireCollection, requireSingleton } from "@/core/project-context"
 import { requirePageContext } from "@/core/project-context/project-context.server"
+import { readEditorPrimaryAction } from "@/db/user-preference"
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -35,9 +36,19 @@ import { usePrimaryEditorAction } from "./use-primary-editor-action"
 export async function loader({ context, params, request }: Route.LoaderArgs) {
 	const { collection_slug, name, owner, singleton_slug } = params
 	const ctx = await requirePageContext({ context, params, request })
-	// Which target the split control's primary button runs. Read here rather
-	// than in root: only this header asks, and root's loader runs on every page.
-	const primaryAction = getPrimaryEditorActionFromRequest(request)
+	// Which target the split control's primary button runs, keyed by the writer
+	// `requirePageContext` already resolved — so the choice follows them to
+	// another browser (ADR-0010).
+	//
+	// A second read of a row root has already fetched, and deliberately: root
+	// answers with the Preferences the account page owns, and the save target is
+	// not one of them. Paying for it here rather than widening that set keeps the
+	// one Preference chosen somewhere else out of the shape every other surface
+	// reads — at the cost of one more lookup by primary key, on the one page that
+	// asks.
+	const primaryAction = toPrimaryEditorAction(
+		await readEditorPrimaryAction(ctx.db, ctx.session.user.id),
+	)
 
 	if (singleton_slug) {
 		const { singleton } = requireSingleton(ctx, singleton_slug)

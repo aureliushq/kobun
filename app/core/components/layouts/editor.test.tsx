@@ -53,10 +53,10 @@ function header({
 		return <div data-testid="editor-body" />
 	}
 
-	// Stands in for the cookie: the action writes it, the loader reads it back.
-	// Without that the stub's loader would answer with the old target the moment
-	// the fetcher settled, and the label would flash back — which is exactly the
-	// thing the optimistic value exists to prevent.
+	// Stands in for the writer's row: the action writes it, the loader reads it
+	// back. Without that the stub's loader would answer with the old target the
+	// moment the fetcher settled, and the label would flash back — which is
+	// exactly the thing the optimistic value exists to prevent.
 	let stored = primaryAction
 
 	const Stub = createRoutesStub([
@@ -100,14 +100,14 @@ describe("the primary the writer last chose", () => {
 		expect(primary()).toHaveAccessibleName("Save")
 	})
 
-	it("is Save to GitHub once the cookie says so", async () => {
+	it("is Save to GitHub once the writer's row says so", async () => {
 		header({ primaryAction: "commit" })
 
 		await screen.findByTestId("editor-body")
 		expect(primary()).toHaveAccessibleName("Save to GitHub")
 	})
 
-	// The label must not wait on the round trip that writes the cookie, nor
+	// The label must not wait on the round trip that writes the row, nor
 	// flash back to the old target once it lands.
 	it("changes when the writer chooses, and stays changed", async () => {
 		const user = userEvent.setup()

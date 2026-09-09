@@ -10,7 +10,6 @@ import {
 	type SortingState,
 	useReactTable,
 } from "@tanstack/react-table"
-import { formatDistanceToNow } from "date-fns"
 import {
 	ArrowDown,
 	ArrowUp,
@@ -37,6 +36,7 @@ import {
 	draftMarker,
 } from "@/core/editor/drafts"
 import { resolveTitleKey } from "@/core/fields"
+import { Timestamp } from "@/core/preferences/timestamp"
 import { Badge } from "@/ui/components/base/badge"
 import { Button } from "@/ui/components/base/button"
 import { Input } from "@/ui/components/base/input"
@@ -101,11 +101,6 @@ type Row = {
 	marker: DraftMarker | null
 	publication: Status | null
 	title: string
-}
-
-function formatRelative(ts: number | undefined): string {
-	if (ts == null) return "—"
-	return formatDistanceToNow(new Date(ts), { addSuffix: true })
 }
 
 const PUBLICATION_CLASSES: Record<Status, string> = {
@@ -343,9 +338,17 @@ export function CollectionTable({
 						>
 							{row.original.title}
 						</Link>
-						<div className="text-muted-foreground text-xs">
-							{formatRelative(row.original.createdAt)}
-						</div>
+						{/* An item with no created date has nothing to say about when
+						    it was made, and an em dash says that better than a
+						    formatter guessing at a missing number. */}
+						{row.original.createdAt == null ? (
+							<div className="text-muted-foreground text-xs">—</div>
+						) : (
+							<Timestamp
+								className="text-muted-foreground text-xs"
+								value={new Date(row.original.createdAt)}
+							/>
+						)}
 					</div>
 				),
 				filterFn: (row, _columnId, filterValue) => {

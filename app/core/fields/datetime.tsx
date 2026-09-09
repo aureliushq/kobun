@@ -1,4 +1,12 @@
-import { format, isValid, parseISO } from "date-fns"
+import { isValid, parseISO } from "date-fns"
+import { usePreferences } from "@/core/preferences/context"
+import {
+	formatDatetime,
+	fromWallTime,
+	toDate,
+	toWallTime,
+} from "@/core/preferences/dates"
+import type { UserPreferenceValues } from "@/db/types"
 import { Input } from "@/ui/components/base/input"
 import { InlineText } from "./presentation"
 import type { FieldTypeDefFor } from "./types"
@@ -21,36 +29,60 @@ function hasExplicitZone(value: string) {
  * A date is shown as a distance from now; a datetime never is, because the time
  * of day is the whole reason the type exists and "3 hours ago" hides it. Both
  * renders therefore say the same thing, and only the panel keeps the stored
- * instant in a tooltip.
+ * instant in a tooltip — which is where the writer reads the zone it was
+ * stamped in, whatever zone they are being shown it in.
+ *
+ * Components rather than inline markup, so the Preferences can be read at the
+ * top of a render rather than after `renderInline`'s early return.
  */
-function formatDatetime(instant: Date) {
-	return format(instant, "MMM d, yyyy, h:mm a")
+function DatetimeSummary({ value }: { value: unknown }) {
+	const preferences = usePreferences()
+	const instant = toDate(value)
+	if (!instant) return <InlineText>{String(value)}</InlineText>
+	return <InlineText>{formatDatetime(instant, preferences)}</InlineText>
+}
+
+function DatetimeValue({ value }: { value: unknown }) {
+	const preferences = usePreferences()
+	const instant = toDate(value)
+	if (!instant)
+		return <span className="text-muted-foreground italic">invalid date</span>
+	return (
+		<span title={String(value)}>{formatDatetime(instant, preferences)}</span>
+	)
+}
+
+function DatetimeControl({
+	disabled,
+	onChange,
+	value,
+}: {
+	disabled?: boolean
+	onChange(next: unknown): void
+	value: unknown
+}) {
+	const { timezone } = usePreferences()
+	return (
+		<Input
+			type="datetime-local"
+			step="1"
+			value={toDatetimeLocal(value, timezone)}
+			disabled={disabled}
+			onChange={(event) =>
+				onChange(fromDatetimeLocal(event.target.value, timezone))
+			}
+		/>
+	)
 }
 
 /** An instant, as an ISO-8601 string carrying its zone. */
 export const datetimeField: FieldTypeDefFor<"datetime"> = {
 	defaultValue: () => "",
 	renderControl: ({ disabled, onChange, value }) => (
-		<Input
-			type="datetime-local"
-			step="1"
-			value={toDatetimeLocal(value)}
-			disabled={disabled}
-			onChange={(event) => onChange(fromDatetimeLocal(event.target.value))}
-		/>
+		<DatetimeControl disabled={disabled} onChange={onChange} value={value} />
 	),
-	renderInline: ({ value }) => {
-		const instant = new Date(value as string | number | Date)
-		if (Number.isNaN(instant.getTime()))
-			return <InlineText>{String(value)}</InlineText>
-		return <InlineText>{formatDatetime(instant)}</InlineText>
-	},
-	renderValue: ({ value }) => {
-		const instant = new Date(value as string | number | Date)
-		if (Number.isNaN(instant.getTime()))
-			return <span className="text-muted-foreground italic">invalid date</span>
-		return <span title={String(value)}>{formatDatetime(instant)}</span>
-	},
+	renderInline: ({ value }) => <DatetimeSummary value={value} />,
+	renderValue: ({ value }) => <DatetimeValue value={value} />,
 	validate: ({ path, value }) =>
 		typeof value === "string" &&
 		hasExplicitZone(value) &&
@@ -60,21 +92,39 @@ export const datetimeField: FieldTypeDefFor<"datetime"> = {
 }
 
 /**
- * The stored value is a UTC instant, but `datetime-local` speaks only the
- * writer's local wall time, so both directions are converted here. An
- * unparseable value shows an empty picker rather than an invented one.
+ * The stored value is an instant, but `datetime-local` speaks only wall time,
+ * so both directions are converted here. An unparseable value shows an empty
+ * picker rather than an invented one.
+ *
+ * Which clock's wall time is the timezone Preference's answer, and its absence
+ * means the machine's — the browser conversion this control has always done. A
+ * writer who states a zone reads and writes the same instant the same way from
+ * any laptop they open.
+ *
+ * This is the closest the Preferences come to ADR-0010's line, since the same
+ * typed reading now commits a different instant under a different zone. It
+ * stays the right side of it: the zone was always deciding that, the browser's
+ * silently, and both spellings commit the moment the writer meant. What a
+ * Commit writes is the instant, and the instant is unchanged — only the clock
+ * the writer read it off is now one they chose.
  *
  * Seconds are carried, with `step="1"` on the control, so that editing a
  * stamped value does not silently round it down to the minute.
  */
-function toDatetimeLocal(value: unknown) {
-	const date = new Date(String(value ?? ""))
-	return isValid(date) ? format(date, "yyyy-MM-dd'T'HH:mm:ss") : ""
+function toDatetimeLocal(
+	value: unknown,
+	timezone: UserPreferenceValues["timezone"],
+) {
+	const instant = toDate(String(value ?? ""))
+	return instant ? toWallTime(instant, timezone) : ""
 }
 
-function fromDatetimeLocal(local: string) {
+function fromDatetimeLocal(
+	local: string,
+	timezone: UserPreferenceValues["timezone"],
+) {
 	if (!local) return ""
-	const date = new Date(local)
+	const date = fromWallTime(local, timezone)
 	// A browser without `datetime-local` degrades the control to a text input,
 	// so junk is reachable. Hand it back rather than blanking what was typed —
 	// the validator names the problem, an empty field would hide it.

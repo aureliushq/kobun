@@ -1,10 +1,4 @@
-import { formatDistanceToNow } from "date-fns"
 import { and, desc, eq, inArray, isNotNull, sql } from "drizzle-orm"
-import {
-	AlertCircleIcon,
-	ExternalLinkIcon,
-	TriangleAlertIcon,
-} from "lucide-react"
 import { Suspense, useState } from "react"
 import {
 	Await,
@@ -14,8 +8,6 @@ import {
 	useRouteLoaderData,
 } from "react-router"
 import { getAuth } from "@/auth/auth.server"
-import { NO_CONFIG_ERROR, parseConfigErrors } from "@/config/errors"
-import type { ConfigError } from "@/config/types"
 import type { loader as dashboardLayoutLoader } from "@/core/components/layouts/dashboard"
 import { envContext } from "@/core/context"
 import {
@@ -25,15 +17,14 @@ import {
 	getDraftEditorPath,
 	isDraftDirty,
 } from "@/core/editor/drafts"
-import type {
-	ConfigProblem,
-	ProjectContextDatabase,
-} from "@/core/project-context"
+import { Timestamp } from "@/core/preferences/timestamp"
+import type { ProjectContextDatabase } from "@/core/project-context"
 import { lastKnownConfig } from "@/core/project-context"
+import { ConfigAlerts } from "@/core/project-context/config-alerts"
+import { configErrors } from "@/core/project-context/config-errors"
 import { dbContext } from "@/db/context"
 import { editorDraft, project } from "@/db/schema/app-schema"
 import { posthogContext } from "@/lib/posthog-middleware"
-import { Alert, AlertDescription, AlertTitle } from "@/ui/components/base/alert"
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -178,141 +169,6 @@ export async function action({ context, request }: Route.ActionArgs) {
 	return { ok: true }
 }
 
-function NoConfigAlert({ message }: { message: string }) {
-	return (
-		<Alert variant="destructive">
-			<AlertCircleIcon />
-			<AlertTitle>Configuration file missing</AlertTitle>
-			<AlertDescription>
-				{message}{" "}
-				<a
-					className="inline-flex items-center gap-1"
-					href="https://kobun.io/docs/configuration"
-				>
-					Learn more <ExternalLinkIcon className="size-3.5" />{" "}
-				</a>
-			</AlertDescription>
-		</Alert>
-	)
-}
-
-function ParseErrorAlert({
-	filePath,
-	message,
-}: {
-	filePath: string
-	message: string
-}) {
-	return (
-		<Alert variant="destructive">
-			<AlertCircleIcon />
-			<AlertTitle>Failed to parse config</AlertTitle>
-			<AlertDescription>
-				Could not parse{" "}
-				<code className="wrap-break-words relative inline rounded-md bg-muted px-[0.3rem] py-[0.2rem] font-mono text-[0.8rem] outline-none">
-					{filePath}
-				</code>
-				: {message}
-			</AlertDescription>
-		</Alert>
-	)
-}
-
-function ValidationErrorAlert({
-	path,
-	message,
-}: {
-	path: string
-	message: string
-}) {
-	return (
-		<Alert variant="destructive">
-			<TriangleAlertIcon />
-			<AlertTitle>Invalid config</AlertTitle>
-			<AlertDescription>
-				{path && (
-					<code className="wrap-break-words relative mr-1 inline rounded-md bg-muted px-[0.3rem] py-[0.2rem] font-mono text-[0.8rem] outline-none">
-						{path}
-					</code>
-				)}
-				{message}
-			</AlertDescription>
-		</Alert>
-	)
-}
-
-/**
- * A repository the resolver could not reach, which is not the same as a file it
- * could not read. It gets its own arm rather than falling through to "Invalid
- * config", which would tell a writer whose Config is fine that it is not.
- */
-const UNREADABLE_CONFIG = "unreadable_config"
-
-const UNREADABLE_CONFIG_ERROR: ConfigError = {
-	code: UNREADABLE_CONFIG,
-	message:
-		"Kobun could not reach or read this repository's configuration. Refresh the configuration to try again.",
-	path: "",
-}
-
-/**
- * What is left to say about a Config kobun did read and could not use, when the
- * row holds no list of what was wrong with it. Only a Project connected before
- * the cache began storing that list gets here.
- */
-const INVALID_CONFIG_ERROR: ConfigError = {
-	code: "invalid_config",
-	message:
-		"This repository's configuration could not be used. Refresh the configuration to see what is wrong with it.",
-	path: "",
-}
-
-/**
- * What to tell a writer whose Project resolved without a Config (ADR-0007).
- * Both writers of `configError` — the sync, and the Config cache every
- * navigation resolves through — leave behind what they last found, and the
- * alerts below already know how to render one, so the stored list is what this
- * shows.
- *
- * The two cases it does not read that column for: a repository nothing could be
- * read from, where the column describes some earlier visit rather than this
- * one, and a row written before either writer stored anything.
- */
-function configProblemErrors(
-	problem: ConfigProblem,
-	stored: string | null,
-): ConfigError[] {
-	if (problem === "config-unreadable") return [UNREADABLE_CONFIG_ERROR]
-
-	const errors = parseConfigErrors(stored)
-	if (errors.length > 0) return errors
-
-	return [problem === "config-missing" ? NO_CONFIG_ERROR : INVALID_CONFIG_ERROR]
-}
-
-function UnreadableConfigAlert({ message }: { message: string }) {
-	return (
-		<Alert variant="destructive">
-			<TriangleAlertIcon />
-			<AlertTitle>Couldn&apos;t read your configuration</AlertTitle>
-			<AlertDescription>{message}</AlertDescription>
-		</Alert>
-	)
-}
-
-function ConfigAlert({ error }: { error: ConfigError }) {
-	switch (error.code) {
-		case "no_config":
-			return <NoConfigAlert message={error.message} />
-		case "parse_error":
-			return <ParseErrorAlert filePath={error.path} message={error.message} />
-		case UNREADABLE_CONFIG:
-			return <UnreadableConfigAlert message={error.message} />
-		default:
-			return <ValidationErrorAlert path={error.path} message={error.message} />
-	}
-}
-
 function DiscardDraftDialog({ draftId }: { draftId: string }) {
 	const fetcher = useFetcher()
 	const [open, setOpen] = useState(false)
@@ -397,10 +253,7 @@ function DraftsSection({ drafts }: { drafts: DashboardDraft[] }) {
 							<div className="flex min-w-0 items-center gap-2">
 								<Badge variant={dirty ? "secondary" : "outline"}>{state}</Badge>
 								<span className="truncate text-muted-foreground">
-									Edited{" "}
-									{formatDistanceToNow(new Date(draft.updatedAt), {
-										addSuffix: true,
-									})}
+									Edited <Timestamp value={new Date(draft.updatedAt)} />
 								</span>
 							</div>
 							<div className="flex shrink-0 items-center gap-2">
@@ -429,17 +282,11 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
 		"core/components/layouts/dashboard",
 	)
 	const user = layoutData?.user
-	// A Config that declares at least one Collection is served even when parts of
-	// it did not validate, and it carries those errors with it — so the writer is
-	// told what kobun could not read without losing the pages it could. A Project
-	// with no Config at all resolves here too, and this is where it says so.
-	const problem = layoutData?.configProblem ?? null
-	const errors = problem
-		? configProblemErrors(
-				problem,
-				layoutData?.activeProject.configError ?? null,
-			)
-		: (layoutData?.config?.errors ?? [])
+	const errors = configErrors(
+		layoutData?.config ?? null,
+		layoutData?.configProblem ?? null,
+		layoutData?.activeProject.configError ?? null,
+	)
 
 	return (
 		<>
@@ -448,20 +295,7 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
 			    Drafts are still streaming: anything rendered below a skeleton is
 			    pushed up the moment that skeleton turns out to stand for nothing.
 			    A broken Config is also the more urgent of the two to read. */}
-			{errors.length > 0 && (
-				<>
-					<p>We found the following errors in your configuration:</p>
-					<div className="flex flex-col gap-3 pt-3">
-						{errors.map((error, i) => (
-							<ConfigAlert
-								error={error}
-								// biome-ignore lint/suspicious/noArrayIndexKey: it's fine
-								key={i}
-							/>
-						))}
-					</div>
-				</>
-			)}
+			<ConfigAlerts errors={errors} />
 			<Suspense fallback={<CardListSkeleton count={2} />}>
 				<Await
 					errorElement={<AsyncErrorAlert title="Couldn't load your drafts" />}

@@ -8,9 +8,11 @@ import {
 	HouseIcon,
 	InfoIcon,
 	LogOutIcon,
+	SettingsIcon,
+	UserCogIcon,
 } from "lucide-react"
 import { useState } from "react"
-import { Form, Link, useLocation } from "react-router"
+import { Link, useLocation, useSubmit } from "react-router"
 import type { NormalizedConfig } from "@/config"
 import type { ProjectWithGithubInstallation } from "@/db/types"
 import {
@@ -26,6 +28,8 @@ import {
 	DropdownMenuGroup,
 	DropdownMenuItem,
 	DropdownMenuLabel,
+	DropdownMenuRadioGroup,
+	DropdownMenuRadioItem,
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/ui/components/base/dropdown-menu"
@@ -48,6 +52,10 @@ import AboutDialog, {
 	type ReleaseInfo,
 	type VersionInfo,
 } from "@/ui/components/blocks/about-dialog"
+import {
+	type SignedInUser,
+	UserAvatar,
+} from "@/ui/components/blocks/user-avatar"
 import { Logo, LogoDark } from "@/ui/components/logo"
 import { useTheme } from "@/ui/hooks/use-theme"
 import { PATHS } from "@/ui/lib/constants"
@@ -58,6 +66,7 @@ const DashboardSidebar = ({
 	config,
 	projects,
 	releaseInfo,
+	user,
 	versionInfo,
 }: {
 	activeProject: ProjectWithGithubInstallation
@@ -65,6 +74,8 @@ const DashboardSidebar = ({
 	config: NormalizedConfig | null
 	projects: ProjectWithGithubInstallation[]
 	releaseInfo: Promise<ReleaseInfo>
+	/** The person signed in — the avatar above is the Project's organisation. */
+	user: SignedInUser
 	versionInfo: VersionInfo
 }) => {
 	const { isMobile } = useSidebar()
@@ -76,12 +87,20 @@ const DashboardSidebar = ({
 
 	const location = useLocation()
 
-	const { resolvedTheme } = useTheme()
+	const { resolvedTheme, setTheme, theme } = useTheme()
 	const posthog = usePostHog()
+	const submit = useSubmit()
 
+	// Submitted rather than wrapped in a `<Form>`: a form element between the
+	// popup and its items is not something `role="menu"` may contain, and the
+	// menu closes on click, which would take the form with it.
 	const handleLogout = () => {
 		posthog?.capture("logout_initiated")
 		posthog?.reset()
+		submit(
+			{ intent: DashboardActionIntents.LOGOUT },
+			{ action: "/api/dashboard-actions", method: "POST" },
+		)
 	}
 
 	const repoSlug = `${activeProject.repoOwnerLogin}/${activeProject.repoName}`
@@ -304,21 +323,86 @@ const DashboardSidebar = ({
 					<SidebarGroup>
 						<SidebarMenu>
 							<SidebarMenuItem>
-								<Form
-									action="/api/dashboard-actions"
-									method="POST"
-									onSubmit={handleLogout}
+								<SidebarMenuButton
+									isActive={location.pathname === `${pathname}/settings`}
+									render={
+										<Link
+											className="sidebar-menu-button"
+											prefetch="intent"
+											to={`${pathname}/settings`}
+										/>
+									}
 								>
-									<SidebarMenuButton
-										className="sidebar-menu-button"
-										name="intent"
-										type="submit"
-										value={DashboardActionIntents.LOGOUT}
+									<SettingsIcon />
+									Project Settings
+								</SidebarMenuButton>
+							</SidebarMenuItem>
+							<SidebarMenuItem>
+								<DropdownMenu>
+									<DropdownMenuTrigger
+										render={
+											<SidebarMenuButton className="sidebar-menu-button" />
+										}
 									>
-										<LogOutIcon />
-										<span>Logout</span>
-									</SidebarMenuButton>
-								</Form>
+										<UserAvatar className="size-4" user={user} />
+										<span className="grow truncate text-left">{user.name}</span>
+										<ChevronsUpDownIcon />
+									</DropdownMenuTrigger>
+									<DropdownMenuContent
+										align="start"
+										className="w-52"
+										side={isMobile ? "bottom" : "right"}
+										sideOffset={4}
+									>
+										<DropdownMenuGroup>
+											<DropdownMenuLabel className="truncate">
+												{user.email}
+											</DropdownMenuLabel>
+											{/* The Link is the `menuitem` rather than a child of
+											    one, so the keyboard activates the anchor the
+											    pointer does. The `from` is where the writer came
+											    from, so the account page — the one authenticated
+											    surface with no Project in its URL — has a way
+											    back to this one. */}
+											<DropdownMenuItem
+												render={
+													<Link
+														prefetch="intent"
+														to={`${PATHS.SETTINGS}?from=${encodeURIComponent(pathname)}`}
+													/>
+												}
+											>
+												<UserCogIcon />
+												Account Settings
+											</DropdownMenuItem>
+										</DropdownMenuGroup>
+										<DropdownMenuSeparator />
+										<DropdownMenuGroup>
+											<DropdownMenuLabel>Theme</DropdownMenuLabel>
+											<DropdownMenuRadioGroup
+												value={theme}
+												onValueChange={(value) =>
+													setTheme(value as "light" | "dark" | "system")
+												}
+											>
+												<DropdownMenuRadioItem value="light">
+													Light
+												</DropdownMenuRadioItem>
+												<DropdownMenuRadioItem value="dark">
+													Dark
+												</DropdownMenuRadioItem>
+												<DropdownMenuRadioItem value="system">
+													System
+												</DropdownMenuRadioItem>
+											</DropdownMenuRadioGroup>
+										</DropdownMenuGroup>
+										<DropdownMenuSeparator />
+										<DropdownMenuItem onClick={handleLogout}>
+											<LogOutIcon />
+											Logout
+										</DropdownMenuItem>
+									</DropdownMenuContent>
+								</DropdownMenu>
 							</SidebarMenuItem>
 						</SidebarMenu>
 					</SidebarGroup>

@@ -2,74 +2,43 @@ import { describe, expect, it } from "vitest"
 
 import {
 	DEFAULT_PRIMARY_EDITOR_ACTION,
-	getPrimaryEditorActionFromRequest,
 	isPrimaryEditorAction,
-	serializePrimaryEditorActionCookie,
+	toPrimaryEditorAction,
 } from "./primary-action"
 
 /**
- * Which of the two targets the split control's primary button runs, and how
- * that choice survives a reload (#107).
+ * Which of the two targets the split control's primary button runs (#107), now
+ * that the choice is a row rather than a cookie (#143).
  *
  * The default is pinned here on purpose. It is a decision made on a writer's
  * behalf — the one action whose accidental press costs nothing — and a silent
- * change to it would put a commit in somebody's repository.
+ * change to it would put a commit in somebody's repository. What the column
+ * defaults to is checked against it in `stored-primary-action.test.ts`, from the
+ * side where the import runs the right way round.
  */
-
-function requestWithCookie(cookie: string) {
-	return new Request("https://kobun.test/", { headers: { Cookie: cookie } })
-}
 
 describe("the primary action a writer has never chosen", () => {
 	it("is Save, so a first click cannot reach the repository", () => {
 		expect(DEFAULT_PRIMARY_EDITOR_ACTION).toBe("save")
 	})
 
-	it("is what a request carrying no cookie at all answers with", () => {
-		expect(
-			getPrimaryEditorActionFromRequest(new Request("https://kobun.test/")),
-		).toBe("save")
+	// No row is the ordinary case, not an error: a row is written the first time
+	// a writer changes something, and most never will.
+	it("is what a writer with no row at all answers with", () => {
+		expect(toPrimaryEditorAction(null)).toBe("save")
 	})
 
-	it("is what an unrecognised value falls back to rather than throwing", () => {
-		expect(
-			getPrimaryEditorActionFromRequest(
-				requestWithCookie("editor-primary-action=publish"),
-			),
-		).toBe("save")
+	it("is what an unrecognised stored value falls back to rather than throwing", () => {
+		expect(toPrimaryEditorAction("publish")).toBe("save")
+		expect(toPrimaryEditorAction("")).toBe("save")
 	})
 })
 
 describe("the choice a writer did make", () => {
-	it("round-trips through the cookie, both ways round", () => {
+	it("comes back out of the row as the target it named", () => {
 		for (const action of ["save", "commit"] as const) {
-			const cookie = serializePrimaryEditorActionCookie(action)
-			const [pair] = cookie.split(";")
-			expect(getPrimaryEditorActionFromRequest(requestWithCookie(pair))).toBe(
-				action,
-			)
+			expect(toPrimaryEditorAction(action)).toBe(action)
 		}
-	})
-
-	it("is read past the other cookies a browser sends alongside it", () => {
-		expect(
-			getPrimaryEditorActionFromRequest(
-				requestWithCookie(
-					"theme=dark; editor-primary-action=commit; sidebar=1",
-				),
-			),
-		).toBe("commit")
-	})
-
-	// Surviving a reload and a move to another Item is the whole point, and it is
-	// this Max-Age that does it. Path=/ because the editor is nested deep.
-	it("is written to last a year and to be sent from every path", () => {
-		const cookie = serializePrimaryEditorActionCookie("commit")
-
-		expect(cookie).toContain("editor-primary-action=commit")
-		expect(cookie).toContain("Path=/")
-		expect(cookie).toContain("SameSite=Lax")
-		expect(cookie).toContain("Max-Age=31536000")
 	})
 })
 

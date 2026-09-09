@@ -50,6 +50,13 @@
       "when": 1788765168190,
       "tag": "0006_committed_revision",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1788832590501,
+      "tag": "0007_user_preference",
+      "breakpoints": true
     }
   ]
 }

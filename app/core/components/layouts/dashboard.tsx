@@ -1,7 +1,6 @@
 import { eq } from "drizzle-orm"
-import { Outlet, redirect } from "react-router"
-import { getAuth } from "@/auth/auth.server"
-import { envContext } from "@/core/context"
+import { Outlet } from "react-router"
+import { usePreferences } from "@/core/preferences/context"
 import { requireProjectPage } from "@/core/project-context/project-context.server"
 import { fetchReleaseInfo } from "@/core/release-info.server"
 import { project } from "@/db/schema/app-schema"
@@ -9,8 +8,6 @@ import { ScrollArea } from "@/ui/components/base/scroll-area"
 import { SidebarProvider } from "@/ui/components/base/sidebar"
 import DashboardHeader from "@/ui/components/blocks/dashboard-header"
 import DashboardSidebar from "@/ui/components/blocks/dashboard-sidebar"
-import { PATHS } from "@/ui/lib/constants"
-import { DashboardActionIntents } from "@/ui/lib/types"
 import type { Route } from "./+types/dashboard"
 
 /**
@@ -59,7 +56,14 @@ export async function loader({
 		// on an origin that may never answer. Started below the guard above, so
 		// a request that redirects never leaves a fetch behind it (ADR 0006).
 		releaseInfo: fetchReleaseInfo(appUrl, currentVersion),
-		user: session.user,
+		// Narrowed to the three fields the chrome draws — the sidebar footer's
+		// user menu, and the dashboard's greeting — rather than publishing the
+		// whole session row to the browser (#138).
+		user: {
+			email: session.user.email,
+			image: session.user.image ?? null,
+			name: session.user.name,
+		},
 		versionInfo: {
 			currentVersion,
 			homeUrl: import.meta.env.VITE_KOBUN_HOME_URL,
@@ -68,30 +72,19 @@ export async function loader({
 	}
 }
 
-export async function action({ context, request }: Route.ActionArgs) {
-	const auth = getAuth(context.get(envContext))
-	const formData = await request.formData()
-	const intent = formData.get("intent")
-	if (intent === DashboardActionIntents.LOGOUT) {
-		const response = await auth.api.signOut({
-			asResponse: true,
-			headers: request.headers,
-		})
-		if (response.ok) {
-			return redirect(PATHS.LOGIN, { headers: response.headers })
-		}
-	}
-}
-
 const DashboardLayout = ({ loaderData }: Route.ComponentProps) => {
 	const config = loaderData?.config
+	// A starting state, not a live one: the switch says "whether the sidebar
+	// starts expanded", and toggling it here is this visit's business.
+	const { sidebarOpen } = usePreferences()
 	return (
-		<SidebarProvider>
+		<SidebarProvider defaultOpen={sidebarOpen}>
 			<DashboardSidebar
 				activeProject={loaderData.activeProject}
 				config={config}
 				projects={loaderData.projects}
 				releaseInfo={loaderData.releaseInfo}
+				user={loaderData.user}
 				versionInfo={loaderData.versionInfo}
 			/>
 			<main className="flex h-screen w-screen flex-col divide-y overflow-hidden pb-16">

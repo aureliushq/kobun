@@ -9,18 +9,65 @@
  * the Tailwind Typography (`prose`) defaults applied on the editor.
  */
 
-/* Focused writing column */
+/*
+ * Focused writing column.
+ *
+ * The two widths are one measurement: the wrapper is 6rem wider than the column
+ * so the side-menu gutter has somewhere to be, and that gap holds at every
+ * width. The fallbacks are what the editor rendered before there was a
+ * Preference, so a wrapper carrying no `data-editor-width` is unchanged.
+ *
+ * Custom properties inherit, so the column reads the width the wrapper was told
+ * — and the wrapper carries the font, which puts the Title in it as well as the
+ * prose. They share a column, so a serif that stopped at the first paragraph
+ * would look like a bug.
+ */
+[data-editor-width="narrow"] {
+	--editor-wrapper-width: 40rem;
+	--editor-column-width: 34rem;
+}
+
+[data-editor-width="normal"] {
+	--editor-wrapper-width: 48rem;
+	--editor-column-width: 42rem;
+}
+
+[data-editor-width="wide"] {
+	--editor-wrapper-width: 60rem;
+	--editor-column-width: 54rem;
+}
+
+/*
+ * System stacks rather than webfonts: a typeface most writers never change is
+ * not worth a render-blocking stylesheet on every page.
+ *
+ * Spelt here rather than as Tailwind's `--font-serif` and `--font-mono`, which
+ * are app-wide theme tokens — redefining those would change every `font-mono`
+ * utility in Kobun to settle a choice about one writing column. The monospace
+ * stack is the one this file already sets on code blocks.
+ */
+[data-editor-font="serif"] {
+	--editor-font-family:
+		ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+}
+
+[data-editor-font="mono"] {
+	--editor-font-family:
+		ui-monospace, SFMono-Regular, "JetBrains Mono", Menlo, Consolas, monospace;
+}
+
 .editor-wrapper {
 	width: 100%;
-	max-width: 48rem; /* widened to leave room for the side-menu gutter */
+	max-width: var(--editor-wrapper-width, 48rem);
 	margin-left: auto;
 	margin-right: auto;
+	font-family: var(--editor-font-family, inherit);
 }
 
 .ProseMirror {
 	min-height: 640px;
 	width: 100%;
-	max-width: 42rem;
+	max-width: var(--editor-column-width, 42rem);
 	border: none;
 	outline: none;
 	font-size: 1rem;
