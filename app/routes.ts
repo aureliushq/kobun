@@ -15,6 +15,10 @@ export default [
 			"routes/collection.tsx",
 		),
 		route("/:owner/:name/singletons/:singleton_slug", "routes/singleton.tsx"),
+		// Project-scoped, so unlike `/settings` it belongs under the layout that
+		// resolves a Project — and under the one wrapper that renders rather than
+		// redirects when its Config will not read (ADR-0007, ADR-0010).
+		route("/:owner/:name/settings", "routes/project-settings.tsx"),
 	]),
 	layout("core/components/layouts/editor.tsx", [
 		route(

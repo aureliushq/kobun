@@ -19,11 +19,13 @@ export const SetupActionErrorMessages: Record<SetupActionErrors, string> = {
 
 export enum DashboardActionIntents {
 	LOGOUT = "logout",
-	REFRESH_CONFIGURATION = "refresh-configuration",
 }
 
 export enum SettingsActionIntents {
 	DELETE_ACCOUNT = "delete-account",
+	// Refreshing a Config is a settings action; it wore a toolbar icon in the
+	// dashboard header until the Project settings page had somewhere to put it.
+	REFRESH_CONFIGURATION = "refresh-configuration",
 	REVOKE_SESSION = "revoke-session",
 	UPDATE_PREFERENCE = "update-preference",
 }
