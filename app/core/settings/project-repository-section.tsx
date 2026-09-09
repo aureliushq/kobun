@@ -18,8 +18,10 @@ export interface ProjectRepository {
  * way to change what the GitHub App can see (ADR-0010).
  *
  * Repository access is granted on GitHub and nowhere else, so this links out
- * rather than offering a control that would only link out anyway. Disconnect
- * lands here too, in #137.
+ * rather than offering a control that would only link out anyway. Disconnect is
+ * the other half of the connection and destroys Drafts, so it gets its own
+ * ringed card at the foot of the page rather than a button in this one — see
+ * `DisconnectProjectSection` (#137).
  */
 export function ProjectRepositorySection({
 	repository,

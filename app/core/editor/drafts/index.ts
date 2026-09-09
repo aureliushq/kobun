@@ -11,6 +11,7 @@
  */
 export type { CollectionDraft } from "./collection-drafts"
 export { listCollectionDrafts } from "./collection-drafts"
+export { countDirtyDrafts } from "./dirty-drafts"
 export {
 	getCollectionItemEditorPath,
 	getCollectionPath,

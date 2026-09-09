@@ -6,7 +6,9 @@ export interface BackDestination {
 }
 
 /**
- * Where the back link on `/settings` points.
+ * Where the back link on `/settings` points — and, since #137, where a writer
+ * lands once the Project they were standing on has been Disconnected. Both ask
+ * the same question: which Project is still there to go to?
  *
  * The account page is the one authenticated surface with no Project in its URL
  * (ADR-0010), so the way back cannot be read off params the way every other

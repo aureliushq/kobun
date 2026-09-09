@@ -23,6 +23,7 @@ export enum DashboardActionIntents {
 
 export enum SettingsActionIntents {
 	DELETE_ACCOUNT = "delete-account",
+	DISCONNECT_PROJECT = "disconnect-project",
 	// Refreshing a Config is a settings action; it wore a toolbar icon in the
 	// dashboard header until the Project settings page had somewhere to put it.
 	REFRESH_CONFIGURATION = "refresh-configuration",

@@ -1,6 +1,7 @@
-import { and, desc, eq, isNull, or, sql } from "drizzle-orm"
+import { and, desc, eq } from "drizzle-orm"
 import type { Collection } from "@/config/types"
 import { editorDraft } from "@/db/schema/app-schema"
+import { dirtyDraftWhere } from "./dirty-drafts"
 import { getDraftEditorPath, type ProjectLocation } from "./draft-paths"
 import { draftData, draftHeading } from "./draft-summary"
 import type { DraftsDatabase } from "./types"
@@ -32,7 +33,7 @@ export interface CollectionDraft {
 /**
  * Every Dirty Draft this Collection holds, newest first.
  *
- * Dirty is expressed here as SQL rather than filtered in memory — the same
+ * Dirty is expressed as SQL rather than filtered in memory — the same
  * predicate `isDraftDirty` states, on the other side of the wire — because a
  * writer's Clean Drafts are rows this page has no row to put them in, and
  * fetching them to drop them is a page of the listing wasted.
@@ -52,10 +53,7 @@ export async function listCollectionDrafts(
 		where: and(
 			eq(editorDraft.projectId, project.id),
 			eq(editorDraft.collectionSlug, collectionSlug),
-			or(
-				isNull(editorDraft.committedRevision),
-				sql`${editorDraft.revision} > ${editorDraft.committedRevision}`,
-			),
+			dirtyDraftWhere(),
 		),
 	})
 
