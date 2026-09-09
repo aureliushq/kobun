@@ -24,8 +24,14 @@ import {
 import { useIsMobile } from "@/ui/hooks/use-mobile"
 import { cn } from "@/ui/lib/utils"
 
-const SIDEBAR_COOKIE_NAME = "sidebar_state"
-const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7
+/*
+ * shadcn's own `SIDEBAR_COOKIE_NAME` / `SIDEBAR_COOKIE_MAX_AGE` and the
+ * `document.cookie` write in `setOpen` are deliberately absent. Nothing read
+ * that cookie, and `sidebarOpen` in `userPreference` now holds the answer it
+ * was pretending to hold (#139, ADR-0010). A re-sync of this shadcn-managed
+ * file will bring them back; delete them again rather than wiring a second
+ * source of truth beside the Preference.
+ */
 const SIDEBAR_KEYBOARD_SHORTCUT = "b"
 export const SIDEBAR_WIDTH = "16rem"
 export const SIDEBAR_WIDTH_MOBILE = "18rem"
@@ -80,10 +86,6 @@ function SidebarProvider({
 			} else {
 				_setOpen(openState)
 			}
-
-			// This sets the cookie to keep the sidebar state.
-			// biome-ignore lint/suspicious/noDocumentCookie: it's fine
-			document.cookie = `${SIDEBAR_COOKIE_NAME}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`
 		},
 		[setOpenProp, open],
 	)

@@ -1,5 +1,9 @@
-import { isDateDisplay, isEditorFont, isEditorWidth } from "@/db/types"
-import type { UserPreferenceValues } from "@/db/user-preference"
+import {
+	isDateDisplay,
+	isEditorFont,
+	isEditorWidth,
+	type UserPreferenceValues,
+} from "@/db/types"
 
 /**
  * Read one Preference change off a submitted form.

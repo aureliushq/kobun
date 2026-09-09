@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event"
 import { createRoutesStub } from "react-router"
 import { describe, expect, it, vi } from "vitest"
 import type { SettingsSession } from "@/core/settings/sessions"
-import { DEFAULT_USER_PREFERENCES } from "@/db/user-preference"
+import { DEFAULT_USER_PREFERENCES } from "@/db/types"
 import Settings from "./settings"
 
 /**

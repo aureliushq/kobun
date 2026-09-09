@@ -1,5 +1,5 @@
 import { useFetcher } from "react-router"
-import type { UserPreferenceValues } from "@/db/user-preference"
+import type { UserPreferenceValues } from "@/db/types"
 import { SettingsActionIntents } from "@/ui/lib/types"
 
 type PreferenceKey = keyof UserPreferenceValues

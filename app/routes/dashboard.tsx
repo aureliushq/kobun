@@ -1,4 +1,3 @@
-import { formatDistanceToNow } from "date-fns"
 import { and, desc, eq, inArray, isNotNull, sql } from "drizzle-orm"
 import { Suspense, useState } from "react"
 import {
@@ -18,6 +17,7 @@ import {
 	getDraftEditorPath,
 	isDraftDirty,
 } from "@/core/editor/drafts"
+import { Timestamp } from "@/core/preferences/timestamp"
 import type { ProjectContextDatabase } from "@/core/project-context"
 import { lastKnownConfig } from "@/core/project-context"
 import { ConfigAlerts } from "@/core/project-context/config-alerts"
@@ -253,10 +253,7 @@ function DraftsSection({ drafts }: { drafts: DashboardDraft[] }) {
 							<div className="flex min-w-0 items-center gap-2">
 								<Badge variant={dirty ? "secondary" : "outline"}>{state}</Badge>
 								<span className="truncate text-muted-foreground">
-									Edited{" "}
-									{formatDistanceToNow(new Date(draft.updatedAt), {
-										addSuffix: true,
-									})}
+									Edited <Timestamp value={new Date(draft.updatedAt)} />
 								</span>
 							</div>
 							<div className="flex shrink-0 items-center gap-2">

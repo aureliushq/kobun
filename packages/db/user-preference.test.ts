@@ -5,12 +5,8 @@ import type * as schema from "@/db/schema"
 import { userPreference } from "@/db/schema/app-schema"
 import { user } from "@/db/schema/auth-schema"
 import { createInMemoryDb, type InMemoryDb } from "@/db/testing"
-import { EditorWidth } from "@/db/types"
-import {
-	DEFAULT_USER_PREFERENCES,
-	readUserPreferences,
-	writeUserPreferences,
-} from "@/db/user-preference"
+import { DEFAULT_USER_PREFERENCES, EditorWidth } from "@/db/types"
+import { readUserPreferences, writeUserPreferences } from "@/db/user-preference"
 
 let close: InMemoryDb["close"]
 let db: InMemoryDb["db"]

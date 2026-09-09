@@ -1,6 +1,10 @@
 import type { ReactNode } from "react"
-import { DateDisplay, EditorFont, EditorWidth } from "@/db/types"
-import type { UserPreferenceValues } from "@/db/user-preference"
+import {
+	DateDisplay,
+	EditorFont,
+	EditorWidth,
+	type UserPreferenceValues,
+} from "@/db/types"
 import {
 	Card,
 	CardContent,

@@ -15,6 +15,10 @@ import {
 
 import { getAuth } from "@/auth/auth.server"
 import { envContext } from "@/core/context"
+import { PreferencesContext } from "@/core/preferences/context"
+import { dbContext } from "@/db/context"
+import { DEFAULT_USER_PREFERENCES } from "@/db/types"
+import { readUserPreferences } from "@/db/user-preference"
 import { ThemeContext } from "@/ui/hooks/use-theme"
 import { getThemeFromRequest, type Theme } from "@/ui/theme.server"
 import type { Route } from "./+types/root"
@@ -45,12 +49,29 @@ export function meta() {
 	]
 }
 
+/**
+ * Read here, and only here, because the Preferences reach five surfaces under
+ * three different layouts — the sidebar, the editor, the Collection list, the
+ * dashboard and every date Field. The save target above it is read in the
+ * editor layout for the opposite reason: one consumer.
+ *
+ * One indexed row on top of a `getSession` this loader already awaits. Server
+ * side rather than in the browser, so the stored value is in the first byte and
+ * nothing paints a default and then corrects itself.
+ *
+ * A signed-out visitor gets the defaults. `/login` and `/setup` render before
+ * there is a writer to look up, which is the same reason theme stays a cookie
+ * (ADR-0010) — but unlike theme, nothing here needs an answer for them.
+ */
 export async function loader({ context, request }: Route.LoaderArgs) {
 	const theme = getThemeFromRequest(request)
 	const session = await getAuth(context.get(envContext)).api.getSession({
 		headers: request.headers,
 	})
-	return { theme, user: session?.user ?? null }
+	const preferences = session?.user
+		? await readUserPreferences(context.get(dbContext), session.user.id)
+		: DEFAULT_USER_PREFERENCES
+	return { preferences, theme, user: session?.user ?? null }
 }
 
 function getThemeClass(theme: Theme) {
@@ -100,7 +121,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
-	const { theme, user } = useLoaderData<typeof loader>()
+	const { preferences, theme, user } = useLoaderData<typeof loader>()
 	const posthog = usePostHog()
 	const identifiedUserId = useRef<string | null>(null)
 
@@ -113,7 +134,9 @@ export default function App() {
 
 	return (
 		<ThemeContext.Provider value={{ theme }}>
-			<Outlet />
+			<PreferencesContext.Provider value={preferences}>
+				<Outlet />
+			</PreferencesContext.Provider>
 		</ThemeContext.Provider>
 	)
 }

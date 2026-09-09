@@ -1,6 +1,6 @@
-import { formatDistanceToNow } from "date-fns"
 import { ExternalLinkIcon, RefreshCcwIcon } from "lucide-react"
 import { useFetcher } from "react-router"
+import { Timestamp } from "@/core/preferences/timestamp"
 import { ConfigAlerts } from "@/core/project-context/config-alerts"
 import { ConfigStatus } from "@/db/types"
 import { Badge } from "@/ui/components/base/badge"
@@ -138,11 +138,11 @@ export function ProjectConfigSection({
 					<div className="flex items-center gap-2">
 						<dt className="text-muted-foreground">Last checked</dt>
 						<dd className="font-medium">
-							{config.lastCheckedAt
-								? formatDistanceToNow(new Date(config.lastCheckedAt), {
-										addSuffix: true,
-									})
-								: "Never"}
+							{config.lastCheckedAt ? (
+								<Timestamp value={new Date(config.lastCheckedAt)} />
+							) : (
+								"Never"
+							)}
 						</dd>
 					</div>
 				</dl>

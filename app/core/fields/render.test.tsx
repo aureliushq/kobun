@@ -1,7 +1,10 @@
 import { fireEvent, render, screen, within } from "@testing-library/react"
+import type { ReactNode } from "react"
 import { MemoryRouter } from "react-router"
 import { describe, expect, it } from "vitest"
 import type { Field } from "@/config/types"
+import { PreferencesContext } from "@/core/preferences/context"
+import { DEFAULT_USER_PREFERENCES } from "@/db/types"
 
 import { renderFieldInline, renderFieldValue } from "./dispatch"
 import type { RenderContext } from "./types"
@@ -36,21 +39,51 @@ function context(overrides: Partial<RenderContext> = {}): RenderContext {
 	}
 }
 
+/**
+ * A writer who has stated how they want dates written.
+ *
+ * The date assertions below name a locale and a zone rather than leaning on the
+ * machine's, which is what they used to do — the datetime one left its hour
+ * loose for exactly that reason. Naming both is what lets them assert the whole
+ * string, and what stops them meaning something different on another laptop.
+ */
+const SPELT_OUT = {
+	...DEFAULT_USER_PREFERENCES,
+	locale: "en-US",
+	timezone: "UTC",
+}
+
+function withPreferences(
+	children: ReactNode,
+	preferences = DEFAULT_USER_PREFERENCES,
+) {
+	return render(
+		<PreferencesContext.Provider value={preferences}>
+			<MemoryRouter>{children}</MemoryRouter>
+		</PreferencesContext.Provider>,
+	)
+}
+
 function rich(
 	declaration: Record<string, unknown>,
 	value: unknown,
 	overrides: Partial<RenderContext> = {},
+	preferences = DEFAULT_USER_PREFERENCES,
 ) {
-	return render(
-		<MemoryRouter>
-			{renderFieldValue(field(declaration), value, context(overrides))}
-		</MemoryRouter>,
+	return withPreferences(
+		renderFieldValue(field(declaration), value, context(overrides)),
+		preferences,
 	)
 }
 
-function inline(declaration: Record<string, unknown>, value: unknown) {
-	return render(
-		<MemoryRouter>{renderFieldInline(field(declaration), value)}</MemoryRouter>,
+function inline(
+	declaration: Record<string, unknown>,
+	value: unknown,
+	preferences = DEFAULT_USER_PREFERENCES,
+) {
+	return withPreferences(
+		renderFieldInline(field(declaration), value),
+		preferences,
 	)
 }
 
@@ -105,10 +138,12 @@ describe("the rich panel over a Scalar", () => {
 		const { container } = rich(
 			{ type: "datetime", label: "Published at" },
 			instant,
+			{},
+			SPELT_OUT,
 		)
 		const span = container.querySelector("span") as HTMLSpanElement
 		expect(span.title).toBe(instant)
-		expect(span.textContent).toMatch(/^Jul 14, 2026, \d{1,2}:\d{2} (AM|PM)$/)
+		expect(span.textContent).toBe("Jul 14, 2026, 9:30 AM")
 	})
 
 	it("says so when a date or datetime cannot be parsed", () => {
@@ -416,7 +451,8 @@ describe("the one-line summary", () => {
 
 	it("shows a date as a short calendar day, not a distance", () => {
 		expect(
-			inline({ type: "date", label: "Published" }, "2026-07-14").container,
+			inline({ type: "date", label: "Published" }, "2026-07-14", SPELT_OUT)
+				.container,
 		).toHaveTextContent("Jul 14, 2026")
 	})
 
@@ -424,10 +460,9 @@ describe("the one-line summary", () => {
 		const { container } = inline(
 			{ type: "datetime", label: "Published at" },
 			"2026-07-14T09:30:00.000Z",
+			SPELT_OUT,
 		)
-		expect(container.textContent).toMatch(
-			/^Jul 14, 2026, \d{1,2}:\d{2} (AM|PM)$/,
-		)
+		expect(container.textContent).toBe("Jul 14, 2026, 9:30 AM")
 	})
 
 	it("falls back to the raw value for a date or datetime it cannot parse", () => {

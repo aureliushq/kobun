@@ -1,4 +1,10 @@
-import { act, render, screen, waitFor } from "@testing-library/react"
+import {
+	act,
+	render,
+	renderHook,
+	screen,
+	waitFor,
+} from "@testing-library/react"
 import { MemoryRouter } from "react-router"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import type { Collection, ResolvedField } from "@/config/types"
@@ -6,11 +12,19 @@ import {
 	EditorLayoutContext,
 	type EditorLayoutControls,
 } from "@/core/components/layouts/editor-context"
+import { PreferencesContext } from "@/core/preferences/context"
+import {
+	DEFAULT_USER_PREFERENCES,
+	EditorFont,
+	EditorWidth,
+	type UserPreferenceValues,
+} from "@/db/types"
 
 import {
 	CollectionItemEditor,
 	type OpenedContent,
 	type PropertiesPanel,
+	usePropertiesPanel,
 } from "./collection-item-editor"
 
 /**
@@ -31,7 +45,7 @@ const mocks = vi.hoisted(() => ({
 // into a happy-dom that has no layout. The stub keeps the one behaviour the
 // split turns on: mounting registers the ref the controls gate on.
 vi.mock("@/editor", () => ({
-	EditorWordCount: () => null,
+	EditorWordCount: () => <div data-testid="word-count" />,
 	RichTextEditor: (props: {
 		initialContent?: string
 		persistence?: { onCommit?: (markdown: string) => Promise<void> }
@@ -84,22 +98,25 @@ function editor(
 	content: OpenedContent | null,
 	mode: "item" | "new" = "item",
 	canPublish = true,
+	preferences: UserPreferenceValues = DEFAULT_USER_PREFERENCES,
 ) {
 	const setControls = vi.fn()
 	const view = render(
 		<MemoryRouter>
-			<EditorLayoutContext.Provider value={{ setControls }}>
-				<CollectionItemEditor
-					canPublish={canPublish}
-					mode={mode}
-					name="site"
-					opened={content}
-					owner="acme"
-					panel={panel}
-					publishDisabledReason={null}
-					schema={POSTS.schema}
-				/>
-			</EditorLayoutContext.Provider>
+			<PreferencesContext.Provider value={preferences}>
+				<EditorLayoutContext.Provider value={{ setControls }}>
+					<CollectionItemEditor
+						canPublish={canPublish}
+						mode={mode}
+						name="site"
+						opened={content}
+						owner="acme"
+						panel={panel}
+						publishDisabledReason={null}
+						schema={POSTS.schema}
+					/>
+				</EditorLayoutContext.Provider>
+			</PreferencesContext.Provider>
 		</MemoryRouter>,
 	)
 	return { ...view, setControls }
@@ -299,5 +316,59 @@ describe("a new Collection Item", () => {
 
 		expect(screen.getByTestId("rich-text-editor")).toBeInTheDocument()
 		expect(container.querySelectorAll('[data-slot="skeleton"]')).toHaveLength(0)
+	})
+})
+
+////////////////////// PREFERENCES //////////////////////
+
+describe("what the writer's Preferences change about the editor", () => {
+	function preferences(overrides: Partial<UserPreferenceValues>) {
+		return { ...DEFAULT_USER_PREFERENCES, ...overrides }
+	}
+
+	it("counts words unless the writer turned the count off", () => {
+		editor(opened())
+		expect(screen.getByTestId("word-count")).toBeInTheDocument()
+	})
+
+	it("shows no count at all when the writer turned it off", () => {
+		editor(opened(), "item", true, preferences({ wordCountVisible: false }))
+		expect(screen.queryByTestId("word-count")).not.toBeInTheDocument()
+	})
+
+	// Rendered as attributes rather than as a class, because the widths and the
+	// typeface are one stylesheet's business: `editor.css` reads these and the
+	// column inherits what the wrapper was told.
+	it("hands the writing column its width and its typeface", () => {
+		const { container } = editor(
+			opened(),
+			"item",
+			true,
+			preferences({
+				editorFont: EditorFont.SERIF,
+				editorWidth: EditorWidth.WIDE,
+			}),
+		)
+		const wrapper = container.querySelector(".editor-wrapper")
+		expect(wrapper).toHaveAttribute("data-editor-width", EditorWidth.WIDE)
+		expect(wrapper).toHaveAttribute("data-editor-font", EditorFont.SERIF)
+	})
+
+	// A starting state, not a live one. Nothing here writes the row back, so a
+	// writer who closes the panel has closed it for this visit.
+	it("opens the properties panel closed when the writer asked for that", () => {
+		const closed = renderHook(() => usePropertiesPanel(), {
+			wrapper: ({ children }) => (
+				<PreferencesContext.Provider
+					value={preferences({ propertiesPanelOpen: false })}
+				>
+					{children}
+				</PreferencesContext.Provider>
+			),
+		})
+		expect(closed.result.current.isOpen).toBe(false)
+
+		const open = renderHook(() => usePropertiesPanel())
+		expect(open.result.current.isOpen).toBe(true)
 	})
 })

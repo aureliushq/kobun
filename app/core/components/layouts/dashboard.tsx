@@ -1,5 +1,6 @@
 import { eq } from "drizzle-orm"
 import { Outlet } from "react-router"
+import { usePreferences } from "@/core/preferences/context"
 import { requireProjectPage } from "@/core/project-context/project-context.server"
 import { fetchReleaseInfo } from "@/core/release-info.server"
 import { project } from "@/db/schema/app-schema"
@@ -73,8 +74,11 @@ export async function loader({
 
 const DashboardLayout = ({ loaderData }: Route.ComponentProps) => {
 	const config = loaderData?.config
+	// A starting state, not a live one: the switch says "whether the sidebar
+	// starts expanded", and toggling it here is this visit's business.
+	const { sidebarOpen } = usePreferences()
 	return (
-		<SidebarProvider>
+		<SidebarProvider defaultOpen={sidebarOpen}>
 			<DashboardSidebar
 				activeProject={loaderData.activeProject}
 				config={config}

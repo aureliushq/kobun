@@ -1,5 +1,5 @@
-import { formatDistanceToNow } from "date-fns"
 import { useFetcher } from "react-router"
+import { Timestamp } from "@/core/preferences/timestamp"
 import { Badge } from "@/ui/components/base/badge"
 import { Button } from "@/ui/components/base/button"
 import {
@@ -84,9 +84,7 @@ export function SessionsSection({ sessions }: { sessions: SettingsSession[] }) {
 									{session.ipAddress ?? "Unknown"}
 								</TableCell>
 								<TableCell className="text-muted-foreground">
-									{formatDistanceToNow(new Date(session.createdAt), {
-										addSuffix: true,
-									})}
+									<Timestamp value={new Date(session.createdAt)} />
 								</TableCell>
 								<TableCell className="text-right">
 									{session.current ? null : (

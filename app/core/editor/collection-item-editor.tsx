@@ -12,6 +12,7 @@ import {
 } from "@/core/editor/collection-metadata"
 import { MetadataField } from "@/core/editor/collection-metadata-fields"
 import { CollectionTitleField } from "@/core/editor/collection-title-field"
+import { usePreferences } from "@/core/preferences/context"
 import {
 	type AutosaveState,
 	type EditorRefApi,
@@ -55,7 +56,11 @@ const initialAutosaveState: AutosaveState = {
  * content lands and React remounts everything inside the boundary.
  */
 export function usePropertiesPanel() {
-	const [isOpen, setIsOpen] = useState(true)
+	// Where it starts, not where it stays: the Preference is read once here and
+	// the writer's toggling is this session's, which is what "an item opens with
+	// its properties showing" claims and all it claims.
+	const { propertiesPanelOpen } = usePreferences()
+	const [isOpen, setIsOpen] = useState(propertiesPanelOpen)
 	const isMobile = useIsMobile()
 	const toggle = useCallback(() => setIsOpen((open) => !open), [])
 
@@ -122,6 +127,7 @@ export function CollectionItemEditor({
 	// nothing may be typed into a document whose Source is mid-flight.
 	const [isCommitting, setIsCommitting] = useState(false)
 	const { isMobile, isOpen: isPropertiesOpen, setIsOpen, toggle } = panel
+	const preferences = usePreferences()
 	const [isEditorReady, setIsEditorReady] = useState(false)
 	const [editorInstance, setEditorInstance] = useState<Editor | null>(null)
 	const revisionRef = useRef(opened?.revision ?? null)
@@ -431,7 +437,11 @@ export function CollectionItemEditor({
 	return (
 		<div className="relative flex h-full min-h-0 overflow-hidden">
 			<div className="min-w-0 flex-1 overflow-y-auto">
-				<div className="editor-wrapper relative space-y-6 px-6 pt-10 pb-20">
+				<div
+					className="editor-wrapper relative space-y-6 px-6 pt-10 pb-20"
+					data-editor-font={preferences.editorFont}
+					data-editor-width={preferences.editorWidth}
+				>
 					{titleKey && titleField?.type === "text" ? (
 						// The same gutter the editor below reserves for its drag
 						// handle, so the Title sits on the writing column's left
@@ -462,12 +472,14 @@ export function CollectionItemEditor({
 				</div>
 			</div>
 
-			<div className="pointer-events-none absolute bottom-0 left-0 z-10 px-6 py-3">
-				<EditorWordCount
-					editor={editorInstance}
-					className="rounded-md bg-background/80 px-2 py-1 backdrop-blur-sm"
-				/>
-			</div>
+			{preferences.wordCountVisible ? (
+				<div className="pointer-events-none absolute bottom-0 left-0 z-10 px-6 py-3">
+					<EditorWordCount
+						editor={editorInstance}
+						className="rounded-md bg-background/80 px-2 py-1 backdrop-blur-sm"
+					/>
+				</div>
+			) : null}
 
 			<aside
 				aria-label="Properties"
