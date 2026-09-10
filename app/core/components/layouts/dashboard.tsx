@@ -1,8 +1,12 @@
 import { eq } from "drizzle-orm"
-import { Outlet } from "react-router"
+import { Outlet, type ShouldRevalidateFunctionArgs } from "react-router"
 import { usePreferences } from "@/core/preferences/context"
 import { requireProjectPage } from "@/core/project-context/project-context.server"
 import { fetchReleaseInfo } from "@/core/release-info.server"
+import {
+	SET_PREFERENCE_PATH,
+	usePreference,
+} from "@/core/settings/use-preference"
 import { project } from "@/db/schema/app-schema"
 import { ScrollArea } from "@/ui/components/base/scroll-area"
 import { SidebarProvider } from "@/ui/components/base/sidebar"
@@ -72,13 +76,43 @@ export async function loader({
 	}
 }
 
+/**
+ * Nothing this loader answers with depends on a Preference: it resolves a
+ * Project, lists the Projects the switcher offers, and arms a release check. A
+ * Preference is account-scoped and says how Kobun looks, so a write of one is
+ * never news about the Project — and re-running this for it would spend a
+ * Config read (D1-cached on a short TTL, conditionally revalidated past it —
+ * ADR-0003), a Project query and an outbound release fetch on a keystroke.
+ *
+ * Matched on the target rather than the key, because that is the true reason:
+ * no Preference belongs in this answer, not just `sidebarOpen`. The root loader
+ * has no such guard, which is what carries the new value back.
+ */
+export function shouldRevalidate({
+	defaultShouldRevalidate,
+	formAction,
+}: ShouldRevalidateFunctionArgs) {
+	if (formAction === SET_PREFERENCE_PATH) return false
+	return defaultShouldRevalidate
+}
+
 const DashboardLayout = ({ loaderData }: Route.ComponentProps) => {
 	const config = loaderData?.config
-	// A starting state, not a live one: the switch says "whether the sidebar
-	// starts expanded", and toggling it here is this visit's business.
+	// Controlled rather than seeded: collapsing the sidebar here and flipping the
+	// account page's switch are the same act, so a writer who collapses it is
+	// saying how they want it and not just how they want it this once (#140).
+	// The optimistic value moves it on the keystroke; the root loader's re-read
+	// confirms it. `Cmd+B` is the whole of the control today — nothing renders a
+	// trigger — and on mobile the Sheet keeps its own state, so a drawer pulled
+	// shut stays this visit's business.
 	const { sidebarOpen } = usePreferences()
+	const sidebar = usePreference({
+		decode: (raw) => raw === "true",
+		name: "sidebarOpen",
+		value: sidebarOpen,
+	})
 	return (
-		<SidebarProvider defaultOpen={sidebarOpen}>
+		<SidebarProvider onOpenChange={sidebar.setValue} open={sidebar.value}>
 			<DashboardSidebar
 				activeProject={loaderData.activeProject}
 				config={config}

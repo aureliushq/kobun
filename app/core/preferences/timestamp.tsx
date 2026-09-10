@@ -1,14 +1,14 @@
 import { usePreferences } from "./context"
-import { formatDatetime, formatTimestamp } from "./dates"
+import { formatDatetimeWithZone, formatTimestamp } from "./dates"
 
 /**
  * A moment in time, written the way the writer asked for it.
  *
  * The tooltip is the point of the component. "3 months ago" is quick to scan
- * and says nothing about which day, so a reader who needs the day has to open
- * the item to find it; the exact stamp hangs off the label instead. A writer
- * reading absolute dates already has it, so there is nothing left to reveal and
- * no tooltip is offered — a hover that repeats the text is noise.
+ * and says nothing about which day, so the exact stamp hangs off the label
+ * instead — and it names the zone it is read in, which no label ever does. A
+ * writer already reading absolute dates therefore still has something to
+ * reveal: which clock they are reading them on.
  */
 export function Timestamp({
 	className,
@@ -18,12 +18,13 @@ export function Timestamp({
 	value: Date
 }) {
 	const preferences = usePreferences()
-	const shown = formatTimestamp(value, preferences)
-	const exact = formatDatetime(value, preferences)
 
 	return (
-		<span className={className} title={shown === exact ? undefined : exact}>
-			{shown}
+		<span
+			className={className}
+			title={formatDatetimeWithZone(value, preferences)}
+		>
+			{formatTimestamp(value, preferences)}
 		</span>
 	)
 }

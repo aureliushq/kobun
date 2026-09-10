@@ -38,8 +38,9 @@ export function formatTimestamp(
 		return formatDistanceToNow(instant, { addSuffix: true })
 	}
 	// The absolute arm is `formatDatetime` rather than a second spelling of it:
-	// the two are the same stamp, and a tooltip that drifted from the label it
-	// hangs off would be worse than no tooltip.
+	// the two are the same stamp, and a label that read differently under two
+	// Preferences would be a bug. The tooltip hanging off it is allowed to
+	// differ, and does — `formatDatetimeWithZone` says one thing more.
 	return formatDatetime(instant, preferences)
 }
 
@@ -100,11 +101,66 @@ export function formatDatetime(
 	instant: Date,
 	preferences: DatePreferences,
 ): string {
+	return spellInstant(instant, preferences, "short")
+}
+
+/**
+ * A day and a time, with the zone it is being read in named.
+ *
+ * The zone belongs here rather than on the label: every stamp on a page shares
+ * one, so spelling it on each is noise, and a reader who wants to know which
+ * clock they are looking at asks once. Without this there is nowhere to ask —
+ * a writer who has stated no zone is being shown the machine's and is never
+ * told which one that is.
+ *
+ * `timeStyle: "long"` is what names it. `Intl` refuses `timeZoneName` beside
+ * `dateStyle`/`timeStyle`, and spelling every component out to avoid that buys
+ * only the loss of the seconds `long` also brings — which a tooltip on a
+ * stamped instant has room for.
+ *
+ * What it names is the offset in force at that instant (`GMT+9`, `BST`) rather
+ * than the zone (`Asia/Tokyo`). That is the right answer for a stamp: the
+ * question a reader has is which clock this one was read off, and a zone that
+ * changes offset twice a year answers it less exactly than the offset does.
+ * The zone itself is `resolvedTimezone`'s job, on the control where a writer
+ * types an instant rather than reads one.
+ */
+export function formatDatetimeWithZone(
+	instant: Date,
+	preferences: DatePreferences,
+): string {
+	return spellInstant(instant, preferences, "long")
+}
+
+/**
+ * The one instant format both public readings are, differing only in how much
+ * of the time they spell. Two exports over it rather than one taking the flag,
+ * because a caller is choosing between two questions — what time is this, and
+ * on whose clock — not between two amounts of detail.
+ */
+function spellInstant(
+	instant: Date,
+	preferences: DatePreferences,
+	timeStyle: "long" | "short",
+): string {
 	return new Intl.DateTimeFormat(stated(preferences.locale), {
 		dateStyle: "medium",
-		timeStyle: "short",
+		timeStyle,
 		timeZone: stated(preferences.timezone),
 	}).format(instant)
+}
+
+/**
+ * The zone a null Preference resolves to — the machine's own, named.
+ *
+ * `stated` is enough everywhere a value is formatted, because `Intl` resolves
+ * the null itself. It is not enough where the zone is the thing being said:
+ * "Match my device" names no device.
+ */
+export function resolvedTimezone(timeZone: string | null): string {
+	return new Intl.DateTimeFormat(undefined, {
+		timeZone: stated(timeZone),
+	}).resolvedOptions().timeZone
 }
 
 /**

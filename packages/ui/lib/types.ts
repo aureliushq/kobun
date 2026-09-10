@@ -28,7 +28,6 @@ export enum SettingsActionIntents {
 	// dashboard header until the Project settings page had somewhere to put it.
 	REFRESH_CONFIGURATION = "refresh-configuration",
 	REVOKE_SESSION = "revoke-session",
-	UPDATE_PREFERENCE = "update-preference",
 }
 
 export enum EditorActionIntents {

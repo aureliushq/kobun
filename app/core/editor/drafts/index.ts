@@ -11,6 +11,11 @@
  */
 export type { CollectionDraft } from "./collection-drafts"
 export { listCollectionDrafts } from "./collection-drafts"
+export type { DashboardDraft, DashboardDrafts } from "./dashboard-drafts"
+export {
+	DASHBOARD_DRAFT_LIMIT,
+	loadDashboardDrafts,
+} from "./dashboard-drafts"
 export { countDirtyDrafts } from "./dirty-drafts"
 export {
 	getCollectionItemEditorPath,

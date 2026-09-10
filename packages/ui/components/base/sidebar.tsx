@@ -28,7 +28,9 @@ import { cn } from "@/ui/lib/utils"
  * shadcn's own `SIDEBAR_COOKIE_NAME` / `SIDEBAR_COOKIE_MAX_AGE` and the
  * `document.cookie` write in `setOpen` are deliberately absent. Nothing read
  * that cookie, and `sidebarOpen` in `userPreference` now holds the answer it
- * was pretending to hold (#139, ADR-0010). A re-sync of this shadcn-managed
+ * was pretending to hold (#139, ADR-0010). The dashboard layout drives `open`
+ * and `onOpenChange` from that Preference (#140), so a restored cookie would
+ * not duplicate the answer — it would fight it. A re-sync of this shadcn-managed
  * file will bring them back; delete them again rather than wiring a second
  * source of truth beside the Preference.
  */

@@ -3,9 +3,11 @@ import { DateDisplay, DEFAULT_USER_PREFERENCES } from "@/db/types"
 import {
 	formatDate,
 	formatDatetime,
+	formatDatetimeWithZone,
 	formatDay,
 	formatTimestamp,
 	fromWallTime,
+	resolvedTimezone,
 	toWallTime,
 } from "./dates"
 
@@ -121,6 +123,54 @@ describe("formatDatetime", () => {
 		)
 		expect(shown).toContain("14 Jul 2026")
 		expect(shown).toContain("15:45")
+	})
+})
+
+describe("formatDatetimeWithZone", () => {
+	// The label leaves the zone out, so this is the only reading that says which
+	// clock the writer is looking at.
+	test("names the zone the writer reads it in", () => {
+		const shown = formatDatetimeWithZone(
+			INSTANT,
+			preferences({ locale: "en-GB", timezone: "Asia/Tokyo" }),
+		)
+		expect(shown).toContain("15 Jul 2026")
+		expect(shown).toContain("GMT+9")
+	})
+
+	test("names it in the writer's language", () => {
+		const german = formatDatetimeWithZone(
+			INSTANT,
+			preferences({ locale: "de-DE", timezone: "UTC" }),
+		)
+		expect(german).toContain("14.07.2026")
+	})
+
+	// The case the tooltip exists for: a writer who stated no zone is being shown
+	// the machine's, and this is where they find out which one that is.
+	test("names a zone even when the writer stated none", () => {
+		// The token a `long` time carries is the `short` zone name — CLDR's `z`,
+		// the same field asked for here, so this is the contract and not a
+		// coincidence of the two spellings.
+		const host = new Intl.DateTimeFormat(undefined, { timeZoneName: "short" })
+			.formatToParts(INSTANT)
+			.find((part) => part.type === "timeZoneName")?.value
+		expect(host).toBeTruthy()
+		expect(formatDatetimeWithZone(INSTANT, preferences())).toContain(host)
+	})
+})
+
+describe("resolvedTimezone", () => {
+	test("hands back a stated zone unchanged", () => {
+		expect(resolvedTimezone("Asia/Tokyo")).toBe("Asia/Tokyo")
+	})
+
+	// "Match my device" names no device, so the surface that says which clock a
+	// writer is typing on has to resolve the null itself.
+	test("names the machine's own zone when the writer stated none", () => {
+		expect(resolvedTimezone(null)).toBe(
+			Intl.DateTimeFormat().resolvedOptions().timeZone,
+		)
 	})
 })
 

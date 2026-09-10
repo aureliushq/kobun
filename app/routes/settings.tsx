@@ -4,13 +4,12 @@ import { getAuth } from "@/auth/auth.server"
 import { envContext } from "@/core/context"
 import { deleteAccount } from "@/core/settings/delete-account.server"
 import { DeleteAccountSection } from "@/core/settings/delete-account-section"
-import { parsePreferenceUpdate } from "@/core/settings/preference-update"
 import { PreferencesSection } from "@/core/settings/preferences-section"
 import { ProfileSection } from "@/core/settings/profile-section"
 import { describeSessions } from "@/core/settings/sessions"
 import { SessionsSection } from "@/core/settings/sessions-section"
 import { dbContext } from "@/db/context"
-import { readUserPreferences, writeUserPreferences } from "@/db/user-preference"
+import { readUserPreferences } from "@/db/user-preference"
 import { posthogContext } from "@/lib/posthog-middleware"
 import { Alert, AlertDescription } from "@/ui/components/base/alert"
 import { PATHS } from "@/ui/lib/constants"
@@ -30,9 +29,9 @@ import type { Route } from "./+types/settings"
  * about the weight of the Projects query the layout already waits for, so
  * ADR-0006's case for streaming does not apply.
  *
- * Nothing on this page changes what the writer sees anywhere else yet. Storing
- * a Preference is this issue; reading it back in the editor, the sidebar and the
- * Collection list is #139.
+ * Every Preference stored here is read back where it applies — the sidebar, the
+ * editor, the Collection list and every date Field — from the single read in
+ * `app/root.tsx`, so a change lands on the next page load rather than here.
  */
 export async function loader({ context, request }: Route.LoaderArgs) {
 	const db = context.get(dbContext)
@@ -64,15 +63,6 @@ export async function action({ context, request }: Route.ActionArgs) {
 
 	const formData = await request.formData()
 	const intent = formData.get("intent")
-
-	if (intent === SettingsActionIntents.UPDATE_PREFERENCE) {
-		const patch = parsePreferenceUpdate(formData)
-		if (!patch) {
-			throw new Response("Unknown preference", { status: 400 })
-		}
-		await writeUserPreferences(db, session.user.id, patch)
-		return { ok: true }
-	}
 
 	if (intent === SettingsActionIntents.REVOKE_SESSION) {
 		const sessionId = formData.get("sessionId")

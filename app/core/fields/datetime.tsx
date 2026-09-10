@@ -2,7 +2,9 @@ import { isValid, parseISO } from "date-fns"
 import { usePreferences } from "@/core/preferences/context"
 import {
 	formatDatetime,
+	formatDatetimeWithZone,
 	fromWallTime,
+	resolvedTimezone,
 	toDate,
 	toWallTime,
 } from "@/core/preferences/dates"
@@ -28,9 +30,10 @@ function hasExplicitZone(value: string) {
 /**
  * A date is shown as a distance from now; a datetime never is, because the time
  * of day is the whole reason the type exists and "3 hours ago" hides it. Both
- * renders therefore say the same thing, and only the panel keeps the stored
- * instant in a tooltip — which is where the writer reads the zone it was
- * stamped in, whatever zone they are being shown it in.
+ * renders therefore say the same thing, and both hang the clock it is read on
+ * off it in a tooltip, since no label names a zone. The panel has room for the
+ * second fact too: the instant as the file holds it, in the zone it was
+ * stamped in.
  *
  * Components rather than inline markup, so the Preferences can be read at the
  * top of a render rather than after `renderInline`'s early return.
@@ -39,7 +42,11 @@ function DatetimeSummary({ value }: { value: unknown }) {
 	const preferences = usePreferences()
 	const instant = toDate(value)
 	if (!instant) return <InlineText>{String(value)}</InlineText>
-	return <InlineText>{formatDatetime(instant, preferences)}</InlineText>
+	return (
+		<InlineText title={formatDatetimeWithZone(instant, preferences)}>
+			{formatDatetime(instant, preferences)}
+		</InlineText>
+	)
 }
 
 function DatetimeValue({ value }: { value: unknown }) {
@@ -48,7 +55,11 @@ function DatetimeValue({ value }: { value: unknown }) {
 	if (!instant)
 		return <span className="text-muted-foreground italic">invalid date</span>
 	return (
-		<span title={String(value)}>{formatDatetime(instant, preferences)}</span>
+		<span
+			title={`${formatDatetimeWithZone(instant, preferences)} · ${String(value)}`}
+		>
+			{formatDatetime(instant, preferences)}
+		</span>
 	)
 }
 
@@ -66,6 +77,7 @@ function DatetimeControl({
 		<Input
 			type="datetime-local"
 			step="1"
+			title={`Read and written on the ${resolvedTimezone(timezone)} clock.`}
 			value={toDatetimeLocal(value, timezone)}
 			disabled={disabled}
 			onChange={(event) =>

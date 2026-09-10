@@ -111,9 +111,24 @@ export function JsonFallback({ value }: { value: unknown }) {
 	)
 }
 
-/** A value summarized on one line, clipped rather than wrapped. */
-export function InlineText({ children }: { children: React.ReactNode }) {
-	return <span className="truncate">{children}</span>
+/**
+ * A value summarized on one line, clipped rather than wrapped.
+ *
+ * The title is for what the line cannot hold: a datetime hangs the zone it is
+ * read in off it, the way the panel value does. Nothing else needs one yet.
+ */
+export function InlineText({
+	children,
+	title,
+}: {
+	children: React.ReactNode
+	title?: string
+}) {
+	return (
+		<span className="truncate" title={title}>
+			{children}
+		</span>
+	)
 }
 
 export type FieldBlock =

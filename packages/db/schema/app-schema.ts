@@ -225,13 +225,16 @@ export const userPreference = sqliteTable("user_preference", {
 	 */
 	dateDisplay: text("date_display").notNull().default(DateDisplay.RELATIVE),
 	/**
-	 * Null means the writer has stated no preference. Most surfaces already fall
-	 * back to the browser, but a date Field's inline rendering hardcodes `en-US`
-	 * (`app/core/fields/date.tsx`) — so honouring this column will change that
-	 * surface rather than merely parameterise it.
+	 * Null means the writer has stated no preference, which `app/core/preferences/
+	 * dates.ts` hands to `Intl` as `undefined` — the browser's own locale. Held as
+	 * a BCP 47 tag; the write path canonicalises it and rejects anything malformed.
 	 */
 	locale: text("locale"),
-	/** Null means the writer has stated no preference; nothing reads a zone yet. */
+	/**
+	 * Null means the writer has stated no preference, and the zone is then the
+	 * machine's. An IANA name otherwise, read by every instant Kobun shows and by
+	 * the datetime control's wall-time conversion both ways.
+	 */
 	timezone: text("timezone"),
 	editorPrimaryAction: text("editor_primary_action").notNull().default("save"),
 	createdAt: integer("created_at", { mode: "timestamp_ms" })
