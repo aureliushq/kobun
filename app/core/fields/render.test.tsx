@@ -133,6 +133,8 @@ describe("the rich panel over a Scalar", () => {
 		expect(span.textContent).toContain("ago")
 	})
 
+	// The label names no zone, so the tooltip carries both facts: the clock the
+	// stamp is being read on, and the instant as the file holds it.
 	it("shows a datetime as a wall-clock stamp, not a distance", () => {
 		const instant = "2026-07-14T09:30:00.000Z"
 		const { container } = rich(
@@ -142,7 +144,7 @@ describe("the rich panel over a Scalar", () => {
 			SPELT_OUT,
 		)
 		const span = container.querySelector("span") as HTMLSpanElement
-		expect(span.title).toBe(instant)
+		expect(span.title).toBe(`Jul 14, 2026, 9:30:00 AM UTC · ${instant}`)
 		expect(span.textContent).toBe("Jul 14, 2026, 9:30 AM")
 	})
 
@@ -456,13 +458,17 @@ describe("the one-line summary", () => {
 		).toHaveTextContent("Jul 14, 2026")
 	})
 
-	it("shows a datetime with its time of day", () => {
+	// A summary has no room to name the zone and no label anywhere does, so the
+	// one-line reading hangs it off the same tooltip the panel value uses.
+	it("shows a datetime with its time of day, naming the clock it is read on", () => {
 		const { container } = inline(
 			{ type: "datetime", label: "Published at" },
 			"2026-07-14T09:30:00.000Z",
 			SPELT_OUT,
 		)
-		expect(container.textContent).toBe("Jul 14, 2026, 9:30 AM")
+		const span = container.querySelector("span") as HTMLSpanElement
+		expect(span.textContent).toBe("Jul 14, 2026, 9:30 AM")
+		expect(span.title).toBe("Jul 14, 2026, 9:30:00 AM UTC")
 	})
 
 	it("falls back to the raw value for a date or datetime it cannot parse", () => {

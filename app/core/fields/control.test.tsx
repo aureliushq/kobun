@@ -157,6 +157,14 @@ describe("the control over a datetime", () => {
 		expect(datetime("").input.type).toBe("datetime-local")
 	})
 
+	// The control reads and writes wall time, so which clock that is decides
+	// which instant gets committed. Nothing on screen says, so the control does.
+	it("names the clock its wall time is read on", () => {
+		expect(datetime("").input.title).toBe(
+			`Read and written on the ${Intl.DateTimeFormat().resolvedOptions().timeZone} clock.`,
+		)
+	})
+
 	it("shows a stored UTC instant as local wall time, seconds included", () => {
 		const instant = "2026-07-14T09:30:45.000Z"
 		const local = new Date(instant)

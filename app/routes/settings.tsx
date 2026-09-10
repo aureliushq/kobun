@@ -30,9 +30,9 @@ import type { Route } from "./+types/settings"
  * about the weight of the Projects query the layout already waits for, so
  * ADR-0006's case for streaming does not apply.
  *
- * Nothing on this page changes what the writer sees anywhere else yet. Storing
- * a Preference is this issue; reading it back in the editor, the sidebar and the
- * Collection list is #139.
+ * Every Preference stored here is read back where it applies — the sidebar, the
+ * editor, the Collection list and every date Field — from the single read in
+ * `app/root.tsx`, so a change lands on the next page load rather than here.
  */
 export async function loader({ context, request }: Route.LoaderArgs) {
 	const db = context.get(dbContext)

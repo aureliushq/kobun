@@ -27,13 +27,15 @@ function shown(overrides: Partial<typeof DEFAULT_USER_PREFERENCES>) {
 test("hangs the exact stamp off a distance", () => {
 	const span = shown({ dateDisplay: DateDisplay.RELATIVE })
 	expect(span.textContent).toMatch(/ago$/)
-	expect(span.title).toBe("14 Jul 2026, 15:45")
+	expect(span.title).toBe("14 Jul 2026, 15:45:00 UTC")
 })
 
-test("offers no tooltip when the stamp is already on the page", () => {
+// No label names a zone, so the tooltip always has something left to say —
+// even here, where the stamp itself is already on the page.
+test("names the zone even when the stamp is already on the page", () => {
 	const span = shown({ dateDisplay: DateDisplay.ABSOLUTE })
 	expect(span.textContent).toBe("14 Jul 2026, 15:45")
-	expect(span.title).toBe("")
+	expect(span.title).toBe("14 Jul 2026, 15:45:00 UTC")
 })
 
 test("keeps the class it was handed", () => {
