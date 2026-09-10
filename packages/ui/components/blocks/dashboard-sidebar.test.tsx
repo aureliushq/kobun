@@ -25,6 +25,16 @@ const PROJECT = {
 	repoOwnerLogin: "acme",
 } as ProjectWithGithubInstallation
 
+const OTHER_PROJECT = {
+	githubInstallation: {
+		targetAvatarUrl: "https://avatars.example/other.png",
+		targetLogin: "other-org",
+	},
+	id: "project-2",
+	repoName: "blog",
+	repoOwnerLogin: "other",
+} as ProjectWithGithubInstallation
+
 const USER = {
 	email: "ada@example.com",
 	image: null,
@@ -45,7 +55,7 @@ function sidebar() {
 					<DashboardSidebar
 						activeProject={PROJECT}
 						config={null}
-						projects={[PROJECT]}
+						projects={[PROJECT, OTHER_PROJECT]}
 						releaseInfo={Promise.resolve({
 							changelogUrl: "https://kobun.dev/changelog",
 							hasUpdate: false,
@@ -58,6 +68,11 @@ function sidebar() {
 				</SidebarProvider>
 			),
 			path: "/:owner/:name",
+		},
+		{
+			// A static path outranks /:owner/:name, so arriving here is visible.
+			Component: () => <p>the other project's dashboard</p>,
+			path: "/other/blog",
 		},
 		{
 			action: async ({ request }) => {
@@ -78,6 +93,12 @@ function sidebar() {
 async function openUserMenu() {
 	await userEvent.click(
 		await screen.findByRole("button", { name: /Ada Lovelace/ }),
+	)
+}
+
+async function openProjectSwitcher() {
+	await userEvent.click(
+		await screen.findByRole("button", { name: /acme\/blog/ }),
 	)
 }
 
@@ -127,5 +148,64 @@ describe("the sidebar footer", () => {
 		)
 
 		await waitFor(() => expect(loggedOut?.get("intent")).toBe("logout"))
+	})
+})
+
+/**
+ * The project switcher, whose every row is its own anchor (#148).
+ *
+ * A menu item wrapping a link is activated by the pointer and not by the
+ * keyboard, because the keyboard activates the item and the item carries no
+ * navigation. These tests pin the shape that makes both inputs agree.
+ *
+ * The keyboard test presses Space, not Enter. Base UI synthesises a click for
+ * Space on an anchor item, and leaves Enter to the browser's own anchor
+ * activation - which happy-dom does not implement. Enter is covered here only
+ * by the href being on the item at all; press it in a browser to see the rest.
+ */
+describe("the project switcher", () => {
+	it("makes every item its own link", async () => {
+		sidebar()
+		await openProjectSwitcher()
+
+		expect(
+			await screen.findByRole("menuitem", { name: /acme\/blog/ }),
+		).toHaveAttribute("href", "/acme/blog")
+		expect(
+			await screen.findByRole("menuitem", { name: /other\/blog/ }),
+		).toHaveAttribute("href", "/other/blog")
+		expect(
+			await screen.findByRole("menuitem", { name: /Create New Project/ }),
+		).toHaveAttribute("href", "/setup")
+	})
+
+	it("opens a Project from the keyboard", async () => {
+		sidebar()
+		await openProjectSwitcher()
+
+		const project = await screen.findByRole("menuitem", {
+			name: /other\/blog/,
+		})
+		project.focus()
+		await userEvent.keyboard("[Space]")
+
+		expect(
+			await screen.findByText("the other project's dashboard"),
+		).toBeInTheDocument()
+	})
+
+	it("ticks the Project being worked on, and only that one", async () => {
+		sidebar()
+		await openProjectSwitcher()
+
+		const active = await screen.findByRole("menuitem", { name: /acme\/blog/ })
+		const other = await screen.findByRole("menuitem", { name: /other\/blog/ })
+
+		expect(
+			active.querySelector('[data-slot="active-project"]'),
+		).toBeInTheDocument()
+		expect(
+			other.querySelector('[data-slot="active-project"]'),
+		).not.toBeInTheDocument()
 	})
 })

@@ -149,12 +149,14 @@ const DashboardSidebar = ({
 						>
 							<DropdownMenuGroup>
 								<DropdownMenuLabel>Projects</DropdownMenuLabel>
-								{projects.map((project, _index) => (
-									<DropdownMenuItem key={project.id}>
-										<Link
-											className="flex w-full items-center justify-between"
-											prefetch="intent"
-											to={`/${project.repoOwnerLogin}/${project.repoName}`}
+								{projects.map((project) => {
+									const slug = `${project.repoOwnerLogin}/${project.repoName}`
+
+									return (
+										<DropdownMenuItem
+											className="justify-between"
+											key={project.id}
+											render={<Link prefetch="intent" to={`/${slug}`} />}
 										>
 											<div className="flex items-center gap-2">
 												<Avatar className="size-4">
@@ -166,19 +168,21 @@ const DashboardSidebar = ({
 														{project.githubInstallation.targetLogin.charAt(0)}
 													</AvatarFallback>
 												</Avatar>
-												{`${project.repoOwnerLogin}/${project.repoName}`}
+												{slug}
 											</div>
-											{activeProject.id === project.id && <CheckIcon />}
-										</Link>
-									</DropdownMenuItem>
-								))}
+											{activeProject.id === project.id && (
+												<CheckIcon data-slot="active-project" />
+											)}
+										</DropdownMenuItem>
+									)
+								})}
 								<DropdownMenuSeparator />
 							</DropdownMenuGroup>
 							<DropdownMenuGroup>
-								<DropdownMenuItem>
-									<Link prefetch="intent" to={PATHS.SETUP}>
-										Create New Project
-									</Link>
+								<DropdownMenuItem
+									render={<Link prefetch="intent" to={PATHS.SETUP} />}
+								>
+									Create New Project
 								</DropdownMenuItem>
 							</DropdownMenuGroup>
 						</DropdownMenuContent>
