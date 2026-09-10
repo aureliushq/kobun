@@ -45,10 +45,16 @@ function page({
 	preferences?: typeof DEFAULT_USER_PREFERENCES
 	sessions?: SettingsSession[]
 } = {}) {
-	const action = vi.fn(async ({ request }: { request: Request }) => {
-		const formData = await request.formData()
-		return { submitted: Object.fromEntries(formData) }
-	})
+	const echo = () =>
+		vi.fn(async ({ request }: { request: Request }) => {
+			const formData = await request.formData()
+			return { submitted: Object.fromEntries(formData) }
+		})
+
+	const action = echo()
+	// A Preference saves through its own route rather than this page's action, so
+	// the same control works under a layout that is not this one (#140).
+	const preferenceAction = echo()
 
 	const Stub = createRoutesStub([
 		{
@@ -57,9 +63,14 @@ function page({
 			loader: () => ({ preferences, sessions, user: USER }),
 			path: "/settings",
 		},
+		{ action: preferenceAction, path: "/api/set-preference" },
 	])
 
-	return { action, ...render(<Stub initialEntries={["/settings"]} />) }
+	return {
+		action,
+		preferenceAction,
+		...render(<Stub initialEntries={["/settings"]} />),
+	}
 }
 
 /** What the action was handed, once it has been handed anything. */
@@ -97,23 +108,23 @@ describe("the profile section", () => {
 
 describe("the preferences section", () => {
 	it("saves a Preference the moment the writer changes it", async () => {
-		const { action } = page()
+		const { action, preferenceAction } = page()
 
 		await userEvent.click(
 			await screen.findByRole("switch", { name: "Show the word count" }),
 		)
 
-		expect(await submission(action)).toEqual({
-			intent: "update-preference",
+		expect(await submission(preferenceAction)).toEqual({
 			key: "wordCountVisible",
 			value: "false",
 		})
+		expect(action).not.toHaveBeenCalled()
 	})
 
 	it("lets the writer type a timezone over the one already chosen", async () => {
 		// The combobox opens holding the current zone as its filter text, so
 		// clicking and typing used to append to it and match nothing.
-		const { action } = page({
+		const { preferenceAction } = page({
 			preferences: { ...DEFAULT_USER_PREFERENCES, timezone: "Europe/London" },
 		})
 
@@ -125,8 +136,7 @@ describe("the preferences section", () => {
 			await screen.findByRole("option", { name: "Asia/Tokyo" }),
 		)
 
-		expect(await submission(action)).toEqual({
-			intent: "update-preference",
+		expect(await submission(preferenceAction)).toEqual({
 			key: "timezone",
 			value: "Asia/Tokyo",
 		})

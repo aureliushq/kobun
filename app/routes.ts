@@ -56,6 +56,7 @@ export default [
 			"set-editor-primary-action",
 			"routes/api.set-editor-primary-action.ts",
 		),
+		route("set-preference", "routes/api.set-preference.ts"),
 		route("set-theme", "routes/api.set-theme.ts"),
 	]),
 	route("/component-examples", "routes/example.tsx"),

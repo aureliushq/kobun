@@ -305,7 +305,7 @@ export function PreferencesSection({
 					value={preferences.wordCountVisible}
 				/>
 				<SwitchPreference
-					description="Whether the sidebar starts expanded."
+					description="Whether the sidebar is expanded."
 					label="Open the sidebar"
 					name="sidebarOpen"
 					value={preferences.sidebarOpen}

@@ -1,6 +1,7 @@
 import { useFetcher } from "react-router"
 import type { UserPreferenceValues } from "@/db/types"
-import { SettingsActionIntents } from "@/ui/lib/types"
+
+export const SET_PREFERENCE_PATH = "/api/set-preference"
 
 type PreferenceKey = keyof UserPreferenceValues
 
@@ -21,6 +22,11 @@ type PreferenceKey = keyof UserPreferenceValues
  * one `encode` wrote a moment earlier. Validating it here would only re-check
  * this module's own work; the value is validated where it matters, on the way
  * into the row.
+ *
+ * The target is named rather than left to the fetcher's default, because a
+ * Preference control is not confined to the account page — the sidebar changes
+ * one from under the dashboard layout — and a fetcher with no `action` posts to
+ * whichever route happens to be rendering it.
  */
 export function usePreference<TValue extends boolean | string | null>({
 	decode,
@@ -43,12 +49,8 @@ export function usePreference<TValue extends boolean | string | null>({
 	return {
 		setValue(next) {
 			fetcher.submit(
-				{
-					intent: SettingsActionIntents.UPDATE_PREFERENCE,
-					key: name,
-					value: encode(next),
-				},
-				{ method: "POST" },
+				{ key: name, value: encode(next) },
+				{ action: SET_PREFERENCE_PATH, method: "POST" },
 			)
 		},
 		value: optimistic === undefined ? value : optimistic,
