@@ -1,4 +1,5 @@
-import { and, desc, eq, inArray, isNotNull, sql } from "drizzle-orm"
+import { eq } from "drizzle-orm"
+import { FileTextIcon } from "lucide-react"
 import { Suspense, useState } from "react"
 import {
 	Await,
@@ -11,19 +12,20 @@ import { getAuth } from "@/auth/auth.server"
 import type { loader as dashboardLayoutLoader } from "@/core/components/layouts/dashboard"
 import { envContext } from "@/core/context"
 import {
+	DASHBOARD_DRAFT_LIMIT,
+	type DashboardDrafts,
 	DRAFT_MARKER_LABELS,
-	draftHeading,
 	draftMarker,
+	getCollectionPath,
 	getDraftEditorPath,
 	isDraftDirty,
+	loadDashboardDrafts,
 } from "@/core/editor/drafts"
 import { Timestamp } from "@/core/preferences/timestamp"
-import type { ProjectContextDatabase } from "@/core/project-context"
-import { lastKnownConfig } from "@/core/project-context"
 import { ConfigAlerts } from "@/core/project-context/config-alerts"
 import { configErrors } from "@/core/project-context/config-errors"
 import { dbContext } from "@/db/context"
-import { editorDraft, project } from "@/db/schema/app-schema"
+import { editorDraft } from "@/db/schema/app-schema"
 import { posthogContext } from "@/lib/posthog-middleware"
 import {
 	AlertDialog,
@@ -45,6 +47,14 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/ui/components/base/card"
+import {
+	Empty,
+	EmptyContent,
+	EmptyDescription,
+	EmptyHeader,
+	EmptyMedia,
+	EmptyTitle,
+} from "@/ui/components/base/empty"
 import { H2 } from "@/ui/components/base/typegraphy"
 import { AsyncErrorAlert } from "@/ui/components/blocks/async-error-alert"
 import { CardListSkeleton } from "@/ui/components/blocks/skeletons"
@@ -53,85 +63,23 @@ import type { Route } from "./+types/dashboard"
 
 const DISCARD_DRAFT_INTENT = "discard-draft"
 
-/**
- * Three round-trips before a single Draft can be listed, none of which decides
- * whether this page may be seen — so the page does not wait on them (ADR 0006).
- *
- * The cleanup delete rides along inside the stream. It only removes Drafts that
- * are Synced, so running it late, twice, or — if the reader closes the tab
- * mid-stream — not at all costs nothing: the next dashboard load does it.
- *
- * A card is headed by the Draft's Title and names its Collection by that
- * Collection's label, both of which need the Project's Config — and the Config
- * the cache last stored is already on the Project row, so neither costs a
- * fourth round-trip. It is read here rather than in the card because the row
- * carries a whole parsed Config, which no browser needs to hold to render a
- * heading.
- */
-async function loadDashboardDrafts(db: ProjectContextDatabase, userId: string) {
-	const userProjects = await db.query.project.findMany({
-		where: eq(project.userId, userId),
-	})
-	const projectIds = userProjects.map((projectRow) => projectRow.id)
-	if (projectIds.length === 0) return []
+/** How the writer asks for the Drafts the bounded list left out. */
+const ALL_DRAFTS_PARAM = "drafts"
 
-	await db
-		.delete(editorDraft)
-		.where(
-			and(
-				inArray(editorDraft.projectId, projectIds),
-				isNotNull(editorDraft.committedRevision),
-				isNotNull(editorDraft.committedAt),
-				sql`${editorDraft.revision} = ${editorDraft.committedRevision}`,
-			),
-		)
-
-	// Read once per Project rather than once per Draft: a writer with a dozen
-	// Drafts in one Collection has one Config between them.
-	const configs = new Map(
-		userProjects.map((projectRow) => [
-			projectRow.id,
-			lastKnownConfig(projectRow),
-		]),
-	)
-
-	const drafts = await db.query.editorDraft.findMany({
-		where: inArray(editorDraft.projectId, projectIds),
-		with: { project: true },
-		orderBy: [desc(editorDraft.updatedAt)],
-	})
-
-	return drafts.map((draft) => {
-		// A Collection the Config no longer declares still has Drafts, and they
-		// are still reachable — so the card falls back to the slug rather than
-		// dropping the row.
-		const collection =
-			configs.get(draft.projectId)?.collections[draft.collectionSlug] ?? null
-		return {
-			collectionLabel: collection?.label ?? draft.collectionSlug,
-			collectionSlug: draft.collectionSlug,
-			heading: draftHeading(draft, collection),
-			id: draft.id,
-			itemSlug: draft.itemSlug,
-			project: {
-				repoName: draft.project.repoName,
-				repoOwnerLogin: draft.project.repoOwnerLogin,
-			},
-			committedRevision: draft.committedRevision,
-			revision: draft.revision,
-			sourcePath: draft.sourcePath,
-			updatedAt: draft.updatedAt,
-		}
-	})
-}
-
-export async function loader({ context, request }: Route.LoaderArgs) {
+export async function loader({ context, request, url }: Route.LoaderArgs) {
 	const db = context.get(dbContext)
 	const auth = getAuth(context.get(envContext))
 	const session = await auth.api.getSession({ headers: request.headers })
 	if (!session?.user) throw redirect(PATHS.LOGIN)
 
-	return { drafts: loadDashboardDrafts(db, session.user.id) }
+	// The list is bounded unless the writer says otherwise, and the promise is
+	// created below the guard so a request that redirects leaves no query behind
+	// it (ADR-0006).
+	return {
+		drafts: loadDashboardDrafts(db, session.user.id, {
+			all: url.searchParams.get(ALL_DRAFTS_PARAM) === "all",
+		}),
+	}
 }
 
 export async function action({ context, request }: Route.ActionArgs) {
@@ -207,19 +155,131 @@ function DiscardDraftDialog({ draftId }: { draftId: string }) {
 	)
 }
 
-type DashboardDraft = Awaited<ReturnType<typeof loadDashboardDrafts>>[number]
+/** Where the writer would start a Draft, when the Config names somewhere. */
+interface StartHere {
+	href: string
+	label: string
+}
 
-function DraftsSection({ drafts }: { drafts: DashboardDraft[] }) {
-	if (drafts.length === 0) return null
+type DashboardLayoutData = ReturnType<
+	typeof useRouteLoaderData<typeof dashboardLayoutLoader>
+>
 
+/**
+ * The first Collection the active Project's Config declares, or nothing when it
+ * declares none — which includes a Config Kobun could not read at all.
+ */
+function firstCollection(layoutData: DashboardLayoutData): StartHere | null {
+	if (!layoutData) return null
+
+	const [entry] = Object.entries(layoutData.config?.collections ?? {})
+	if (!entry) return null
+
+	const [slug, collection] = entry
+	return {
+		href: getCollectionPath(layoutData.activeProject, slug),
+		label: collection.label,
+	}
+}
+
+/**
+ * A writer with no Drafts at all. Reached rather than skipped, because the
+ * section streams behind a skeleton and a skeleton that resolves to nothing
+ * leaves a new writer looking at empty space (ADR-0006, #142).
+ *
+ * The button is conditional for the reason ADR-0007 gives: a Project whose
+ * Config will not read still has a dashboard, and it has no Collection to open.
+ * Such a writer is not left without a next step — the Config alert above this
+ * section names what went wrong and links to the docs, and fixing that comes
+ * before starting a Draft.
+ */
+function NoDrafts({ startHere }: { startHere: StartHere | null }) {
+	return (
+		<Empty className="border">
+			<EmptyHeader>
+				<EmptyMedia variant="icon">
+					<FileTextIcon />
+				</EmptyMedia>
+				<EmptyTitle>No drafts</EmptyTitle>
+				<EmptyDescription>
+					A draft appears here the moment you start writing, and stays until the
+					repository has it.
+				</EmptyDescription>
+			</EmptyHeader>
+			{startHere && (
+				<EmptyContent>
+					{/* Warmed on intent like every other Collection link, which
+					    ADR-0011's cached listing is what makes affordable. */}
+					<Button render={<Link prefetch="intent" to={startHere.href} />}>
+						Open {startHere.label}
+					</Button>
+				</EmptyContent>
+			)}
+		</Empty>
+	)
+}
+
+/**
+ * The rest of the Drafts, and the way back.
+ *
+ * Neither of these two links prefetches, unlike every other link on this page.
+ * Hovering one runs this route's loader, and that loader carries the cleanup
+ * delete — a write behind a GET that ADR-0006 already calls out as a shape not
+ * to copy. One hover target for it is tolerable; three are not.
+ */
+function DraftsOverflow({
+	shown,
+	showingAll,
+	total,
+}: {
+	shown: number
+	showingAll: boolean
+	total: number
+}) {
+	if (showingAll) {
+		return (
+			<p className="text-muted-foreground text-sm">
+				Showing all {total} drafts ·{" "}
+				<Link className="underline hover:text-foreground" to={{ search: "" }}>
+					Show fewer
+				</Link>
+			</p>
+		)
+	}
+
+	const hidden = total - shown
+	return (
+		<p className="text-muted-foreground text-sm">
+			{hidden} more draft{hidden === 1 ? "" : "s"} ·{" "}
+			<Link
+				className="underline hover:text-foreground"
+				to={{ search: `?${ALL_DRAFTS_PARAM}=all` }}
+			>
+				Show all {total}
+			</Link>
+		</p>
+	)
+}
+
+function DraftsSection({
+	drafts,
+	showingAll,
+	startHere,
+	total,
+}: DashboardDrafts & { startHere: StartHere | null }) {
 	return (
 		<section className="flex flex-col gap-3 pt-4">
 			<div>
 				<h3 className="font-medium text-base">Drafts</h3>
-				<p className="text-muted-foreground text-sm">
-					Continue editing work in progress.
-				</p>
+				{/* Nothing to continue is not an instruction to continue, so the
+				    empty state below carries the whole of what this section says. */}
+				{drafts.length > 0 && (
+					<p className="text-muted-foreground text-sm">
+						Continue editing work in progress.
+					</p>
+				)}
 			</div>
+			{drafts.length === 0 && <NoDrafts startHere={startHere} />}
 			{drafts.map((draft) => {
 				const dirty = isDraftDirty(draft)
 				const href = getDraftEditorPath(draft, draft.project)
@@ -273,6 +333,15 @@ function DraftsSection({ drafts }: { drafts: DashboardDraft[] }) {
 					</Card>
 				)
 			})}
+			{/* Nothing to say when the cap never bit: a writer who asked for all
+			    of five is looking at the same five the bounded list would show. */}
+			{total > DASHBOARD_DRAFT_LIMIT && (
+				<DraftsOverflow
+					shown={drafts.length}
+					showingAll={showingAll}
+					total={total}
+				/>
+			)}
 		</section>
 	)
 }
@@ -287,6 +356,11 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
 		layoutData?.configProblem ?? null,
 		layoutData?.activeProject.configError ?? null,
 	)
+	// The first Collection the Config declares, which is the one at the top of
+	// the sidebar: it builds its nav list from the same record, in the same
+	// order, so "first" is somewhere the writer has already seen rather than an
+	// arbitrary pick.
+	const startHere = firstCollection(layoutData)
 
 	return (
 		<>
@@ -296,12 +370,19 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
 			    pushed up the moment that skeleton turns out to stand for nothing.
 			    A broken Config is also the more urgent of the two to read. */}
 			<ConfigAlerts errors={errors} />
+			{/* Unkeyed, though `?drafts=all` now addresses this section's data: a
+			    key comes from the path and never from the search (ADR-0006's sixth
+			    rule). Expanding the list therefore delays the commit rather than
+			    falling back, which is what should happen — the five cards already
+			    on screen are correct, just fewer than asked for. */}
 			<Suspense fallback={<CardListSkeleton count={2} />}>
 				<Await
 					errorElement={<AsyncErrorAlert title="Couldn't load your drafts" />}
 					resolve={loaderData.drafts}
 				>
-					{(drafts: DashboardDraft[]) => <DraftsSection drafts={drafts} />}
+					{(drafts: DashboardDrafts) => (
+						<DraftsSection {...drafts} startHere={startHere} />
+					)}
 				</Await>
 			</Suspense>
 		</>
