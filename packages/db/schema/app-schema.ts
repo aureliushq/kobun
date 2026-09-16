@@ -90,6 +90,7 @@ export const project = sqliteTable(
 		configData: text("config_data"),
 		configEtag: text("config_etag"),
 		configSha: text("config_sha"),
+		configParsedBy: text("config_parsed_by"),
 		status: text("status").notNull(),
 		createdAt: integer("created_at", { mode: "timestamp_ms" })
 			.default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)

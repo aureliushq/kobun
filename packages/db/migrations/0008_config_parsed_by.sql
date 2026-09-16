@@ -1,0 +1,1 @@
+ALTER TABLE `project` ADD `config_parsed_by` text;

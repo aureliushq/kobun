@@ -183,6 +183,7 @@ export interface SeedProjectValues {
 	configData?: string | null
 	configError?: string | null
 	configEtag?: string | null
+	configParsedBy?: string | null
 	configPath?: string
 	configSha?: string | null
 	configStatus?: string
@@ -238,6 +239,7 @@ export function createProjectContextTestHarness(
 				configData: values.configData ?? null,
 				configError: values.configError ?? null,
 				configEtag: values.configEtag ?? null,
+				configParsedBy: values.configParsedBy ?? null,
 				configPath: values.configPath ?? TEST_CONFIG_PATH,
 				configSha: values.configSha ?? null,
 				configStatus: values.configStatus ?? ConfigStatus.PRESENT,

@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest"
 import type { Field } from "@/config/types"
 
 import { renderFieldControl } from "./dispatch"
-import type { ControlContext } from "./types"
+import type { ControlContext, UpdateForSchema } from "./types"
 
 /**
  * What the edit side of the field dispatcher renders.
@@ -25,9 +25,10 @@ function field(declaration: Record<string, unknown>): Field {
 }
 
 /**
- * A control, its change spy, and the defaulting it was handed. The default is a
- * stub rather than the real one: what a Field defaults to is settled at another
- * seam, and an array only has to hand back whatever it was given.
+ * A control, its change spy, and the defaulting and updating it was handed.
+ * Both are stubs rather than the real ones: what a Field defaults to, and what a
+ * record looks like once one child changes, are settled at another seam. An
+ * array only has to hand back whatever it was given, and an object likewise.
  */
 function control(
 	declaration: Record<string, unknown>,
@@ -36,14 +37,21 @@ function control(
 ) {
 	const onChange = vi.fn()
 	const defaultForField = vi.fn(() => "")
+	const updateForSchema = vi.fn<UpdateForSchema>(
+		(_schema, record, key, next) => ({
+			...record,
+			[key]: next,
+		}),
+	)
 	const view = render(
 		renderFieldControl(field(declaration), value, {
 			defaultForField,
 			onChange,
+			updateForSchema,
 			...overrides,
 		}),
 	)
-	return { ...view, defaultForField, onChange }
+	return { ...view, defaultForField, onChange, updateForSchema }
 }
 
 function input(container: HTMLElement) {
@@ -563,6 +571,27 @@ describe("the control over an object", () => {
 		})
 	})
 
+	it("builds the record through the updating it was handed", () => {
+		const updateForSchema = vi.fn(() => ({ name: "Ada", url: "derived" }))
+		const { container, onChange } = control(
+			author,
+			{ name: "Grace", url: "" },
+			{ updateForSchema },
+		)
+
+		fireEvent.change(container.querySelectorAll("input")[0], {
+			target: { value: "Ada" },
+		})
+
+		expect(updateForSchema).toHaveBeenCalledWith(
+			author.fields,
+			{ name: "Grace", url: "" },
+			"name",
+			"Ada",
+		)
+		expect(onChange).toHaveBeenCalledWith({ name: "Ada", url: "derived" })
+	})
+
 	it("treats a value that is not a record as an empty one", () => {
 		const { container, onChange } = control(author, "not a record")
 
@@ -572,6 +601,33 @@ describe("the control over an object", () => {
 			target: { value: "Ada" },
 		})
 		expect(onChange).toHaveBeenCalledWith({ name: "Ada" })
+	})
+
+	it("gives a Slug among its children the Slug Role's control", () => {
+		const { container, onChange } = control(
+			{
+				type: "object",
+				label: "Profile",
+				fields: {
+					name: { type: "text", label: "Name" },
+					handle: {
+						type: "slug",
+						label: "Handle",
+						from: "name",
+						placeholder: "grace-hopper",
+					},
+				},
+			},
+			{ name: "Grace", handle: "grace" },
+		)
+		const handle = container.querySelectorAll("input")[1]
+
+		expect(handle.type).toBe("text")
+		expect(handle.value).toBe("grace")
+		expect(handle.placeholder).toBe("grace-hopper")
+
+		fireEvent.change(handle, { target: { value: "ada" } })
+		expect(onChange).toHaveBeenCalledWith({ name: "Grace", handle: "ada" })
 	})
 })
 
@@ -720,6 +776,19 @@ describe("a Document reaching the control dispatcher", () => {
 					fields: { bio: { type: "document", label: "Bio" } },
 				},
 				{},
+			),
+		).toThrow(/Document Role/)
+	})
+
+	it("is refused just as loudly as an array item", () => {
+		expect(() =>
+			control(
+				{
+					type: "array",
+					label: "Chapters",
+					items: [{ type: "document", label: "Chapter" }],
+				},
+				["# One"],
 			),
 		).toThrow(/Document Role/)
 	})

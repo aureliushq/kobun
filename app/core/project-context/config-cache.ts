@@ -39,6 +39,11 @@ interface ConfigColumns {
 	configData: string | null
 	configError: string | null
 	configEtag: string | null
+	/**
+	 * The Kobun that last looked. For a present or invalid Config, whose
+	 * validator gave the verdict the other columns hold.
+	 */
+	configParsedBy: string
 	configPath: string
 	configSha: string | null
 	configStatus: ConfigStatus
@@ -80,13 +85,20 @@ function isConfigPath(path: string) {
 }
 
 /** What deciding whether a stored Config can be served takes, and no more. */
-type ConfigRow = Pick<Project, "configData" | "configPath" | "configStatus">
+type ConfigRow = Pick<
+	Project,
+	"configData" | "configParsedBy" | "configPath" | "configStatus"
+>
 
 function servable(row: ConfigRow): ConfigResolution | null {
 	if (!isConfigPath(row.configPath)) return null
 
 	if (row.configStatus === ConfigStatus.MISSING)
 		return { config: null, status: ConfigStatus.MISSING }
+	// A parsed or refused Config is a validator's verdict, and a deploy can
+	// change the validator while the file stays byte for byte the same. Its ETag
+	// and sha would keep the old verdict for good, so only this Kobun's is served.
+	if (row.configParsedBy !== KOBUN_VERSION) return null
 	if (row.configStatus === ConfigStatus.ERROR)
 		return { config: null, status: ConfigStatus.ERROR }
 	if (row.configStatus !== ConfigStatus.PRESENT) return null
@@ -195,6 +207,7 @@ export function createConfigCache(deps: {
 			configData: config ? JSON.stringify(config) : null,
 			configError: storedConfigErrors(errors),
 			configEtag: read.etag,
+			configParsedBy: KOBUN_VERSION,
 			configPath: path,
 			configSha: read.sha,
 			configStatus: status,
@@ -229,6 +242,7 @@ export function createConfigCache(deps: {
 			// not what is wrong now.
 			configError: storedConfigErrors([NO_CONFIG_ERROR]),
 			configEtag: null,
+			configParsedBy: KOBUN_VERSION,
 			// A Config that disappears keeps the path it was last found at: that
 			// is still the best guess for where a restored one will be.
 			configPath: row.configPath,
@@ -281,6 +295,8 @@ export function createConfigCache(deps: {
 				// bytes this row holds.
 				configError: row.configError,
 				configEtag: found.etag,
+				// Only a row this Kobun parsed is remembered, so this is the stamp it has.
+				configParsedBy: KOBUN_VERSION,
 				configPath: row.configPath,
 				configSha: row.configSha,
 				configStatus: remembered.status,

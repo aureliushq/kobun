@@ -68,6 +68,7 @@ function fakeSync(db: ProjectContextDatabase, found: "missing" | "present") {
 			? {
 					configData: JSON.stringify(TEST_CONFIG),
 					configError: "",
+					configParsedBy: KOBUN_VERSION,
 					configPath: TEST_CONFIG_PATH,
 					configSha: "sha-1",
 					configStatus: ConfigStatus.PRESENT,
@@ -81,6 +82,7 @@ function fakeSync(db: ProjectContextDatabase, found: "missing" | "present") {
 							path: "",
 						},
 					]),
+					configParsedBy: KOBUN_VERSION,
 					configPath: TEST_CONFIG_PATH,
 					configSha: null,
 					configStatus: ConfigStatus.MISSING,

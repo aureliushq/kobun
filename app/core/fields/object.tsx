@@ -7,10 +7,12 @@ import type { FieldTypeDefFor } from "./types"
  * Named sub-fields — a Container. Its default comes from the injected schema
  * callback rather than from mapping its children here, because defaulting a
  * schema carries Role rules (nested Documents omitted, nested Slugs derived)
- * that no Field Type entry is allowed to know.
+ * that no Field Type entry is allowed to know. Its control builds each edited
+ * record through an injected callback too, because a nested Slug follows its
+ * source Field while the writer types.
  *
- * Validation takes no such callback, deliberately: nested Fields carry no Role
- * rules at all. The metadata module skips a Document only at the top level, and
+ * Validation takes no such callback, deliberately: validating nested Fields
+ * carries no Role rules at all. The metadata module skips a Document only at the top level, and
  * it decided that before this entry was reached — so a Document nested here
  * reaches the dispatcher and is refused, loudly. The config layer does not yet
  * forbid one (its cross-field rules only walk the top level), which is why the
@@ -22,16 +24,17 @@ import type { FieldTypeDefFor } from "./types"
 export const objectField: FieldTypeDefFor<"object"> = {
 	defaultValue: ({ defaultForSchema, field }) => defaultForSchema(field.fields),
 	// Each child edited in place, in a box that says they belong together. A
-	// child hands back its own value; assembling the record around it is this
-	// entry's job, because only it knows which key the child answers to.
-	renderControl: ({ field, onChange, renderChild, value }) => {
+	// child hands back its own value; saying which key it answers to is this
+	// entry's job, and the injected update builds the record around it, so a
+	// Slug among the children can follow its source.
+	renderControl: ({ field, onChange, renderChild, updateForSchema, value }) => {
 		const record = asRecord(value)
 		return (
 			<div className="space-y-3 rounded-md border p-3">
 				{Object.entries(field.fields).map(([key, child]) => (
 					<Fragment key={key}>
 						{renderChild(child, record[key], (next) =>
-							onChange({ ...record, [key]: next }),
+							onChange(updateForSchema(field.fields, record, key, next)),
 						)}
 					</Fragment>
 				))}
