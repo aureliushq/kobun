@@ -197,6 +197,38 @@ enum Format {
 	YAML = "yaml",
 }
 
+// A Role says something about the whole item — its identity, where its Body
+// lives (CONTEXT.md) — so only a top-level Field can carry one.
+function refuseNestedRoles(
+	field: IField,
+	path: (string | number)[],
+	ctx: z.RefinementCtx,
+) {
+	const children =
+		field.type === FieldType.OBJECT
+			? Object.entries(field.fields).map(([key, child]) => ({
+					child,
+					path: [...path, "fields", key],
+				}))
+			: field.type === FieldType.ARRAY
+				? field.items.map((child, i) => ({
+						child,
+						path: [...path, "items", i],
+					}))
+				: []
+
+	for (const { child, path: childPath } of children) {
+		if (child.type === FieldType.DOCUMENT || child.type === FieldType.SLUG) {
+			ctx.addIssue({
+				code: "custom",
+				message: `A "${child.type}" field must be at the top level of the schema`,
+				path: childPath,
+			})
+		}
+		refuseNestedRoles(child, childPath, ctx)
+	}
+}
+
 function validateContentSchema(
 	data: { format: string; schema: Record<string, IField> },
 	ctx: z.RefinementCtx,
@@ -262,6 +294,7 @@ function validateContentSchema(
 	}
 
 	for (const [name, field] of fields) {
+		refuseNestedRoles(field, ["schema", name], ctx)
 		if (
 			field.type === FieldType.SELECT &&
 			field.defaultSelected &&

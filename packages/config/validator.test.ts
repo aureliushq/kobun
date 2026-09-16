@@ -121,6 +121,86 @@ describe("features on a Singleton", () => {
 	})
 })
 
+// A nested document used to validate cleanly and then throw at runtime.
+describe("a Role nested in a Container", () => {
+	const withField = (name: string, field: Record<string, unknown>) =>
+		parse({
+			collections: {
+				pages: PAGES,
+				posts: { ...POSTS, schema: { ...POSTS.schema, [name]: field } },
+			},
+		})
+
+	it("refuses a document inside an object", () => {
+		const { config, errors } = withField("group", {
+			fields: { body: { label: "Body", type: "document" } },
+			label: "Group",
+			type: "object",
+		})
+
+		expect(errors).toHaveLength(1)
+		expect(errors[0].path).toBe("collections.posts.schema.group.fields.body")
+		expect(errors[0].message).toContain("top level")
+		expect(Object.keys(config?.collections ?? {})).toEqual(["pages"])
+	})
+
+	it("refuses a document declared as an array item", () => {
+		const { errors } = withField("sections", {
+			items: [{ label: "Body", type: "document" }],
+			label: "Sections",
+			type: "array",
+		})
+
+		expect(errors).toHaveLength(1)
+		expect(errors[0].path).toBe("collections.posts.schema.sections.items.0")
+	})
+
+	it("refuses a slug at any depth", () => {
+		const { errors } = withField("people", {
+			items: [
+				{
+					fields: {
+						handle: { from: "name", label: "Handle", type: "slug" },
+						name: { label: "Name", type: "text" },
+					},
+					label: "Person",
+					type: "object",
+				},
+			],
+			label: "People",
+			type: "array",
+		})
+
+		expect(errors).toHaveLength(1)
+		expect(errors[0].path).toBe(
+			"collections.posts.schema.people.items.0.fields.handle",
+		)
+	})
+
+	it("refuses one inside a Singleton too", () => {
+		const { config, errors } = parse({
+			collections: { posts: POSTS },
+			singletons: {
+				about: {
+					format: "md",
+					label: "About",
+					schema: {
+						group: {
+							fields: { body: { label: "Body", type: "document" } },
+							label: "Group",
+							type: "object",
+						},
+					},
+				},
+			},
+		})
+
+		expect(errors).toHaveLength(1)
+		expect(errors[0].path).toBe("singletons.about.schema.group.fields.body")
+		expect(Object.keys(config?.singletons ?? {})).toEqual([])
+	})
+})
+
 // The marker is the config layer's own output, so it is absent from the Zod
 // schema and Zod strips it like any other unknown key (ADR-0005).
 it("ignores a managed marker a Config writes itself", () => {
