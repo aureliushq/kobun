@@ -15,7 +15,7 @@ Four things the decision above left open, settled while building it:
 - **A Config that disappears keeps the path it was last found at**, diverging from `syncProjectConfig`'s reset to `.kobun.json`. The path is a memory of where this Project's Config lives, and so the best first guess when a deleted one is restored.
 - **A repository that cannot be reached is not a Config that is broken.** Where the old live fetch turned every non-404 failure into a parse error, the cache serves the stale Config if it has one and, either way, writes nothing. A Project with nothing cached still refuses during a blip — the resolver has no vocabulary for "unavailable" — but because the blip is never written down, the very next request recovers, rather than the next window. Only the port is guarded: a failed database write is a real failure and still propagates. For related reasons the row rewrite carries `updatedAt` through by hand — revalidating is news about the Config, not a change to the Project, and setup orders its recent-Projects list by that column. A dashboard sync landing between the read and the rewrite has its `updatedAt` rolled back by a few milliseconds; that is the accepted last-write-wins race, and far cheaper than reordering the list on every navigation.
 
-The rewrite touches only `configCheckedAt`, `configData`, `configEtag`, `configPath`, `configSha`, and `configStatus`. `configError` and the Project's own `status` stay with the dashboard sync that writes them. (`configError` no longer does — see the second amendment below.)
+The rewrite touches only `configCheckedAt`, `configData`, `configEtag`, `configPath`, `configSha`, and `configStatus`. `configError` and the Project's own `status` stay with the dashboard sync that writes them. (`configError` no longer does — see the second amendment below. The rewrite also stamps `configParsedBy` — see the third.)
 
 ## Amendment: connecting a repository goes through the sync
 
@@ -69,6 +69,35 @@ this and it is broken", which is exactly what an unreachable repository must not
 — the vocabulary this ADR noted was missing. The resolver reports `config-invalid` only for a
 status the cache actually wrote as `ERROR`, and everything else it cannot classify as
 `config-unreadable`.
+
+## Amendment: a verdict belongs to the Kobun that gave it
+
+Settled while closing #156, surfaced by #119.
+
+The rules above re-parse a Config only when its bytes change. But `configData` and `configError`
+are a validator's verdict on those bytes, and a deploy can change the validator while the file
+stays the same. A Collection with a `document` in `array.items` was accepted before #118 and
+refused after it, yet an unchanged Config answered every revalidation with a `304` or a matching
+sha, and kept reaching the editor, which then threw. A relaxed rule strands an `ERROR` row the
+same way.
+
+So the row now records who parsed it, in `project.config_parsed_by`, written with the Config
+columns by the cache and by `syncProjectConfig`. A `PRESENT` or `ERROR` row stamped by any other
+Kobun is unservable, which sends it down the path unservable rows already take: past the window,
+past the ETag, past the sha, to an unconditional read and a fresh parse. A `MISSING` row is not a
+verdict and stays servable. `lastKnownConfig` refuses the same rows, so a Draft card names its
+Collection by slug until the Project is next resolved.
+
+- **The version is `KOBUN_VERSION`**, the release version inlined at build time. A hand-bumped
+  validator version would re-parse only when a rule changes, but a forgotten bump is this bug
+  again. The cost is one unconditional read per Project after each release. Preview and local
+  builds between releases share a version, so a rule changed there still needs "Refresh
+  configuration".
+- **Unservable, not a fallback.** Keeping the old verdict to serve while GitHub is unreachable
+  would hand the editor the very Config the running validator refuses. Right after a release, an
+  outage refuses such a Project instead, and the next request recovers.
+- Rows written before the column existed hold null, so every Project re-parses once on its first
+  navigation after the deploy that adds it.
 
 ## Considered options
 
