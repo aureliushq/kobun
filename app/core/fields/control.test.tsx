@@ -573,6 +573,33 @@ describe("the control over an object", () => {
 		})
 		expect(onChange).toHaveBeenCalledWith({ name: "Ada" })
 	})
+
+	it("gives a Slug among its children the Slug Role's control", () => {
+		const { container, onChange } = control(
+			{
+				type: "object",
+				label: "Profile",
+				fields: {
+					name: { type: "text", label: "Name" },
+					handle: {
+						type: "slug",
+						label: "Handle",
+						from: "name",
+						placeholder: "grace-hopper",
+					},
+				},
+			},
+			{ name: "Grace", handle: "grace" },
+		)
+		const handle = container.querySelectorAll("input")[1]
+
+		expect(handle.type).toBe("text")
+		expect(handle.value).toBe("grace")
+		expect(handle.placeholder).toBe("grace-hopper")
+
+		fireEvent.change(handle, { target: { value: "ada" } })
+		expect(onChange).toHaveBeenCalledWith({ name: "Grace", handle: "ada" })
+	})
 })
 
 ////////////////////// ARRAY //////////////////////
@@ -720,6 +747,19 @@ describe("a Document reaching the control dispatcher", () => {
 					fields: { bio: { type: "document", label: "Bio" } },
 				},
 				{},
+			),
+		).toThrow(/Document Role/)
+	})
+
+	it("is refused just as loudly as an array item", () => {
+		expect(() =>
+			control(
+				{
+					type: "array",
+					label: "Chapters",
+					items: [{ type: "document", label: "Chapter" }],
+				},
+				["# One"],
 			),
 		).toThrow(/Document Role/)
 	})
