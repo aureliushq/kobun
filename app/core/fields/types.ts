@@ -37,6 +37,20 @@ export type DefaultForSchema = (
 ) => Record<string, unknown>
 
 /**
+ * A record with one of its children changed.
+ *
+ * Injected for the same reason as `DefaultForSchema`: a nested Slug follows its
+ * source Field while the writer types, and that derivation is normalization of
+ * the Data, which the registry must not learn.
+ */
+export type UpdateForSchema = (
+	schema: Record<string, Field>,
+	record: Record<string, unknown>,
+	key: string,
+	value: unknown,
+) => Record<string, unknown>
+
+/**
  * Default one nested Field. An `array` Container asks for it when the writer
  * adds a row, and gets it injected for the same reason `DefaultForSchema` is:
  * what a Field defaults to is the dispatcher's answer, not a Container's.
@@ -122,14 +136,16 @@ export type RenderInlineContext<F extends ValueField> = {
 
 /**
  * Everything an editable Field needs that is neither the Field nor its value:
- * where its asset lives, how to default a new one, whether the form is locked,
- * and where its next value goes. Descending changes only the last of them.
+ * where its asset lives, how to default a new one, how to change a record,
+ * whether the form is locked, and where its next value goes. Descending changes
+ * only the last of them.
  */
 export type ControlContext = {
 	assetBaseUrl?: string
 	defaultForField: DefaultForField
 	disabled?: boolean
 	onChange(value: unknown): void
+	updateForSchema: UpdateForSchema
 }
 
 export type RenderControlContext<F extends ValueField> = ControlContext & {

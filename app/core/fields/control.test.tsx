@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest"
 import type { Field } from "@/config/types"
 
 import { renderFieldControl } from "./dispatch"
-import type { ControlContext } from "./types"
+import type { ControlContext, UpdateForSchema } from "./types"
 
 /**
  * What the edit side of the field dispatcher renders.
@@ -25,9 +25,10 @@ function field(declaration: Record<string, unknown>): Field {
 }
 
 /**
- * A control, its change spy, and the defaulting it was handed. The default is a
- * stub rather than the real one: what a Field defaults to is settled at another
- * seam, and an array only has to hand back whatever it was given.
+ * A control, its change spy, and the defaulting and updating it was handed.
+ * Both are stubs rather than the real ones: what a Field defaults to, and what a
+ * record looks like once one child changes, are settled at another seam. An
+ * array only has to hand back whatever it was given, and an object likewise.
  */
 function control(
 	declaration: Record<string, unknown>,
@@ -36,14 +37,21 @@ function control(
 ) {
 	const onChange = vi.fn()
 	const defaultForField = vi.fn(() => "")
+	const updateForSchema = vi.fn<UpdateForSchema>(
+		(_schema, record, key, next) => ({
+			...record,
+			[key]: next,
+		}),
+	)
 	const view = render(
 		renderFieldControl(field(declaration), value, {
 			defaultForField,
 			onChange,
+			updateForSchema,
 			...overrides,
 		}),
 	)
-	return { ...view, defaultForField, onChange }
+	return { ...view, defaultForField, onChange, updateForSchema }
 }
 
 function input(container: HTMLElement) {
@@ -561,6 +569,27 @@ describe("the control over an object", () => {
 			name: "Ada",
 			url: "https://kobun.io",
 		})
+	})
+
+	it("builds the record through the updating it was handed", () => {
+		const updateForSchema = vi.fn(() => ({ name: "Ada", url: "derived" }))
+		const { container, onChange } = control(
+			author,
+			{ name: "Grace", url: "" },
+			{ updateForSchema },
+		)
+
+		fireEvent.change(container.querySelectorAll("input")[0], {
+			target: { value: "Ada" },
+		})
+
+		expect(updateForSchema).toHaveBeenCalledWith(
+			author.fields,
+			{ name: "Grace", url: "" },
+			"name",
+			"Ada",
+		)
+		expect(onChange).toHaveBeenCalledWith({ name: "Ada", url: "derived" })
 	})
 
 	it("treats a value that is not a record as an empty one", () => {

@@ -1,7 +1,7 @@
 import type { Field } from "@/config/types"
 import { renderFieldControl } from "@/core/fields"
 import { ControlRow } from "@/core/fields/presentation"
-import { defaultFieldValue } from "./collection-metadata"
+import { defaultFieldValue, updateMetadataField } from "./collection-metadata"
 
 /**
  * One Field in the properties sidebar: its chrome, and whatever control the
@@ -10,7 +10,8 @@ import { defaultFieldValue } from "./collection-metadata"
  * every Field has a name and an input.
  *
  * `defaultFieldValue` is handed down because an array needs it to build a new
- * row, and defaulting carries Role rules the registry must not learn.
+ * row, and `updateMetadataField` because an object needs it to derive a Slug
+ * among its children. Both carry Role rules the registry must not learn.
  */
 export function MetadataField({
 	assetBaseUrl,
@@ -32,6 +33,7 @@ export function MetadataField({
 				defaultForField: defaultFieldValue,
 				disabled,
 				onChange,
+				updateForSchema: updateMetadataField,
 			})}
 		</ControlRow>
 	)
