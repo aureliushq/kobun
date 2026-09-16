@@ -119,9 +119,7 @@ export type TitleEntry = { key: string; field: Field }
  *
  * Declared Title first, then the Slug Role's source Field, then the key/label
  * heuristic. A tier that names a Field this container does not have hands over
- * to the next: a composite array row addresses its Fields by item label, so a
- * Slug's `from` — a key in the top-level schema — can point outside the entries
- * being resolved.
+ * to the next.
  *
  * The declared tier is absent because there is nothing to declare it with yet;
  * the `title: true` config flag is a follow-up.
