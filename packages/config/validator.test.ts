@@ -121,7 +121,8 @@ describe("features on a Singleton", () => {
 	})
 })
 
-// A nested document used to validate cleanly and then throw at runtime.
+// A nested Role used to skip every schema rule: a document validated cleanly and
+// then threw at runtime, and a slug's source went unchecked.
 describe("a Role nested in a Container", () => {
 	const withField = (name: string, field: Record<string, unknown>) =>
 		parse({
@@ -130,6 +131,11 @@ describe("a Role nested in a Container", () => {
 				posts: { ...POSTS, schema: { ...POSTS.schema, [name]: field } },
 			},
 		})
+	const person = (fields: Record<string, unknown>) => ({
+		items: [{ fields, label: "Person", type: "object" }],
+		label: "People",
+		type: "array",
+	})
 
 	it("refuses a document inside an object", () => {
 		const { config, errors } = withField("group", {
@@ -155,29 +161,95 @@ describe("a Role nested in a Container", () => {
 		expect(errors[0].path).toBe("collections.posts.schema.sections.items.0")
 	})
 
-	it("refuses a slug at any depth", () => {
-		const { errors } = withField("people", {
-			items: [
-				{
-					fields: {
-						handle: { from: "name", label: "Handle", type: "slug" },
+	it("refuses a document in a json Collection once, not also for its Format", () => {
+		const { errors } = parse({
+			collections: {
+				authors: {
+					format: "json",
+					label: "Authors",
+					schema: {
+						bio: {
+							fields: { body: { label: "Body", type: "document" } },
+							label: "Bio",
+							type: "object",
+						},
 						name: { label: "Name", type: "text" },
+						slug: { from: "name", label: "Slug", type: "slug" },
 					},
-					label: "Person",
-					type: "object",
 				},
-			],
-			label: "People",
+			},
+		})
+
+		expect(errors).toHaveLength(1)
+		expect(errors[0].path).toBe("collections.authors.schema.bio.fields.body")
+	})
+
+	it("accepts a slug in a top-level object", () => {
+		const { errors } = withField("author", {
+			fields: {
+				handle: { from: "name", label: "Handle", type: "slug" },
+				name: { label: "Name", type: "text" },
+			},
+			label: "Author",
+			type: "object",
+		})
+
+		expect(errors).toEqual([])
+	})
+
+	it("accepts a slug deriving from a text field beside it", () => {
+		const { config, errors } = withField(
+			"people",
+			person({
+				handle: { from: "name", label: "Handle", type: "slug" },
+				name: { label: "Name", type: "text" },
+			}),
+		)
+
+		expect(errors).toEqual([])
+		expect(Object.keys(config?.collections ?? {})).toEqual(["pages", "posts"])
+	})
+
+	it("refuses a slug deriving from a field outside its object", () => {
+		const { errors } = withField(
+			"people",
+			person({ handle: { from: "title", label: "Handle", type: "slug" } }),
+		)
+
+		expect(errors).toHaveLength(1)
+		expect(errors[0].path).toBe(
+			"collections.posts.schema.people.items.0.fields.handle.from",
+		)
+	})
+
+	it("refuses a slug deriving from a field that is not text", () => {
+		const { errors } = withField(
+			"people",
+			person({
+				born: { label: "Born", type: "date" },
+				handle: { from: "born", label: "Handle", type: "slug" },
+			}),
+		)
+
+		expect(errors).toHaveLength(1)
+		expect(errors[0].path).toBe(
+			"collections.posts.schema.people.items.0.fields.handle.from",
+		)
+		expect(errors[0].message).toContain('"text"')
+	})
+
+	it("refuses a slug declared as an array item", () => {
+		const { errors } = withField("handles", {
+			items: [{ from: "title", label: "Handle", type: "slug" }],
+			label: "Handles",
 			type: "array",
 		})
 
 		expect(errors).toHaveLength(1)
-		expect(errors[0].path).toBe(
-			"collections.posts.schema.people.items.0.fields.handle",
-		)
+		expect(errors[0].path).toBe("collections.posts.schema.handles.items.0")
 	})
 
-	it("refuses one inside a Singleton too", () => {
+	it("refuses a document inside a Singleton too", () => {
 		const { config, errors } = parse({
 			collections: { posts: POSTS },
 			singletons: {

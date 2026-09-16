@@ -197,36 +197,73 @@ enum Format {
 	YAML = "yaml",
 }
 
-// A Role says something about the whole item — its identity, where its Body
-// lives (CONTEXT.md) — so only a top-level Field can carry one.
-function refuseNestedRoles(
+// A Slug derives from a text Field in its own schema, whether that is the
+// item's or a nested object's.
+function validateSlugSources(
+	fields: Record<string, IField>,
+	path: (string | number)[],
+	ctx: z.RefinementCtx,
+) {
+	const fieldMap = new Map(Object.entries(fields))
+	for (const [name, field] of fieldMap) {
+		if (field.type !== FieldType.SLUG) continue
+		const source = fieldMap.get(field.from)
+		if (!source) {
+			ctx.addIssue({
+				code: "custom",
+				message: `slug.from "${field.from}" does not reference a field in the schema`,
+				path: [...path, name, "from"],
+			})
+		} else if (source.type !== FieldType.TEXT) {
+			ctx.addIssue({
+				code: "custom",
+				message: `slug.from "${field.from}" must reference a "text" field, found "${source.type}"`,
+				path: [...path, name, "from"],
+			})
+		}
+	}
+}
+
+// The item has one Body, so a nested Document is refused until the editor can
+// place one (#154). A nested Slug is checked against the object it sits in; an
+// array item has no Field beside it to derive from.
+function validateNestedFields(
 	field: IField,
 	path: (string | number)[],
 	ctx: z.RefinementCtx,
 ) {
-	const children =
-		field.type === FieldType.OBJECT
-			? Object.entries(field.fields).map(([key, child]) => ({
-					child,
-					path: [...path, "fields", key],
-				}))
-			: field.type === FieldType.ARRAY
-				? field.items.map((child, i) => ({
-						child,
-						path: [...path, "items", i],
-					}))
-				: []
-
-	for (const { child, path: childPath } of children) {
-		if (child.type === FieldType.DOCUMENT || child.type === FieldType.SLUG) {
-			ctx.addIssue({
-				code: "custom",
-				message: `A "${child.type}" field must be at the top level of the schema`,
-				path: childPath,
-			})
+	if (field.type === FieldType.OBJECT) {
+		validateSlugSources(field.fields, [...path, "fields"], ctx)
+		for (const [key, child] of Object.entries(field.fields)) {
+			validateNestedChild(child, [...path, "fields", key], ctx)
 		}
-		refuseNestedRoles(child, childPath, ctx)
+	} else if (field.type === FieldType.ARRAY) {
+		field.items.forEach((child, i) => {
+			if (child.type === FieldType.SLUG) {
+				ctx.addIssue({
+					code: "custom",
+					message: `A "slug" field cannot be an array item: it has no "text" field beside it to derive from`,
+					path: [...path, "items", i],
+				})
+			}
+			validateNestedChild(child, [...path, "items", i], ctx)
+		})
 	}
+}
+
+function validateNestedChild(
+	child: IField,
+	path: (string | number)[],
+	ctx: z.RefinementCtx,
+) {
+	if (child.type === FieldType.DOCUMENT) {
+		ctx.addIssue({
+			code: "custom",
+			message: `A "document" field must be at the top level of the schema`,
+			path,
+		})
+	}
+	validateNestedFields(child, path, ctx)
 }
 
 function validateContentSchema(
@@ -235,7 +272,6 @@ function validateContentSchema(
 	requireSlug: boolean,
 ) {
 	const fields = Object.entries(data.schema)
-	const fieldMap = new Map(fields)
 
 	const hasDocument = fields.some(([, f]) => f.type === FieldType.DOCUMENT)
 	const documentCount = fields.filter(
@@ -273,28 +309,10 @@ function validateContentSchema(
 		}
 	}
 
-	for (const [name, field] of slugFields) {
-		if (field.type !== FieldType.SLUG) continue
-		if (!fieldMap.has(field.from)) {
-			ctx.addIssue({
-				code: "custom",
-				message: `slug.from "${field.from}" does not reference a field in the schema`,
-				path: ["schema", name, "from"],
-			})
-		} else if (
-			field.from &&
-			fieldMap.get(field.from)?.type !== FieldType.TEXT
-		) {
-			ctx.addIssue({
-				code: "custom",
-				message: `slug.from "${field.from}" must reference a "text" field, found "${fieldMap.get(field.from)?.type}"`,
-				path: ["schema", name, "from"],
-			})
-		}
-	}
+	validateSlugSources(data.schema, ["schema"], ctx)
 
 	for (const [name, field] of fields) {
-		refuseNestedRoles(field, ["schema", name], ctx)
+		validateNestedFields(field, ["schema", name], ctx)
 		if (
 			field.type === FieldType.SELECT &&
 			field.defaultSelected &&
