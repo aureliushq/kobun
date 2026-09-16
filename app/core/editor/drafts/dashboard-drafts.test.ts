@@ -38,11 +38,12 @@ function seedDraftAt(
 }
 
 /** The Project as a row whose Config the cache would serve. */
-async function withStoredConfig() {
+async function withStoredConfig(configParsedBy = KOBUN_VERSION) {
 	await harness.db
 		.update(project)
 		.set({
 			configData: JSON.stringify(TEST_CONFIG),
+			configParsedBy,
 			configPath: ".kobun.json",
 			configStatus: ConfigStatus.PRESENT,
 		})
@@ -130,6 +131,15 @@ describe("loadDashboardDrafts", () => {
 		const { drafts } = await loadDashboardDrafts(harness.db, USER_ID)
 
 		expect(drafts[0]?.collectionLabel).toBe("Posts")
+	})
+
+	it("names the Collection by its slug when an older Kobun parsed the Config", async () => {
+		await withStoredConfig("0.0.0")
+		seedDraftAt(0)
+
+		const { drafts } = await loadDashboardDrafts(harness.db, USER_ID)
+
+		expect(drafts[0]?.collectionLabel).toBe("posts")
 	})
 
 	it("keeps a Draft whose Collection the Config no longer declares", async () => {

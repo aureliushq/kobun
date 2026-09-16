@@ -26,13 +26,15 @@ function setup(values: SeedProjectValues = {}) {
 
 /**
  * A Project the cache can serve: checked at `NOW`, holding the fixture Config
- * at the sha and ETag the fake source's first revision reports.
+ * at the sha and ETag the fake source's first revision reports, as parsed by
+ * the Kobun running the test.
  */
 function cached(values: SeedProjectValues = {}): SeedProjectValues {
 	return {
 		configCheckedAt: NOW,
 		configData: JSON.stringify(TEST_CONFIG),
 		configEtag: '"etag-1"',
+		configParsedBy: KOBUN_VERSION,
 		configPath: TEST_CONFIG_PATH,
 		configSha: "sha-1",
 		configStatus: ConfigStatus.PRESENT,
@@ -162,6 +164,68 @@ test.each([
 			configStatus === ConfigStatus.MISSING
 				? "config-missing"
 				: "config-invalid",
+		ok: true,
+	})
+	expect(configSource.calls).toEqual([])
+})
+
+test.each([
+	null,
+	"0.0.0",
+])("re-parses a Config parsed by Kobun %s, though its file has not changed", async (configParsedBy) => {
+	// A deploy can make the validator stricter. The stored Config is the old
+	// validator's verdict, and the unchanged file's ETag and sha would keep it
+	// forever — so neither is trusted, and neither is the window.
+	const stale = {
+		...TEST_CONFIG,
+		collections: {
+			...TEST_CONFIG.collections,
+			goneOnReparse: TEST_CONFIG.collections.posts,
+		},
+	}
+	const { configSource, projectContext, readProject } = setup(
+		cached({ configData: JSON.stringify(stale), configParsedBy }),
+	)
+
+	expect(await projectContext.resolve(TARGET)).toMatchObject({
+		config: TEST_CONFIG,
+		ok: true,
+	})
+	expect(configSource.calls).toEqual([{ etag: null, path: TEST_CONFIG_PATH }])
+
+	const row = readProject()
+	expect(JSON.parse(row.configData ?? "null")).toEqual(TEST_CONFIG)
+	expect(row.configParsedBy).toBe(KOBUN_VERSION)
+})
+
+test("re-parses a Config an older Kobun refused once the validator accepts it", async () => {
+	const { configSource, projectContext } = setup(
+		cached({
+			configData: null,
+			configParsedBy: "0.0.0",
+			configStatus: ConfigStatus.ERROR,
+		}),
+	)
+
+	expect(await projectContext.resolve(TARGET)).toMatchObject({
+		config: TEST_CONFIG,
+		ok: true,
+	})
+	expect(configSource.calls).toEqual([{ etag: null, path: TEST_CONFIG_PATH }])
+})
+
+test("serves a missing Config an older Kobun looked for without asking again", async () => {
+	// Nothing was parsed, so there is no verdict to go stale.
+	const { configSource, projectContext } = setup(
+		cached({
+			configData: null,
+			configParsedBy: "0.0.0",
+			configStatus: ConfigStatus.MISSING,
+		}),
+	)
+
+	expect(await projectContext.resolve(TARGET)).toMatchObject({
+		configProblem: "config-missing",
 		ok: true,
 	})
 	expect(configSource.calls).toEqual([])

@@ -97,6 +97,7 @@ export const syncProjectConfig = async (
 			configCheckedAt: new Date(),
 			configData: JSON.stringify(configResult.config),
 			configError: storedConfigErrors(configResult.errors),
+			configParsedBy: KOBUN_VERSION,
 			configPath: configResult.filePath ?? CONFIG_PATHS[0],
 			configSha: configResult.sha,
 			configStatus,
