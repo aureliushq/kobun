@@ -32,7 +32,7 @@ import {
 	openedContent,
 	readEditorActionPayload,
 	saveResponse,
-} from "@/core/editor/editor-action.server"
+} from "@/core/editor/editor-action"
 import { requireCollection } from "@/core/project-context"
 import { requirePageContext } from "@/core/project-context/project-context.server"
 import { posthogContext } from "@/lib/posthog-middleware"

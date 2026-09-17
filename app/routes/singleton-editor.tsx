@@ -6,6 +6,7 @@ import {
 } from "react-router"
 import invariant from "tiny-invariant"
 import { SET_PRIMARY_ACTION_PATH } from "@/core/components/layouts/use-primary-editor-action"
+import { isDataOnly } from "@/core/content/document.server"
 import {
 	CollectionItemEditor,
 	type OpenedContent,
@@ -19,7 +20,7 @@ import {
 	openedContent,
 	readEditorActionPayload,
 	saveResponse,
-} from "@/core/editor/editor-action.server"
+} from "@/core/editor/editor-action"
 import { requireSingleton } from "@/core/project-context"
 import { requirePageContext } from "@/core/project-context/project-context.server"
 import { EditorActionIntents } from "@/ui/lib/types"
@@ -92,7 +93,7 @@ export async function loader(args: Route.LoaderArgs) {
 		// A Singleton has no Publication State to declare, so Save to GitHub is
 		// its only path to the repository (ADR-0008).
 		canPublish: false,
-		hasBody: singleton.format === "md" || singleton.format === "mdx",
+		hasBody: !isDataOnly(singleton.format),
 		name,
 		owner,
 		publishDisabledReason: null,
@@ -149,6 +150,10 @@ export default function SingletonEditor({ loaderData }: Route.ComponentProps) {
 			key={params.singleton_slug}
 			fallback={<CollectionItemEditor {...chrome} mode="item" opened={null} />}
 		>
+			{/* No `errorElement`, for the collection editor's reason: the shell is
+			    an editor with nothing to edit, so a failed Source read rethrows to
+			    the route's boundary rather than leaving an empty editor behind
+			    (ADR-0006). */}
 			<Await resolve={loaderData.opened}>
 				{(opened: OpenedContent) => (
 					<CollectionItemEditor {...chrome} mode="item" opened={opened} />

@@ -4,6 +4,7 @@ import invariant from "tiny-invariant"
 import type { Collection, Singleton } from "@/config/types"
 import { canonicalMetadata } from "@/core/content"
 import {
+	isDataOnly,
 	parseDocument,
 	serializeDocument,
 } from "@/core/content/document.server"
@@ -249,8 +250,7 @@ function createDraftLifecycle<ItemSlug extends string | null>(context: {
 	function refuseBodyless(
 		input: ResolvedSaveInput,
 	): Extract<DraftRefusal, { code: "validation" }> | null {
-		if (entity.format === "md" || entity.format === "mdx") return null
-		if (input.markdown === "") return null
+		if (!isDataOnly(entity.format) || input.markdown === "") return null
 		return {
 			code: "validation",
 			errors: [`A ${entity.format} document has no Body`],

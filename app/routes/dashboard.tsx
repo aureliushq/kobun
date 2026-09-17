@@ -96,6 +96,7 @@ export async function action({ context, request }: Route.ActionArgs) {
 		event: "draft_discarded",
 		properties: {
 			collection_slug: draft.collectionSlug,
+			singleton_slug: draft.singletonSlug,
 		},
 	})
 

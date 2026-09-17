@@ -554,9 +554,7 @@ export function CollectionItemEditor({
 						<SheetContent className="w-full max-w-sm">
 							<SheetHeader>
 								<SheetTitle>Properties</SheetTitle>
-								<SheetDescription>
-									Collection metadata for this item.
-								</SheetDescription>
+								<SheetDescription>Metadata for this item.</SheetDescription>
 							</SheetHeader>
 							<div className="flex flex-col gap-6 overflow-y-auto px-6 pb-6">
 								{properties}

@@ -263,10 +263,10 @@ function DraftAlert({
 	return (
 		<Alert>
 			<FilePenLine />
-			<AlertTitle>Unsaved draft</AlertTitle>
+			<AlertTitle>Draft not on GitHub</AlertTitle>
 			<AlertDescription>
-				You have changes that aren&apos;t on GitHub yet. The editor opens on
-				them.
+				Your draft holds changes the repository doesn&apos;t have yet. The
+				editor opens on them.
 			</AlertDescription>
 			<AlertAction>
 				<DiscardDraftDialog action={`/${owner}/${name}`} draftId={draftId} />
