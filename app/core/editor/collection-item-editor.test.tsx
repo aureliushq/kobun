@@ -533,6 +533,50 @@ describe("an autosave the server refuses", () => {
 		)
 	})
 
+	it("says the server could not be reached when the answer is cut off", async () => {
+		vi.mocked(fetch).mockResolvedValue({
+			headers: new Headers(),
+			ok: true,
+			text: () => Promise.reject(new TypeError("network error")),
+		} as unknown as Response)
+		const { setControls } = dataOnly()
+
+		await editAField()
+
+		expect(lastControls(setControls)?.saveError).toBe(
+			"Could not reach the server",
+		)
+	})
+
+	it("keeps an error page's markup out of the status line", async () => {
+		vi.mocked(fetch).mockResolvedValue(
+			new Response("<!DOCTYPE html><html><body>Bad gateway</body></html>", {
+				headers: { "Content-Type": "text/html; charset=UTF-8" },
+				status: 502,
+			}),
+		)
+		const { setControls } = dataOnly()
+
+		await editAField()
+
+		expect(lastControls(setControls)?.saveError).toBe(
+			"Could not save the editor draft",
+		)
+	})
+
+	it("still passes on a refusal the server wrote as plain text", async () => {
+		vi.mocked(fetch).mockResolvedValue(
+			new Response("A singleton row has no publish", { status: 400 }),
+		)
+		const { setControls } = dataOnly()
+
+		await editAField()
+
+		expect(lastControls(setControls)?.saveError).toBe(
+			"A singleton row has no publish",
+		)
+	})
+
 	it("stops saying so once a later save goes through", async () => {
 		vi.mocked(fetch)
 			.mockResolvedValueOnce(conflict())

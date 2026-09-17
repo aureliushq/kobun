@@ -226,7 +226,7 @@ export function CollectionItemEditor({
 				.catch(() => undefined)
 				.then(async () => {
 					setSaveError(null)
-					const response = await fetch(
+					const { response, responseText } = await fetch(
 						`/api/editor${location.pathname}${location.search}`,
 						{
 							method: "POST",
@@ -240,12 +240,17 @@ export function CollectionItemEditor({
 								fields: fieldsSnapshot,
 							}),
 						},
-					).catch(() => {
-						// Each browser words a dropped request its own way, and none of
-						// them tells the writer what happened to their work.
-						throw new Error("Could not reach the server")
-					})
-					const responseText = await response.text()
+					)
+						.then(async (response) => ({
+							response,
+							responseText: await response.text(),
+						}))
+						.catch(() => {
+							// Each browser words a dropped request its own way — before
+							// the answer or partway through it — and none of them tells
+							// the writer what happened to their work.
+							throw new Error("Could not reach the server")
+						})
 					let result: {
 						draftDeleted?: boolean
 						draftId?: string | null
@@ -258,7 +263,15 @@ export function CollectionItemEditor({
 					try {
 						result = JSON.parse(responseText) as typeof result
 					} catch {
-						result = { error: responseText || undefined }
+						// A plain-text refusal is written to be read. An error page —
+						// a proxy's, say — is markup for a browser tab, and would fill
+						// the status line with it.
+						const isErrorPage = response.headers
+							.get("Content-Type")
+							?.includes("text/html")
+						result = {
+							error: isErrorPage ? undefined : responseText || undefined,
+						}
 					}
 					if (!response.ok) {
 						throw new Error(result.error ?? "Could not save the editor draft")
