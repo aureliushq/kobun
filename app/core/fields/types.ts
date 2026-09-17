@@ -71,7 +71,8 @@ export type ValidateChild = (
 /**
  * Where a render is happening: how deep the Field sits, whose repository its
  * assets belong to, and — only ever at the top level — the editor paths an
- * array Container hangs its "Add" and "Edit" links from.
+ * array Container hangs its "Add" and "Edit" links from. A page whose rows may
+ * not be the rows the editor opens hides the "Edit" links.
  *
  * The depths are the dispatcher's to enforce — an entry never checks one
  * against a limit. `array` reads its own accordion depth for a different
@@ -83,6 +84,7 @@ export type RenderContext = {
 	depth: number
 	editorPath?: string
 	fieldKey?: string
+	hideRowEditLinks?: boolean
 	name: string
 	owner: string
 }

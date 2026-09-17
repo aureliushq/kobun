@@ -217,6 +217,10 @@ export default function Singleton({ loaderData }: Route.ComponentProps) {
 								...rootCtx,
 								editorPath,
 								fieldKey: block.key,
+								// These rows are the Source's, but a row's editor opens the
+								// Draft's row at that position, and a Dirty Draft may have
+								// moved them (#161).
+								hideRowEditLinks: draftId !== null,
 							})}
 						</Fragment>
 					)

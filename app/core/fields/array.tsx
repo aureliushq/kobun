@@ -350,7 +350,7 @@ function ArrayItemAccordion({
 	// Only the outermost array's rows have an editor of their own to link to,
 	// and the editor addresses them from one, not zero.
 	const itemEditorPath =
-		isLevel1 && ctx.editorPath && ctx.fieldKey
+		isLevel1 && ctx.editorPath && ctx.fieldKey && !ctx.hideRowEditLinks
 			? `${ctx.editorPath}/${ctx.fieldKey}/${index + 1}`
 			: null
 	const triggerClass = isLevel1
