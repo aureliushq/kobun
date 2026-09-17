@@ -122,10 +122,6 @@ function itemLabelFor(field: ArrayField): string {
 	return field.label.endsWith("s") ? field.label.slice(0, -1) : field.label
 }
 
-function capitalize(word: string): string {
-	return word.length === 0 ? word : word.charAt(0).toUpperCase() + word.slice(1)
-}
-
 type CompositeEntry = { key: string; index: number; field: Field }
 
 /**
@@ -286,7 +282,7 @@ function ArraySection({
 					{addLink ? (
 						<CardAction>
 							<Button size="sm" render={<Link to={addLink} />}>
-								Add {capitalize(rowSchema.itemLabel)}
+								Add in editor
 							</Button>
 						</CardAction>
 					) : null}
