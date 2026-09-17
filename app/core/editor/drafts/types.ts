@@ -165,6 +165,8 @@ export type WriteDraftResult =
 
 export type SaveResult =
 	| WriteDraftResult
+	/** A Body sent for a data-only Format, which has nowhere to hold one. */
+	| Extract<DraftRefusal, { code: "validation" }>
 	/** The content the Source already holds: nothing to keep that it doesn't. */
 	| {
 			draftId: string | null

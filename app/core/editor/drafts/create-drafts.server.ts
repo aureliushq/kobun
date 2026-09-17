@@ -34,6 +34,7 @@ import type {
 	CommitResult,
 	DraftContent,
 	DraftEntity,
+	DraftRefusal,
 	DraftRow,
 	DraftsContext,
 	DraftsDatabase,
@@ -241,12 +242,31 @@ function createDraftLifecycle<ItemSlug extends string | null>(context: {
 	}
 
 	/**
+	 * A data-only Format has no Body, so a Body sent for one is invalid rather
+	 * than something to drop quietly. Refused before any Draft is kept, because a
+	 * Draft holding it could never be committed.
+	 */
+	function refuseBodyless(
+		input: ResolvedSaveInput,
+	): Extract<DraftRefusal, { code: "validation" }> | null {
+		if (entity.format === "md" || entity.format === "mdx") return null
+		if (input.markdown === "") return null
+		return {
+			code: "validation",
+			errors: [`A ${entity.format} document has no Body`],
+			ok: false,
+		}
+	}
+
+	/**
 	 * Persist the writer's content as the Draft. Content that already matches the
 	 * Source needs no Draft at all: short-circuiting keeps a no-op autosave from
 	 * inflating the Revision and triggering spurious conflicts elsewhere. Neither
 	 * does a new item the writer has not written into.
 	 */
 	async function saveResolved(input: ResolvedSaveInput): Promise<SaveResult> {
+		const bodyless = refuseBodyless(input)
+		if (bodyless) return bodyless
 		if (hasNothingToMint(input)) {
 			return { draftId: null, ok: true, outcome: "unwritten", revision: null }
 		}
@@ -486,6 +506,8 @@ function createDraftLifecycle<ItemSlug extends string | null>(context: {
 		input: ResolvedSaveInput,
 		action: CommitAction,
 	): Promise<CommitResult<ItemSlug>> {
+		const bodyless = refuseBodyless(input)
+		if (bodyless) return bodyless
 		// Publication State is declared *before* the comparison, so a transition is
 		// itself the change that gets committed: a Publish over a Source already
 		// committed as `draft` differs, and commits. No clock enters the comparison

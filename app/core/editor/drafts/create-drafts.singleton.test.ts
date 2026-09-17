@@ -428,3 +428,46 @@ test("a data-only Singleton opens with no body and commits its Data alone", asyn
 	expect(result).toMatchObject({ ok: true, outcome: "committed" })
 	expect(sourceStore.get(path)?.content).toBe('{\n\t"title": "Renamed"\n}\n')
 })
+
+test("refuses to keep a Body for a data-only Singleton rather than dropping it", async () => {
+	const path = "content/singletons/site.json"
+	const { db, drafts } = setup({
+		filePath: path,
+		singleton: TEST_DATA_SINGLETON,
+	})
+
+	const result = await drafts.save({
+		expectedRevision: null,
+		fields: { title: "Site" },
+		markdown: "A body a json file cannot hold.",
+	})
+
+	expect(result).toEqual({
+		code: "validation",
+		errors: ["A json document has no Body"],
+		ok: false,
+	})
+	expect(await db.select().from(editorDraft)).toEqual([])
+})
+
+test("refuses to commit a Body for a data-only Singleton, writing nothing", async () => {
+	const path = "content/singletons/site.json"
+	const { db, drafts, sourceStore } = setup({
+		filePath: path,
+		singleton: TEST_DATA_SINGLETON,
+	})
+
+	const result = await drafts.commit({
+		expectedRevision: null,
+		fields: { title: "Site" },
+		markdown: "A body a json file cannot hold.",
+	})
+
+	expect(result).toEqual({
+		code: "validation",
+		errors: ["A json document has no Body"],
+		ok: false,
+	})
+	expect(sourceStore.get(path)).toBeUndefined()
+	expect(await db.select().from(editorDraft)).toEqual([])
+})
