@@ -12,6 +12,7 @@ import {
 	type OpenedContent,
 	usePropertiesPanel,
 } from "@/core/editor/collection-item-editor"
+import type { createSingletonDrafts } from "@/core/editor/drafts/create-drafts.server"
 import {
 	commitResponse,
 	draftRefusalResponse,
@@ -41,7 +42,7 @@ export function shouldRevalidate({
  * defaults while neither exists — so there is no 404 to carry across the wire.
  */
 async function openSingleton(
-	drafts: Awaited<ReturnType<typeof resolveSingletonEditorContext>>["drafts"],
+	drafts: ReturnType<typeof createSingletonDrafts>,
 ): Promise<OpenedContent> {
 	const opened = await drafts.open()
 	invariant(opened.ok, "A Singleton always opens")

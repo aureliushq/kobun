@@ -177,6 +177,14 @@ const EditorLayout = ({ loaderData }: Route.ComponentProps) => {
 	const hasUnsavedEdits =
 		controls?.autosaveState.isDirty === true ||
 		controls?.autosaveState.isSaving === true
+	// Set when keeping them on the way out failed. Retrying cannot clear a
+	// Revision Conflict, so the writer who has been told and tries again is let
+	// go rather than held on a page they can only escape by reloading.
+	const [couldNotKeepEdits, setCouldNotKeepEdits] = useState(false)
+	useEffect(() => {
+		if (!hasUnsavedEdits) setCouldNotKeepEdits(false)
+	}, [hasUnsavedEdits])
+	const keepsEditsBeforeLeaving = hasUnsavedEdits && !couldNotKeepEdits
 
 	/**
 	 * Two reasons to stop a writer on their way out. Keystrokes autosave has not
@@ -194,7 +202,7 @@ const EditorLayout = ({ loaderData }: Route.ComponentProps) => {
 	 */
 	const blocker = useBlocker(
 		({ currentLocation, nextLocation }) =>
-			(leavingWouldStrand || hasUnsavedEdits) &&
+			(leavingWouldStrand || keepsEditsBeforeLeaving) &&
 			pendingAction === null &&
 			currentLocation.pathname !== nextLocation.pathname,
 	)
@@ -214,12 +222,13 @@ const EditorLayout = ({ loaderData }: Route.ComponentProps) => {
 		if (blocker.state !== "blocked" || isLeaving) return
 		setIsLeaving(true)
 		try {
-			if (hasUnsavedEdits) await controls?.save()
+			if (keepsEditsBeforeLeaving) await controls?.save()
 			blocker.proceed()
 		} catch (error) {
 			setActionError(
 				error instanceof Error ? error.message : "Editor action failed",
 			)
+			setCouldNotKeepEdits(true)
 			blocker.reset()
 		} finally {
 			setIsLeaving(false)

@@ -567,7 +567,7 @@ function ArrayControl({
 						>
 							Remove
 						</Button>
-						{rowEditorPath ? (
+						{rowEditorPath && !disabled ? (
 							<Button
 								variant="outline"
 								render={<Link to={`${rowEditorPath}/${index + 1}`} />}

@@ -831,11 +831,16 @@ describe("a Managed Field reaching the control dispatcher", () => {
 describe("the control over an array a Singleton's editor names", () => {
 	const EDITOR_PATH = "/acme/site/singletons/home/editor"
 
-	function editable(declaration: Record<string, unknown>, value: unknown) {
+	function editable(
+		declaration: Record<string, unknown>,
+		value: unknown,
+		disabled = false,
+	) {
 		return render(
 			<MemoryRouter>
 				{renderFieldControl(field(declaration), value, {
 					defaultForField: vi.fn(() => ""),
+					disabled,
 					editorPath: EDITOR_PATH,
 					fieldKey: "links",
 					onChange: vi.fn(),
@@ -870,6 +875,14 @@ describe("the control over an array a Singleton's editor names", () => {
 		)
 
 		expect(screen.getAllByRole("link", { name: "Edit" })).toHaveLength(1)
+	})
+
+	// A commit holds the form, and leaving mid-commit skips the save that
+	// leaving otherwise waits on.
+	it("offers no Edit link while the form is busy", () => {
+		editable(links, ["a"], true)
+
+		expect(screen.queryByRole("link", { name: "Edit" })).toBeNull()
 	})
 
 	it("offers no Edit link where the page names no editor", () => {

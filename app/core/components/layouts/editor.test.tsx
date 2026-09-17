@@ -430,6 +430,26 @@ describe("leaving with keystrokes autosave has not kept yet", () => {
 		expect(screen.queryByTestId("collection-page")).not.toBeInTheDocument()
 	})
 
+	// A save that failed once will fail again — a Revision Conflict does not
+	// clear by retrying — so the writer who tries again is let go.
+	it("lets the writer go on a second try after they could not be kept", async () => {
+		const user = userEvent.setup()
+		const save = vi.fn(async () => {
+			throw new Error("Draft changed in another session")
+		})
+		header({ registered: controls({ autosaveState: dirty, save }) })
+		await screen.findByTestId("editor-body")
+
+		await user.click(back())
+		await waitFor(() =>
+			expect(status()).toHaveTextContent("Draft changed in another session"),
+		)
+		await user.click(back())
+
+		expect(await screen.findByTestId("collection-page")).toBeInTheDocument()
+		expect(save).toHaveBeenCalledOnce()
+	})
+
 	it("keeps them when the writer leaves a repository that is behind anyway", async () => {
 		const user = userEvent.setup()
 		const save = vi.fn()
