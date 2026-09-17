@@ -32,7 +32,6 @@ function setup(
 	return harness
 }
 
-/** Create or replace the Singleton's Source, which mints it a fresh sha. */
 /** The one Draft the Singleton holds. */
 async function onlyDraft() {
 	const [draft, ...rest] = await harness.db.select().from(editorDraft)
@@ -40,6 +39,7 @@ async function onlyDraft() {
 	return draft
 }
 
+/** Create or replace the Singleton's Source, which mints it a fresh sha. */
 function putSource(content = SOURCE_CONTENT) {
 	return harness.sourceStore.put({ content, path: TEST_SINGLETON_PATH })
 }
