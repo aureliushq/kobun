@@ -288,6 +288,8 @@ export default function CollectionEditor({ loaderData }: Route.ComponentProps) {
 	const panel = usePropertiesPanel()
 	const chrome = {
 		canPublish,
+		// The route only opens md and mdx Collections, which always have one.
+		hasBody: true,
 		name,
 		owner,
 		panel,

@@ -1,5 +1,6 @@
 import {
 	act,
+	fireEvent,
 	render,
 	renderHook,
 	screen,
@@ -99,6 +100,7 @@ function editor(
 	mode: "item" | "new" = "item",
 	canPublish = true,
 	preferences: UserPreferenceValues = DEFAULT_USER_PREFERENCES,
+	hasBody = true,
 ) {
 	const setControls = vi.fn()
 	const view = render(
@@ -107,6 +109,7 @@ function editor(
 				<EditorLayoutContext.Provider value={{ setControls }}>
 					<CollectionItemEditor
 						canPublish={canPublish}
+						hasBody={hasBody}
 						mode={mode}
 						name="site"
 						opened={content}
@@ -370,5 +373,69 @@ describe("what the writer's Preferences change about the editor", () => {
 
 		const open = renderHook(() => usePropertiesPanel())
 		expect(open.result.current.isOpen).toBe(true)
+	})
+})
+
+describe("a data-only Singleton, which has no Body", () => {
+	const dataOnly = (content: OpenedContent | null = opened({ content: "" })) =>
+		editor(content, "item", false, DEFAULT_USER_PREFERENCES, false)
+
+	it("puts its Fields in the writing column with no editor and no panel toggle", () => {
+		const { setControls } = dataOnly()
+
+		expect(screen.queryByTestId("rich-text-editor")).toBeNull()
+		expect(
+			screen.queryByRole("complementary", { name: "Properties" }),
+		).toBeNull()
+		expect(title().value).toBe("Hello world")
+		expect(screen.getByDisplayValue("A summary")).toBeVisible()
+		expect(lastControls(setControls)?.toggleProperties).toBeUndefined()
+	})
+
+	it("autosaves a Field edit as a Draft with no Body, and says it did", async () => {
+		vi.useFakeTimers()
+		vi.mocked(fetch).mockResolvedValue(
+			new Response(
+				JSON.stringify({ draftId: "draft-1", ok: true, revision: 1 }),
+			),
+		)
+		const { setControls } = dataOnly()
+
+		fireEvent.change(title(), { target: { value: "Renamed" } })
+		expect(lastControls(setControls)?.autosaveState.isDirty).toBe(true)
+		expect(fetch).not.toHaveBeenCalled()
+
+		await act(async () => {
+			await vi.advanceTimersByTimeAsync(1000)
+		})
+
+		const [, request] = vi.mocked(fetch).mock.calls[0] ?? []
+		expect(JSON.parse(String(request?.body))).toMatchObject({
+			fields: { title: "Renamed" },
+			intent: "save",
+			markdown: "",
+		})
+		expect(lastControls(setControls)?.autosaveState).toMatchObject({
+			isDirty: false,
+			isSaving: false,
+			lastSavedAt: expect.any(Date),
+		})
+	})
+
+	it("sends Save to GitHub with no Body", async () => {
+		vi.mocked(fetch).mockResolvedValue(
+			new Response(JSON.stringify({ draftDeleted: true, ok: true })),
+		)
+		const { setControls } = dataOnly()
+
+		await act(async () => {
+			await lastControls(setControls)?.commit()
+		})
+
+		const [, request] = vi.mocked(fetch).mock.calls[0] ?? []
+		expect(JSON.parse(String(request?.body))).toMatchObject({
+			intent: "commit",
+			markdown: "",
+		})
 	})
 })
