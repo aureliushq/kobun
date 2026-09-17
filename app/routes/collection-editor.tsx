@@ -17,9 +17,7 @@ import {
 	invalidateCollectionListing,
 	withListingInvalidation,
 } from "@/core/editor/collection-listing-cache.server"
-import type { FieldRecord } from "@/core/editor/collection-metadata"
 import {
-	type DraftRefusal,
 	type DraftTarget,
 	getCollectionItemEditorPath,
 	getCollectionPath,
@@ -28,7 +26,13 @@ import {
 } from "@/core/editor/drafts"
 import { createDrafts } from "@/core/editor/drafts/create-drafts.server"
 import { createGithubSourceStore } from "@/core/editor/drafts/github-source-store.server"
-import type { OpenResult } from "@/core/editor/drafts/types"
+import {
+	commitResponse,
+	draftRefusalResponse,
+	openedContent,
+	readEditorActionPayload,
+	saveResponse,
+} from "@/core/editor/editor-action.server"
 import { requireCollection } from "@/core/project-context"
 import { requirePageContext } from "@/core/project-context/project-context.server"
 import { posthogContext } from "@/lib/posthog-middleware"
@@ -112,47 +116,6 @@ function createDraftsFor(
 	})
 }
 
-const STALE_SOURCE_MESSAGE =
-	"This item changed on GitHub. Copy your draft or discard it before reloading."
-
-/**
- * The module's refusal code -> HTTP map (ADR-0001), the only one the route
- * owns. Every refusal answers in the same shape, so the editor reads one error
- * the same way whichever intent and whichever gate produced it.
- */
-function draftRefusalResponse(refusal: DraftRefusal) {
-	switch (refusal.code) {
-		case "duplicate-slug":
-			return Response.json(
-				{
-					ok: false,
-					error: `Another item already uses slug “${refusal.slug}”`,
-				},
-				{ status: 409 },
-			)
-		case "not-found":
-			return Response.json(
-				{ ok: false, error: "Draft not found" },
-				{ status: 404 },
-			)
-		case "revision-conflict":
-			return Response.json(
-				{ ok: false, error: "Draft changed in another session" },
-				{ status: 409 },
-			)
-		case "stale-source":
-			return Response.json(
-				{ ok: false, error: STALE_SOURCE_MESSAGE },
-				{ status: 409 },
-			)
-		case "validation":
-			return Response.json(
-				{ ok: false, error: refusal.errors.join("\n") },
-				{ status: 422 },
-			)
-	}
-}
-
 /**
  * What the request addressed: a new item's Draft, carried in the URL or the
  * payload because nothing in the repository names it yet, or an existing item's
@@ -187,19 +150,6 @@ export function shouldRevalidate({
 	// a GitHub round trip for a menu click made mid-sentence.
 	if (formAction === SET_PRIMARY_ACTION_PATH) return false
 	return defaultShouldRevalidate
-}
-
-/** The half of `open`'s answer the editor actually opens with. */
-function openedContent(
-	opened: Extract<OpenResult, { ok: true }>,
-): OpenedContent {
-	return {
-		content: opened.content,
-		draftId: opened.draftId,
-		fields: opened.fields,
-		revision: opened.revision,
-		dirty: opened.dirty,
-	}
 }
 
 /**
@@ -263,44 +213,9 @@ export async function loader(args: Route.LoaderArgs) {
 	}
 }
 
-interface EditorActionPayload {
-	draftId?: string | null
-	expectedRevision: number | null
-	intent: EditorActionIntents
-	markdown: string
-	fields: FieldRecord
-}
-
-async function readActionPayload(
-	request: Request,
-): Promise<EditorActionPayload> {
-	const value = (await request.json()) as Partial<EditorActionPayload>
-	if (
-		(value.intent !== EditorActionIntents.SAVE &&
-			value.intent !== EditorActionIntents.COMMIT &&
-			value.intent !== EditorActionIntents.PUBLISH) ||
-		typeof value.markdown !== "string" ||
-		!value.fields ||
-		typeof value.fields !== "object" ||
-		Array.isArray(value.fields)
-	) {
-		throw new Response("Invalid editor action", { status: 400 })
-	}
-	return {
-		draftId: typeof value.draftId === "string" ? value.draftId : null,
-		expectedRevision:
-			typeof value.expectedRevision === "number"
-				? value.expectedRevision
-				: null,
-		intent: value.intent,
-		markdown: value.markdown,
-		fields: value.fields as FieldRecord,
-	}
-}
-
 export async function action(args: Route.ActionArgs) {
 	const resolved = await resolveCollectionEditorContext(args)
-	const payload = await readActionPayload(args.request)
+	const payload = await readEditorActionPayload(args.request)
 	const target = getDraftTarget(args.params, payload.draftId ?? null)
 	const drafts = createDraftsFor(resolved)
 	const input: SaveInput = {
@@ -311,24 +226,7 @@ export async function action(args: Route.ActionArgs) {
 	}
 
 	if (payload.intent === EditorActionIntents.SAVE) {
-		const saved = await drafts.save(input)
-		if (!saved.ok) return draftRefusalResponse(saved)
-		// Nothing was kept, so there is no Draft to name and no Revision to move on
-		// to: the content matched the Source, or nobody has typed into the new item
-		// yet.
-		if (saved.outcome === "matches-source" || saved.outcome === "unwritten") {
-			return Response.json({
-				ok: true,
-				commitSha: null,
-				draftId: saved.draftId,
-				revision: saved.revision,
-			})
-		}
-		return Response.json({
-			ok: true,
-			draftId: saved.draft.id,
-			revision: saved.draft.revision,
-		})
+		return saveResponse(await drafts.save(input))
 	}
 
 	const publishing = payload.intent === EditorActionIntents.PUBLISH
@@ -346,12 +244,6 @@ export async function action(args: Route.ActionArgs) {
 		: await drafts.commit(input)
 	if (!committed.ok) return draftRefusalResponse(committed)
 
-	// The Data as it was committed, so the properties panel reflects what the
-	// system stamped without a reload. A Save to GitHub leaves the writer in the
-	// editor, so state holding pre-stamp values would read as Dirty against the
-	// Source it just created.
-	const fields =
-		committed.outcome === "matches-source" ? null : committed.fields
 	// Publishing ends the editing session: the writer goes back to the list they
 	// came from, whichever way the publish landed. A Save to GitHub stays put —
 	// unless it just turned a new item into one the repository names, which the
@@ -368,31 +260,11 @@ export async function action(args: Route.ActionArgs) {
 					committed.itemSlug,
 				)
 
-	if (committed.outcome === "matches-source") {
-		return Response.json({
-			ok: true,
-			commitSha: null,
-			draftDeleted: true,
-			draftId: committed.draftId,
-			collectionPath,
-		})
-	}
-	if (committed.outcome === "committed-unsynced") {
-		return Response.json({
-			ok: true,
-			commitSha: committed.commitSha,
-			draftId: committed.draftId,
-			draftSynced: false,
-			collectionPath,
-			fields,
-			itemPath,
-		})
-	}
-	// A commit that reached the repository and reconciled its Draft. The two
-	// outcomes above return before this: one committed nothing, the other lost
-	// the sync race — neither was tracked before the lifecycle moved into the
-	// module, and this merge is not the place to start.
-	if (publishing) {
+	// Only a commit that reached the repository and reconciled its Draft. The
+	// other two outcomes committed nothing or lost the sync race — neither was
+	// tracked before the lifecycle moved into the module, and this merge is not
+	// the place to start.
+	if (publishing && committed.outcome === "committed") {
 		const posthog = args.context.get(posthogContext)
 		posthog?.capture({
 			event: "content_published",
@@ -405,16 +277,7 @@ export async function action(args: Route.ActionArgs) {
 		})
 	}
 
-	return Response.json({
-		ok: true,
-		commitSha: committed.commitSha,
-		draftDeleted: committed.draftDeleted,
-		draftId: committed.draftId,
-		revision: committed.revision,
-		collectionPath,
-		fields,
-		itemPath,
-	})
+	return commitResponse(committed, { collectionPath, itemPath })
 }
 
 export default function CollectionEditor({ loaderData }: Route.ComponentProps) {
