@@ -64,6 +64,20 @@
       "when": 1789587397572,
       "tag": "0008_config_parsed_by",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1789606532297,
+      "tag": "0009_draft_singleton_slug",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1789606539873,
+      "tag": "0010_draft_owner_check",
+      "breakpoints": true
     }
   ]
 }
