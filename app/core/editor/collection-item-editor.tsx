@@ -99,6 +99,7 @@ export type PropertiesPanel = ReturnType<typeof usePropertiesPanel>
  */
 export function CollectionItemEditor({
 	canPublish,
+	editorPath,
 	hasBody,
 	mode,
 	name,
@@ -109,6 +110,11 @@ export function CollectionItemEditor({
 	schema,
 }: {
 	canPublish: boolean
+	/**
+	 * Where a Singleton's array rows open in their own editors. A Collection
+	 * Item's rows have no editor of their own, so its editor passes none.
+	 */
+	editorPath?: string
 	/**
 	 * Whether the Format has a Body. A data-only one has nothing for a rich-text
 	 * editor to hold, so its Fields take the writing column instead.
@@ -148,6 +154,11 @@ export function CollectionItemEditor({
 	// the moment it is sent, so the save behind the minting one carries the id
 	// that save minted instead of the null this render was built on.
 	const draftIdRef = useRef(opened?.draftId ?? null)
+	// The Fields as the server last held them, sent with every mutation. A row
+	// of a Singleton is addressed by its position, which the Revision cannot vouch
+	// for once another session has committed and its Draft is gone; the row
+	// editor checks this against the row that position holds now.
+	const savedFieldsRef = useRef(opened?.fields ?? null)
 	// Whether the repository is behind — the Draft holds bytes the Source does
 	// not. Seeded from what `open` decided, then moved by the answers to the
 	// mutations this component already sends. The header warns a departing
@@ -217,6 +228,7 @@ export function CollectionItemEditor({
 							method: "POST",
 							headers: { "Content-Type": "application/json" },
 							body: JSON.stringify({
+								baseFields: savedFieldsRef.current,
 								draftId: draftIdRef.current,
 								expectedRevision: revisionRef.current,
 								intent,
@@ -243,6 +255,7 @@ export function CollectionItemEditor({
 					if (!response.ok) {
 						throw new Error(result.error ?? "Could not save the editor draft")
 					}
+					savedFieldsRef.current = result.fields ?? fieldsSnapshot
 					if (result.draftDeleted) {
 						draftIdRef.current = null
 						revisionRef.current = null
@@ -459,7 +472,9 @@ export function CollectionItemEditor({
 	const renderProperty = ([key, field]: [string, ResolvedField]) => (
 		<MetadataField
 			key={key}
+			editorPath={editorPath}
 			field={field}
+			fieldKey={key}
 			value={fields[key]}
 			onChange={(value) => updateField(key, value)}
 			disabled={pending || isCommitting}

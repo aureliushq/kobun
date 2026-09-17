@@ -40,7 +40,9 @@ export const arrayField: FieldTypeDefFor<"array"> = {
 	renderControl: ({
 		defaultForField,
 		disabled,
+		editorPath,
 		field,
+		fieldKey,
 		onChange,
 		renderChild,
 		value,
@@ -49,6 +51,9 @@ export const arrayField: FieldTypeDefFor<"array"> = {
 			defaultForField={defaultForField}
 			disabled={disabled}
 			field={field}
+			rowEditorPath={
+				editorPath && fieldKey ? `${editorPath}/${fieldKey}` : undefined
+			}
 			onChange={onChange}
 			renderChild={renderChild}
 			value={value}
@@ -494,6 +499,7 @@ function ArrayControl({
 	field,
 	onChange,
 	renderChild,
+	rowEditorPath,
 	value,
 }: {
 	defaultForField: DefaultForField
@@ -501,6 +507,8 @@ function ArrayControl({
 	field: ArrayField
 	onChange(value: unknown): void
 	renderChild: RenderChildControl
+	/** Where each row opens in its own editor, addressed from one; absent where none does. */
+	rowEditorPath?: string
 	value: unknown
 }) {
 	const rows = Array.isArray(value) ? value : []
@@ -559,6 +567,14 @@ function ArrayControl({
 						>
 							Remove
 						</Button>
+						{rowEditorPath ? (
+							<Button
+								variant="outline"
+								render={<Link to={`${rowEditorPath}/${index + 1}`} />}
+							>
+								Edit
+							</Button>
+						) : null}
 					</div>
 				</div>
 			))}

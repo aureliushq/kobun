@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
+import { MemoryRouter } from "react-router"
 import { describe, expect, it, vi } from "vitest"
 import type { Field } from "@/config/types"
 
@@ -824,5 +825,56 @@ describe("a Managed Field reaching the control dispatcher", () => {
 
 		expect(trigger("Status")).toBeEnabled()
 		expect(trigger("Status")).toHaveTextContent("Draft")
+	})
+})
+
+describe("the control over an array a Singleton's editor names", () => {
+	const EDITOR_PATH = "/acme/site/singletons/home/editor"
+
+	function editable(declaration: Record<string, unknown>, value: unknown) {
+		return render(
+			<MemoryRouter>
+				{renderFieldControl(field(declaration), value, {
+					defaultForField: vi.fn(() => ""),
+					editorPath: EDITOR_PATH,
+					fieldKey: "links",
+					onChange: vi.fn(),
+					updateForSchema: vi.fn(),
+				})}
+			</MemoryRouter>,
+		)
+	}
+
+	it("gives each row an Edit link to its own editor, addressed by its one-based position", () => {
+		editable(links, ["a", "b"])
+
+		const edits = screen.getAllByRole("link", { name: "Edit" })
+		expect(edits[0]).toHaveAttribute("href", `${EDITOR_PATH}/links/1`)
+		expect(edits[1]).toHaveAttribute("href", `${EDITOR_PATH}/links/2`)
+	})
+
+	it("offers no Edit link for the rows of an array nested inside a row", () => {
+		editable(
+			{
+				type: "array",
+				label: "Groups",
+				items: [
+					{
+						type: "object",
+						label: "Group",
+						fields: { links },
+					},
+				],
+			},
+			[{ links: ["a"] }],
+		)
+
+		expect(screen.getAllByRole("link", { name: "Edit" })).toHaveLength(1)
+	})
+
+	it("offers no Edit link where the page names no editor", () => {
+		control(links, ["a"])
+
+		expect(screen.queryByRole("link", { name: "Edit" })).toBeNull()
 	})
 })

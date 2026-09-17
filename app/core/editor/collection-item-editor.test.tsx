@@ -422,6 +422,32 @@ describe("a data-only Singleton, which has no Body", () => {
 		})
 	})
 
+	it("sends the Fields the server last held with each save, so a row editor can tell its row moved", async () => {
+		vi.mocked(fetch).mockImplementation(async () =>
+			Response.json({ draftId: "draft-1", ok: true, revision: 1 }),
+		)
+		const { setControls } = dataOnly()
+		const sentBase = (call: number) =>
+			JSON.parse(String(vi.mocked(fetch).mock.calls[call]?.[1]?.body))
+				.baseFields
+
+		fireEvent.change(title(), { target: { value: "Renamed" } })
+		await act(async () => {
+			await lastControls(setControls)?.save()
+		})
+		fireEvent.change(title(), { target: { value: "Renamed again" } })
+		await act(async () => {
+			await lastControls(setControls)?.save()
+		})
+
+		expect(sentBase(0)).toEqual({
+			slug: "hello",
+			summary: "A summary",
+			title: "Hello world",
+		})
+		expect(sentBase(1)).toMatchObject({ title: "Renamed" })
+	})
+
 	it("sends Save to GitHub with no Body", async () => {
 		vi.mocked(fetch).mockResolvedValue(
 			new Response(JSON.stringify({ draftDeleted: true, ok: true })),

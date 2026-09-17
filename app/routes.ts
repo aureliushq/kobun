@@ -55,6 +55,10 @@ export default [
 			"editor/:owner/:name/singletons/:singleton_slug/editor",
 			"routes/api.singleton-editor.ts",
 		),
+		route(
+			"editor/:owner/:name/singletons/:singleton_slug/editor/:field_key/:item_index",
+			"routes/api.singleton-item-editor.ts",
+		),
 		route("repo-asset/:owner/:name/*", "routes/api.repo-asset.ts"),
 		route(
 			"set-editor-primary-action",

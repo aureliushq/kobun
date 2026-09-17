@@ -16,13 +16,18 @@ import { defaultFieldValue, updateMetadataField } from "./collection-metadata"
 export function MetadataField({
 	assetBaseUrl,
 	disabled,
+	editorPath,
 	field,
+	fieldKey,
 	onChange,
 	value,
 }: {
 	assetBaseUrl?: string
 	disabled?: boolean
+	/** The Singleton editor this Field's array rows open their own editors under. */
+	editorPath?: string
 	field: Field
+	fieldKey?: string
 	onChange(value: unknown): void
 	value: unknown
 }) {
@@ -32,6 +37,8 @@ export function MetadataField({
 				assetBaseUrl,
 				defaultForField: defaultFieldValue,
 				disabled,
+				editorPath,
+				fieldKey,
 				onChange,
 				updateForSchema: updateMetadataField,
 			})}

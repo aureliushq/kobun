@@ -12,8 +12,6 @@ import {
 	type OpenedContent,
 	usePropertiesPanel,
 } from "@/core/editor/collection-item-editor"
-import { createSingletonDrafts } from "@/core/editor/drafts/create-drafts.server"
-import { createGithubSourceStore } from "@/core/editor/drafts/github-source-store.server"
 import {
 	commitResponse,
 	draftRefusalResponse,
@@ -21,44 +19,9 @@ import {
 	readEditorActionPayload,
 	saveResponse,
 } from "@/core/editor/editor-action"
-import { requireSingleton } from "@/core/project-context"
-import { requirePageContext } from "@/core/project-context/project-context.server"
+import { resolveSingletonEditorContext } from "@/core/editor/singleton-editor-context.server"
 import { EditorActionIntents } from "@/ui/lib/types"
 import type { Route } from "./+types/singleton-editor"
-
-/**
- * The Singleton this URL names and the SourceStore its Drafts commit through
- * (ADR-0001). A Singleton is listed nowhere, so unlike a Collection there is no
- * listing cache for a commit to invalidate.
- */
-async function resolveSingletonEditorContext({
-	context,
-	params,
-	request,
-}: Route.LoaderArgs | Route.ActionArgs) {
-	const ctx = await requirePageContext({ context, params, request })
-	const { filePath, singleton } = requireSingleton(ctx, params.singleton_slug)
-	const { db, env, installationId, name, owner, projectRow } = ctx
-
-	return {
-		drafts: createSingletonDrafts({
-			db,
-			filePath,
-			project: { id: projectRow.id },
-			singleton,
-			singletonSlug: params.singleton_slug,
-			sourceStore: createGithubSourceStore({
-				env,
-				installationId,
-				name,
-				owner,
-			}),
-		}),
-		name,
-		owner,
-		singleton,
-	}
-}
 
 /**
  * Choosing which target the header's primary button runs is chrome, and says
@@ -78,7 +41,7 @@ export function shouldRevalidate({
  * defaults while neither exists — so there is no 404 to carry across the wire.
  */
 async function openSingleton(
-	drafts: ReturnType<typeof createSingletonDrafts>,
+	drafts: Awaited<ReturnType<typeof resolveSingletonEditorContext>>["drafts"],
 ): Promise<OpenedContent> {
 	const opened = await drafts.open()
 	invariant(opened.ok, "A Singleton always opens")
@@ -86,10 +49,11 @@ async function openSingleton(
 }
 
 export async function loader(args: Route.LoaderArgs) {
-	const { drafts, name, owner, singleton } =
+	const { drafts, editorPath, name, owner, singleton } =
 		await resolveSingletonEditorContext(args)
 
 	return {
+		editorPath,
 		// A Singleton has no Publication State to declare, so Save to GitHub is
 		// its only path to the repository (ADR-0008).
 		canPublish: false,
@@ -135,6 +99,7 @@ export default function SingletonEditor({ loaderData }: Route.ComponentProps) {
 	const panel = usePropertiesPanel()
 	const chrome = {
 		canPublish: loaderData.canPublish,
+		editorPath: loaderData.editorPath,
 		hasBody: loaderData.hasBody,
 		name: loaderData.name,
 		owner: loaderData.owner,

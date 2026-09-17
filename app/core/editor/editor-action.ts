@@ -69,11 +69,20 @@ export function openedContent(
 }
 
 interface EditorActionPayload {
+	/**
+	 * The Fields as the editor last saw the server hold them. Only an editor
+	 * addressed by a position — a Singleton's row — has a use for it.
+	 */
+	baseFields: FieldRecord | null
 	draftId?: string | null
 	expectedRevision: number | null
 	intent: EditorActionIntents
 	markdown: string
 	fields: FieldRecord
+}
+
+function isFieldRecord(value: unknown): value is FieldRecord {
+	return !!value && typeof value === "object" && !Array.isArray(value)
 }
 
 export async function readEditorActionPayload(
@@ -85,13 +94,12 @@ export async function readEditorActionPayload(
 			value.intent !== EditorActionIntents.COMMIT &&
 			value.intent !== EditorActionIntents.PUBLISH) ||
 		typeof value.markdown !== "string" ||
-		!value.fields ||
-		typeof value.fields !== "object" ||
-		Array.isArray(value.fields)
+		!isFieldRecord(value.fields)
 	) {
 		throw new Response("Invalid editor action", { status: 400 })
 	}
 	return {
+		baseFields: isFieldRecord(value.baseFields) ? value.baseFields : null,
 		draftId: typeof value.draftId === "string" ? value.draftId : null,
 		expectedRevision:
 			typeof value.expectedRevision === "number"
@@ -99,7 +107,7 @@ export async function readEditorActionPayload(
 				: null,
 		intent: value.intent,
 		markdown: value.markdown,
-		fields: value.fields as FieldRecord,
+		fields: value.fields,
 	}
 }
 
