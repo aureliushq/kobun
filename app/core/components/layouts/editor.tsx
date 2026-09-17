@@ -8,7 +8,11 @@ import {
 } from "react"
 import { Link, Outlet, useBeforeUnload, useBlocker } from "react-router"
 import invariant from "tiny-invariant"
-import { getCollectionPath } from "@/core/editor/drafts"
+import {
+	getCollectionPath,
+	getSingletonEditorPath,
+	getSingletonPath,
+} from "@/core/editor/drafts"
 import { toPrimaryEditorAction } from "@/core/editor/primary-action"
 import { requireCollection, requireSingleton } from "@/core/project-context"
 import { requirePageContext } from "@/core/project-context/project-context.server"
@@ -58,8 +62,9 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
 
 	if (singleton_slug) {
 		const { singleton } = requireSingleton(ctx, singleton_slug)
-		const singletonPath = `/${owner}/${name}/singletons/${singleton_slug}`
-		const editorPath = `${singletonPath}/editor`
+		const project = { repoName: name, repoOwnerLogin: owner }
+		const singletonPath = getSingletonPath(project, singleton_slug)
+		const editorPath = getSingletonEditorPath(project, singleton_slug)
 		return {
 			// The Singleton's editor and its rows' editors all edit its one Draft,
 			// so moving between them leaves nothing behind (#94).

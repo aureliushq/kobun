@@ -1,3 +1,4 @@
+import { getSingletonEditorPath, getSingletonPath } from "@/core/editor/drafts"
 import { createSingletonDrafts } from "@/core/editor/drafts/create-drafts.server"
 import { createGithubSourceStore } from "@/core/editor/drafts/github-source-store.server"
 import { requireSingleton } from "@/core/project-context"
@@ -19,12 +20,12 @@ export async function resolveSingletonEditorContext({
 	const ctx = await requirePageContext({ context, params, request })
 	const { filePath, singleton } = requireSingleton(ctx, params.singleton_slug)
 	const { db, env, installationId, name, owner, projectRow } = ctx
-	const singletonPath = `/${owner}/${name}/singletons/${params.singleton_slug}`
+	const project = { repoName: name, repoOwnerLogin: owner }
+	const singletonPath = getSingletonPath(project, params.singleton_slug)
+	const editorPath = getSingletonEditorPath(project, params.singleton_slug)
 
 	return {
-		// Where this Singleton is edited, and where its array rows open their own
-		// editors beneath.
-		editorPath: `${singletonPath}/editor`,
+		editorPath,
 		drafts: createSingletonDrafts({
 			db,
 			filePath,

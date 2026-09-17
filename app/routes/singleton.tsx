@@ -5,6 +5,7 @@ import { Link, useParams } from "react-router"
 import type { Field, ResolvedField } from "@/config/types"
 import { parseDocument } from "@/core/content/document.server"
 import { DiscardDraftDialog } from "@/core/editor/discard-draft-dialog"
+import { getSingletonEditorPath } from "@/core/editor/drafts"
 import { dirtyDraftWhere } from "@/core/editor/drafts/dirty-drafts"
 import {
 	findHeuristicTitles,
@@ -42,7 +43,10 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
 	const { db, env, installationId, name, owner, projectRow } = ctx
 	const { filePath, singleton } = requireSingleton(ctx, singleton_slug)
 
-	const editorPath = `/${owner}/${name}/singletons/${singleton_slug}/editor`
+	const editorPath = getSingletonEditorPath(
+		{ repoName: name, repoOwnerLogin: owner },
+		singleton_slug,
+	)
 
 	// The catch is only for "this singleton has not been created yet" — a parse
 	// failure must never be mistaken for an absent file, so parsing happens after.
