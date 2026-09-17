@@ -5,8 +5,7 @@ import {
 	type ShouldRevalidateFunctionArgs,
 	useParams,
 } from "react-router"
-import { managedField } from "@/config/features"
-import type { Collection } from "@/config/types"
+import { hasPublicationState } from "@/config/features"
 import { SET_PRIMARY_ACTION_PATH } from "@/core/components/layouts/use-primary-editor-action"
 import {
 	CollectionItemEditor,
@@ -79,18 +78,6 @@ async function resolveCollectionEditorContext({
 			() => invalidateCollectionListing(db, projectRow.id, directoryPath),
 		),
 	}
-}
-
-/**
- * Whether this Collection has a Publication State for Publish to declare.
- *
- * Asked of the resolved schema rather than of the `features` block: Features
- * expand into Managed Fields once, and consumers see plain Fields and need no
- * knowledge that Features exist (ADR-0005). The `status` Field is the whole of
- * what Publish writes, so its presence is the question.
- */
-function hasPublicationState(collection: Collection) {
-	return managedField(collection.schema, "status") !== null
 }
 
 /** Where the writer came from, and where a publish sends them back to. */
@@ -188,7 +175,7 @@ export async function loader(args: Route.LoaderArgs) {
 		// Publish is absent where the Collection has no Publication State to
 		// declare; Save to GitHub is then the only path to the repository
 		// (ADR-0008).
-		canPublish: hasPublicationState(resolved.collection),
+		canPublish: hasPublicationState(resolved.collection.schema),
 		name: resolved.name,
 		owner: resolved.owner,
 		publishDisabledReason: null,
@@ -233,7 +220,7 @@ export async function action(args: Route.ActionArgs) {
 	// The button is absent where the Feature is off, so a publish arriving here is
 	// not a writer's choice; refusing it is what makes Save to GitHub the only
 	// commit path rather than only looking like it.
-	if (publishing && !hasPublicationState(resolved.collection)) {
+	if (publishing && !hasPublicationState(resolved.collection.schema)) {
 		throw new Response("This collection has no publish feature", {
 			status: 400,
 		})

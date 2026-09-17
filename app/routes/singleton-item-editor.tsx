@@ -83,9 +83,10 @@ export async function action(args: Route.ActionArgs) {
 	if (payload.intent === EditorActionIntents.SAVE) {
 		return saveResponse(await row.save(content))
 	}
-	// As on the Singleton's own editor: there is no Publish to send (ADR-0008).
+	// A row renders no Publish: publishing declares the whole Singleton, which is
+	// its own editor's to do (ADR-0008).
 	if (payload.intent === EditorActionIntents.PUBLISH) {
-		throw new Response("A singleton has no publish feature", { status: 400 })
+		throw new Response("A singleton row has no publish", { status: 400 })
 	}
 
 	const committed = await row.commit(content)

@@ -19,11 +19,12 @@ export async function resolveSingletonEditorContext({
 	const ctx = await requirePageContext({ context, params, request })
 	const { filePath, singleton } = requireSingleton(ctx, params.singleton_slug)
 	const { db, env, installationId, name, owner, projectRow } = ctx
+	const singletonPath = `/${owner}/${name}/singletons/${params.singleton_slug}`
 
 	return {
 		// Where this Singleton is edited, and where its array rows open their own
 		// editors beneath.
-		editorPath: `/${owner}/${name}/singletons/${params.singleton_slug}/editor`,
+		editorPath: `${singletonPath}/editor`,
 		drafts: createSingletonDrafts({
 			db,
 			filePath,
@@ -40,5 +41,7 @@ export async function resolveSingletonEditorContext({
 		name,
 		owner,
 		singleton,
+		// Where a publish sends the writer back to.
+		singletonPath,
 	}
 }

@@ -2,7 +2,7 @@ import { and, eq } from "drizzle-orm"
 import { FilePenLine, FileText } from "lucide-react"
 import { Fragment } from "react"
 import { Link, useParams } from "react-router"
-import type { Field } from "@/config/types"
+import type { Field, ResolvedField } from "@/config/types"
 import { parseDocument } from "@/core/content/document.server"
 import { DiscardDraftDialog } from "@/core/editor/discard-draft-dialog"
 import { dirtyDraftWhere } from "@/core/editor/drafts/dirty-drafts"
@@ -34,7 +34,7 @@ import {
 import { H2 } from "@/ui/components/base/typegraphy"
 import type { Route } from "./+types/singleton"
 
-type SchemaRecord = Record<string, Field>
+type SchemaRecord = Record<string, ResolvedField>
 
 export async function loader({ context, params, request }: Route.LoaderArgs) {
 	const { singleton_slug } = params
@@ -95,25 +95,36 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
 ////////////////////// ORDERING //////////////////////
 
 /**
- * Title-ish Fields first, the Body last, everything else in declared order.
+ * Title-ish Fields first, the Body last, everything else in declared order —
+ * and the Managed Fields apart from all of them.
  *
  * Which Fields read as a heading is the Title Role's answer, not the page's;
  * the page only decides that they go on top. It asks for the heuristic tier
  * alone rather than the whole Role: hoisting a Slug's source Field would move
  * a field on a page that has never had it moved. A declared Title, when the
  * config flag lands, will have to be hoisted here too.
+ *
+ * A Managed Field is a fact about the Singleton rather than something the
+ * writer set out to write, so it sits in its own group below everything else,
+ * as it does in the editor (ADR-0005).
  */
-function orderedSchemaEntries(schema: SchemaRecord): [string, Field][] {
+export function orderedSchemaEntries(schema: SchemaRecord): {
+	managed: [string, Field][]
+	ordered: [string, Field][]
+} {
 	const entries = Object.entries(schema)
 	const titleKeys = findHeuristicTitles(entries).map((title) => title.key)
 
 	const titles: [string, Field][] = []
 	const others: [string, Field][] = []
 	const documents: [string, Field][] = []
+	const managed: [string, Field][] = []
 
 	for (const entry of entries) {
 		const [key, field] = entry
-		if (field.type === "document") {
+		if (field.managed) {
+			managed.push(entry)
+		} else if (field.type === "document") {
 			documents.push(entry)
 		} else if (titleKeys.includes(key)) {
 			titles.push(entry)
@@ -124,7 +135,7 @@ function orderedSchemaEntries(schema: SchemaRecord): [string, Field][] {
 
 	// Preserve title key priority order (title before name).
 	titles.sort((a, b) => titleKeys.indexOf(a[0]) - titleKeys.indexOf(b[0]))
-	return [...titles, ...others, ...documents]
+	return { managed, ordered: [...titles, ...others, ...documents] }
 }
 
 ////////////////////// COMPONENT //////////////////////
@@ -135,8 +146,7 @@ export default function Singleton({ loaderData }: Route.ComponentProps) {
 	const owner = params.owner ?? ""
 	const name = params.name ?? ""
 
-	const schema = singleton.schema as SchemaRecord
-	const ordered = orderedSchemaEntries(schema)
+	const { managed, ordered } = orderedSchemaEntries(singleton.schema)
 
 	if (!exists) {
 		return (
@@ -240,6 +250,16 @@ export default function Singleton({ loaderData }: Route.ComponentProps) {
 					<FieldRow field={{ label: "Content", description: "Markdown body" }}>
 						<DocumentValue value={body ?? ""} />
 					</FieldRow>
+				</dl>
+			)}
+
+			{managed.length > 0 && (
+				<dl className="flex flex-col divide-y rounded-lg border">
+					{managed.map(([key, field]) => (
+						<FieldRow key={key} field={field}>
+							{renderFieldValue(field, data[key], rootCtx)}
+						</FieldRow>
+					))}
 				</dl>
 			)}
 		</div>

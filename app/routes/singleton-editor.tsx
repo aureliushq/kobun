@@ -5,6 +5,7 @@ import {
 	useParams,
 } from "react-router"
 import invariant from "tiny-invariant"
+import { hasPublicationState } from "@/config/features"
 import { SET_PRIMARY_ACTION_PATH } from "@/core/components/layouts/use-primary-editor-action"
 import { isDataOnly } from "@/core/content/document.server"
 import {
@@ -55,9 +56,10 @@ export async function loader(args: Route.LoaderArgs) {
 
 	return {
 		editorPath,
-		// A Singleton has no Publication State to declare, so Save to GitHub is
-		// its only path to the repository (ADR-0008).
-		canPublish: false,
+		// Publish is absent where the Singleton has no Publication State to
+		// declare; Save to GitHub is then the only path to the repository
+		// (ADR-0008).
+		canPublish: hasPublicationState(singleton.schema),
 		hasBody: !isDataOnly(singleton.format),
 		name,
 		owner,
@@ -70,7 +72,8 @@ export async function loader(args: Route.LoaderArgs) {
 }
 
 export async function action(args: Route.ActionArgs) {
-	const { drafts } = await resolveSingletonEditorContext(args)
+	const { drafts, singleton, singletonPath } =
+		await resolveSingletonEditorContext(args)
 	const payload = await readEditorActionPayload(args.request)
 	const content = {
 		expectedRevision: payload.expectedRevision,
@@ -81,16 +84,25 @@ export async function action(args: Route.ActionArgs) {
 	if (payload.intent === EditorActionIntents.SAVE) {
 		return saveResponse(await drafts.save(content))
 	}
-	// The header renders no Publish for a Singleton, so one arriving here is not
-	// a writer's choice (ADR-0008).
-	if (payload.intent === EditorActionIntents.PUBLISH) {
-		throw new Response("A singleton has no publish feature", { status: 400 })
+	const publishing = payload.intent === EditorActionIntents.PUBLISH
+	// The button is absent where the Feature is off, so a publish arriving here is
+	// not a writer's choice (ADR-0008).
+	if (publishing && !hasPublicationState(singleton.schema)) {
+		throw new Response("This singleton has no publish feature", {
+			status: 400,
+		})
 	}
 
-	const committed = await drafts.commit(content)
+	const committed = publishing
+		? await drafts.publish(content)
+		: await drafts.commit(content)
 	if (!committed.ok) return draftRefusalResponse(committed)
-	// The Singleton's path never changes, so the writer stays where they are.
-	return commitResponse(committed, {})
+	// Publishing ends the editing session, as it does for a Collection Item: the
+	// writer goes back to the Singleton's page. A Save to GitHub stays put, since
+	// the Singleton's path never changes.
+	return commitResponse(committed, {
+		collectionPath: publishing ? singletonPath : undefined,
+	})
 }
 
 export default function SingletonEditor({ loaderData }: Route.ComponentProps) {

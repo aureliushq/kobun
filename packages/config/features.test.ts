@@ -26,7 +26,7 @@ const authored = (
 	})
 
 const expand = (features?: Features) => {
-	const { collection, errors } = expandFeatures(authored(features))
+	const { errors, resolved: collection } = expandFeatures(authored(features))
 	expect(errors).toEqual([])
 	if (!collection) throw new Error("expected the Collection to expand")
 	return collection
@@ -143,7 +143,7 @@ describe("expandFeatures", () => {
 	})
 
 	it("names the key and the Feature when a declared Field collides", () => {
-		const { collection: expanded, errors } = expandFeatures(
+		const { errors, resolved: expanded } = expandFeatures(
 			authored(
 				{ timestamps: { createdAt: true } },
 				{ createdAt: { label: "Written on", type: "date" } },
@@ -174,7 +174,7 @@ describe("expandFeatures", () => {
 
 	// A key a Feature owns is only a collision when that Feature is on.
 	it("accepts a declared Field whose key belongs to a Feature nobody enabled", () => {
-		const { collection: expanded, errors } = expandFeatures(
+		const { errors, resolved: expanded } = expandFeatures(
 			authored(
 				{ timestamps: { updatedAt: true } },
 				{ createdAt: { label: "Written on", type: "date" } },

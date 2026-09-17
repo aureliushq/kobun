@@ -119,7 +119,7 @@ const TEST_SCHEMA = {
  * Managed Fields carry the markers the real ones carry.
  */
 function resolveCollection(authored: unknown): Collection {
-	const { collection, errors } = expandFeatures(
+	const { errors, resolved: collection } = expandFeatures(
 		collectionSchema.parse(authored),
 	)
 	invariant(
@@ -161,18 +161,41 @@ export const TEST_COLLECTION_WITHOUT_PUBLISH: Collection = resolveCollection({
 export const TEST_SINGLETON_SLUG = "about"
 export const TEST_SINGLETON_PATH = "content/singletons/about.md"
 
+/** A Singleton as the config layer hands one over, for `resolveCollection`'s reason. */
+function resolveSingleton(authored: unknown): Singleton {
+	const { errors, resolved } = expandFeatures(singletonSchema.parse(authored))
+	invariant(
+		resolved,
+		`the test singleton must expand: ${JSON.stringify(errors)}`,
+	)
+	return resolved
+}
+
+const TEST_SINGLETON_SCHEMA = {
+	content: { label: "Content", type: "document" },
+	title: { label: "Title", type: "text" },
+}
+
 /** A Singleton with a title and a body, and no Slug to derive. */
-export const TEST_SINGLETON: Singleton = singletonSchema.parse({
+export const TEST_SINGLETON: Singleton = resolveSingleton({
 	format: "md",
 	label: "About",
-	schema: {
-		content: { label: "Content", type: "document" },
-		title: { label: "Title", type: "text" },
-	},
+	schema: TEST_SINGLETON_SCHEMA,
+})
+
+/**
+ * The same Singleton with every Feature on, so its schema carries all four
+ * Managed Fields: `createdAt`, `updatedAt`, `publishedAt` and `status`.
+ */
+export const TEST_SINGLETON_WITH_FEATURES: Singleton = resolveSingleton({
+	features: { publish: true, timestamps: { createdAt: true, updatedAt: true } },
+	format: "md",
+	label: "About",
+	schema: TEST_SINGLETON_SCHEMA,
 })
 
 /** A data-only Singleton: its Source is Data and nothing else. */
-export const TEST_DATA_SINGLETON: Singleton = singletonSchema.parse({
+export const TEST_DATA_SINGLETON: Singleton = resolveSingleton({
 	format: "json",
 	label: "Site",
 	schema: { title: { label: "Title", type: "text" } },
