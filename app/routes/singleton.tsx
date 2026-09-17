@@ -1,8 +1,11 @@
-import { FileText } from "lucide-react"
+import { and, eq } from "drizzle-orm"
+import { FilePenLine, FileText } from "lucide-react"
 import { Fragment } from "react"
 import { Link, useParams } from "react-router"
 import type { Field } from "@/config/types"
 import { parseDocument } from "@/core/content/document.server"
+import { DiscardDraftDialog } from "@/core/editor/discard-draft-dialog"
+import { dirtyDraftWhere } from "@/core/editor/drafts/dirty-drafts"
 import {
 	findHeuristicTitles,
 	type RenderContext,
@@ -11,7 +14,14 @@ import {
 import { buildFieldBlocks, FieldRow } from "@/core/fields/presentation"
 import { requireSingleton } from "@/core/project-context"
 import { requirePageContext } from "@/core/project-context/project-context.server"
+import { editorDraft } from "@/db/schema/app-schema"
 import { getGithubFileContent } from "@/github/octokit.server"
+import {
+	Alert,
+	AlertAction,
+	AlertDescription,
+	AlertTitle,
+} from "@/ui/components/base/alert"
 import { Button } from "@/ui/components/base/button"
 import {
 	Empty,
@@ -29,7 +39,7 @@ type SchemaRecord = Record<string, Field>
 export async function loader({ context, params, request }: Route.LoaderArgs) {
 	const { singleton_slug } = params
 	const ctx = await requirePageContext({ context, params, request })
-	const { env, installationId, name, owner } = ctx
+	const { db, env, installationId, name, owner, projectRow } = ctx
 	const { filePath, singleton } = requireSingleton(ctx, singleton_slug)
 
 	const editorPath = `/${owner}/${name}/singletons/${singleton_slug}/editor`
@@ -59,7 +69,19 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
 		? parseDocument(file.content, singleton.format)
 		: null
 
+	// Only a Dirty Draft is worth offering to discard: a Clean one holds nothing
+	// the Source lacks.
+	const draft = await db.query.editorDraft.findFirst({
+		columns: { id: true },
+		where: and(
+			eq(editorDraft.projectId, projectRow.id),
+			eq(editorDraft.singletonSlug, singleton_slug),
+			dirtyDraftWhere(),
+		),
+	})
+
 	return {
+		draftId: draft?.id ?? null,
 		singleton,
 		singletonSlug: singleton_slug,
 		exists: contentDocument !== null,
@@ -108,7 +130,7 @@ function orderedSchemaEntries(schema: SchemaRecord): [string, Field][] {
 ////////////////////// COMPONENT //////////////////////
 
 export default function Singleton({ loaderData }: Route.ComponentProps) {
-	const { singleton, exists, data, body, editorPath } = loaderData
+	const { singleton, exists, data, body, draftId, editorPath } = loaderData
 	const params = useParams()
 	const owner = params.owner ?? ""
 	const name = params.name ?? ""
@@ -122,6 +144,9 @@ export default function Singleton({ loaderData }: Route.ComponentProps) {
 				<div className="flex items-center justify-between gap-4">
 					<H2>{singleton.label}</H2>
 				</div>
+				{draftId ? (
+					<DraftAlert draftId={draftId} owner={owner} name={name} />
+				) : null}
 				<Empty className="border">
 					<EmptyHeader>
 						<EmptyMedia variant="icon">
@@ -166,6 +191,10 @@ export default function Singleton({ loaderData }: Route.ComponentProps) {
 					Edit
 				</Button>
 			</div>
+
+			{draftId ? (
+				<DraftAlert draftId={draftId} owner={owner} name={name} />
+			) : null}
 
 			{blocks.map((block) => {
 				if (block.kind === "array") {
@@ -214,6 +243,35 @@ export default function Singleton({ loaderData }: Route.ComponentProps) {
 				</dl>
 			)}
 		</div>
+	)
+}
+
+/**
+ * The writer's Draft, which this page does not show: the editor opens on it, and
+ * this is where it can be thrown away. The discard goes to the dashboard's
+ * action, which already deletes a Draft by id for the writer who owns it.
+ */
+function DraftAlert({
+	draftId,
+	name,
+	owner,
+}: {
+	draftId: string
+	name: string
+	owner: string
+}) {
+	return (
+		<Alert>
+			<FilePenLine />
+			<AlertTitle>Unsaved draft</AlertTitle>
+			<AlertDescription>
+				You have changes that aren&apos;t on GitHub yet. The editor opens on
+				them.
+			</AlertDescription>
+			<AlertAction>
+				<DiscardDraftDialog action={`/${owner}/${name}`} draftId={draftId} />
+			</AlertAction>
+		</Alert>
 	)
 }
 

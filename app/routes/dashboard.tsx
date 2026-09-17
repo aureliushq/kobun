@@ -1,16 +1,14 @@
 import { eq } from "drizzle-orm"
 import { FileTextIcon } from "lucide-react"
-import { Suspense, useState } from "react"
-import {
-	Await,
-	Link,
-	redirect,
-	useFetcher,
-	useRouteLoaderData,
-} from "react-router"
+import { Suspense } from "react"
+import { Await, Link, redirect, useRouteLoaderData } from "react-router"
 import { getAuth } from "@/auth/auth.server"
 import type { loader as dashboardLayoutLoader } from "@/core/components/layouts/dashboard"
 import { envContext } from "@/core/context"
+import {
+	DISCARD_DRAFT_INTENT,
+	DiscardDraftDialog,
+} from "@/core/editor/discard-draft-dialog"
 import {
 	DASHBOARD_DRAFT_LIMIT,
 	type DashboardDrafts,
@@ -27,17 +25,6 @@ import { configErrors } from "@/core/project-context/config-errors"
 import { dbContext } from "@/db/context"
 import { editorDraft } from "@/db/schema/app-schema"
 import { posthogContext } from "@/lib/posthog-middleware"
-import {
-	AlertDialog,
-	AlertDialogAction,
-	AlertDialogCancel,
-	AlertDialogContent,
-	AlertDialogDescription,
-	AlertDialogFooter,
-	AlertDialogHeader,
-	AlertDialogTitle,
-	AlertDialogTrigger,
-} from "@/ui/components/base/alert-dialog"
 import { Badge } from "@/ui/components/base/badge"
 import { Button } from "@/ui/components/base/button"
 import {
@@ -60,8 +47,6 @@ import { AsyncErrorAlert } from "@/ui/components/blocks/async-error-alert"
 import { CardListSkeleton } from "@/ui/components/blocks/skeletons"
 import { PATHS } from "@/ui/lib/constants"
 import type { Route } from "./+types/dashboard"
-
-const DISCARD_DRAFT_INTENT = "discard-draft"
 
 /** How the writer asks for the Drafts the bounded list left out. */
 const ALL_DRAFTS_PARAM = "drafts"
@@ -115,44 +100,6 @@ export async function action({ context, request }: Route.ActionArgs) {
 	})
 
 	return { ok: true }
-}
-
-function DiscardDraftDialog({ draftId }: { draftId: string }) {
-	const fetcher = useFetcher()
-	const [open, setOpen] = useState(false)
-
-	return (
-		<AlertDialog open={open} onOpenChange={setOpen}>
-			<AlertDialogTrigger render={<Button size="sm" variant="ghost" />}>
-				Discard
-			</AlertDialogTrigger>
-			<AlertDialogContent>
-				<AlertDialogHeader>
-					<AlertDialogTitle>Discard this draft?</AlertDialogTitle>
-					<AlertDialogDescription>
-						This can&apos;t be undone. The draft and any changes the repository
-						does not have will be permanently deleted.
-					</AlertDialogDescription>
-				</AlertDialogHeader>
-				<AlertDialogFooter>
-					<AlertDialogCancel>Cancel</AlertDialogCancel>
-					<AlertDialogAction
-						variant="destructive"
-						disabled={fetcher.state !== "idle"}
-						onClick={() => {
-							fetcher.submit(
-								{ intent: DISCARD_DRAFT_INTENT, draftId },
-								{ method: "post" },
-							)
-							setOpen(false)
-						}}
-					>
-						Discard
-					</AlertDialogAction>
-				</AlertDialogFooter>
-			</AlertDialogContent>
-		</AlertDialog>
-	)
 }
 
 /** Where the writer would start a Draft, when the Config names somewhere. */
