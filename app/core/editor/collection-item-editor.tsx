@@ -166,6 +166,9 @@ export function CollectionItemEditor({
 	const [hasUncommittedWork, setHasUncommittedWork] = useState(
 		opened?.dirty ?? false,
 	)
+	// Why the last mutation failed. An autosave's refusal has nobody to throw to
+	// but a console, so the header reads it from here (#159).
+	const [saveError, setSaveError] = useState<string | null>(null)
 	const mutationQueueRef = useRef<Promise<void>>(Promise.resolve())
 	const [autosaveState, setAutosaveState] =
 		useState<AutosaveState>(initialAutosaveState)
@@ -222,6 +225,7 @@ export function CollectionItemEditor({
 			const operation = mutationQueueRef.current
 				.catch(() => undefined)
 				.then(async () => {
+					setSaveError(null)
 					const response = await fetch(
 						`/api/editor${location.pathname}${location.search}`,
 						{
@@ -236,7 +240,11 @@ export function CollectionItemEditor({
 								fields: fieldsSnapshot,
 							}),
 						},
-					)
+					).catch(() => {
+						// Each browser words a dropped request its own way, and none of
+						// them tells the writer what happened to their work.
+						throw new Error("Could not reach the server")
+					})
 					const responseText = await response.text()
 					let result: {
 						draftDeleted?: boolean
@@ -303,6 +311,14 @@ export function CollectionItemEditor({
 					}
 					if (mode === "new" && draftIdRef.current)
 						await adoptDraftId(draftIdRef.current)
+				})
+				.catch((error: unknown) => {
+					setSaveError(
+						error instanceof Error
+							? error.message
+							: "Could not save the editor draft",
+					)
+					throw error
 				})
 			mutationQueueRef.current = operation.catch(() => undefined)
 			return operation
@@ -420,6 +436,7 @@ export function CollectionItemEditor({
 			publish: canPublish ? publish : undefined,
 			publishDisabledReason: publishDisabledReason ?? undefined,
 			save,
+			saveError,
 			toggleProperties: hasBody ? toggle : undefined,
 		}),
 		[
@@ -435,6 +452,7 @@ export function CollectionItemEditor({
 			publish,
 			publishDisabledReason,
 			save,
+			saveError,
 			toggle,
 		],
 	)

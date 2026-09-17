@@ -1,5 +1,6 @@
-import { render, screen, waitFor } from "@testing-library/react"
+import { act, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
+import { useMemo, useState } from "react"
 import { createRoutesStub } from "react-router"
 import { describe, expect, it, vi } from "vitest"
 import type { PrimaryEditorAction } from "@/core/editor/primary-action"
@@ -36,6 +37,7 @@ function controls(
 		isPropertiesOpen: true,
 		publish: vi.fn(),
 		save: vi.fn(),
+		saveError: null,
 		toggleProperties: vi.fn(),
 		...overrides,
 	}
@@ -46,14 +48,17 @@ function header({
 	parentPath = PARENT_PATH,
 	primaryAction = "save" as PrimaryEditorAction,
 	registered = controls(),
+	useRegistered,
 }: {
 	draftEditorPath?: string | null
 	parentPath?: string
 	primaryAction?: PrimaryEditorAction
 	registered?: EditorLayoutControls | null
+	/** For controls that change after the editor mounts, as a save's error does. */
+	useRegistered?: () => EditorLayoutControls
 } = {}) {
 	function Child() {
-		useEditorLayoutControls(registered ?? controls())
+		useEditorLayoutControls(useRegistered?.() ?? registered ?? controls())
 		return <div data-testid="editor-body" />
 	}
 
@@ -246,6 +251,59 @@ describe("the status line", () => {
 		})
 
 		expect(await screen.findByText("Saving draft…")).toBeInTheDocument()
+	})
+
+	// An autosave nobody clicked is refused the same way a Save is, and the
+	// writer is owed the same reason rather than a Draft that silently stays
+	// unsaved (#159).
+	it("says why an autosave was refused, rather than that it is still to come", async () => {
+		header({
+			registered: controls({
+				autosaveState: { isDirty: true, isSaving: false, lastSavedAt: null },
+				saveError: "Someone else changed this draft",
+			}),
+		})
+
+		const refused = await screen.findByText("Someone else changed this draft")
+		expect(refused).toHaveClass("text-destructive")
+		expect(screen.queryByText("Draft not saved yet")).not.toBeInTheDocument()
+	})
+
+	// The editor holds the refusal of every request it sends, a clicked Save's
+	// included, so the header's own copy must not outlive the next save.
+	it("stops saying why a Save was refused once the next save starts", async () => {
+		const user = userEvent.setup()
+		let setSaveError: (error: string | null) => void = () => undefined
+		header({
+			useRegistered: () => {
+				const [saveError, set] = useState<string | null>(null)
+				setSaveError = set
+				return useMemo(
+					() =>
+						controls({
+							autosaveState: {
+								isDirty: true,
+								isSaving: false,
+								lastSavedAt: null,
+							},
+							save: async () => {
+								set("Someone else changed this draft")
+								throw new Error("Someone else changed this draft")
+							},
+							saveError,
+						}),
+					[saveError],
+				)
+			},
+		})
+		await screen.findByTestId("editor-body")
+
+		await user.click(primary())
+		expect(status()).toHaveTextContent("Someone else changed this draft")
+
+		act(() => setSaveError(null))
+
+		expect(status()).toHaveTextContent("Draft not saved yet")
 	})
 })
 

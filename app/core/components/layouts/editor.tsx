@@ -107,12 +107,12 @@ type EditorAction = "save" | "commit" | "publish"
  * kept Draft — the same misreading, inverted.
  */
 function saveStatusFor(
-	actionError: string | null,
+	error: string | null,
 	pendingAction: EditorAction | null,
 	controls: EditorLayoutControls | null,
 	hasActed: boolean,
 ) {
-	if (actionError) return actionError
+	if (error) return error
 	if (pendingAction === "publish") return "Publishing…"
 	if (pendingAction === "commit") return "Saving to GitHub…"
 	if (pendingAction === "save" || controls?.autosaveState.isSaving)
@@ -158,8 +158,17 @@ const EditorLayout = ({ loaderData }: Route.ComponentProps) => {
 		}
 	}
 
+	// A request the editor sent that failed, clicked or autosaved, is its to
+	// report; the header's own is for what never got that far. It goes once
+	// the next save starts, or it would outlive the save that fixed it (#159).
+	const saveError = controls?.saveError ?? null
+	useEffect(() => {
+		if (saveError === null) setActionError(null)
+	}, [saveError])
+	const statusError = actionError ?? saveError
+
 	const saveStatus = saveStatusFor(
-		actionError,
+		statusError,
 		pendingAction,
 		controls,
 		hasActed,
@@ -288,7 +297,7 @@ const EditorLayout = ({ loaderData }: Route.ComponentProps) => {
 						aria-live="polite"
 						className={cn(
 							"justify-self-end truncate text-xs",
-							actionError ? "text-destructive" : "text-muted-foreground",
+							statusError ? "text-destructive" : "text-muted-foreground",
 						)}
 						data-testid="editor-save-status"
 						title={saveStatus}

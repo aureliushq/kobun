@@ -39,6 +39,9 @@ import {
  */
 
 const mocks = vi.hoisted(() => ({
+	persistence: undefined as
+		| { onAutoSave?: (markdown: string) => Promise<void> }
+		| undefined,
 	richTextEditor: vi.fn(),
 }))
 
@@ -49,10 +52,14 @@ vi.mock("@/editor", () => ({
 	EditorWordCount: () => <div data-testid="word-count" />,
 	RichTextEditor: (props: {
 		initialContent?: string
-		persistence?: { onCommit?: (markdown: string) => Promise<void> }
+		persistence?: {
+			onAutoSave?: (markdown: string) => Promise<void>
+			onCommit?: (markdown: string) => Promise<void>
+		}
 		ref?: (api: unknown) => void
 	}) => {
 		mocks.richTextEditor(props.initialContent)
+		mocks.persistence = props.persistence
 		props.ref?.({
 			focus: vi.fn(),
 			getEditor: () => null,
@@ -133,10 +140,15 @@ function lastControls(setControls: ReturnType<typeof vi.fn>) {
 	return published.at(-1)
 }
 
+/** A Singleton whose Format has no Body, so its Fields are the page. */
+const dataOnly = (content: OpenedContent | null = opened({ content: "" })) =>
+	editor(content, "item", false, DEFAULT_USER_PREFERENCES, false)
+
 const title = () => screen.getByLabelText("Title") as HTMLTextAreaElement
 
 beforeEach(() => {
 	mocks.richTextEditor.mockClear()
+	mocks.persistence = undefined
 	vi.stubGlobal("fetch", vi.fn())
 })
 
@@ -377,9 +389,6 @@ describe("what the writer's Preferences change about the editor", () => {
 })
 
 describe("a data-only Singleton, which has no Body", () => {
-	const dataOnly = (content: OpenedContent | null = opened({ content: "" })) =>
-		editor(content, "item", false, DEFAULT_USER_PREFERENCES, false)
-
 	it("puts its Fields in the writing column with no editor and no panel toggle", () => {
 		const { setControls } = dataOnly()
 
@@ -463,5 +472,80 @@ describe("a data-only Singleton, which has no Body", () => {
 			intent: "commit",
 			markdown: "",
 		})
+	})
+})
+
+describe("an autosave the server refuses", () => {
+	const conflict = () =>
+		Response.json(
+			{ error: "Someone else changed this draft", ok: false },
+			{ status: 409 },
+		)
+	const saved = () =>
+		Response.json({ draftId: "draft-1", ok: true, revision: 2 })
+
+	/** Types into a Field and lets the metadata autosave run, as a writer would. */
+	async function editAField() {
+		fireEvent.change(title(), { target: { value: "Renamed" } })
+		await act(async () => {
+			await vi.advanceTimersByTimeAsync(1000)
+		})
+	}
+
+	beforeEach(() => {
+		vi.useFakeTimers()
+		vi.spyOn(console, "error").mockImplementation(() => {})
+	})
+
+	it("tells the header why a Field's autosave was refused", async () => {
+		vi.mocked(fetch).mockResolvedValue(conflict())
+		const { setControls } = dataOnly()
+
+		await editAField()
+
+		expect(lastControls(setControls)).toMatchObject({
+			autosaveState: { isDirty: true, isSaving: false },
+			saveError: "Someone else changed this draft",
+		})
+	})
+
+	it("tells the header why the Body's autosave was refused", async () => {
+		vi.mocked(fetch).mockResolvedValue(conflict())
+		const { setControls } = editor(opened())
+
+		await act(async () => {
+			await mocks.persistence?.onAutoSave?.("Changed").catch(() => undefined)
+		})
+
+		expect(lastControls(setControls)?.saveError).toBe(
+			"Someone else changed this draft",
+		)
+	})
+
+	it("says the server could not be reached when the request never arrives", async () => {
+		vi.mocked(fetch).mockRejectedValue(new TypeError("Failed to fetch"))
+		const { setControls } = dataOnly()
+
+		await editAField()
+
+		expect(lastControls(setControls)?.saveError).toBe(
+			"Could not reach the server",
+		)
+	})
+
+	it("stops saying so once a later save goes through", async () => {
+		vi.mocked(fetch)
+			.mockResolvedValueOnce(conflict())
+			.mockResolvedValueOnce(saved())
+		const { setControls } = dataOnly()
+
+		await editAField()
+		expect(lastControls(setControls)?.saveError).not.toBeNull()
+
+		await act(async () => {
+			await lastControls(setControls)?.save()
+		})
+
+		expect(lastControls(setControls)?.saveError).toBeNull()
 	})
 })
