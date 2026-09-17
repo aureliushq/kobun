@@ -4,7 +4,7 @@ import { getDbCredentials } from "@/db/utils"
 const command = process.argv[1]?.includes("drizzle-kit")
 	? process.argv[2]
 	: undefined
-const needsDb = !command || !["generate", "check"].includes(command)
+const needsDb = !command || !["generate", "check", "export"].includes(command)
 
 export default defineConfig({
 	dialect: "sqlite",
