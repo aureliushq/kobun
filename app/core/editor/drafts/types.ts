@@ -1,5 +1,10 @@
 import type { DrizzleD1Database } from "drizzle-orm/d1"
-import type { Collection } from "@/config/types"
+import type {
+	Collection,
+	Format,
+	ResolvedField,
+	Singleton,
+} from "@/config/types"
 import type { FieldRecord } from "@/core/editor/collection-metadata"
 import type * as schema from "@/db/schema"
 import type { editorDraft } from "@/db/schema/app-schema"
@@ -18,7 +23,8 @@ export type DraftRow = typeof editorDraft.$inferSelect
 export interface ResolvedSource {
 	body: string
 	frontmatter: FieldRecord
-	itemSlug: string
+	/** The Slug a Collection Item answers to; a Singleton has none. */
+	itemSlug: string | null
 	path: string
 	/**
 	 * The Source's bytes as they stand. Handed to the serializer, which decides
@@ -42,6 +48,55 @@ export interface DraftsContext {
 	now?: () => Date
 	project: { id: string }
 	sourceStore: SourceStore
+}
+
+/** A Singleton's Drafts, at the one path its Source lives at. */
+export interface SingletonDraftsContext {
+	db: DraftsDatabase
+	/** The Singleton's Source file, whether or not it exists yet. */
+	filePath: string
+	now?: () => Date
+	project: { id: string }
+	singleton: Singleton
+	singletonSlug: string
+	sourceStore: SourceStore
+}
+
+/** Whose Draft a row is: a Collection's or a Singleton's, never both. */
+export type DraftOwner =
+	| { collectionSlug: string; singletonSlug: null }
+	| { collectionSlug: null; singletonSlug: string }
+
+/** Where a commit of some content lands, and what is wrong with landing there. */
+export interface CommitAddress<ItemSlug extends string | null> {
+	errors: string[]
+	itemSlug: ItemSlug
+	path: string
+}
+
+/**
+ * What the lifecycle needs from the thing its Drafts belong to. The transitions
+ * never ask which one they hold: a Collection Item is addressed by a Slug that
+ * has rules to break and a directory to collide in, a Singleton by one fixed
+ * path that has neither — and that difference lives here, not in them.
+ */
+export interface DraftEntity<ItemSlug extends string | null> {
+	/**
+	 * Where these fields would be committed. `errors` are the address's own
+	 * structural gates, which both commit actions refuse on (ADR-0008).
+	 */
+	address(
+		fields: FieldRecord,
+		source: ResolvedSource | null,
+	): CommitAddress<ItemSlug>
+	/** Another Source already at this address, which a commit would destroy. */
+	collision(
+		address: CommitAddress<ItemSlug>,
+		source: ResolvedSource | null,
+	): Promise<Extract<DraftRefusal, { code: "duplicate-slug" }> | null>
+	format: Format
+	owner: DraftOwner
+	schema: Record<string, ResolvedField>
 }
 
 /**
@@ -97,6 +152,11 @@ export type SaveInput = DraftContent & DraftTarget
 export interface ResolvedSaveInput extends DraftContent {
 	draftId: string | null
 	source: ResolvedSource | null
+	/**
+	 * The path the Draft is keyed by: the Source's when there is one, and a
+	 * Singleton's fixed path even while its Source does not exist yet.
+	 */
+	sourcePath: string | null
 }
 
 export type WriteDraftResult =
@@ -135,10 +195,10 @@ export type DraftRefusal =
 	| { code: "not-found" | "revision-conflict" | "stale-source"; ok: false }
 	| { code: "validation"; errors: string[]; ok: false }
 
-export type CommitResult =
+export type CommitResult<ItemSlug extends string | null = string> =
 	| DraftRefusal
 	/** The content already matched the Source: the Draft is gone, nothing was committed. */
-	| { draftId: string; itemSlug: string; ok: true; outcome: "matches-source" }
+	| { draftId: string; itemSlug: ItemSlug; ok: true; outcome: "matches-source" }
 	/** Committed and synced; the Draft is deleted unless a later save left it Dirty. */
 	| {
 			commitSha?: string
@@ -151,7 +211,7 @@ export type CommitResult =
 			 * against the Source the commit just created.
 			 */
 			fields: FieldRecord
-			itemSlug: string
+			itemSlug: ItemSlug
 			ok: true
 			outcome: "committed"
 			revision: number | null
@@ -165,7 +225,7 @@ export type CommitResult =
 			commitSha?: string
 			draftId: string
 			fields: FieldRecord
-			itemSlug: string
+			itemSlug: ItemSlug
 			ok: true
 			outcome: "committed-unsynced"
 	  }
