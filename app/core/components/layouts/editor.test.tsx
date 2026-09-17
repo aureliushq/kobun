@@ -42,9 +42,13 @@ function controls(
 }
 
 function header({
+	draftEditorPath = null,
+	parentPath = PARENT_PATH,
 	primaryAction = "save" as PrimaryEditorAction,
 	registered = controls(),
 }: {
+	draftEditorPath?: string | null
+	parentPath?: string
 	primaryAction?: PrimaryEditorAction
 	registered?: EditorLayoutControls | null
 } = {}) {
@@ -63,8 +67,9 @@ function header({
 		{
 			Component: EditorLayout,
 			loader: () => ({
+				draftEditorPath,
 				parentLabel: "Posts",
-				parentPath: PARENT_PATH,
+				parentPath,
 				primaryAction: stored,
 			}),
 			path: "/editor",
@@ -72,7 +77,7 @@ function header({
 		},
 		{
 			Component: () => <div data-testid="collection-page" />,
-			path: PARENT_PATH,
+			path: parentPath,
 		},
 		{
 			action: async ({ request }: { request: Request }) => {
@@ -383,5 +388,109 @@ describe("walking away from a repository that is behind", () => {
 		await user.click(back())
 
 		expect(await screen.findByTestId("collection-page")).toBeInTheDocument()
+	})
+})
+
+describe("leaving with keystrokes autosave has not kept yet", () => {
+	const dirty = { isDirty: true, isSaving: false, lastSavedAt: null }
+
+	it("keeps them before the next page loads, whatever the primary", async () => {
+		const user = userEvent.setup()
+		let finishSave = () => {}
+		const save = vi.fn(
+			() =>
+				new Promise<void>((resolve) => {
+					finishSave = resolve
+				}),
+		)
+		header({ registered: controls({ autosaveState: dirty, save }) })
+		await screen.findByTestId("editor-body")
+
+		await user.click(back())
+
+		await waitFor(() => expect(save).toHaveBeenCalledOnce())
+		expect(screen.queryByTestId("collection-page")).not.toBeInTheDocument()
+		finishSave()
+		expect(await screen.findByTestId("collection-page")).toBeInTheDocument()
+	})
+
+	it("stays, saying why, when they cannot be kept", async () => {
+		const user = userEvent.setup()
+		const save = vi.fn(async () => {
+			throw new Error("Draft changed in another session")
+		})
+		header({ registered: controls({ autosaveState: dirty, save }) })
+		await screen.findByTestId("editor-body")
+
+		await user.click(back())
+
+		await waitFor(() =>
+			expect(status()).toHaveTextContent("Draft changed in another session"),
+		)
+		expect(screen.queryByTestId("collection-page")).not.toBeInTheDocument()
+	})
+
+	it("keeps them when the writer leaves a repository that is behind anyway", async () => {
+		const user = userEvent.setup()
+		const save = vi.fn()
+		header({
+			primaryAction: "commit",
+			registered: controls({
+				autosaveState: dirty,
+				hasUncommittedWork: true,
+				save,
+			}),
+		})
+		await screen.findByTestId("editor-body")
+
+		await user.click(back())
+		expect(save).not.toHaveBeenCalled()
+		await user.click(
+			await screen.findByRole("button", { name: "Leave anyway" }),
+		)
+
+		expect(await screen.findByTestId("collection-page")).toBeInTheDocument()
+		expect(save).toHaveBeenCalledOnce()
+	})
+})
+
+describe("moving between a Singleton and one of its rows", () => {
+	const SINGLETON_EDITOR = "/acme/site/singletons/home/editor"
+
+	// Both pages edit the one Draft, so nothing is left behind by moving between
+	// them — the warning waits for the writer to leave the Draft itself.
+	it("does not warn about a repository that is behind", async () => {
+		const user = userEvent.setup()
+		header({
+			draftEditorPath: SINGLETON_EDITOR,
+			parentPath: SINGLETON_EDITOR,
+			primaryAction: "commit",
+			registered: controls({ hasUncommittedWork: true }),
+		})
+		await screen.findByTestId("editor-body")
+
+		await user.click(back())
+
+		expect(await screen.findByTestId("collection-page")).toBeInTheDocument()
+		expect(
+			screen.queryByText("This isn't on GitHub yet"),
+		).not.toBeInTheDocument()
+	})
+
+	it("still warns when the writer leaves the Singleton", async () => {
+		const user = userEvent.setup()
+		header({
+			draftEditorPath: SINGLETON_EDITOR,
+			parentPath: "/acme/site/singletons/home",
+			primaryAction: "commit",
+			registered: controls({ hasUncommittedWork: true }),
+		})
+		await screen.findByTestId("editor-body")
+
+		await user.click(back())
+
+		expect(
+			await screen.findByText("This isn't on GitHub yet"),
+		).toBeInTheDocument()
 	})
 })
