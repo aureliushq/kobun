@@ -1,9 +1,12 @@
 import { and, eq, isNull, sql } from "drizzle-orm"
 import type { SQLiteColumn } from "drizzle-orm/sqlite-core"
 import invariant from "tiny-invariant"
-import type { Collection } from "@/config/types"
+import type { Collection, Singleton } from "@/config/types"
 import { canonicalMetadata } from "@/core/content"
-import { serializeDocument } from "@/core/content/document.server"
+import {
+	parseDocument,
+	serializeDocument,
+} from "@/core/content/document.server"
 import {
 	findCollectionItemBySlug,
 	isMarkdownCollectionFile,
@@ -29,6 +32,7 @@ import type {
 	CommitAddress,
 	CommitInput,
 	CommitResult,
+	DraftContent,
 	DraftEntity,
 	DraftRow,
 	DraftsContext,
@@ -39,6 +43,7 @@ import type {
 	ResolvedSource,
 	SaveInput,
 	SaveResult,
+	SingletonDraftsContext,
 	WriteDraftResult,
 } from "./types"
 
@@ -668,6 +673,8 @@ function createDraftLifecycle<ItemSlug extends string | null>(context: {
 
 	return {
 		commitResolved,
+		deleteSyncedDraft,
+		findDraftBySourcePath,
 		findNewItemDraft,
 		openBlank,
 		openSource,
@@ -861,6 +868,117 @@ export function createDrafts(context: DraftsContext) {
 		const resolved = await resolveTarget(input)
 		if (!resolved) return { code: "not-found", ok: false }
 		return lifecycle.commitResolved(resolved, "publish")
+	}
+
+	return { commit, open, publish, save }
+}
+
+/**
+ * A Singleton as the lifecycle sees it: one fixed file. It has no Slug to spell
+ * and no other item to land on, so its address is never wrong and never taken.
+ */
+function singletonEntity({
+	filePath,
+	singleton,
+	singletonSlug,
+}: {
+	filePath: string
+	singleton: Singleton
+	singletonSlug: string
+}): DraftEntity<null> {
+	return {
+		address: () => ({ errors: [], itemSlug: null, path: filePath }),
+		collision: async () => null,
+		format: singleton.format,
+		owner: { collectionSlug: null, singletonSlug },
+		schema: singleton.schema,
+	}
+}
+
+/**
+ * The Draft lifecycle for one Singleton of one project. The Draft is keyed by
+ * the Singleton's fixed path from the moment it is minted, whether or not the
+ * Source exists yet — so there is only ever one, and the caller never has to
+ * carry its id.
+ */
+export function createSingletonDrafts(context: SingletonDraftsContext) {
+	const { db, filePath, now, project, singleton, singletonSlug, sourceStore } =
+		context
+	const lifecycle = createDraftLifecycle({
+		db,
+		entity: singletonEntity({ filePath, singleton, singletonSlug }),
+		now,
+		project,
+		sourceStore,
+	})
+
+	/** The Singleton's Source, or null while nobody has created it. */
+	async function resolveSource(): Promise<ResolvedSource | null> {
+		const directory = filePath.slice(0, filePath.lastIndexOf("/"))
+		const files = await sourceStore.list(directory)
+		const file = files.find((candidate) => candidate.path === filePath)
+		if (!file) return null
+		const document = parseDocument(file.content, singleton.format)
+		return {
+			body: document.body ?? "",
+			frontmatter: document.data,
+			itemSlug: null,
+			path: file.path,
+			raw: file.content,
+			sha: file.sha,
+		}
+	}
+
+	/**
+	 * Hand the editor everything it opens with, as `open` does for a Collection
+	 * Item. A Singleton that does not exist yet opens on its Draft when the
+	 * writer has started one, and on its schema defaults when they have not.
+	 */
+	async function open(): Promise<OpenResult> {
+		const source = await resolveSource()
+		if (source) return lifecycle.openSource(source)
+		const draft = await lifecycle.findDraftBySourcePath(filePath)
+		if (draft && isDraftDirty(draft)) return lifecycle.openUnsourcedDraft(draft)
+		// A Clean Draft whose Source was deleted on GitHub holds nothing the
+		// writer typed and has nothing left to be Clean against. Left in place, it
+		// would turn their next save into a Revision Conflict with a Draft they
+		// were never shown.
+		if (draft) await lifecycle.deleteSyncedDraft(draft)
+		return lifecycle.openBlank()
+	}
+
+	/**
+	 * The writer's content against the Singleton as it stands now. A Draft over
+	 * no Source yet is found at the fixed path and stands where a new Collection
+	 * Item's `?draft=` id would, so "nothing to mint" asks the same question of
+	 * both.
+	 */
+	async function resolve(content: DraftContent): Promise<ResolvedSaveInput> {
+		const source = await resolveSource()
+		const draft = source
+			? undefined
+			: await lifecycle.findDraftBySourcePath(filePath)
+		return {
+			...content,
+			draftId: draft?.id ?? null,
+			source,
+			sourcePath: filePath,
+		}
+	}
+
+	/** Persist the writer's content as the Singleton's Draft. */
+	async function save(content: DraftContent): Promise<SaveResult> {
+		return lifecycle.saveResolved(await resolve(content))
+	}
+
+	/** Write the Singleton's Draft to its Source, and nothing else (ADR-0008). */
+	async function commit(content: DraftContent): Promise<CommitResult<null>> {
+		return lifecycle.commitResolved(await resolve(content), "commit")
+	}
+
+	/** Commit the Draft, and declare the Singleton published while doing it. */
+	async function publish(content: DraftContent): Promise<CommitResult<null>> {
+		return lifecycle.commitResolved(await resolve(content), "publish")
 	}
 
 	return { commit, open, publish, save }
