@@ -93,7 +93,8 @@ describe("the row Edit links on a Singleton's page", () => {
 	it("offers no row link while a Dirty Draft may have moved the rows, but still offers Add", async () => {
 		page("draft-1")
 
-		await screen.findByRole("link", { name: "Add Section" })
+		const add = await screen.findByRole("link", { name: "Add Section" })
+		expect(add).toHaveAttribute("href", EDITOR_PATH)
 		const links = screen.getAllByRole("link", { name: "Edit" })
 		expect(links.map((link) => link.getAttribute("href"))).toEqual([
 			EDITOR_PATH,

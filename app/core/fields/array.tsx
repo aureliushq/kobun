@@ -261,7 +261,7 @@ function ArraySection({
 		return <JsonFallback value={value} />
 	}
 
-	const { editorPath, fieldKey } = ctx
+	const { editorPath } = ctx
 	const isLevel1 = ctx.accordionDepth === 1
 	const rows = items.map((item, index) => (
 		<ArrayItemAccordion
@@ -276,8 +276,9 @@ function ArraySection({
 	))
 
 	if (isLevel1) {
-		const addLink =
-			editorPath && fieldKey ? `${editorPath}/${fieldKey}/new` : null
+		// Rows are added in the editor's own array control, which saves them into
+		// the Draft; there is no page of its own for a new row (#162).
+		const addLink = editorPath ?? null
 		return (
 			<Card className="gap-0 overflow-hidden py-0">
 				<CardHeader className="border-b py-3">
