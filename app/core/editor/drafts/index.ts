@@ -21,6 +21,8 @@ export {
 	getCollectionItemEditorPath,
 	getCollectionPath,
 	getDraftEditorPath,
+	getSingletonEditorPath,
+	getSingletonPath,
 	isDraftAdoptionNavigation,
 } from "./draft-paths"
 export type { DraftMarker } from "./draft-state"

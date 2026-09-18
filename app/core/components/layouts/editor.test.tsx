@@ -1,5 +1,6 @@
-import { render, screen, waitFor } from "@testing-library/react"
+import { act, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
+import { useMemo, useState } from "react"
 import { createRoutesStub } from "react-router"
 import { describe, expect, it, vi } from "vitest"
 import type { PrimaryEditorAction } from "@/core/editor/primary-action"
@@ -36,20 +37,28 @@ function controls(
 		isPropertiesOpen: true,
 		publish: vi.fn(),
 		save: vi.fn(),
+		saveError: null,
 		toggleProperties: vi.fn(),
 		...overrides,
 	}
 }
 
 function header({
+	draftEditorPath = null,
+	parentPath = PARENT_PATH,
 	primaryAction = "save" as PrimaryEditorAction,
 	registered = controls(),
+	useRegistered,
 }: {
+	draftEditorPath?: string | null
+	parentPath?: string
 	primaryAction?: PrimaryEditorAction
 	registered?: EditorLayoutControls | null
+	/** For controls that change after the editor mounts, as a save's error does. */
+	useRegistered?: () => EditorLayoutControls
 } = {}) {
 	function Child() {
-		useEditorLayoutControls(registered ?? controls())
+		useEditorLayoutControls(useRegistered?.() ?? registered ?? controls())
 		return <div data-testid="editor-body" />
 	}
 
@@ -63,8 +72,9 @@ function header({
 		{
 			Component: EditorLayout,
 			loader: () => ({
+				draftEditorPath,
 				parentLabel: "Posts",
-				parentPath: PARENT_PATH,
+				parentPath,
 				primaryAction: stored,
 			}),
 			path: "/editor",
@@ -72,7 +82,7 @@ function header({
 		},
 		{
 			Component: () => <div data-testid="collection-page" />,
-			path: PARENT_PATH,
+			path: parentPath,
 		},
 		{
 			action: async ({ request }: { request: Request }) => {
@@ -242,6 +252,59 @@ describe("the status line", () => {
 
 		expect(await screen.findByText("Saving draft…")).toBeInTheDocument()
 	})
+
+	// An autosave nobody clicked is refused the same way a Save is, and the
+	// writer is owed the same reason rather than a Draft that silently stays
+	// unsaved (#159).
+	it("says why an autosave was refused, rather than that it is still to come", async () => {
+		header({
+			registered: controls({
+				autosaveState: { isDirty: true, isSaving: false, lastSavedAt: null },
+				saveError: "Someone else changed this draft",
+			}),
+		})
+
+		const refused = await screen.findByText("Someone else changed this draft")
+		expect(refused).toHaveClass("text-destructive")
+		expect(screen.queryByText("Draft not saved yet")).not.toBeInTheDocument()
+	})
+
+	// The editor holds the refusal of every request it sends, a clicked Save's
+	// included, so the header's own copy must not outlive the next save.
+	it("stops saying why a Save was refused once the next save starts", async () => {
+		const user = userEvent.setup()
+		let setSaveError: (error: string | null) => void = () => undefined
+		header({
+			useRegistered: () => {
+				const [saveError, set] = useState<string | null>(null)
+				setSaveError = set
+				return useMemo(
+					() =>
+						controls({
+							autosaveState: {
+								isDirty: true,
+								isSaving: false,
+								lastSavedAt: null,
+							},
+							save: async () => {
+								set("Someone else changed this draft")
+								throw new Error("Someone else changed this draft")
+							},
+							saveError,
+						}),
+					[saveError],
+				)
+			},
+		})
+		await screen.findByTestId("editor-body")
+
+		await user.click(primary())
+		expect(status()).toHaveTextContent("Someone else changed this draft")
+
+		act(() => setSaveError(null))
+
+		expect(status()).toHaveTextContent("Draft not saved yet")
+	})
 })
 
 describe("the header's geometry", () => {
@@ -383,5 +446,129 @@ describe("walking away from a repository that is behind", () => {
 		await user.click(back())
 
 		expect(await screen.findByTestId("collection-page")).toBeInTheDocument()
+	})
+})
+
+describe("leaving with keystrokes autosave has not kept yet", () => {
+	const dirty = { isDirty: true, isSaving: false, lastSavedAt: null }
+
+	it("keeps them before the next page loads, whatever the primary", async () => {
+		const user = userEvent.setup()
+		let finishSave = () => {}
+		const save = vi.fn(
+			() =>
+				new Promise<void>((resolve) => {
+					finishSave = resolve
+				}),
+		)
+		header({ registered: controls({ autosaveState: dirty, save }) })
+		await screen.findByTestId("editor-body")
+
+		await user.click(back())
+
+		await waitFor(() => expect(save).toHaveBeenCalledOnce())
+		expect(screen.queryByTestId("collection-page")).not.toBeInTheDocument()
+		finishSave()
+		expect(await screen.findByTestId("collection-page")).toBeInTheDocument()
+	})
+
+	it("stays, saying why, when they cannot be kept", async () => {
+		const user = userEvent.setup()
+		const save = vi.fn(async () => {
+			throw new Error("Draft changed in another session")
+		})
+		header({ registered: controls({ autosaveState: dirty, save }) })
+		await screen.findByTestId("editor-body")
+
+		await user.click(back())
+
+		await waitFor(() =>
+			expect(status()).toHaveTextContent("Draft changed in another session"),
+		)
+		expect(screen.queryByTestId("collection-page")).not.toBeInTheDocument()
+	})
+
+	// A save that failed once will fail again — a Revision Conflict does not
+	// clear by retrying — so the writer who tries again is let go.
+	it("lets the writer go on a second try after they could not be kept", async () => {
+		const user = userEvent.setup()
+		const save = vi.fn(async () => {
+			throw new Error("Draft changed in another session")
+		})
+		header({ registered: controls({ autosaveState: dirty, save }) })
+		await screen.findByTestId("editor-body")
+
+		await user.click(back())
+		await waitFor(() =>
+			expect(status()).toHaveTextContent("Draft changed in another session"),
+		)
+		await user.click(back())
+
+		expect(await screen.findByTestId("collection-page")).toBeInTheDocument()
+		expect(save).toHaveBeenCalledOnce()
+	})
+
+	it("keeps them when the writer leaves a repository that is behind anyway", async () => {
+		const user = userEvent.setup()
+		const save = vi.fn()
+		header({
+			primaryAction: "commit",
+			registered: controls({
+				autosaveState: dirty,
+				hasUncommittedWork: true,
+				save,
+			}),
+		})
+		await screen.findByTestId("editor-body")
+
+		await user.click(back())
+		expect(save).not.toHaveBeenCalled()
+		await user.click(
+			await screen.findByRole("button", { name: "Leave anyway" }),
+		)
+
+		expect(await screen.findByTestId("collection-page")).toBeInTheDocument()
+		expect(save).toHaveBeenCalledOnce()
+	})
+})
+
+describe("moving between a Singleton and one of its rows", () => {
+	const SINGLETON_EDITOR = "/acme/site/singletons/home/editor"
+
+	// Both pages edit the one Draft, so nothing is left behind by moving between
+	// them — the warning waits for the writer to leave the Draft itself.
+	it("does not warn about a repository that is behind", async () => {
+		const user = userEvent.setup()
+		header({
+			draftEditorPath: SINGLETON_EDITOR,
+			parentPath: SINGLETON_EDITOR,
+			primaryAction: "commit",
+			registered: controls({ hasUncommittedWork: true }),
+		})
+		await screen.findByTestId("editor-body")
+
+		await user.click(back())
+
+		expect(await screen.findByTestId("collection-page")).toBeInTheDocument()
+		expect(
+			screen.queryByText("This isn't on GitHub yet"),
+		).not.toBeInTheDocument()
+	})
+
+	it("still warns when the writer leaves the Singleton", async () => {
+		const user = userEvent.setup()
+		header({
+			draftEditorPath: SINGLETON_EDITOR,
+			parentPath: "/acme/site/singletons/home",
+			primaryAction: "commit",
+			registered: controls({ hasUncommittedWork: true }),
+		})
+		await screen.findByTestId("editor-body")
+
+		await user.click(back())
+
+		expect(
+			await screen.findByText("This isn't on GitHub yet"),
+		).toBeInTheDocument()
 	})
 })

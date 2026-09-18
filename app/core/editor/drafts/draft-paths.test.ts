@@ -2,6 +2,8 @@ import { expect, test } from "vitest"
 import {
 	getCollectionPath,
 	getDraftEditorPath,
+	getSingletonEditorPath,
+	getSingletonPath,
 	isDraftAdoptionNavigation,
 } from "./draft-paths"
 
@@ -38,6 +40,18 @@ test("addresses a source-backed draft by the item it belongs to", () => {
 test("addresses the collection a draft belongs to", () => {
 	expect(getCollectionPath(PROJECT, "posts")).toBe(
 		"/acme/website/collections/posts",
+	)
+})
+
+test("addresses a singleton's own page", () => {
+	expect(getSingletonPath(PROJECT, "home")).toBe(
+		"/acme/website/singletons/home",
+	)
+})
+
+test("addresses the editor a singleton is written in", () => {
+	expect(getSingletonEditorPath(PROJECT, "home")).toBe(
+		"/acme/website/singletons/home/editor",
 	)
 })
 

@@ -71,7 +71,7 @@ export const validateConfig = (
 			}
 
 			const expanded = expandFeatures(result.data)
-			if (!expanded.collection) {
+			if (!expanded.resolved) {
 				errors.push(
 					...expanded.errors.map((error) => ({
 						...error,
@@ -81,7 +81,7 @@ export const validateConfig = (
 				continue
 			}
 
-			collections[key] = expanded.collection
+			collections[key] = expanded.resolved
 		}
 	} else if (rawCollections === undefined) {
 		errors.push({
@@ -106,21 +106,18 @@ export const validateConfig = (
 				continue
 			}
 
-			// `featureSchema` hangs off `singletonSchema` and always has, but the
-			// singleton write path is a stub — expanding here would mint Managed
-			// Fields empty by construction, forever (ADR-0005). A loud error beats
-			// permanent silence, and it lasts only as long as its reason does.
-			if (result.data.features) {
-				errors.push({
-					code: "feature_unsupported",
-					message:
-						"Features are not supported on Singletons yet. Remove the features block.",
-					path: `singletons.${key}.features`,
-				})
+			const expanded = expandFeatures(result.data)
+			if (!expanded.resolved) {
+				errors.push(
+					...expanded.errors.map((error) => ({
+						...error,
+						path: scopePath(`singletons.${key}`, error.path),
+					})),
+				)
 				continue
 			}
 
-			singletons[key] = result.data
+			singletons[key] = expanded.resolved
 		}
 	}
 

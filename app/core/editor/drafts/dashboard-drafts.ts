@@ -1,4 +1,5 @@
 import { and, count, desc, eq, inArray, isNotNull, sql } from "drizzle-orm"
+import invariant from "tiny-invariant"
 import { lastKnownConfig } from "@/core/project-context"
 import { editorDraft, project } from "@/db/schema/app-schema"
 import type { ProjectLocation } from "./draft-paths"
@@ -95,7 +96,7 @@ export async function loadDashboardDrafts(
 
 	const drafts = await db.query.editorDraft.findMany({
 		limit: all ? undefined : DASHBOARD_DRAFT_LIMIT,
-		where: inArray(editorDraft.projectId, projectIds),
+		where: collectionDraftsWhere(projectIds),
 		with: { project: true },
 		orderBy: [desc(editorDraft.updatedAt)],
 	})
@@ -107,6 +108,7 @@ export async function loadDashboardDrafts(
 
 	return {
 		drafts: drafts.map((draft) => {
+			invariant(draft.collectionSlug, "the query only reads Collection Drafts")
 			// A Collection the Config no longer declares still has Drafts, and they
 			// are still reachable — so the card falls back to the slug rather than
 			// dropping the row.
@@ -133,11 +135,23 @@ export async function loadDashboardDrafts(
 	}
 }
 
+/**
+ * The Drafts the list shows: a Collection's. A Singleton Draft has no card to
+ * render yet — listing it belongs to the Singleton editor (#93) — so it is
+ * neither listed nor counted, rather than counted and never shown.
+ */
+function collectionDraftsWhere(projectIds: string[]) {
+	return and(
+		inArray(editorDraft.projectId, projectIds),
+		isNotNull(editorDraft.collectionSlug),
+	)
+}
+
 async function countDrafts(db: DraftsDatabase, projectIds: string[]) {
 	const [row] = await db
 		.select({ drafts: count() })
 		.from(editorDraft)
-		.where(inArray(editorDraft.projectId, projectIds))
+		.where(collectionDraftsWhere(projectIds))
 
 	return row?.drafts ?? 0
 }

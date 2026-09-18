@@ -1,8 +1,13 @@
 import { and, eq, isNull, sql } from "drizzle-orm"
 import type { SQLiteColumn } from "drizzle-orm/sqlite-core"
 import invariant from "tiny-invariant"
+import type { Collection, Singleton } from "@/config/types"
 import { canonicalMetadata } from "@/core/content"
-import { serializeDocument } from "@/core/content/document.server"
+import {
+	isDataOnly,
+	parseDocument,
+	serializeDocument,
+} from "@/core/content/document.server"
 import {
 	findCollectionItemBySlug,
 	isMarkdownCollectionFile,
@@ -22,18 +27,25 @@ import {
 	withoutCreationStamps,
 	withPublishedStatus,
 } from "./managed-stamps"
+import type { SourceStore } from "./source-store"
 import type {
 	CommitAction,
+	CommitAddress,
 	CommitInput,
 	CommitResult,
+	DraftContent,
+	DraftEntity,
+	DraftRefusal,
 	DraftRow,
 	DraftsContext,
+	DraftsDatabase,
 	OpenInput,
 	OpenResult,
 	ResolvedSaveInput,
 	ResolvedSource,
 	SaveInput,
 	SaveResult,
+	SingletonDraftsContext,
 	WriteDraftResult,
 } from "./types"
 
@@ -47,31 +59,29 @@ function eqOrNull(column: SQLiteColumn, value: string | number | null) {
 }
 
 /** Where a commit landed: the Source the Draft is now reconciled against. */
-interface CommittedSource {
-	itemSlug: string
+interface CommittedSource<ItemSlug extends string | null> {
+	itemSlug: ItemSlug
 	path: string
 	sha: string
 }
 
 /**
- * The Draft lifecycle for one collection of one project. Every transition is
- * reported as a typed result — a Revision Conflict is a second tab racing an
- * autosave, not an exception — so callers map outcomes instead of catching
- * them (ADR-0001).
+ * The Draft lifecycle over one entity of one project — a Collection or a
+ * Singleton — against Sources already located. Every transition is reported as
+ * a typed result — a Revision Conflict is a second tab racing an autosave, not
+ * an exception — so callers map outcomes instead of catching them (ADR-0001).
  */
-export function createDrafts(context: DraftsContext) {
-	const {
-		collection,
-		collectionSlug,
-		db,
-		directoryPath,
-		now = () => new Date(),
-		project,
-		sourceStore,
-	} = context
+function createDraftLifecycle<ItemSlug extends string | null>(context: {
+	db: DraftsDatabase
+	entity: DraftEntity<ItemSlug>
+	now?: () => Date
+	project: { id: string }
+	sourceStore: SourceStore
+}) {
+	const { db, entity, now = () => new Date(), project, sourceStore } = context
 
 	/** What a new item's Fields hold before anyone has typed into them. */
-	const defaultFields = applyMetadataDefaults(collection.schema, {})
+	const defaultFields = applyMetadataDefaults(entity.schema, {})
 
 	function findDraftBySourcePath(sourcePath: string) {
 		return db.query.editorDraft.findFirst({
@@ -87,16 +97,17 @@ export function createDrafts(context: DraftsContext) {
 			where: and(
 				eq(editorDraft.id, draftId),
 				eq(editorDraft.projectId, project.id),
-				eq(editorDraft.collectionSlug, collectionSlug),
+				eqOrNull(editorDraft.collectionSlug, entity.owner.collectionSlug),
+				eqOrNull(editorDraft.singletonSlug, entity.owner.singletonSlug),
 				isNull(editorDraft.sourcePath),
 			),
 		})
 	}
 
 	function findDraft(input: ResolvedSaveInput) {
-		// An existing item's Draft is identified by the Source it tracks; a new
-		// item's Draft has no Source yet, so the caller carries its id.
-		if (input.source) return findDraftBySourcePath(input.source.path)
+		// A Draft with a path is identified by it; a new item's Draft has no Source
+		// yet, so the caller carries its id.
+		if (input.sourcePath) return findDraftBySourcePath(input.sourcePath)
 		if (!input.draftId) return undefined
 		return findNewItemDraft(input.draftId)
 	}
@@ -178,7 +189,7 @@ export function createDrafts(context: DraftsContext) {
 			const [created] = await db
 				.insert(editorDraft)
 				.values({
-					collectionSlug,
+					...entity.owner,
 					id: crypto.randomUUID(),
 					itemSlug: input.source?.itemSlug ?? null,
 					markdown: input.markdown,
@@ -188,7 +199,7 @@ export function createDrafts(context: DraftsContext) {
 					// Dirty; an existing item's first Draft starts level with its Source.
 					committedRevision: input.source ? 0 : null,
 					revision: 1,
-					sourcePath: input.source?.path ?? null,
+					sourcePath: input.sourcePath,
 					sourceSha: input.source?.sha ?? null,
 				})
 				.returning()
@@ -223,14 +234,28 @@ export function createDrafts(context: DraftsContext) {
 			input.markdown.trim() === "" &&
 			canonicalMetadata(
 				withoutCreationStamps(
-					collection.schema,
-					applyMetadataDefaults(collection.schema, input.fields),
+					entity.schema,
+					applyMetadataDefaults(entity.schema, input.fields),
 				),
 			) ===
-				canonicalMetadata(
-					withoutCreationStamps(collection.schema, defaultFields),
-				)
+				canonicalMetadata(withoutCreationStamps(entity.schema, defaultFields))
 		)
+	}
+
+	/**
+	 * A data-only Format has no Body, so a Body sent for one is invalid rather
+	 * than something to drop quietly. Refused before any Draft is kept, because a
+	 * Draft holding it could never be committed.
+	 */
+	function refuseBodyless(
+		input: ResolvedSaveInput,
+	): Extract<DraftRefusal, { code: "validation" }> | null {
+		if (!isDataOnly(entity.format) || input.markdown === "") return null
+		return {
+			code: "validation",
+			errors: [`A ${entity.format} document has no Body`],
+			ok: false,
+		}
 	}
 
 	/**
@@ -240,6 +265,8 @@ export function createDrafts(context: DraftsContext) {
 	 * does a new item the writer has not written into.
 	 */
 	async function saveResolved(input: ResolvedSaveInput): Promise<SaveResult> {
+		const bodyless = refuseBodyless(input)
+		if (bodyless) return bodyless
 		if (hasNothingToMint(input)) {
 			return { draftId: null, ok: true, outcome: "unwritten", revision: null }
 		}
@@ -265,15 +292,9 @@ export function createDrafts(context: DraftsContext) {
 			fields: stampAtCreation({
 				fields: input.fields,
 				now: now(),
-				schema: collection.schema,
+				schema: entity.schema,
 			}),
 		})
-	}
-
-	/** The Slug these fields name, which is what the item will be addressed by. */
-	function effectiveSlug(fields: FieldRecord) {
-		const slugField = getSlugField(collection.schema)
-		return slugField ? String(fields[slugField] ?? "").trim() : ""
 	}
 
 	/**
@@ -283,8 +304,8 @@ export function createDrafts(context: DraftsContext) {
 	 * half-written post it exists for (ADR-0008).
 	 */
 	function validateContent(input: ResolvedSaveInput) {
-		const errors = validateMetadata(collection.schema, input.fields)
-		const documentRequired = Object.values(collection.schema).some(
+		const errors = validateMetadata(entity.schema, input.fields)
+		const documentRequired = Object.values(entity.schema).some(
 			(field) => field.type === "document" && field.required,
 		)
 		if (documentRequired && !input.markdown.trim()) {
@@ -297,38 +318,19 @@ export function createDrafts(context: DraftsContext) {
 	 * Every gate a writer can fail, reported together so they see every problem at
 	 * once rather than one per attempt.
 	 *
-	 * The Slug is gated on both actions and metadata validation on neither but
-	 * Publish (ADR-0008): the Slug becomes a filename, and a commit with no usable
-	 * filename has nowhere to land whichever action asked for it, while "required"
-	 * is a claim about a finished item. What a Slug may be spelled with is one
-	 * rule with the derivation that has to satisfy it, so it is `validateSlug` in
-	 * the metadata module rather than a second spelling here.
+	 * The address is gated on both actions and metadata validation on neither but
+	 * Publish (ADR-0008): a commit with nowhere usable to land has nowhere to land
+	 * whichever action asked for it, while "required" is a claim about a finished
+	 * item.
 	 */
 	function validateCommit(
 		input: ResolvedSaveInput,
-		slug: string,
+		address: CommitAddress<ItemSlug>,
 		action: CommitAction,
 	) {
 		return action === "publish"
-			? [...validateContent(input), ...validateSlug(slug)]
-			: validateSlug(slug)
-	}
-
-	/**
-	 * Whether some other item in this collection already answers to `slug`. A
-	 * Collection Item is addressed by its Slug, so committing over a taken one
-	 * would publish this Draft on top of someone else's item.
-	 *
-	 * `validateCommit` runs first, so this is only ever asked of a Slug that could
-	 * be a filename at all — the third and last of the rules a Slug answers to,
-	 * and the only one that needs the repository rather than the string.
-	 */
-	async function isSlugTaken(slug: string, source: ResolvedSource | null) {
-		const files = await sourceStore.list(directoryPath)
-		return files.filter(isMarkdownCollectionFile).some((file) => {
-			if (source && file.path === source.path) return false
-			return findCollectionItemBySlug(collection, [file], slug) !== null
-		})
+			? [...validateContent(input), ...address.errors]
+			: address.errors
 	}
 
 	/**
@@ -337,7 +339,7 @@ export function createDrafts(context: DraftsContext) {
 	 * version it built on — so a session that saved while we were committing is
 	 * not silently marked as committed.
 	 */
-	async function syncDraft(draft: DraftRow, source: CommittedSource) {
+	async function syncDraft(draft: DraftRow, source: CommittedSource<ItemSlug>) {
 		const [synced] = await db
 			.update(editorDraft)
 			.set({
@@ -370,7 +372,7 @@ export function createDrafts(context: DraftsContext) {
 	async function repointDraft(
 		draft: DraftRow,
 		expectedSha: string | null,
-		source: CommittedSource,
+		source: CommittedSource<ItemSlug>,
 	) {
 		await db
 			.update(editorDraft)
@@ -427,22 +429,24 @@ export function createDrafts(context: DraftsContext) {
 	async function commitToSource(
 		input: ResolvedSaveInput,
 		draft: DraftRow,
-		itemSlug: string,
+		address: CommitAddress<ItemSlug>,
 		action: CommitAction,
-	): Promise<CommitResult> {
+	): Promise<CommitResult<ItemSlug>> {
 		const { source } = input
-		// A new item has no Source yet, so its Slug decides where it lands.
-		const path =
-			source?.path ?? `${directoryPath}/${itemSlug}.${collection.format}`
+		const { itemSlug, path } = address
 		const committed = await sourceStore.write({
 			// The Source's own bytes go to the serializer, which re-emits the
 			// frontmatter block untouched when the Data is unchanged; a new item has
-			// none to preserve. The Format is the Collection's, not the file's:
-			// writing is what puts the extension on `path` above, so the same
-			// declaration has to decide the bytes that go under it.
+			// none to preserve. The Format is the entity's, not the file's: writing
+			// is what puts the extension on `path`, so the same declaration has to
+			// decide the bytes that go under it. An empty Body is no Body, which is
+			// all a data-only Format can hold.
 			content: serializeDocument(
-				{ body: input.markdown, data: input.fields },
-				collection.format,
+				{
+					body: input.markdown === "" ? null : input.markdown,
+					data: input.fields,
+				},
+				entity.format,
 				source ? { raw: source.raw } : undefined,
 			),
 			expectedSha: source?.sha,
@@ -456,7 +460,7 @@ export function createDrafts(context: DraftsContext) {
 		})
 		if (!committed.ok) return { code: "stale-source", ok: false }
 
-		const committedSource: CommittedSource = {
+		const committedSource: CommittedSource<ItemSlug> = {
 			itemSlug,
 			path,
 			sha: committed.contentSha,
@@ -488,9 +492,9 @@ export function createDrafts(context: DraftsContext) {
 
 	/**
 	 * Commit a Draft to its Source and reconcile the two. Every gate the writer
-	 * can fail — invalid metadata, a missing required document, a Slug that is
-	 * empty, malformed, or already taken, a Source that moved underneath them —
-	 * is reported as a typed refusal, never thrown, because none of them is a bug
+	 * can fail — invalid metadata, a missing required document, an address that
+	 * is unusable or already taken, a Source that moved underneath them — is
+	 * reported as a typed refusal, never thrown, because none of them is a bug
 	 * (ADR-0001). What follows the gates is a chain that must not be split across
 	 * a seam: commit, sync the Draft to what landed, and delete it once the Source
 	 * has caught up.
@@ -501,7 +505,9 @@ export function createDrafts(context: DraftsContext) {
 	async function commitResolved(
 		input: ResolvedSaveInput,
 		action: CommitAction,
-	): Promise<CommitResult> {
+	): Promise<CommitResult<ItemSlug>> {
+		const bodyless = refuseBodyless(input)
+		if (bodyless) return bodyless
 		// Publication State is declared *before* the comparison, so a transition is
 		// itself the change that gets committed: a Publish over a Source already
 		// committed as `draft` differs, and commits. No clock enters the comparison
@@ -512,7 +518,7 @@ export function createDrafts(context: DraftsContext) {
 			action === "publish"
 				? {
 						...input,
-						fields: withPublishedStatus(collection.schema, input.fields),
+						fields: withPublishedStatus(entity.schema, input.fields),
 					}
 				: input
 
@@ -531,7 +537,7 @@ export function createDrafts(context: DraftsContext) {
 						action,
 						fields: intent.fields,
 						now: now(),
-						schema: collection.schema,
+						schema: entity.schema,
 						source: intent.source,
 					}),
 				}
@@ -545,21 +551,17 @@ export function createDrafts(context: DraftsContext) {
 		const written = await writeDraft(input)
 		if (!written.ok) return written
 
-		const slug = effectiveSlug(stamped.fields)
-		const errors = validateCommit(stamped, slug, action)
+		const address = entity.address(stamped.fields, stamped.source)
+		const errors = validateCommit(stamped, address, action)
 		if (errors.length) return { code: "validation", errors, ok: false }
-		if (await isSlugTaken(slug, stamped.source)) {
-			return { code: "duplicate-slug", ok: false, slug }
-		}
+		const collision = await entity.collision(address, stamped.source)
+		if (collision) return collision
 
 		const draft = written.draft
-		// The Draft was built on a version of the Source that is no longer there:
-		// committing would drop whatever replaced it.
-		if (
-			stamped.source &&
-			draft.sourceSha &&
-			draft.sourceSha !== stamped.source.sha
-		) {
+		// The Draft was reconciled with a version of the Source that is no longer
+		// there — moved, created since, or deleted since: committing would drop
+		// whatever replaced it.
+		if (draft.sourceSha !== (stamped.source?.sha ?? null)) {
 			return { code: "stale-source", ok: false }
 		}
 
@@ -571,7 +573,7 @@ export function createDrafts(context: DraftsContext) {
 			}
 			return {
 				draftId: draft.id,
-				itemSlug: slug,
+				itemSlug: address.itemSlug,
 				ok: true,
 				outcome: "matches-source",
 			}
@@ -580,7 +582,7 @@ export function createDrafts(context: DraftsContext) {
 		// Every gate has passed, so this commit is happening — and now the stamps
 		// go into the Draft, still before the commit itself. A Draft that outlives
 		// the commit then holds exactly what was committed, which is what keeps the
-		// churn bug from returning (#87). A Collection with no Managed Fields has
+		// churn bug from returning (#87). A schema with no Managed Fields has
 		// nothing to add here and this writes nothing.
 		const restamped = await writeDraft({
 			...stamped,
@@ -589,21 +591,7 @@ export function createDrafts(context: DraftsContext) {
 		})
 		if (!restamped.ok) return restamped
 
-		return commitToSource(stamped, restamped.draft, slug, action)
-	}
-
-	/**
-	 * The Source a Slug names, or null when this collection holds no such item.
-	 * Matching a Slug against a directory listing is collection-specific — the
-	 * transition below is not.
-	 */
-	async function resolveSource(slug: string): Promise<ResolvedSource | null> {
-		const files = await sourceStore.list(directoryPath)
-		return findCollectionItemBySlug(
-			collection,
-			files.filter(isMarkdownCollectionFile),
-			slug,
-		)
+		return commitToSource(stamped, restamped.draft, address, action)
 	}
 
 	/**
@@ -642,37 +630,38 @@ export function createDrafts(context: DraftsContext) {
 		})
 	}
 
-	async function openNewItem(draftId: string | null): Promise<OpenResult> {
-		if (!draftId) {
-			// An empty editor, and no Draft to show it from: the first save that
-			// carries something mints one, and the caller adopts the id it returns.
-			return {
-				content: "",
-				draftId: null,
-				// Stamped here as well as at minting, so a new item reads as Created
-				// and `draft` in the properties panel before it has ever been saved.
-				fields: stampAtCreation({
-					fields: defaultFields,
-					now: now(),
-					schema: collection.schema,
-				}),
-				ok: true,
-				revision: null,
-				dirty: false,
-				source: null,
-			}
+	/**
+	 * An empty editor, and no Draft to show it from: the first save that carries
+	 * something mints one, and the caller adopts the id it returns.
+	 */
+	function openBlank(): OpenResult {
+		return {
+			content: "",
+			draftId: null,
+			// Stamped here as well as at minting, so a new item reads as Created
+			// and `draft` in the properties panel before it has ever been saved.
+			fields: stampAtCreation({
+				fields: defaultFields,
+				now: now(),
+				schema: entity.schema,
+			}),
+			ok: true,
+			revision: null,
+			dirty: false,
+			source: null,
 		}
+	}
 
-		const draft = await findNewItemDraft(draftId)
-		if (!draft) return { code: "not-found", ok: false }
+	/** A Draft with no Source behind it, which is the whole of what there is to show. */
+	function openUnsourcedDraft(draft: DraftRow): OpenResult {
 		return {
 			content: draft.markdown,
 			draftId: draft.id,
 			fields: draftFields(draft, defaultFields),
 			ok: true,
 			revision: draft.revision,
-			// A new item's Draft has never reached the repository, so it is Dirty
-			// by definition — there is no Source behind it to be Clean against.
+			// A Draft that has never reached the repository is Dirty by definition —
+			// there is no Source behind it to be Clean against.
 			dirty: true,
 			source: null,
 		}
@@ -680,8 +669,8 @@ export function createDrafts(context: DraftsContext) {
 
 	/**
 	 * Reconcile the Draft tracking a Source with that Source. Takes the Source
-	 * already resolved, so whatever located it — a Slug here, a fixed path for a
-	 * singleton — stays outside the transition.
+	 * already resolved, so whatever located it — a Slug for a Collection Item, a
+	 * fixed path for a Singleton — stays outside the transition.
 	 */
 	async function openSource(source: ResolvedSource): Promise<OpenResult> {
 		let draft = await findDraftBySourcePath(source.path)
@@ -704,6 +693,135 @@ export function createDrafts(context: DraftsContext) {
 		}
 	}
 
+	return {
+		commitResolved,
+		deleteSyncedDraft,
+		findDraftBySourcePath,
+		findNewItemDraft,
+		openBlank,
+		openSource,
+		openUnsourcedDraft,
+		saveResolved,
+	}
+}
+
+/**
+ * A Collection Item as the lifecycle sees it: addressed by a Slug, which is
+ * what names its file, has rules to break, and can collide with another item in
+ * the Collection's directory.
+ */
+function collectionEntity({
+	collection,
+	collectionSlug,
+	directoryPath,
+	sourceStore,
+}: {
+	collection: Collection
+	collectionSlug: string
+	directoryPath: string
+	sourceStore: SourceStore
+}): DraftEntity<string> {
+	/** The Slug these fields name, which is what the item will be addressed by. */
+	function effectiveSlug(fields: FieldRecord) {
+		const slugField = getSlugField(collection.schema)
+		return slugField ? String(fields[slugField] ?? "").trim() : ""
+	}
+
+	/**
+	 * Whether some other item in this collection already answers to `slug`. A
+	 * Collection Item is addressed by its Slug, so committing over a taken one
+	 * would publish this Draft on top of someone else's item.
+	 *
+	 * The address's errors are checked first, so this is only ever asked of a
+	 * Slug that could be a filename at all — the third and last of the rules a
+	 * Slug answers to, and the only one that needs the repository rather than the
+	 * string.
+	 */
+	async function isSlugTaken(slug: string, source: ResolvedSource | null) {
+		const files = await sourceStore.list(directoryPath)
+		return files.filter(isMarkdownCollectionFile).some((file) => {
+			if (source && file.path === source.path) return false
+			return findCollectionItemBySlug(collection, [file], slug) !== null
+		})
+	}
+
+	return {
+		/**
+		 * The Slug becomes a filename, so it is gated on both actions. What a Slug
+		 * may be spelled with is one rule with the derivation that has to satisfy
+		 * it, so it is `validateSlug` in the metadata module rather than a second
+		 * spelling here.
+		 */
+		address(fields, source) {
+			const slug = effectiveSlug(fields)
+			return {
+				errors: validateSlug(slug),
+				itemSlug: slug,
+				// A new item has no Source yet, so its Slug decides where it lands.
+				path: source?.path ?? `${directoryPath}/${slug}.${collection.format}`,
+			}
+		},
+		async collision(address, source) {
+			return (await isSlugTaken(address.itemSlug, source))
+				? { code: "duplicate-slug", ok: false, slug: address.itemSlug }
+				: null
+		},
+		format: collection.format,
+		owner: { collectionSlug, singletonSlug: null },
+		schema: collection.schema,
+	}
+}
+
+/**
+ * The Draft lifecycle for one collection of one project. Every transition is
+ * reported as a typed result — a Revision Conflict is a second tab racing an
+ * autosave, not an exception — so callers map outcomes instead of catching
+ * them (ADR-0001).
+ */
+export function createDrafts(context: DraftsContext) {
+	const {
+		collection,
+		collectionSlug,
+		db,
+		directoryPath,
+		now,
+		project,
+		sourceStore,
+	} = context
+	const lifecycle = createDraftLifecycle({
+		db,
+		entity: collectionEntity({
+			collection,
+			collectionSlug,
+			directoryPath,
+			sourceStore,
+		}),
+		now,
+		project,
+		sourceStore,
+	})
+
+	/**
+	 * The Source a Slug names, or null when this collection holds no such item.
+	 * Matching a Slug against a directory listing is collection-specific — the
+	 * transition below is not.
+	 */
+	async function resolveSource(slug: string): Promise<ResolvedSource | null> {
+		const files = await sourceStore.list(directoryPath)
+		return findCollectionItemBySlug(
+			collection,
+			files.filter(isMarkdownCollectionFile),
+			slug,
+		)
+	}
+
+	async function openNewItem(draftId: string | null): Promise<OpenResult> {
+		if (!draftId) return lifecycle.openBlank()
+		const draft = await lifecycle.findNewItemDraft(draftId)
+		if (!draft) return { code: "not-found", ok: false }
+		return lifecycle.openUnsourcedDraft(draft)
+	}
+
 	/**
 	 * Hand the editor everything it opens with. Opening mints nothing: a new item
 	 * opens on its schema defaults, and an existing item's Draft is reconciled
@@ -715,7 +833,7 @@ export function createDrafts(context: DraftsContext) {
 		if (input.mode === "new") return openNewItem(input.draftId)
 		const source = await resolveSource(input.slug)
 		if (!source) return { code: "not-found", ok: false }
-		return openSource(source)
+		return lifecycle.openSource(source)
 	}
 
 	/**
@@ -732,10 +850,17 @@ export function createDrafts(context: DraftsContext) {
 			markdown: input.markdown,
 		}
 		if (input.mode === "new") {
-			return { ...content, draftId: input.draftId, source: null }
+			return {
+				...content,
+				draftId: input.draftId,
+				source: null,
+				sourcePath: null,
+			}
 		}
 		const source = await resolveSource(input.slug)
-		return source ? { ...content, draftId: null, source } : null
+		return source
+			? { ...content, draftId: null, source, sourcePath: source.path }
+			: null
 	}
 
 	/**
@@ -746,7 +871,7 @@ export function createDrafts(context: DraftsContext) {
 	async function save(input: SaveInput): Promise<SaveResult> {
 		const resolved = await resolveTarget(input)
 		if (!resolved) return { code: "not-found", ok: false }
-		return saveResolved(resolved)
+		return lifecycle.saveResolved(resolved)
 	}
 
 	/**
@@ -757,14 +882,125 @@ export function createDrafts(context: DraftsContext) {
 	async function commit(input: CommitInput): Promise<CommitResult> {
 		const resolved = await resolveTarget(input)
 		if (!resolved) return { code: "not-found", ok: false }
-		return commitResolved(resolved, "commit")
+		return lifecycle.commitResolved(resolved, "commit")
 	}
 
 	/** Commit the Draft, and declare the item published while doing it. */
 	async function publish(input: CommitInput): Promise<CommitResult> {
 		const resolved = await resolveTarget(input)
 		if (!resolved) return { code: "not-found", ok: false }
-		return commitResolved(resolved, "publish")
+		return lifecycle.commitResolved(resolved, "publish")
+	}
+
+	return { commit, open, publish, save }
+}
+
+/**
+ * A Singleton as the lifecycle sees it: one fixed file. It has no Slug to spell
+ * and no other item to land on, so its address is never wrong and never taken.
+ */
+function singletonEntity({
+	filePath,
+	singleton,
+	singletonSlug,
+}: {
+	filePath: string
+	singleton: Singleton
+	singletonSlug: string
+}): DraftEntity<null> {
+	return {
+		address: () => ({ errors: [], itemSlug: null, path: filePath }),
+		collision: async () => null,
+		format: singleton.format,
+		owner: { collectionSlug: null, singletonSlug },
+		schema: singleton.schema,
+	}
+}
+
+/**
+ * The Draft lifecycle for one Singleton of one project. The Draft is keyed by
+ * the Singleton's fixed path from the moment it is minted, whether or not the
+ * Source exists yet — so there is only ever one, and the caller never has to
+ * carry its id.
+ */
+export function createSingletonDrafts(context: SingletonDraftsContext) {
+	const { db, filePath, now, project, singleton, singletonSlug, sourceStore } =
+		context
+	const lifecycle = createDraftLifecycle({
+		db,
+		entity: singletonEntity({ filePath, singleton, singletonSlug }),
+		now,
+		project,
+		sourceStore,
+	})
+
+	/** The Singleton's Source, or null while nobody has created it. */
+	async function resolveSource(): Promise<ResolvedSource | null> {
+		const directory = filePath.slice(0, filePath.lastIndexOf("/"))
+		const files = await sourceStore.list(directory)
+		const file = files.find((candidate) => candidate.path === filePath)
+		if (!file) return null
+		const document = parseDocument(file.content, singleton.format)
+		return {
+			body: document.body ?? "",
+			frontmatter: document.data,
+			itemSlug: null,
+			path: file.path,
+			raw: file.content,
+			sha: file.sha,
+		}
+	}
+
+	/**
+	 * Hand the editor everything it opens with, as `open` does for a Collection
+	 * Item. A Singleton that does not exist yet opens on its Draft when the
+	 * writer has started one, and on its schema defaults when they have not.
+	 */
+	async function open(): Promise<OpenResult> {
+		const source = await resolveSource()
+		if (source) return lifecycle.openSource(source)
+		const draft = await lifecycle.findDraftBySourcePath(filePath)
+		if (draft && isDraftDirty(draft)) return lifecycle.openUnsourcedDraft(draft)
+		// A Clean Draft whose Source was deleted on GitHub holds nothing the
+		// writer typed and has nothing left to be Clean against. Left in place, it
+		// would turn their next save into a Revision Conflict with a Draft they
+		// were never shown.
+		if (draft) await lifecycle.deleteSyncedDraft(draft)
+		return lifecycle.openBlank()
+	}
+
+	/**
+	 * The writer's content against the Singleton as it stands now. A Draft over
+	 * no Source yet is found at the fixed path and stands where a new Collection
+	 * Item's `?draft=` id would, so "nothing to mint" asks the same question of
+	 * both.
+	 */
+	async function resolve(content: DraftContent): Promise<ResolvedSaveInput> {
+		const source = await resolveSource()
+		const draft = source
+			? undefined
+			: await lifecycle.findDraftBySourcePath(filePath)
+		return {
+			...content,
+			draftId: draft?.id ?? null,
+			source,
+			sourcePath: filePath,
+		}
+	}
+
+	/** Persist the writer's content as the Singleton's Draft. */
+	async function save(content: DraftContent): Promise<SaveResult> {
+		return lifecycle.saveResolved(await resolve(content))
+	}
+
+	/** Write the Singleton's Draft to its Source, and nothing else (ADR-0008). */
+	async function commit(content: DraftContent): Promise<CommitResult<null>> {
+		return lifecycle.commitResolved(await resolve(content), "commit")
+	}
+
+	/** Commit the Draft, and declare the Singleton published while doing it. */
+	async function publish(content: DraftContent): Promise<CommitResult<null>> {
+		return lifecycle.commitResolved(await resolve(content), "publish")
 	}
 
 	return { commit, open, publish, save }

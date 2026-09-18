@@ -1,5 +1,6 @@
 import {
 	act,
+	fireEvent,
 	render,
 	renderHook,
 	screen,
@@ -38,6 +39,9 @@ import {
  */
 
 const mocks = vi.hoisted(() => ({
+	persistence: undefined as
+		| { onAutoSave?: (markdown: string) => Promise<void> }
+		| undefined,
 	richTextEditor: vi.fn(),
 }))
 
@@ -48,10 +52,14 @@ vi.mock("@/editor", () => ({
 	EditorWordCount: () => <div data-testid="word-count" />,
 	RichTextEditor: (props: {
 		initialContent?: string
-		persistence?: { onCommit?: (markdown: string) => Promise<void> }
+		persistence?: {
+			onAutoSave?: (markdown: string) => Promise<void>
+			onCommit?: (markdown: string) => Promise<void>
+		}
 		ref?: (api: unknown) => void
 	}) => {
 		mocks.richTextEditor(props.initialContent)
+		mocks.persistence = props.persistence
 		props.ref?.({
 			focus: vi.fn(),
 			getEditor: () => null,
@@ -99,6 +107,7 @@ function editor(
 	mode: "item" | "new" = "item",
 	canPublish = true,
 	preferences: UserPreferenceValues = DEFAULT_USER_PREFERENCES,
+	hasBody = true,
 ) {
 	const setControls = vi.fn()
 	const view = render(
@@ -107,6 +116,7 @@ function editor(
 				<EditorLayoutContext.Provider value={{ setControls }}>
 					<CollectionItemEditor
 						canPublish={canPublish}
+						hasBody={hasBody}
 						mode={mode}
 						name="site"
 						opened={content}
@@ -130,10 +140,15 @@ function lastControls(setControls: ReturnType<typeof vi.fn>) {
 	return published.at(-1)
 }
 
+/** A Singleton whose Format has no Body, so its Fields are the page. */
+const dataOnly = (content: OpenedContent | null = opened({ content: "" })) =>
+	editor(content, "item", false, DEFAULT_USER_PREFERENCES, false)
+
 const title = () => screen.getByLabelText("Title") as HTMLTextAreaElement
 
 beforeEach(() => {
 	mocks.richTextEditor.mockClear()
+	mocks.persistence = undefined
 	vi.stubGlobal("fetch", vi.fn())
 })
 
@@ -370,5 +385,211 @@ describe("what the writer's Preferences change about the editor", () => {
 
 		const open = renderHook(() => usePropertiesPanel())
 		expect(open.result.current.isOpen).toBe(true)
+	})
+})
+
+describe("a data-only Singleton, which has no Body", () => {
+	it("puts its Fields in the writing column with no editor and no panel toggle", () => {
+		const { setControls } = dataOnly()
+
+		expect(screen.queryByTestId("rich-text-editor")).toBeNull()
+		expect(
+			screen.queryByRole("complementary", { name: "Properties" }),
+		).toBeNull()
+		expect(title().value).toBe("Hello world")
+		expect(screen.getByDisplayValue("A summary")).toBeVisible()
+		expect(lastControls(setControls)?.toggleProperties).toBeUndefined()
+	})
+
+	it("autosaves a Field edit as a Draft with no Body, and says it did", async () => {
+		vi.useFakeTimers()
+		vi.mocked(fetch).mockResolvedValue(
+			new Response(
+				JSON.stringify({ draftId: "draft-1", ok: true, revision: 1 }),
+			),
+		)
+		const { setControls } = dataOnly()
+
+		fireEvent.change(title(), { target: { value: "Renamed" } })
+		expect(lastControls(setControls)?.autosaveState.isDirty).toBe(true)
+		expect(fetch).not.toHaveBeenCalled()
+
+		await act(async () => {
+			await vi.advanceTimersByTimeAsync(1000)
+		})
+
+		const [, request] = vi.mocked(fetch).mock.calls[0] ?? []
+		expect(JSON.parse(String(request?.body))).toMatchObject({
+			fields: { title: "Renamed" },
+			intent: "save",
+			markdown: "",
+		})
+		expect(lastControls(setControls)?.autosaveState).toMatchObject({
+			isDirty: false,
+			isSaving: false,
+			lastSavedAt: expect.any(Date),
+		})
+	})
+
+	it("sends the Fields the server last held with each save, so a row editor can tell its row moved", async () => {
+		vi.mocked(fetch).mockImplementation(async () =>
+			Response.json({ draftId: "draft-1", ok: true, revision: 1 }),
+		)
+		const { setControls } = dataOnly()
+		const sentBase = (call: number) =>
+			JSON.parse(String(vi.mocked(fetch).mock.calls[call]?.[1]?.body))
+				.baseFields
+
+		fireEvent.change(title(), { target: { value: "Renamed" } })
+		await act(async () => {
+			await lastControls(setControls)?.save()
+		})
+		fireEvent.change(title(), { target: { value: "Renamed again" } })
+		await act(async () => {
+			await lastControls(setControls)?.save()
+		})
+
+		expect(sentBase(0)).toEqual({
+			slug: "hello",
+			summary: "A summary",
+			title: "Hello world",
+		})
+		expect(sentBase(1)).toMatchObject({ title: "Renamed" })
+	})
+
+	it("sends Save to GitHub with no Body", async () => {
+		vi.mocked(fetch).mockResolvedValue(
+			new Response(JSON.stringify({ draftDeleted: true, ok: true })),
+		)
+		const { setControls } = dataOnly()
+
+		await act(async () => {
+			await lastControls(setControls)?.commit()
+		})
+
+		const [, request] = vi.mocked(fetch).mock.calls[0] ?? []
+		expect(JSON.parse(String(request?.body))).toMatchObject({
+			intent: "commit",
+			markdown: "",
+		})
+	})
+})
+
+describe("an autosave the server refuses", () => {
+	const conflict = () =>
+		Response.json(
+			{ error: "Someone else changed this draft", ok: false },
+			{ status: 409 },
+		)
+	const saved = () =>
+		Response.json({ draftId: "draft-1", ok: true, revision: 2 })
+
+	/** Types into a Field and lets the metadata autosave run, as a writer would. */
+	async function editAField() {
+		fireEvent.change(title(), { target: { value: "Renamed" } })
+		await act(async () => {
+			await vi.advanceTimersByTimeAsync(1000)
+		})
+	}
+
+	beforeEach(() => {
+		vi.useFakeTimers()
+		vi.spyOn(console, "error").mockImplementation(() => {})
+	})
+
+	it("tells the header why a Field's autosave was refused", async () => {
+		vi.mocked(fetch).mockResolvedValue(conflict())
+		const { setControls } = dataOnly()
+
+		await editAField()
+
+		expect(lastControls(setControls)).toMatchObject({
+			autosaveState: { isDirty: true, isSaving: false },
+			saveError: "Someone else changed this draft",
+		})
+	})
+
+	it("tells the header why the Body's autosave was refused", async () => {
+		vi.mocked(fetch).mockResolvedValue(conflict())
+		const { setControls } = editor(opened())
+
+		await act(async () => {
+			await mocks.persistence?.onAutoSave?.("Changed").catch(() => undefined)
+		})
+
+		expect(lastControls(setControls)?.saveError).toBe(
+			"Someone else changed this draft",
+		)
+	})
+
+	it("says the server could not be reached when the request never arrives", async () => {
+		vi.mocked(fetch).mockRejectedValue(new TypeError("Failed to fetch"))
+		const { setControls } = dataOnly()
+
+		await editAField()
+
+		expect(lastControls(setControls)?.saveError).toBe(
+			"Could not reach the server",
+		)
+	})
+
+	it("says the server could not be reached when the answer is cut off", async () => {
+		vi.mocked(fetch).mockResolvedValue({
+			headers: new Headers(),
+			ok: true,
+			text: () => Promise.reject(new TypeError("network error")),
+		} as unknown as Response)
+		const { setControls } = dataOnly()
+
+		await editAField()
+
+		expect(lastControls(setControls)?.saveError).toBe(
+			"Could not reach the server",
+		)
+	})
+
+	it("keeps an error page's markup out of the status line", async () => {
+		vi.mocked(fetch).mockResolvedValue(
+			new Response("<!DOCTYPE html><html><body>Bad gateway</body></html>", {
+				headers: { "Content-Type": "text/html; charset=UTF-8" },
+				status: 502,
+			}),
+		)
+		const { setControls } = dataOnly()
+
+		await editAField()
+
+		expect(lastControls(setControls)?.saveError).toBe(
+			"Could not save the editor draft",
+		)
+	})
+
+	it("still passes on a refusal the server wrote as plain text", async () => {
+		vi.mocked(fetch).mockResolvedValue(
+			new Response("A singleton row has no publish", { status: 400 }),
+		)
+		const { setControls } = dataOnly()
+
+		await editAField()
+
+		expect(lastControls(setControls)?.saveError).toBe(
+			"A singleton row has no publish",
+		)
+	})
+
+	it("stops saying so once a later save goes through", async () => {
+		vi.mocked(fetch)
+			.mockResolvedValueOnce(conflict())
+			.mockResolvedValueOnce(saved())
+		const { setControls } = dataOnly()
+
+		await editAField()
+		expect(lastControls(setControls)?.saveError).not.toBeNull()
+
+		await act(async () => {
+			await lastControls(setControls)?.save()
+		})
+
+		expect(lastControls(setControls)?.saveError).toBeNull()
 	})
 })

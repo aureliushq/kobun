@@ -41,6 +41,12 @@ export type OpenedContent = {
 	dirty: boolean
 }
 
+/** The part of the rich-text editor's ref this component drives. */
+type EditorHandle = Pick<
+	EditorRefApi,
+	"commit" | "focus" | "getEditor" | "hasUnsavedChanges" | "publish" | "save"
+>
+
 const initialAutosaveState: AutosaveState = {
 	isDirty: false,
 	isSaving: false,
@@ -77,7 +83,7 @@ export function usePropertiesPanel() {
 export type PropertiesPanel = ReturnType<typeof usePropertiesPanel>
 
 /**
- * One Collection Item's editor.
+ * One Collection Item's editor, or one Singleton's.
  *
  * `opened` is `null` while the Effective Content is still streaming — one state
  * rather than a document plus a flag, so "loading, with content" cannot be
@@ -93,6 +99,8 @@ export type PropertiesPanel = ReturnType<typeof usePropertiesPanel>
  */
 export function CollectionItemEditor({
 	canPublish,
+	editorPath,
+	hasBody,
 	mode,
 	name,
 	opened,
@@ -102,6 +110,16 @@ export function CollectionItemEditor({
 	schema,
 }: {
 	canPublish: boolean
+	/**
+	 * Where a Singleton's array rows open in their own editors. A Collection
+	 * Item's rows have no editor of their own, so its editor passes none.
+	 */
+	editorPath?: string
+	/**
+	 * Whether the Format has a Body. A data-only one has nothing for a rich-text
+	 * editor to hold, so its Fields take the writing column instead.
+	 */
+	hasBody: boolean
 	mode: "item" | "new"
 	name: string
 	opened: OpenedContent | null
@@ -113,7 +131,7 @@ export function CollectionItemEditor({
 	const pending = opened === null
 	const location = useLocation()
 	const navigate = useNavigate()
-	const editorRef = useRef<EditorRefApi>(null)
+	const editorRef = useRef<EditorHandle>(null)
 	// Pending renders from the schema alone, on the same defaults a brand-new
 	// item opens on: every control then has a real, well-formed, empty state to
 	// be disabled in rather than a value its Field Type never expects.
@@ -136,6 +154,11 @@ export function CollectionItemEditor({
 	// the moment it is sent, so the save behind the minting one carries the id
 	// that save minted instead of the null this render was built on.
 	const draftIdRef = useRef(opened?.draftId ?? null)
+	// The Fields as the server last held them, sent with every mutation. A row
+	// of a Singleton is addressed by its position, which the Revision cannot vouch
+	// for once another session has committed and its Draft is gone; the row
+	// editor checks this against the row that position holds now.
+	const savedFieldsRef = useRef(opened?.fields ?? null)
 	// Whether the repository is behind — the Draft holds bytes the Source does
 	// not. Seeded from what `open` decided, then moved by the answers to the
 	// mutations this component already sends. The header warns a departing
@@ -143,6 +166,9 @@ export function CollectionItemEditor({
 	const [hasUncommittedWork, setHasUncommittedWork] = useState(
 		opened?.dirty ?? false,
 	)
+	// Why the last mutation failed. An autosave's refusal has nobody to throw to
+	// but a console, so the header reads it from here (#159).
+	const [saveError, setSaveError] = useState<string | null>(null)
 	const mutationQueueRef = useRef<Promise<void>>(Promise.resolve())
 	const [autosaveState, setAutosaveState] =
 		useState<AutosaveState>(initialAutosaveState)
@@ -185,7 +211,7 @@ export function CollectionItemEditor({
 		},
 		[location.pathname, location.search, navigate],
 	)
-	const registerEditorRef = useCallback((api: EditorRefApi | null) => {
+	const registerEditorRef = useCallback((api: EditorHandle | null) => {
 		editorRef.current = api
 		setIsEditorReady(api !== null)
 		// The ref alone never re-renders on document changes, so the word count
@@ -199,12 +225,14 @@ export function CollectionItemEditor({
 			const operation = mutationQueueRef.current
 				.catch(() => undefined)
 				.then(async () => {
-					const response = await fetch(
+					setSaveError(null)
+					const { response, responseText } = await fetch(
 						`/api/editor${location.pathname}${location.search}`,
 						{
 							method: "POST",
 							headers: { "Content-Type": "application/json" },
 							body: JSON.stringify({
+								baseFields: savedFieldsRef.current,
 								draftId: draftIdRef.current,
 								expectedRevision: revisionRef.current,
 								intent,
@@ -213,7 +241,16 @@ export function CollectionItemEditor({
 							}),
 						},
 					)
-					const responseText = await response.text()
+						.then(async (response) => ({
+							response,
+							responseText: await response.text(),
+						}))
+						.catch(() => {
+							// Each browser words a dropped request its own way — before
+							// the answer or partway through it — and none of them tells
+							// the writer what happened to their work.
+							throw new Error("Could not reach the server")
+						})
 					let result: {
 						draftDeleted?: boolean
 						draftId?: string | null
@@ -226,11 +263,20 @@ export function CollectionItemEditor({
 					try {
 						result = JSON.parse(responseText) as typeof result
 					} catch {
-						result = { error: responseText || undefined }
+						// A plain-text refusal is written to be read. An error page —
+						// a proxy's, say — is markup for a browser tab, and would fill
+						// the status line with it.
+						const isErrorPage = response.headers
+							.get("Content-Type")
+							?.includes("text/html")
+						result = {
+							error: isErrorPage ? undefined : responseText || undefined,
+						}
 					}
 					if (!response.ok) {
 						throw new Error(result.error ?? "Could not save the editor draft")
 					}
+					savedFieldsRef.current = result.fields ?? fieldsSnapshot
 					if (result.draftDeleted) {
 						draftIdRef.current = null
 						revisionRef.current = null
@@ -279,11 +325,52 @@ export function CollectionItemEditor({
 					if (mode === "new" && draftIdRef.current)
 						await adoptDraftId(draftIdRef.current)
 				})
+				.catch((error: unknown) => {
+					setSaveError(
+						error instanceof Error
+							? error.message
+							: "Could not save the editor draft",
+					)
+					throw error
+				})
 			mutationQueueRef.current = operation.catch(() => undefined)
 			return operation
 		},
 		[adoptDraftId, location.pathname, location.search, mode, navigate],
 	)
+
+	// A data-only Format mounts no rich-text editor to carry saves, so this
+	// stands where its ref would and sends an empty Body. The metadata autosave,
+	// the header's actions and their gates then run exactly as they do over one.
+	const bodilessEditor = useMemo<EditorHandle>(
+		() => ({
+			commit: () => sendAction(EditorActionIntents.COMMIT, ""),
+			focus: () => undefined,
+			getEditor: () => null,
+			hasUnsavedChanges: () => false,
+			publish: () => sendAction(EditorActionIntents.PUBLISH, ""),
+			save: async () => {
+				setAutosaveState((state) => ({ ...state, isSaving: true }))
+				try {
+					await sendAction(EditorActionIntents.SAVE, "")
+					setAutosaveState({
+						isDirty: false,
+						isSaving: false,
+						lastSavedAt: new Date(),
+					})
+				} catch (error) {
+					setAutosaveState((state) => ({ ...state, isSaving: false }))
+					throw error
+				}
+			},
+		}),
+		[sendAction],
+	)
+	useEffect(() => {
+		if (hasBody || pending) return
+		registerEditorRef(bodilessEditor)
+		return () => registerEditorRef(null)
+	}, [bodilessEditor, hasBody, pending, registerEditorRef])
 
 	const updateField = useCallback(
 		(key: string, value: unknown) => {
@@ -354,18 +441,22 @@ export function CollectionItemEditor({
 			// has not persisted yet. A false warning costs a dialogue; a missed one
 			// costs the writer their bearings about what GitHub actually holds.
 			hasUncommittedWork: hasUncommittedWork || combinedAutosaveState.isDirty,
-			isPropertiesOpen,
+			// A data-only Format shows its properties in the writing column, so
+			// there is no panel for the header to toggle.
+			isPropertiesOpen: hasBody ? isPropertiesOpen : undefined,
 			// Absent rather than disabled where the Collection has no `publish`
 			// Feature: the header renders no button at all (ADR-0008).
 			publish: canPublish ? publish : undefined,
 			publishDisabledReason: publishDisabledReason ?? undefined,
 			save,
-			toggleProperties: toggle,
+			saveError,
+			toggleProperties: hasBody ? toggle : undefined,
 		}),
 		[
 			combinedAutosaveState,
 			canPublish,
 			commit,
+			hasBody,
 			hasUncommittedWork,
 			isEditorReady,
 			isPropertiesOpen,
@@ -374,6 +465,7 @@ export function CollectionItemEditor({
 			publish,
 			publishDisabledReason,
 			save,
+			saveError,
 			toggle,
 		],
 	)
@@ -411,7 +503,9 @@ export function CollectionItemEditor({
 	const renderProperty = ([key, field]: [string, ResolvedField]) => (
 		<MetadataField
 			key={key}
+			editorPath={editorPath}
 			field={field}
+			fieldKey={key}
 			value={fields[key]}
 			onChange={(value) => updateField(key, value)}
 			disabled={pending || isCommitting}
@@ -457,7 +551,11 @@ export function CollectionItemEditor({
 						</div>
 					) : null}
 
-					{opened === null ? (
+					{!hasBody ? (
+						// No Body to write, so the Fields are the page: they sit on the
+						// Title's edge, where the editor's text would have started.
+						<div className="flex flex-col gap-6 pl-12">{properties}</div>
+					) : opened === null ? (
 						<EditorBodySkeleton />
 					) : (
 						<RichTextEditor
@@ -472,7 +570,7 @@ export function CollectionItemEditor({
 				</div>
 			</div>
 
-			{preferences.wordCountVisible ? (
+			{hasBody && preferences.wordCountVisible ? (
 				<div className="pointer-events-none absolute bottom-0 left-0 z-10 px-6 py-3">
 					<EditorWordCount
 						editor={editorInstance}
@@ -481,34 +579,36 @@ export function CollectionItemEditor({
 				</div>
 			) : null}
 
-			<aside
-				aria-label="Properties"
-				className={`hidden shrink-0 overflow-hidden bg-muted/10 transition-[width] duration-200 md:flex ${
-					isPropertiesOpen ? "w-80 border-l" : "w-0"
-				}`}
-			>
-				<div className="flex w-80 shrink-0 flex-col">
-					<div className="flex flex-col gap-6 overflow-y-auto px-4 py-6">
-						{properties}
-					</div>
-				</div>
-			</aside>
+			{hasBody ? (
+				<>
+					<aside
+						aria-label="Properties"
+						className={`hidden shrink-0 overflow-hidden bg-muted/10 transition-[width] duration-200 md:flex ${
+							isPropertiesOpen ? "w-80 border-l" : "w-0"
+						}`}
+					>
+						<div className="flex w-80 shrink-0 flex-col">
+							<div className="flex flex-col gap-6 overflow-y-auto px-4 py-6">
+								{properties}
+							</div>
+						</div>
+					</aside>
 
-			{/* Below `md` the aside is display:none, so the same open state drives
+					{/* Below `md` the aside is display:none, so the same open state drives
 			    this Sheet instead — the header's toggle is the only trigger. */}
-			<Sheet open={isMobile && isPropertiesOpen} onOpenChange={setIsOpen}>
-				<SheetContent className="w-full max-w-sm">
-					<SheetHeader>
-						<SheetTitle>Properties</SheetTitle>
-						<SheetDescription>
-							Collection metadata for this item.
-						</SheetDescription>
-					</SheetHeader>
-					<div className="flex flex-col gap-6 overflow-y-auto px-6 pb-6">
-						{properties}
-					</div>
-				</SheetContent>
-			</Sheet>
+					<Sheet open={isMobile && isPropertiesOpen} onOpenChange={setIsOpen}>
+						<SheetContent className="w-full max-w-sm">
+							<SheetHeader>
+								<SheetTitle>Properties</SheetTitle>
+								<SheetDescription>Metadata for this item.</SheetDescription>
+							</SheetHeader>
+							<div className="flex flex-col gap-6 overflow-y-auto px-6 pb-6">
+								{properties}
+							</div>
+						</SheetContent>
+					</Sheet>
+				</>
+			) : null}
 		</div>
 	)
 }

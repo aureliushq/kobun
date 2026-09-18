@@ -29,6 +29,12 @@ export interface EditorLayoutControls {
 	publish?: () => Promise<void>
 	publishDisabledReason?: string
 	save: () => Promise<void>
+	/**
+	 * Why the last request the editor sent failed — an autosave, a Save, Save to
+	 * GitHub or Publish — until the next one starts. Autosave has no one to throw
+	 * to, so this is how the header hears of it.
+	 */
+	saveError: string | null
 	toggleProperties?: () => void
 }
 
