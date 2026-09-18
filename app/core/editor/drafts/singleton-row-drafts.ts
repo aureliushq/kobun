@@ -1,9 +1,14 @@
 import invariant from "tiny-invariant"
-import type { ArrayField, Field } from "@/config/types"
+import type { Field } from "@/config/types"
 import { canonicalMetadata } from "@/core/content"
 import type { OpenedContent } from "@/core/editor/collection-item-editor"
 import type { FieldRecord } from "@/core/editor/collection-metadata"
-import { getCompositeValue, setCompositeValue } from "@/core/fields/composite"
+import {
+	type ArrayRowShape,
+	describeRow,
+	rowValues,
+	withRowValues,
+} from "@/core/fields/composite"
 import type { createSingletonDrafts } from "./create-drafts.server"
 import type { CommitResult, DraftContent, SaveResult } from "./types"
 
@@ -35,10 +40,21 @@ export function createSingletonRowDrafts({
 	schema: Record<string, Field>
 }) {
 	const field = schema[fieldKey]
-	if (field?.type !== "array" || field.items.length === 0) return null
+	if (field?.type !== "array") return null
+	const described = describeRow(field)
+	if (!described) return null
+	/**
+	 * What a row of this array is, described once for the rich panel and this
+	 * editor alike (#164). Annotated rather than inferred: the transitions below
+	 * are hoisted, so the null the guard just ruled out would follow them in.
+	 */
+	const shape: ArrayRowShape = described
 	if (!/^[1-9]\d*$/.test(itemIndex)) return null
 	const index = Number(itemIndex) - 1
-	const arrayField = field
+	/** The Fields one row is made of. */
+	const rowSchema: Record<string, Field> = Object.fromEntries(
+		shape.entries.map((entry): [string, Field] => [entry.key, entry.field]),
+	)
 
 	/** The Singleton as it stands, and the row at this position when there is one. */
 	async function locate() {
@@ -56,7 +72,7 @@ export function createSingletonRowDrafts({
 			content: "",
 			dirty: located.opened.dirty,
 			draftId: located.opened.draftId,
-			fields: rowFields(arrayField, located.row),
+			fields: rowValues(shape, located.row),
 			revision: located.opened.revision,
 		}
 	}
@@ -71,7 +87,7 @@ export function createSingletonRowDrafts({
 		if (
 			!located ||
 			content.baseFields === null ||
-			canonicalMetadata(rowFields(arrayField, located.row)) !==
+			canonicalMetadata(rowValues(shape, located.row)) !==
 				canonicalMetadata(content.baseFields)
 		)
 			return null
@@ -82,7 +98,7 @@ export function createSingletonRowDrafts({
 				...opened.fields,
 				[fieldKey]: rows.map((current, position) =>
 					position === index
-						? withRowFields(arrayField, row, content.fields)
+						? withRowValues(shape, row, content.fields)
 						: current,
 				),
 			},
@@ -110,10 +126,10 @@ export function createSingletonRowDrafts({
 			return committed
 		}
 		const rows = committed.fields[fieldKey] as unknown[]
-		return { ...committed, fields: rowFields(arrayField, rows[index]) }
+		return { ...committed, fields: rowValues(shape, rows[index]) }
 	}
 
-	return { commit, open, save, schema: rowSchema(arrayField) }
+	return { commit, open, save, schema: rowSchema }
 }
 
 /** What the row editor sends: its Fields, and what it last knew of them. */
@@ -127,54 +143,4 @@ export interface RowContent {
 	baseFields: FieldRecord | null
 	expectedRevision: number | null
 	fields: FieldRecord
-}
-
-/**
- * Whether a row is a record of the one declared object's Fields. Otherwise it
- * is the one scalar item's value outright, or a composite of several items —
- * the three shapes `array` renders — and either is edited as one Field per
- * item, keyed by label as a composite row already is.
- */
-function isObjectRow(field: ArrayField) {
-	return field.items.length === 1 && field.items[0].type === "object"
-}
-
-/** The Fields one row is made of. */
-function rowSchema(field: ArrayField): Record<string, Field> {
-	const [sole] = field.items
-	if (field.items.length === 1 && sole.type === "object") return sole.fields
-	return Object.fromEntries(field.items.map((item) => [item.label, item]))
-}
-
-/**
- * One row's value as a record of those Fields. An item the row does not hold is
- * left out rather than set to `undefined`, so the record reads the same once it
- * has crossed the wire as JSON.
- */
-function rowFields(field: ArrayField, row: unknown): FieldRecord {
-	if (isObjectRow(field)) {
-		return row && typeof row === "object" && !Array.isArray(row)
-			? (row as FieldRecord)
-			: {}
-	}
-	const values = field.items.map((item, itemIndex) => [
-		item.label,
-		field.items.length === 1 ? row : getCompositeValue(row, item, itemIndex),
-	])
-	return Object.fromEntries(values.filter(([, value]) => value !== undefined))
-}
-
-/** A row carrying these Fields, in the shape the row was written in. */
-function withRowFields(
-	field: ArrayField,
-	row: unknown,
-	fields: FieldRecord,
-): unknown {
-	if (isObjectRow(field)) return fields
-	if (field.items.length === 1) return fields[field.items[0].label]
-	return field.items.reduce(
-		(next, item, itemIndex) =>
-			setCompositeValue(next, item, itemIndex, fields[item.label]),
-		row,
-	)
 }

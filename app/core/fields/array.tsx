@@ -17,7 +17,12 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/ui/components/base/card"
-import { getCompositeValue, setCompositeValue } from "./composite"
+import {
+	describeRow,
+	getCompositeValue,
+	type RowEntry,
+	setCompositeValue,
+} from "./composite"
 import { FieldRow, FieldsPanel, InlineText, JsonFallback } from "./presentation"
 import { resolveTitle } from "./roles"
 import type {
@@ -122,19 +127,19 @@ function itemLabelFor(field: ArrayField): string {
 	return field.label.endsWith("s") ? field.label.slice(0, -1) : field.label
 }
 
-type CompositeEntry = { key: string; index: number; field: Field }
-
 /**
- * What one row of this array is, and how to read a value out of it. Three
- * shapes, decided once per array rather than once per row.
+ * What the panel needs of a row on top of its shape: what to call it, what
+ * heads it, and how to read one of its values. The shape itself — which of the
+ * three a row is, and what its entries are — is `describeRow`'s answer, so the
+ * split is stated once and the row editor reads the same one (#164).
  */
-type ArrayRowSchema =
+type ArrayRowView =
 	| {
 			kind: "object"
 			itemLabel: string
 			entries: [string, Field][]
-			titleField: { key: string; field: Field } | null
-			getValue: (row: unknown, key: string) => unknown
+			titleField: RowEntry | null
+			getValue: (row: unknown, entry: RowEntry) => unknown
 	  }
 	| {
 			kind: "scalar"
@@ -145,59 +150,65 @@ type ArrayRowSchema =
 	| {
 			kind: "composite"
 			itemLabel: string
-			entries: CompositeEntry[]
-			titleField: { key: string; field: Field } | null
-			getValue: (row: unknown, key: string, index: number) => unknown
+			entries: RowEntry[]
+			titleField: RowEntry | null
+			getValue: (row: unknown, entry: RowEntry) => unknown
 	  }
 
-function describeArrayField(field: ArrayField): ArrayRowSchema | null {
-	const items = field.items
+function describeArrayField(field: ArrayField): ArrayRowView | null {
+	const shape = describeRow(field)
+	if (!shape) return null
 	const itemLabel = itemLabelFor(field)
-	if (items.length === 0) return null
+	const { entries } = shape
 
-	if (items.length === 1) {
-		const sole = items[0]
-		if (sole.type === "object") {
-			const fields = sole.fields
-			return {
-				kind: "object",
-				itemLabel,
-				entries: Object.entries(fields),
-				titleField: resolveTitle(Object.entries(fields)),
-				getValue: (row, key) =>
-					row && typeof row === "object" && !Array.isArray(row)
-						? (row as Record<string, unknown>)[key]
-						: undefined,
-			}
-		}
+	if (shape.kind === "scalar") {
 		return {
 			kind: "scalar",
 			itemLabel,
-			field: sole,
+			field: entries[0].field,
 			getValue: (row) => row,
 		}
 	}
 
-	// A composite row is keyed by item label, so the label doubles as the key —
-	// which makes the title heuristic's two passes the same pass here.
-	const compositeEntries: CompositeEntry[] = items.map((field, index) => ({
-		key: field.label,
-		index,
-		field,
-	}))
+	// Both remaining shapes address a row by its entry's key — a composite row
+	// is keyed by item label, so there the label doubles as the key — which
+	// makes the title heuristic's two passes the same pass here. The entry it
+	// names is kept whole, since reading the value wants its position too.
+	const pairs = entries.map((entry): [string, Field] => [
+		entry.key,
+		entry.field,
+	])
+	const title = resolveTitle(pairs)
+	const titleField = title
+		? (entries.find((entry) => entry.key === title.key) ?? null)
+		: null
+
+	if (shape.kind === "object") {
+		return {
+			kind: "object",
+			itemLabel,
+			entries: pairs,
+			titleField,
+			getValue: (row, entry) =>
+				row && typeof row === "object" && !Array.isArray(row)
+					? (row as Record<string, unknown>)[entry.key]
+					: undefined,
+		}
+	}
+
 	return {
 		kind: "composite",
 		itemLabel,
-		entries: compositeEntries,
-		titleField: resolveTitle(compositeEntries.map((e) => [e.key, e.field])),
+		entries,
+		titleField,
 		// Validation reads a row through `getCompositeValue`, which also accepts a
 		// positional key on a record. The read path never has, and teaching it to
 		// would put a value on the page where a dash is today — a visible change
 		// this refactor is not for.
-		getValue: (row, key, index) => {
-			if (Array.isArray(row)) return row[index]
+		getValue: (row, entry) => {
+			if (Array.isArray(row)) return row[entry.index]
 			if (row && typeof row === "object")
-				return (row as Record<string, unknown>)[key]
+				return (row as Record<string, unknown>)[entry.key]
 			return undefined
 		},
 	}
@@ -205,26 +216,16 @@ function describeArrayField(field: ArrayField): ArrayRowSchema | null {
 
 /** What heads a row: its title-ish Field's value, or the row itself when it is a Scalar. */
 function resolveRowTitle(
-	rowSchema: ArrayRowSchema,
+	rowView: ArrayRowView,
 	row: unknown,
 ): { field: Field; value: unknown } | null {
-	if (rowSchema.kind === "scalar") {
-		return { field: rowSchema.field, value: row }
+	if (rowView.kind === "scalar") {
+		return { field: rowView.field, value: row }
 	}
-	if (rowSchema.kind === "object") {
-		if (!rowSchema.titleField) return null
-		return {
-			field: rowSchema.titleField.field,
-			value: rowSchema.getValue(row, rowSchema.titleField.key),
-		}
-	}
-	if (!rowSchema.titleField) return null
-	const index = rowSchema.entries.findIndex(
-		(entry) => entry.key === rowSchema.titleField?.key,
-	)
+	if (!rowView.titleField) return null
 	return {
-		field: rowSchema.titleField.field,
-		value: rowSchema.getValue(row, rowSchema.titleField.key, index),
+		field: rowView.titleField.field,
+		value: rowView.getValue(row, rowView.titleField),
 	}
 }
 
@@ -252,8 +253,8 @@ function ArraySection({
 	value: unknown
 } & RowRenderers) {
 	const items = Array.isArray(value) ? value : []
-	const rowSchema = describeArrayField(field)
-	if (rowSchema == null) {
+	const rowView = describeArrayField(field)
+	if (rowView == null) {
 		return <JsonFallback value={value} />
 	}
 
@@ -267,7 +268,7 @@ function ArraySection({
 			item={item}
 			renderChild={renderChild}
 			renderChildInline={renderChildInline}
-			rowSchema={rowSchema}
+			rowView={rowView}
 		/>
 	))
 
@@ -335,14 +336,14 @@ function ArrayItemAccordion({
 	item,
 	renderChild,
 	renderChildInline,
-	rowSchema,
+	rowView,
 }: {
 	ctx: RenderContext
 	index: number
 	item: unknown
-	rowSchema: ArrayRowSchema
+	rowView: ArrayRowView
 } & RowRenderers) {
-	const title = resolveRowTitle(rowSchema, item)
+	const title = resolveRowTitle(rowView, item)
 	const isLevel1 = ctx.accordionDepth === 1
 	// Only the outermost array's rows have an editor of their own to link to,
 	// and the editor addresses them from one, not zero.
@@ -364,7 +365,7 @@ function ArrayItemAccordion({
 					<ChevronDown className="size-4 shrink-0 text-muted-foreground transition-transform group-data-panel-open/trigger:rotate-180" />
 					<div className="min-w-0 flex-1 truncate">
 						{title == null || title.value == null || title.value === "" ? (
-							<span>{`${rowSchema.itemLabel} ${index + 1}`}</span>
+							<span>{`${rowView.itemLabel} ${index + 1}`}</span>
 						) : (
 							renderChildInline(title.field, title.value)
 						)}
@@ -387,7 +388,7 @@ function ArrayItemAccordion({
 				<ArrayItemPanel
 					item={item}
 					renderChild={renderChild}
-					rowSchema={rowSchema}
+					rowView={rowView}
 				/>
 			</AccordionContent>
 		</AccordionItem>
@@ -397,29 +398,29 @@ function ArrayItemAccordion({
 function ArrayItemPanel({
 	item,
 	renderChild,
-	rowSchema,
+	rowView,
 }: {
 	item: unknown
 	renderChild: RenderChild
-	rowSchema: ArrayRowSchema
+	rowView: ArrayRowView
 }) {
-	if (rowSchema.kind === "scalar") {
+	if (rowView.kind === "scalar") {
 		return (
 			<div className="pt-2">
 				<dl className="flex flex-col divide-y rounded-lg border">
-					<FieldRow field={rowSchema.field}>
-						{renderChild(rowSchema.field, item)}
+					<FieldRow field={rowView.field}>
+						{renderChild(rowView.field, item)}
 					</FieldRow>
 				</dl>
 			</div>
 		)
 	}
 
-	if (rowSchema.kind === "object") {
+	if (rowView.kind === "object") {
 		return (
 			<div className="pt-2">
 				<FieldsPanel
-					entries={rowSchema.entries}
+					entries={rowView.entries}
 					renderChild={renderChild}
 					value={item}
 				/>
@@ -430,10 +431,10 @@ function ArrayItemPanel({
 	// A composite row is laid out like an object's fields, but its values are
 	// addressed by position as well as by label, so it cannot borrow the panel.
 	type CompositeBlock =
-		| { kind: "fields"; entries: CompositeEntry[] }
-		| { kind: "array"; entry: CompositeEntry }
+		| { kind: "fields"; entries: RowEntry[] }
+		| { kind: "array"; entry: RowEntry }
 	const blocks: CompositeBlock[] = []
-	for (const entry of rowSchema.entries) {
+	for (const entry of rowView.entries) {
 		if (entry.field.type === "array") {
 			blocks.push({ kind: "array", entry })
 		} else {
@@ -454,7 +455,7 @@ function ArrayItemPanel({
 						<Fragment key={`array:${block.entry.key}-${block.entry.index}`}>
 							{renderChild(
 								block.entry.field,
-								rowSchema.getValue(item, block.entry.key, block.entry.index),
+								rowView.getValue(item, block.entry),
 							)}
 						</Fragment>
 					)
@@ -466,10 +467,7 @@ function ArrayItemPanel({
 					>
 						{block.entries.map((entry) => (
 							<FieldRow key={`${entry.key}-${entry.index}`} field={entry.field}>
-								{renderChild(
-									entry.field,
-									rowSchema.getValue(item, entry.key, entry.index),
-								)}
+								{renderChild(entry.field, rowView.getValue(item, entry))}
 							</FieldRow>
 						))}
 					</dl>
