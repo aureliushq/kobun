@@ -505,7 +505,7 @@ describe("an autosave the server refuses", () => {
 
 		expect(lastControls(setControls)).toMatchObject({
 			autosaveState: { isDirty: true, isSaving: false },
-			saveError: "Someone else changed this draft",
+			saveError: { code: null, message: "Someone else changed this draft" },
 		})
 	})
 
@@ -517,7 +517,7 @@ describe("an autosave the server refuses", () => {
 			await mocks.persistence?.onAutoSave?.("Changed").catch(() => undefined)
 		})
 
-		expect(lastControls(setControls)?.saveError).toBe(
+		expect(lastControls(setControls)?.saveError?.message).toBe(
 			"Someone else changed this draft",
 		)
 	})
@@ -528,9 +528,10 @@ describe("an autosave the server refuses", () => {
 
 		await editAField()
 
-		expect(lastControls(setControls)?.saveError).toBe(
-			"Could not reach the server",
-		)
+		expect(lastControls(setControls)?.saveError).toEqual({
+			code: null,
+			message: "Could not reach the server",
+		})
 	})
 
 	it("says the server could not be reached when the answer is cut off", async () => {
@@ -543,9 +544,10 @@ describe("an autosave the server refuses", () => {
 
 		await editAField()
 
-		expect(lastControls(setControls)?.saveError).toBe(
-			"Could not reach the server",
-		)
+		expect(lastControls(setControls)?.saveError).toEqual({
+			code: null,
+			message: "Could not reach the server",
+		})
 	})
 
 	it("keeps an error page's markup out of the status line", async () => {
@@ -559,9 +561,10 @@ describe("an autosave the server refuses", () => {
 
 		await editAField()
 
-		expect(lastControls(setControls)?.saveError).toBe(
-			"Could not save the editor draft",
-		)
+		expect(lastControls(setControls)?.saveError).toEqual({
+			code: null,
+			message: "Could not save the editor draft",
+		})
 	})
 
 	it("still passes on a refusal the server wrote as plain text", async () => {
@@ -572,9 +575,10 @@ describe("an autosave the server refuses", () => {
 
 		await editAField()
 
-		expect(lastControls(setControls)?.saveError).toBe(
-			"A singleton row has no publish",
-		)
+		expect(lastControls(setControls)?.saveError).toEqual({
+			code: null,
+			message: "A singleton row has no publish",
+		})
 	})
 
 	it("stops saying so once a later save goes through", async () => {
@@ -591,5 +595,98 @@ describe("an autosave the server refuses", () => {
 		})
 
 		expect(lastControls(setControls)?.saveError).toBeNull()
+	})
+})
+
+// A Revision Conflict does not clear by retrying: every request after it carries
+// the same stale Revision (#166).
+describe("a Draft another session changed first", () => {
+	const conflict = () =>
+		Response.json(
+			{
+				code: "revision-conflict",
+				error: "Draft changed in another session",
+				ok: false,
+			},
+			{ status: 409 },
+		)
+
+	async function editAField() {
+		fireEvent.change(title(), { target: { value: "Renamed" } })
+		await act(async () => {
+			await vi.advanceTimersByTimeAsync(1000)
+		})
+	}
+
+	beforeEach(() => {
+		vi.useFakeTimers()
+		vi.spyOn(console, "error").mockImplementation(() => {})
+	})
+
+	it("tells the header it was a Revision Conflict, not only what it said", async () => {
+		vi.mocked(fetch).mockResolvedValue(conflict())
+		const { setControls } = dataOnly()
+
+		await editAField()
+
+		expect(lastControls(setControls)?.saveError).toEqual({
+			code: "revision-conflict",
+			message: "Draft changed in another session",
+		})
+	})
+
+	it("holds the editor, so nothing more is typed that cannot be kept", async () => {
+		vi.mocked(fetch).mockResolvedValue(conflict())
+		const { setControls } = dataOnly()
+
+		await editAField()
+
+		expect(title()).toBeDisabled()
+		expect(lastControls(setControls)).toMatchObject({
+			canCommit: false,
+			canPublish: false,
+			canSave: false,
+		})
+	})
+
+	it("sends nothing more to be refused the same way", async () => {
+		vi.mocked(fetch).mockResolvedValue(conflict())
+		const { setControls } = editor(opened())
+
+		await act(async () => {
+			await mocks.persistence?.onAutoSave?.("Changed").catch(() => undefined)
+		})
+		await act(async () => {
+			await mocks.persistence
+				?.onAutoSave?.("Changed again")
+				.catch(() => undefined)
+		})
+
+		expect(fetch).toHaveBeenCalledOnce()
+		expect(lastControls(setControls)?.saveError?.code).toBe("revision-conflict")
+	})
+
+	// A Stale Source refuses the commit, not the Draft: autosave keeps working
+	// while the writer copies or discards it.
+	it("keeps the editor open after a Stale Source", async () => {
+		vi.mocked(fetch).mockResolvedValue(
+			Response.json(
+				{ code: "stale-source", error: "Changed on GitHub", ok: false },
+				{ status: 409 },
+			),
+		)
+		const { setControls } = editor(opened())
+
+		await act(async () => {
+			await lastControls(setControls)
+				?.commit()
+				.catch(() => undefined)
+		})
+
+		expect(lastControls(setControls)).toMatchObject({
+			canCommit: true,
+			canSave: true,
+			saveError: { code: "stale-source", message: "Changed on GitHub" },
+		})
 	})
 })

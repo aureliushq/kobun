@@ -12,6 +12,12 @@ import {
 } from "@/core/editor/collection-metadata"
 import { MetadataField } from "@/core/editor/collection-metadata-fields"
 import { CollectionTitleField } from "@/core/editor/collection-title-field"
+import {
+	EditorActionError,
+	type EditorSaveError,
+	readRefusalCode,
+	toEditorSaveError,
+} from "@/core/editor/editor-action"
 import { usePreferences } from "@/core/preferences/context"
 import {
 	type AutosaveState,
@@ -168,7 +174,12 @@ export function CollectionItemEditor({
 	)
 	// Why the last mutation failed. An autosave's refusal has nobody to throw to
 	// but a console, so the header reads it from here (#159).
-	const [saveError, setSaveError] = useState<string | null>(null)
+	const [saveError, setSaveError] = useState<EditorSaveError | null>(null)
+	// Set by a Revision Conflict. Every request after one carries the same stale
+	// Revision, so none can go through: the editor holds rather than keep the
+	// writer typing into work it cannot keep, and a reload is the way on (#166).
+	const conflictRef = useRef<EditorActionError | null>(null)
+	const [isConflicted, setIsConflicted] = useState(false)
 	const mutationQueueRef = useRef<Promise<void>>(Promise.resolve())
 	const [autosaveState, setAutosaveState] =
 		useState<AutosaveState>(initialAutosaveState)
@@ -225,6 +236,8 @@ export function CollectionItemEditor({
 			const operation = mutationQueueRef.current
 				.catch(() => undefined)
 				.then(async () => {
+					// Refused here rather than sent to be refused again.
+					if (conflictRef.current) throw conflictRef.current
 					setSaveError(null)
 					const { response, responseText } = await fetch(
 						`/api/editor${location.pathname}${location.search}`,
@@ -249,9 +262,10 @@ export function CollectionItemEditor({
 							// Each browser words a dropped request its own way — before
 							// the answer or partway through it — and none of them tells
 							// the writer what happened to their work.
-							throw new Error("Could not reach the server")
+							throw new EditorActionError("Could not reach the server")
 						})
 					let result: {
+						code?: unknown
 						draftDeleted?: boolean
 						draftId?: string | null
 						error?: string
@@ -274,7 +288,10 @@ export function CollectionItemEditor({
 						}
 					}
 					if (!response.ok) {
-						throw new Error(result.error ?? "Could not save the editor draft")
+						throw new EditorActionError(
+							result.error ?? "Could not save the editor draft",
+							readRefusalCode(result.code),
+						)
 					}
 					savedFieldsRef.current = result.fields ?? fieldsSnapshot
 					if (result.draftDeleted) {
@@ -326,10 +343,15 @@ export function CollectionItemEditor({
 						await adoptDraftId(draftIdRef.current)
 				})
 				.catch((error: unknown) => {
+					if (
+						error instanceof EditorActionError &&
+						error.code === "revision-conflict"
+					) {
+						conflictRef.current = error
+						setIsConflicted(true)
+					}
 					setSaveError(
-						error instanceof Error
-							? error.message
-							: "Could not save the editor draft",
+						toEditorSaveError(error, "Could not save the editor draft"),
 					)
 					throw error
 				})
@@ -427,15 +449,18 @@ export function CollectionItemEditor({
 		}),
 		[autosaveState, metadataDirty],
 	)
+	// A commit holds the editor while it runs; a Revision Conflict holds it for
+	// good, since nothing typed after one can be kept.
+	const isHeld = isCommitting || isConflicted
 	// `!pending` is what `isEditorReady` already implies — no editor is mounted
 	// over a placeholder — but neither Save nor Publish may act on a half-loaded
 	// Draft, and that is a property this route states rather than inherits.
 	const controls = useMemo(
 		() => ({
 			autosaveState: combinedAutosaveState,
-			canCommit: !pending && isEditorReady && !isCommitting,
-			canPublish: canPublish && !pending && isEditorReady && !isCommitting,
-			canSave: !pending && isEditorReady && !isCommitting,
+			canCommit: !pending && isEditorReady && !isHeld,
+			canPublish: canPublish && !pending && isEditorReady && !isHeld,
+			canSave: !pending && isEditorReady && !isHeld,
 			commit,
 			// Errs toward warning: a Draft the Source lacks, or keystrokes autosave
 			// has not persisted yet. A false warning costs a dialogue; a missed one
@@ -459,8 +484,8 @@ export function CollectionItemEditor({
 			hasBody,
 			hasUncommittedWork,
 			isEditorReady,
+			isHeld,
 			isPropertiesOpen,
-			isCommitting,
 			pending,
 			publish,
 			publishDisabledReason,
@@ -477,7 +502,7 @@ export function CollectionItemEditor({
 			metadataGeneration === 0 ||
 			!metadataDirty ||
 			!editorRef.current ||
-			isCommitting
+			isHeld
 		)
 			return
 		const timeout = window.setTimeout(() => {
@@ -486,7 +511,7 @@ export function CollectionItemEditor({
 			})
 		}, 1000)
 		return () => window.clearTimeout(timeout)
-	}, [isCommitting, metadataDirty, metadataGeneration, pending])
+	}, [isHeld, metadataDirty, metadataGeneration, pending])
 
 	// Only about bytes D1 does not have yet. Whether the *repository* is behind
 	// is a question about the target the writer chose, and this component
@@ -508,7 +533,7 @@ export function CollectionItemEditor({
 			fieldKey={key}
 			value={fields[key]}
 			onChange={(value) => updateField(key, value)}
-			disabled={pending || isCommitting}
+			disabled={pending || isHeld}
 			assetBaseUrl={assetBaseUrl}
 		/>
 	)
@@ -544,7 +569,7 @@ export function CollectionItemEditor({
 							<CollectionTitleField
 								value={String(fields[titleKey] ?? "")}
 								placeholder={titleField.placeholder}
-								disabled={pending || isCommitting}
+								disabled={pending || isHeld}
 								onChange={(value) => updateField(titleKey, value)}
 								onCommit={() => editorRef.current?.focus("start")}
 							/>
@@ -564,7 +589,7 @@ export function CollectionItemEditor({
 							initialContent={opened.content}
 							onAutosaveStateChange={setAutosaveState}
 							persistence={persistence}
-							readOnly={isCommitting}
+							readOnly={isHeld}
 						/>
 					)}
 				</div>

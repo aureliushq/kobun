@@ -3,6 +3,10 @@ import userEvent from "@testing-library/user-event"
 import { useMemo, useState } from "react"
 import { createRoutesStub } from "react-router"
 import { describe, expect, it, vi } from "vitest"
+import {
+	EditorActionError,
+	type EditorSaveError,
+} from "@/core/editor/editor-action"
 import type { PrimaryEditorAction } from "@/core/editor/primary-action"
 
 import EditorLayout from "./editor"
@@ -97,6 +101,17 @@ function header({
 
 	return render(<Stub initialEntries={["/editor"]} />)
 }
+
+/** A request the server refused, as the editor hands it to the header. */
+const refused = (
+	message: string,
+	code: EditorSaveError["code"] = null,
+): EditorSaveError => ({ code, message })
+
+const CONFLICT = refused(
+	"Draft changed in another session",
+	"revision-conflict",
+)
 
 const primary = () => screen.getByTestId("editor-save-primary")
 const status = () => screen.getByTestId("editor-save-status")
@@ -260,12 +275,12 @@ describe("the status line", () => {
 		header({
 			registered: controls({
 				autosaveState: { isDirty: true, isSaving: false, lastSavedAt: null },
-				saveError: "Someone else changed this draft",
+				saveError: refused("Could not reach the server"),
 			}),
 		})
 
-		const refused = await screen.findByText("Someone else changed this draft")
-		expect(refused).toHaveClass("text-destructive")
+		const status = await screen.findByText("Could not reach the server")
+		expect(status).toHaveClass("text-destructive")
 		expect(screen.queryByText("Draft not saved yet")).not.toBeInTheDocument()
 	})
 
@@ -273,10 +288,10 @@ describe("the status line", () => {
 	// included, so the header's own copy must not outlive the next save.
 	it("stops saying why a Save was refused once the next save starts", async () => {
 		const user = userEvent.setup()
-		let setSaveError: (error: string | null) => void = () => undefined
+		let setSaveError: (error: EditorSaveError | null) => void = () => undefined
 		header({
 			useRegistered: () => {
-				const [saveError, set] = useState<string | null>(null)
+				const [saveError, set] = useState<EditorSaveError | null>(null)
 				setSaveError = set
 				return useMemo(
 					() =>
@@ -287,7 +302,7 @@ describe("the status line", () => {
 								lastSavedAt: null,
 							},
 							save: async () => {
-								set("Someone else changed this draft")
+								set(refused("Someone else changed this draft"))
 								throw new Error("Someone else changed this draft")
 							},
 							saveError,
@@ -304,6 +319,104 @@ describe("the status line", () => {
 		act(() => setSaveError(null))
 
 		expect(status()).toHaveTextContent("Draft not saved yet")
+	})
+})
+
+// A Revision Conflict is a normal outcome, not an error (CONTEXT.md), and a
+// retry cannot clear it: only a reload moves the writer on (#166).
+describe("a Draft another session changed first", () => {
+	const dirty = { isDirty: true, isSaving: false, lastSavedAt: null }
+
+	it("says so without dressing it as a failure", async () => {
+		header({ registered: controls({ saveError: CONFLICT }) })
+
+		const status = await screen.findByText("Draft changed in another session")
+		expect(status).not.toHaveClass("text-destructive")
+		expect(status).not.toHaveClass("text-muted-foreground")
+	})
+
+	it("offers a reload, the one way on", async () => {
+		const user = userEvent.setup()
+		const reload = vi.fn()
+		const location = vi
+			.spyOn(window, "location", "get")
+			.mockReturnValue({ ...window.location, reload })
+		try {
+			header({ registered: controls({ saveError: CONFLICT }) })
+			await screen.findByTestId("editor-body")
+
+			await user.click(screen.getByRole("button", { name: "Reload" }))
+
+			expect(reload).toHaveBeenCalledOnce()
+		} finally {
+			location.mockRestore()
+		}
+	})
+
+	it("offers no reload for a failure a retry may clear", async () => {
+		header({
+			registered: controls({
+				saveError: refused("Could not reach the server"),
+			}),
+		})
+
+		await screen.findByTestId("editor-body")
+		expect(
+			screen.queryByRole("button", { name: "Reload" }),
+		).not.toBeInTheDocument()
+	})
+
+	// The save would be refused the same way, so there is nothing to keep the
+	// writer for: the status line has already said why.
+	it("lets the writer leave without trying to keep what cannot be kept", async () => {
+		const user = userEvent.setup()
+		const save = vi.fn()
+		header({
+			registered: controls({ autosaveState: dirty, save, saveError: CONFLICT }),
+		})
+		await screen.findByTestId("editor-body")
+
+		await user.click(back())
+
+		expect(await screen.findByTestId("collection-page")).toBeInTheDocument()
+		expect(save).not.toHaveBeenCalled()
+	})
+})
+
+// A Stale Source is the same kind of outcome on GitHub's side. The writer acts
+// on it by copying or discarding the Draft, which a reload would not do.
+describe("a Source that changed on GitHub under the Draft", () => {
+	const STALE = refused(
+		"This item changed on GitHub. Copy your draft or discard it before reloading.",
+		"stale-source",
+	)
+
+	it("says so without dressing it as a failure, and offers no reload", async () => {
+		header({ registered: controls({ saveError: STALE }) })
+
+		const status = await screen.findByText(STALE.message)
+		expect(status).not.toHaveClass("text-destructive")
+		expect(
+			screen.queryByRole("button", { name: "Reload" }),
+		).not.toBeInTheDocument()
+	})
+
+	it("reads a clicked Save to GitHub's refusal the same way", async () => {
+		const user = userEvent.setup()
+		header({
+			primaryAction: "commit",
+			registered: controls({
+				commit: async () => {
+					throw new EditorActionError(STALE.message, "stale-source")
+				},
+			}),
+		})
+		await screen.findByTestId("editor-body")
+
+		await user.click(primary())
+
+		const status = await screen.findByText(STALE.message)
+		expect(status).not.toHaveClass("text-destructive")
 	})
 })
 

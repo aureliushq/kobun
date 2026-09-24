@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect } from "react"
+import type { EditorSaveError } from "@/core/editor/editor-action"
 import type { AutosaveState } from "@/editor"
 
 export interface EditorLayoutControls {
@@ -33,8 +34,11 @@ export interface EditorLayoutControls {
 	 * Why the last request the editor sent failed — an autosave, a Save, Save to
 	 * GitHub or Publish — until the next one starts. Autosave has no one to throw
 	 * to, so this is how the header hears of it.
+	 *
+	 * A Revision Conflict is the exception to "until the next one starts": no
+	 * request after it can go through, so the editor holds it until a reload.
 	 */
-	saveError: string | null
+	saveError: EditorSaveError | null
 	toggleProperties?: () => void
 }
 

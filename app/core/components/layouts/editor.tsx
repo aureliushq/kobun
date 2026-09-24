@@ -13,6 +13,10 @@ import {
 	getSingletonEditorPath,
 	getSingletonPath,
 } from "@/core/editor/drafts"
+import {
+	type EditorSaveError,
+	toEditorSaveError,
+} from "@/core/editor/editor-action"
 import { toPrimaryEditorAction } from "@/core/editor/primary-action"
 import { requireCollection, requireSingleton } from "@/core/project-context"
 import { requirePageContext } from "@/core/project-context/project-context.server"
@@ -112,12 +116,12 @@ type EditorAction = "save" | "commit" | "publish"
  * kept Draft — the same misreading, inverted.
  */
 function saveStatusFor(
-	error: string | null,
+	error: EditorSaveError | null,
 	pendingAction: EditorAction | null,
 	controls: EditorLayoutControls | null,
 	hasActed: boolean,
 ) {
-	if (error) return error
+	if (error) return error.message
 	if (pendingAction === "publish") return "Publishing…"
 	if (pendingAction === "commit") return "Saving to GitHub…"
 	if (pendingAction === "save" || controls?.autosaveState.isSaving)
@@ -132,11 +136,21 @@ function saveStatusFor(
 	return ""
 }
 
+/**
+ * Whether a refusal is a normal outcome rather than a failure. A Revision
+ * Conflict is one by definition, and a Stale Source is its counterpart on
+ * GitHub's side: both say the work moved elsewhere, neither says Kobun broke,
+ * so neither is dressed as an error (#166).
+ */
+function isOutcome(error: EditorSaveError | null) {
+	return error?.code === "revision-conflict" || error?.code === "stale-source"
+}
+
 const EditorLayout = ({ loaderData }: Route.ComponentProps) => {
 	const { draftEditorPath, parentLabel, parentPath } = loaderData
 	const [controls, setControls] = useState<EditorLayoutControls | null>(null)
 	const [pendingAction, setPendingAction] = useState<EditorAction | null>(null)
-	const [actionError, setActionError] = useState<string | null>(null)
+	const [actionError, setActionError] = useState<EditorSaveError | null>(null)
 	// Whether this editor session has put the writer's work anywhere yet. The
 	// autosave's own `lastSavedAt` answers it for typing; an action that ran to
 	// completion answers it for a commit or a publish, which never touch it.
@@ -155,9 +169,7 @@ const EditorLayout = ({ loaderData }: Route.ComponentProps) => {
 			await run()
 			setHasActed(true)
 		} catch (error) {
-			setActionError(
-				error instanceof Error ? error.message : "Editor action failed",
-			)
+			setActionError(toEditorSaveError(error, "Editor action failed"))
 		} finally {
 			setPendingAction(null)
 		}
@@ -171,6 +183,9 @@ const EditorLayout = ({ loaderData }: Route.ComponentProps) => {
 		if (saveError === null) setActionError(null)
 	}, [saveError])
 	const statusError = actionError ?? saveError
+	// The editor holds from here on: every request after a Revision Conflict
+	// carries the same stale Revision, so only a reload moves the writer on.
+	const isConflicted = saveError?.code === "revision-conflict"
 
 	const saveStatus = saveStatusFor(
 		statusError,
@@ -191,14 +206,16 @@ const EditorLayout = ({ loaderData }: Route.ComponentProps) => {
 	const hasUnsavedEdits =
 		controls?.autosaveState.isDirty === true ||
 		controls?.autosaveState.isSaving === true
-	// Set when keeping them on the way out failed. Retrying cannot clear a
-	// Revision Conflict, so the writer who has been told and tries again is let
-	// go rather than held on a page they can only escape by reloading.
+	// Set when keeping them on the way out failed. A failure may not recur, so
+	// the writer is held once to be told; after that, or where a Revision
+	// Conflict already said they cannot be kept, they are let go rather than
+	// held on a page they can only escape by reloading.
 	const [couldNotKeepEdits, setCouldNotKeepEdits] = useState(false)
 	useEffect(() => {
 		if (!hasUnsavedEdits) setCouldNotKeepEdits(false)
 	}, [hasUnsavedEdits])
-	const keepsEditsBeforeLeaving = hasUnsavedEdits && !couldNotKeepEdits
+	const keepsEditsBeforeLeaving =
+		hasUnsavedEdits && !couldNotKeepEdits && !isConflicted
 
 	/**
 	 * Two reasons to stop a writer on their way out. Keystrokes autosave has not
@@ -239,9 +256,7 @@ const EditorLayout = ({ loaderData }: Route.ComponentProps) => {
 			if (keepsEditsBeforeLeaving) await controls?.save()
 			blocker.proceed()
 		} catch (error) {
-			setActionError(
-				error instanceof Error ? error.message : "Editor action failed",
-			)
+			setActionError(toEditorSaveError(error, "Editor action failed"))
 			setCouldNotKeepEdits(true)
 			blocker.reset()
 		} finally {
@@ -296,19 +311,38 @@ const EditorLayout = ({ loaderData }: Route.ComponentProps) => {
 						</Link>
 						<span className="truncate font-medium text-sm">{parentLabel}</span>
 					</div>
-					{/* Rendered even when empty, so a screen reader has a stable
-					    region to be told about saves in. */}
-					<span
-						aria-live="polite"
-						className={cn(
-							"justify-self-end truncate text-xs",
-							statusError ? "text-destructive" : "text-muted-foreground",
-						)}
-						data-testid="editor-save-status"
-						title={saveStatus}
-					>
-						{saveStatus}
-					</span>
+					<div className="flex min-w-0 items-center gap-2 justify-self-end">
+						{/* Rendered even when empty, so a screen reader has a stable
+						    region to be told about saves in. */}
+						<span
+							aria-live="polite"
+							className={cn(
+								"truncate text-xs",
+								!statusError
+									? "text-muted-foreground"
+									: isOutcome(statusError)
+										? "text-foreground"
+										: "text-destructive",
+							)}
+							data-testid="editor-save-status"
+							title={saveStatus}
+						>
+							{saveStatus}
+						</span>
+						{/* A reload opens the Draft as the other session left it. What
+						    was typed here since the last save is not in it, which the
+						    editor's own unload guard asks about first. */}
+						{isConflicted ? (
+							<Button
+								type="button"
+								variant="outline"
+								size="sm"
+								onClick={() => window.location.reload()}
+							>
+								Reload
+							</Button>
+						) : null}
+					</div>
 					<div className="flex items-center gap-3">
 						{controls?.toggleProperties ? (
 							<Button
