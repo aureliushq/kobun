@@ -1,5 +1,5 @@
 import { Suspense } from "react"
-import { Await, useParams } from "react-router"
+import { Await } from "react-router"
 import { createCollectionListingCache } from "@/core/editor/collection-listing-cache.server"
 import {
 	type CollectionItem,
@@ -27,6 +27,7 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
 	return {
 		collection,
 		collectionSlug: collection_slug,
+		project: { repoName: name, repoOwnerLogin: owner },
 		// Awaited, though it gates nothing: one indexed read of a table this
 		// request has already resolved the Project of, and awaiting it is what
 		// puts the writer's Drafts on the first paint and keeps them there when
@@ -54,11 +55,7 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
 }
 
 export default function Collection({ loaderData }: Route.ComponentProps) {
-	const { collection, collectionSlug, drafts, items } = loaderData
-	const params = useParams()
-	const owner = params.owner ?? ""
-	const name = params.name ?? ""
-	const editorBase = `/${owner}/${name}/collections/${collectionSlug}/editor`
+	const { collection, collectionSlug, drafts, items, project } = loaderData
 
 	return (
 		// Keyed by the slug, and on the `Suspense` rather than the `Await`.
@@ -72,8 +69,9 @@ export default function Collection({ loaderData }: Route.ComponentProps) {
 			fallback={
 				<CollectionTable
 					collection={collection}
+					collectionSlug={collectionSlug}
 					drafts={drafts}
-					editorBase={editorBase}
+					project={project}
 					listing="pending"
 				/>
 			}
@@ -82,8 +80,9 @@ export default function Collection({ loaderData }: Route.ComponentProps) {
 				errorElement={
 					<CollectionTable
 						collection={collection}
+						collectionSlug={collectionSlug}
 						drafts={drafts}
-						editorBase={editorBase}
+						project={project}
 						listing="unavailable"
 					/>
 				}
@@ -92,8 +91,9 @@ export default function Collection({ loaderData }: Route.ComponentProps) {
 				{(resolved: CollectionItem[]) => (
 					<CollectionTable
 						collection={collection}
+						collectionSlug={collectionSlug}
 						drafts={drafts}
-						editorBase={editorBase}
+						project={project}
 						listing={resolved}
 					/>
 				)}
