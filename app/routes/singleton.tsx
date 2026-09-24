@@ -1,8 +1,12 @@
-import { FileText } from "lucide-react"
+import { and, eq } from "drizzle-orm"
+import { FilePenLine, FileText } from "lucide-react"
 import { Fragment } from "react"
 import { Link, useParams } from "react-router"
-import type { Field } from "@/config/types"
+import type { Field, ResolvedField } from "@/config/types"
 import { parseDocument } from "@/core/content/document.server"
+import { DiscardDraftDialog } from "@/core/editor/discard-draft-dialog"
+import { getSingletonEditorPath } from "@/core/editor/drafts"
+import { dirtyDraftWhere } from "@/core/editor/drafts/dirty-drafts"
 import {
 	findHeuristicTitles,
 	type RenderContext,
@@ -11,7 +15,14 @@ import {
 import { buildFieldBlocks, FieldRow } from "@/core/fields/presentation"
 import { requireSingleton } from "@/core/project-context"
 import { requirePageContext } from "@/core/project-context/project-context.server"
+import { editorDraft } from "@/db/schema/app-schema"
 import { getGithubFileContent } from "@/github/octokit.server"
+import {
+	Alert,
+	AlertAction,
+	AlertDescription,
+	AlertTitle,
+} from "@/ui/components/base/alert"
 import { Button } from "@/ui/components/base/button"
 import {
 	Empty,
@@ -24,15 +35,18 @@ import {
 import { H2 } from "@/ui/components/base/typegraphy"
 import type { Route } from "./+types/singleton"
 
-type SchemaRecord = Record<string, Field>
+type SchemaRecord = Record<string, ResolvedField>
 
 export async function loader({ context, params, request }: Route.LoaderArgs) {
 	const { singleton_slug } = params
 	const ctx = await requirePageContext({ context, params, request })
-	const { env, installationId, name, owner } = ctx
+	const { db, env, installationId, name, owner, projectRow } = ctx
 	const { filePath, singleton } = requireSingleton(ctx, singleton_slug)
 
-	const editorPath = `/${owner}/${name}/singletons/${singleton_slug}/editor`
+	const editorPath = getSingletonEditorPath(
+		{ repoName: name, repoOwnerLogin: owner },
+		singleton_slug,
+	)
 
 	// The catch is only for "this singleton has not been created yet" — a parse
 	// failure must never be mistaken for an absent file, so parsing happens after.
@@ -59,7 +73,19 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
 		? parseDocument(file.content, singleton.format)
 		: null
 
+	// Only a Dirty Draft is worth offering to discard: a Clean one holds nothing
+	// the Source lacks.
+	const draft = await db.query.editorDraft.findFirst({
+		columns: { id: true },
+		where: and(
+			eq(editorDraft.projectId, projectRow.id),
+			eq(editorDraft.singletonSlug, singleton_slug),
+			dirtyDraftWhere(),
+		),
+	})
+
 	return {
+		draftId: draft?.id ?? null,
 		singleton,
 		singletonSlug: singleton_slug,
 		exists: contentDocument !== null,
@@ -73,25 +99,36 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
 ////////////////////// ORDERING //////////////////////
 
 /**
- * Title-ish Fields first, the Body last, everything else in declared order.
+ * Title-ish Fields first, the Body last, everything else in declared order —
+ * and the Managed Fields apart from all of them.
  *
  * Which Fields read as a heading is the Title Role's answer, not the page's;
  * the page only decides that they go on top. It asks for the heuristic tier
  * alone rather than the whole Role: hoisting a Slug's source Field would move
  * a field on a page that has never had it moved. A declared Title, when the
  * config flag lands, will have to be hoisted here too.
+ *
+ * A Managed Field is a fact about the Singleton rather than something the
+ * writer set out to write, so it sits in its own group below everything else,
+ * as it does in the editor (ADR-0005).
  */
-function orderedSchemaEntries(schema: SchemaRecord): [string, Field][] {
+export function orderedSchemaEntries(schema: SchemaRecord): {
+	managed: [string, Field][]
+	ordered: [string, Field][]
+} {
 	const entries = Object.entries(schema)
 	const titleKeys = findHeuristicTitles(entries).map((title) => title.key)
 
 	const titles: [string, Field][] = []
 	const others: [string, Field][] = []
 	const documents: [string, Field][] = []
+	const managed: [string, Field][] = []
 
 	for (const entry of entries) {
 		const [key, field] = entry
-		if (field.type === "document") {
+		if (field.managed) {
+			managed.push(entry)
+		} else if (field.type === "document") {
 			documents.push(entry)
 		} else if (titleKeys.includes(key)) {
 			titles.push(entry)
@@ -102,19 +139,18 @@ function orderedSchemaEntries(schema: SchemaRecord): [string, Field][] {
 
 	// Preserve title key priority order (title before name).
 	titles.sort((a, b) => titleKeys.indexOf(a[0]) - titleKeys.indexOf(b[0]))
-	return [...titles, ...others, ...documents]
+	return { managed, ordered: [...titles, ...others, ...documents] }
 }
 
 ////////////////////// COMPONENT //////////////////////
 
 export default function Singleton({ loaderData }: Route.ComponentProps) {
-	const { singleton, exists, data, body, editorPath } = loaderData
+	const { singleton, exists, data, body, draftId, editorPath } = loaderData
 	const params = useParams()
 	const owner = params.owner ?? ""
 	const name = params.name ?? ""
 
-	const schema = singleton.schema as SchemaRecord
-	const ordered = orderedSchemaEntries(schema)
+	const { managed, ordered } = orderedSchemaEntries(singleton.schema)
 
 	if (!exists) {
 		return (
@@ -122,6 +158,9 @@ export default function Singleton({ loaderData }: Route.ComponentProps) {
 				<div className="flex items-center justify-between gap-4">
 					<H2>{singleton.label}</H2>
 				</div>
+				{draftId ? (
+					<DraftAlert draftId={draftId} owner={owner} name={name} />
+				) : null}
 				<Empty className="border">
 					<EmptyHeader>
 						<EmptyMedia variant="icon">
@@ -167,6 +206,10 @@ export default function Singleton({ loaderData }: Route.ComponentProps) {
 				</Button>
 			</div>
 
+			{draftId ? (
+				<DraftAlert draftId={draftId} owner={owner} name={name} />
+			) : null}
+
 			{blocks.map((block) => {
 				if (block.kind === "array") {
 					// Anything that is not rows is no rows, not a missing value: the
@@ -178,6 +221,10 @@ export default function Singleton({ loaderData }: Route.ComponentProps) {
 								...rootCtx,
 								editorPath,
 								fieldKey: block.key,
+								// These rows are the Source's, but a row's editor opens the
+								// Draft's row at that position, and a Dirty Draft may have
+								// moved them (#161).
+								hideRowEditLinks: draftId !== null,
 							})}
 						</Fragment>
 					)
@@ -213,7 +260,46 @@ export default function Singleton({ loaderData }: Route.ComponentProps) {
 					</FieldRow>
 				</dl>
 			)}
+
+			{managed.length > 0 && (
+				<dl className="flex flex-col divide-y rounded-lg border">
+					{managed.map(([key, field]) => (
+						<FieldRow key={key} field={field}>
+							{renderFieldValue(field, data[key], rootCtx)}
+						</FieldRow>
+					))}
+				</dl>
+			)}
 		</div>
+	)
+}
+
+/**
+ * The writer's Draft, which this page does not show: the editor opens on it, and
+ * this is where it can be thrown away. The discard goes to the dashboard's
+ * action, which already deletes a Draft by id for the writer who owns it.
+ */
+function DraftAlert({
+	draftId,
+	name,
+	owner,
+}: {
+	draftId: string
+	name: string
+	owner: string
+}) {
+	return (
+		<Alert>
+			<FilePenLine />
+			<AlertTitle>Draft not on GitHub</AlertTitle>
+			<AlertDescription>
+				Your draft holds changes the repository doesn&apos;t have yet. The
+				editor opens on them.
+			</AlertDescription>
+			<AlertAction>
+				<DiscardDraftDialog action={`/${owner}/${name}`} draftId={draftId} />
+			</AlertAction>
+		</Alert>
 	)
 }
 

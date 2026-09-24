@@ -1,8 +1,8 @@
 import { eq } from "drizzle-orm"
 import invariant from "tiny-invariant"
 import { expandFeatures } from "@/config/features"
-import { collectionSchema } from "@/config/schema"
-import type { Collection } from "@/config/types"
+import { collectionSchema, singletonSchema } from "@/config/schema"
+import type { Collection, Singleton } from "@/config/types"
 import {
 	editorDraft,
 	githubInstallation,
@@ -10,7 +10,7 @@ import {
 } from "@/db/schema/app-schema"
 import { user } from "@/db/schema/auth-schema"
 import { createInMemoryDb } from "@/db/testing"
-import { createDrafts } from "./create-drafts.server"
+import { createDrafts, createSingletonDrafts } from "./create-drafts.server"
 import type {
 	SourceFile,
 	SourceStore,
@@ -119,7 +119,7 @@ const TEST_SCHEMA = {
  * Managed Fields carry the markers the real ones carry.
  */
 function resolveCollection(authored: unknown): Collection {
-	const { collection, errors } = expandFeatures(
+	const { errors, resolved: collection } = expandFeatures(
 		collectionSchema.parse(authored),
 	)
 	invariant(
@@ -158,14 +158,62 @@ export const TEST_COLLECTION_WITHOUT_PUBLISH: Collection = resolveCollection({
 	schema: TEST_SCHEMA,
 })
 
-export function createDraftsTestHarness(
-	options: {
-		collection?: Collection
-		files?: SourceFile[]
-		/** What the module reads as the current time when it stamps a value. */
-		now?: () => Date
-	} = {},
-): DraftsTestHarness {
+export const TEST_SINGLETON_SLUG = "about"
+export const TEST_SINGLETON_PATH = "content/singletons/about.md"
+
+/** A Singleton as the config layer hands one over, for `resolveCollection`'s reason. */
+function resolveSingleton(authored: unknown): Singleton {
+	const { errors, resolved } = expandFeatures(singletonSchema.parse(authored))
+	invariant(
+		resolved,
+		`the test singleton must expand: ${JSON.stringify(errors)}`,
+	)
+	return resolved
+}
+
+const TEST_SINGLETON_SCHEMA = {
+	content: { label: "Content", type: "document" },
+	title: { label: "Title", type: "text" },
+}
+
+/** A Singleton with a title and a body, and no Slug to derive. */
+export const TEST_SINGLETON: Singleton = resolveSingleton({
+	format: "md",
+	label: "About",
+	schema: TEST_SINGLETON_SCHEMA,
+})
+
+/**
+ * The same Singleton with every Feature on, so its schema carries all four
+ * Managed Fields: `createdAt`, `updatedAt`, `publishedAt` and `status`.
+ */
+export const TEST_SINGLETON_WITH_FEATURES: Singleton = resolveSingleton({
+	features: { publish: true, timestamps: { createdAt: true, updatedAt: true } },
+	format: "md",
+	label: "About",
+	schema: TEST_SINGLETON_SCHEMA,
+})
+
+/** A data-only Singleton: its Source is Data and nothing else. */
+export const TEST_DATA_SINGLETON: Singleton = resolveSingleton({
+	format: "json",
+	label: "Site",
+	schema: { title: { label: "Title", type: "text" } },
+})
+
+export interface SingletonDraftsTestHarness
+	extends Omit<DraftsTestHarness, "drafts"> {
+	drafts: ReturnType<typeof createSingletonDrafts>
+}
+
+/**
+ * The project, the database and the repository every harness stands on, with
+ * `seedDraft` filling in whose Draft a row is.
+ */
+function createHarnessBase(options: {
+	files?: SourceFile[]
+	seedDefaults: Partial<DraftRow>
+}): Omit<DraftsTestHarness, "drafts"> {
 	const { close, db: sqliteDb } = createInMemoryDb()
 	const projectId = "project-1"
 
@@ -210,15 +258,6 @@ export function createDraftsTestHarness(
 	return {
 		close,
 		db,
-		drafts: createDrafts({
-			collection: options.collection ?? TEST_COLLECTION,
-			collectionSlug: TEST_COLLECTION_SLUG,
-			db,
-			directoryPath: TEST_DIRECTORY_PATH,
-			now: options.now,
-			project: { id: projectId },
-			sourceStore,
-		}),
 		projectId,
 		readDraft: (id: string) =>
 			db.query.editorDraft.findFirst({ where: eq(editorDraft.id, id) }),
@@ -226,7 +265,7 @@ export function createDraftsTestHarness(
 			const [row] = sqliteDb
 				.insert(editorDraft)
 				.values({
-					collectionSlug: TEST_COLLECTION_SLUG,
+					...options.seedDefaults,
 					id: `draft-${++drafts}`,
 					markdown: "",
 					projectId,
@@ -238,5 +277,66 @@ export function createDraftsTestHarness(
 			return row
 		},
 		sourceStore,
+	}
+}
+
+export function createDraftsTestHarness(
+	options: {
+		collection?: Collection
+		files?: SourceFile[]
+		/** What the module reads as the current time when it stamps a value. */
+		now?: () => Date
+	} = {},
+): DraftsTestHarness {
+	const base = createHarnessBase({
+		files: options.files,
+		seedDefaults: { collectionSlug: TEST_COLLECTION_SLUG },
+	})
+	return {
+		...base,
+		drafts: createDrafts({
+			collection: options.collection ?? TEST_COLLECTION,
+			collectionSlug: TEST_COLLECTION_SLUG,
+			db: base.db,
+			directoryPath: TEST_DIRECTORY_PATH,
+			now: options.now,
+			project: { id: base.projectId },
+			sourceStore: base.sourceStore,
+		}),
+	}
+}
+
+/**
+ * The same world, driving a Singleton's Drafts. A seeded Draft is the
+ * Singleton's and sits at its fixed path unless the test says otherwise.
+ */
+export function createSingletonDraftsTestHarness(
+	options: {
+		filePath?: string
+		files?: SourceFile[]
+		now?: () => Date
+		singleton?: Singleton
+	} = {},
+): SingletonDraftsTestHarness {
+	const filePath = options.filePath ?? TEST_SINGLETON_PATH
+	const base = createHarnessBase({
+		files: options.files,
+		seedDefaults: {
+			collectionSlug: null,
+			singletonSlug: TEST_SINGLETON_SLUG,
+			sourcePath: filePath,
+		},
+	})
+	return {
+		...base,
+		drafts: createSingletonDrafts({
+			db: base.db,
+			filePath,
+			now: options.now,
+			project: { id: base.projectId },
+			singleton: options.singleton ?? TEST_SINGLETON,
+			singletonSlug: TEST_SINGLETON_SLUG,
+			sourceStore: base.sourceStore,
+		}),
 	}
 }

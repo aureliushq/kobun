@@ -187,12 +187,15 @@ export function renderFieldControl(
 	return entryFor(field).renderControl({
 		...ctx,
 		field,
-		// Only where the next value goes changes on the way down; everything else
-		// a control needs is the same at every depth.
+		// Where the next value goes changes on the way down, and the editor links
+		// belong to the Field the page named, as they do in the rich panel;
+		// everything else a control needs is the same at every depth.
 		renderChild: (child, childValue, childOnChange) => (
 			<ControlRow field={child}>
 				{renderFieldControl(child, childValue, {
 					...ctx,
+					editorPath: undefined,
+					fieldKey: undefined,
 					onChange: childOnChange,
 				})}
 			</ControlRow>
