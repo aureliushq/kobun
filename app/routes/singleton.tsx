@@ -16,7 +16,7 @@ import { buildFieldBlocks, FieldRow } from "@/core/fields/presentation"
 import { requireSingleton } from "@/core/project-context"
 import { requirePageContext } from "@/core/project-context/project-context.server"
 import { editorDraft } from "@/db/schema/app-schema"
-import { getGithubFileContent } from "@/github/octokit.server"
+import { getGithubFileContent, hasStatus } from "@/github/octokit.server"
 import {
 	Alert,
 	AlertAction,
@@ -48,41 +48,33 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
 		singleton_slug,
 	)
 
-	// The catch is only for "this singleton has not been created yet" — a parse
-	// failure must never be mistaken for an absent file, so parsing happens after.
-	let file: Awaited<ReturnType<typeof getGithubFileContent>> | null = null
-	try {
-		file = await getGithubFileContent(
-			env,
-			installationId,
-			owner,
-			name,
-			filePath,
-		)
-	} catch (error) {
-		if (
-			!(error instanceof Error && "status" in error && error.status === 404)
-		) {
-			throw error
-		}
-	}
+	// Neither read needs the other, so they run side by side. The catch is only
+	// for "this singleton has not been created yet" — a parse failure must never
+	// be mistaken for an absent file, so parsing happens after.
+	const [file, draft] = await Promise.all([
+		getGithubFileContent(env, installationId, owner, name, filePath).catch(
+			(error: unknown) => {
+				if (hasStatus(error, 404)) return null
+				throw error
+			},
+		),
+		// Only a Dirty Draft is worth offering to discard: a Clean one holds
+		// nothing the Source lacks.
+		db.query.editorDraft.findFirst({
+			columns: { id: true },
+			where: and(
+				eq(editorDraft.projectId, projectRow.id),
+				eq(editorDraft.singletonSlug, singleton_slug),
+				dirtyDraftWhere(),
+			),
+		}),
+	])
 
 	// A ContentParseError here propagates: a writer must never be handed an empty
 	// editor over a file kobun could not read.
 	const contentDocument = file
 		? parseDocument(file.content, singleton.format)
 		: null
-
-	// Only a Dirty Draft is worth offering to discard: a Clean one holds nothing
-	// the Source lacks.
-	const draft = await db.query.editorDraft.findFirst({
-		columns: { id: true },
-		where: and(
-			eq(editorDraft.projectId, projectRow.id),
-			eq(editorDraft.singletonSlug, singleton_slug),
-			dirtyDraftWhere(),
-		),
-	})
 
 	return {
 		draftId: draft?.id ?? null,
