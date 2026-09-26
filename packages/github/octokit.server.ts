@@ -289,6 +289,44 @@ export async function listGithubDirectoryEntriesConditional(
 }
 
 /**
+ * A file's blob sha, and nothing else — no bytes. Null when the path names no
+ * file: absent, or a directory.
+ *
+ * The cheap half of serving a file conditionally: a sha is content addressed,
+ * so it says whether a copy is current without the download that
+ * `getGithubFileBytes` would cost. GitHub's own ETag cannot answer the same
+ * question — on a private repository the body it is computed over carries a
+ * short-lived download URL, so it moves when the file does not.
+ */
+export async function getGithubFileSha(
+	env: Env,
+	installationId: InstallationID,
+	owner: string,
+	repo: string,
+	path: string,
+	ref = "HEAD",
+): Promise<string | null> {
+	const octokit = getGithubInstallationOctokit(env, installationId)
+
+	const data = await octokit.graphql<{
+		repository: { object: { __typename: string; oid: string } | null } | null
+	}>(
+		`query($owner: String!, $repo: String!, $expression: String!) {
+			repository(owner: $owner, name: $repo) {
+				object(expression: $expression) {
+					__typename
+					oid
+				}
+			}
+		}`,
+		{ owner, repo, expression: `${ref}:${path}` },
+	)
+
+	const object = data.repository?.object
+	return object?.__typename === "Blob" ? object.oid : null
+}
+
+/**
  * Read a single file's raw bytes from a repository.
  * Use for binary content; for text prefer getGithubFileContent.
  */
