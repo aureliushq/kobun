@@ -38,40 +38,71 @@ function getGithubAppPrivateKey(env: Env) {
 }
 
 /**
- * Create an Octokit authenticated as the GitHub App itself.
- * Use for app-level endpoints like GET /app/installations/{id}.
+ * Clients kept for the life of the isolate, one per app and installation.
+ *
+ * `@octokit/auth-app` caches installation tokens inside each client, so a
+ * client built per call mints a fresh token — an extra round trip to GitHub and
+ * an RSA signature — before every request. Keeping the client keeps its token,
+ * which octokit refreshes on its own shortly before GitHub expires it.
+ *
+ * Sharing one across requests grants nothing: whether a user may read through
+ * an installation is answered before any caller asks for its client.
  */
-export function getGithubAppOctokit(env: Env) {
-	return new Octokit({
-		authStrategy: createAppAuth,
-		auth: {
-			appId: env.GITHUB_APP_ID,
-			privateKey: getGithubAppPrivateKey(env),
-		},
-		request: { fetch },
-	})
+const clients = new Map<string, Octokit>()
+
+function cachedClient(key: string, create: () => Octokit) {
+	let client = clients.get(key)
+	if (!client) {
+		client = create()
+		clients.set(key, client)
+	}
+	return client
 }
 
 /**
- * Create an Octokit authenticated as a specific installation.
+ * The Octokit authenticated as the GitHub App itself.
+ * Use for app-level endpoints like GET /app/installations/{id}.
+ */
+export function getGithubAppOctokit(env: Env) {
+	return cachedClient(
+		`app:${env.GITHUB_APP_ID}`,
+		() =>
+			new Octokit({
+				authStrategy: createAppAuth,
+				auth: {
+					appId: env.GITHUB_APP_ID,
+					privateKey: getGithubAppPrivateKey(env),
+				},
+				request: { fetch },
+			}),
+	)
+}
+
+/**
+ * The Octokit authenticated as a specific installation.
  * Use for repo-level endpoints like GET /installation/repositories
  * or GET /repos/{owner}/{repo}/contents/{path}.
  *
- * Octokit automatically mints and caches short-lived installation tokens.
+ * Octokit mints and caches short-lived installation tokens; the client is
+ * reused so that cache outlives a single call.
  */
 export function getGithubInstallationOctokit(
 	env: Env,
 	installationId: InstallationID,
 ) {
-	return new Octokit({
-		authStrategy: createAppAuth,
-		auth: {
-			appId: env.GITHUB_APP_ID,
-			privateKey: getGithubAppPrivateKey(env),
-			installationId: Number(installationId),
-		},
-		request: { fetch },
-	})
+	return cachedClient(
+		`installation:${env.GITHUB_APP_ID}:${installationId}`,
+		() =>
+			new Octokit({
+				authStrategy: createAppAuth,
+				auth: {
+					appId: env.GITHUB_APP_ID,
+					privateKey: getGithubAppPrivateKey(env),
+					installationId: Number(installationId),
+				},
+				request: { fetch },
+			}),
+	)
 }
 
 /**
