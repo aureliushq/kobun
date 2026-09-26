@@ -269,6 +269,18 @@ test("opens an existing Singleton on its Source", async () => {
 	})
 })
 
+test("reads the Singleton's one file rather than listing the directory it sits in", async () => {
+	const { drafts, sourceStore } = setup()
+	putSource()
+	const list = vi.spyOn(sourceStore, "list")
+
+	await drafts.open()
+	await drafts.save(CONTENT)
+	await drafts.commit(CONTENT)
+
+	expect(list).not.toHaveBeenCalled()
+})
+
 test("a save matching the Source needs no draft", async () => {
 	const { db, drafts } = setup()
 	putSource()

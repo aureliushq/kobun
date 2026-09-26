@@ -110,6 +110,47 @@ test("opens an existing item that has no draft", async () => {
 	})
 })
 
+test("opens an item from the file named after its Slug, without listing the directory", async () => {
+	const { drafts, sourceStore } = setup()
+	const list = vi.spyOn(sourceStore, "list")
+
+	const result = await drafts.open({ mode: "item", slug: "hello" })
+
+	expect(result).toMatchObject({ ok: true, source: { path: SOURCE_PATH } })
+	expect(list).not.toHaveBeenCalled()
+})
+
+test("finds an item whose frontmatter Slug differs from its filename", async () => {
+	const { drafts, sourceStore } = setup()
+	const renamed = sourceStore.put({
+		content: "---\ntitle: Greeting\nslug: greeting\n---\nBody",
+		path: `${TEST_DIRECTORY_PATH}/2024-greeting.md`,
+	})
+
+	const result = await drafts.open({ mode: "item", slug: "greeting" })
+
+	expect(result).toMatchObject({
+		ok: true,
+		source: { itemSlug: "greeting", path: renamed.path, sha: renamed.sha },
+	})
+})
+
+test("passes over a file named after the Slug when its frontmatter names another item", async () => {
+	const { drafts, sourceStore } = setup()
+	sourceStore.put({
+		content: "---\ntitle: Other\nslug: other\n---\nBody",
+		path: `${TEST_DIRECTORY_PATH}/greeting.md`,
+	})
+	const owner = sourceStore.put({
+		content: "---\ntitle: Greeting\nslug: greeting\n---\nBody",
+		path: `${TEST_DIRECTORY_PATH}/2024-greeting.md`,
+	})
+
+	const result = await drafts.open({ mode: "item", slug: "greeting" })
+
+	expect(result).toMatchObject({ ok: true, source: { path: owner.path } })
+})
+
 test("shows the draft's content when the draft is dirty", async () => {
 	const { drafts, source } = setup()
 	seedSourceBackedDraft({
