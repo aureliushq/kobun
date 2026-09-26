@@ -805,8 +805,25 @@ export function createDrafts(context: DraftsContext) {
 	 * The Source a Slug names, or null when this collection holds no such item.
 	 * Matching a Slug against a directory listing is collection-specific — the
 	 * transition below is not.
+	 *
+	 * The file named after the Slug is asked for first, since that is where a
+	 * new item lands: one read, where the listing pulls every file in the
+	 * directory and runs on every autosave. Only a file that still answers to
+	 * the Slug is taken; anything else — no such file, or a frontmatter Slug
+	 * that names another item — falls back to the listing. A second file
+	 * claiming the same Slug is not looked for here; Commit's collision check
+	 * still refuses it.
 	 */
 	async function resolveSource(slug: string): Promise<ResolvedSource | null> {
+		const namedPath = `${directoryPath}/${slug}.${collection.format}`
+		const named = await sourceStore.read(namedPath)
+		// The path check keeps a Slug carrying `/` or `..` from reading a file
+		// outside the directory: GitHub answers with the path it normalised.
+		if (named?.path === namedPath && isMarkdownCollectionFile(named)) {
+			const found = findCollectionItemBySlug(collection, [named], slug)
+			if (found) return found
+		}
+
 		const files = await sourceStore.list(directoryPath)
 		return findCollectionItemBySlug(
 			collection,
