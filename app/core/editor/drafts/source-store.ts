@@ -7,6 +7,11 @@
 export interface SourceStore {
 	/** Direct children of `path`; an empty list when the directory is absent. */
 	list(path: string): Promise<SourceFile[]>
+	/**
+	 * One file by its path; null when it is absent. The cheap question when the
+	 * caller already knows which file it wants — `list` pulls every file's bytes.
+	 */
+	read(path: string): Promise<SourceFile | null>
 	write(input: SourceWriteInput): Promise<SourceWriteResult>
 }
 

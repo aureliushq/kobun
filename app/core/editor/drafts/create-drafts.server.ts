@@ -936,9 +936,7 @@ export function createSingletonDrafts(context: SingletonDraftsContext) {
 
 	/** The Singleton's Source, or null while nobody has created it. */
 	async function resolveSource(): Promise<ResolvedSource | null> {
-		const directory = filePath.slice(0, filePath.lastIndexOf("/"))
-		const files = await sourceStore.list(directory)
-		const file = files.find((candidate) => candidate.path === filePath)
+		const file = await sourceStore.read(filePath)
 		if (!file) return null
 		const document = parseDocument(file.content, singleton.format)
 		return {

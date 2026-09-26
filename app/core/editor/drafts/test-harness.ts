@@ -61,6 +61,7 @@ export function createFakeSourceStore(
 					!file.path.slice(path.length + 1).includes("/"),
 			),
 		put,
+		read: async (path: string) => files.get(path) ?? null,
 		setStale: (path: string) => {
 			stale.add(path)
 		},
