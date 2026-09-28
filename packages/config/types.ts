@@ -74,12 +74,16 @@ export type Collection = Omit<AuthoredCollection, "schema"> & {
 	schema: Record<string, ResolvedField>
 }
 
+/** A Singleton exactly as its Config declares it, before Features expand. */
+export type AuthoredSingleton = z.infer<typeof singletonSchema>
+
 /**
- * A Singleton has no resolved form yet: Features are rejected there, so its
- * schema is exactly what its Config declares. Lifting that rejection (#95) is
- * what gives a Singleton Managed Fields to resolve.
+ * A Singleton as the app sees it: the authored Fields plus whatever Managed
+ * Fields its Features contributed, resolved as a Collection's are.
  */
-export type Singleton = z.infer<typeof singletonSchema>
+export type Singleton = Omit<AuthoredSingleton, "schema"> & {
+	schema: Record<string, ResolvedField>
+}
 
 /**
  * How a Source's bytes encode its Content Document: `md`, `mdx`, `json`, or

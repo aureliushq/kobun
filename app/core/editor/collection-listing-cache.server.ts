@@ -358,6 +358,7 @@ export function withListingInvalidation(
 		// Called through rather than handed over, so the wrapped store keeps
 		// whatever receiver its own implementation expects.
 		list: (path) => store.list(path),
+		read: (path) => store.read(path),
 		write: async (input) => {
 			const result = await store.write(input)
 			// Awaited: a publish navigates straight to the Collection page, and the

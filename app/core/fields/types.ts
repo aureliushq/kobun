@@ -71,7 +71,8 @@ export type ValidateChild = (
 /**
  * Where a render is happening: how deep the Field sits, whose repository its
  * assets belong to, and — only ever at the top level — the editor paths an
- * array Container hangs its "Add" and "Edit" links from.
+ * array Container hangs its "Add" and "Edit" links from. A page whose rows may
+ * not be the rows the editor opens hides the "Edit" links.
  *
  * The depths are the dispatcher's to enforce — an entry never checks one
  * against a limit. `array` reads its own accordion depth for a different
@@ -83,6 +84,7 @@ export type RenderContext = {
 	depth: number
 	editorPath?: string
 	fieldKey?: string
+	hideRowEditLinks?: boolean
 	name: string
 	owner: string
 }
@@ -137,13 +139,19 @@ export type RenderInlineContext<F extends ValueField> = {
 /**
  * Everything an editable Field needs that is neither the Field nor its value:
  * where its asset lives, how to default a new one, how to change a record,
- * whether the form is locked, and where its next value goes. Descending changes
- * only the last of them.
+ * whether the form is locked, where its rows are edited, and where its next
+ * value goes. Descending drops the editor paths and changes the next value.
  */
 export type ControlContext = {
 	assetBaseUrl?: string
 	defaultForField: DefaultForField
 	disabled?: boolean
+	/**
+	 * Where a top-level array's rows are edited on their own page, as in
+	 * `RenderContext`. Only a Singleton's editor has one to hand down.
+	 */
+	editorPath?: string
+	fieldKey?: string
 	onChange(value: unknown): void
 	updateForSchema: UpdateForSchema
 }

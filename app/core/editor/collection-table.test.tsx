@@ -39,7 +39,7 @@ const POSTS = { label: "Posts", schema: SCHEMA } as unknown as Collection
  * writer's Config would produce rather than a lookalike.
  */
 const PUBLISHING_POSTS: Collection = (() => {
-	const { collection } = expandFeatures(
+	const { resolved: collection } = expandFeatures(
 		collectionSchema.parse({
 			features: { publish: true },
 			format: "md",

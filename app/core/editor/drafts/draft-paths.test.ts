@@ -3,6 +3,8 @@ import {
 	getCollectionPath,
 	getDraftEditorPath,
 	getNewItemEditorPath,
+	getSingletonEditorPath,
+	getSingletonPath,
 	isDraftAdoptionNavigation,
 } from "./draft-paths"
 
@@ -45,6 +47,18 @@ test("addresses the collection a draft belongs to", () => {
 test("addresses a new item before any draft names it", () => {
 	expect(getNewItemEditorPath(PROJECT, "posts")).toBe(
 		"/acme/website/collections/posts/editor/new",
+	)
+})
+
+test("addresses a singleton's own page", () => {
+	expect(getSingletonPath(PROJECT, "home")).toBe(
+		"/acme/website/singletons/home",
+	)
+})
+
+test("addresses the editor a singleton is written in", () => {
+	expect(getSingletonEditorPath(PROJECT, "home")).toBe(
+		"/acme/website/singletons/home/editor",
 	)
 })
 

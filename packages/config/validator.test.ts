@@ -92,32 +92,63 @@ describe("a Field colliding with a Feature", () => {
 })
 
 describe("features on a Singleton", () => {
-	const rejected = () =>
-		parse({
+	const ABOUT = {
+		format: "md",
+		label: "About",
+		schema: { content: { label: "Content", type: "document" } },
+	}
+
+	it("puts the Feature's Fields into the resolved schema", () => {
+		const { config, errors } = parse({
 			collections: { posts: POSTS },
 			singletons: {
 				about: {
-					features: { publish: true },
-					format: "md",
-					label: "About",
-					schema: { content: { label: "Content", type: "document" } },
+					...ABOUT,
+					features: { publish: true, timestamps: { createdAt: true } },
 				},
 			},
 		})
 
-	it("is a config error explaining it is not supported there", () => {
-		const { errors } = rejected()
-
-		expect(errors).toHaveLength(1)
-		expect(errors[0].path).toBe("singletons.about.features")
-		expect(errors[0].message).toContain("not supported on Singletons")
+		expect(errors).toEqual([])
+		expect(config?.singletons?.about.schema).toMatchObject({
+			content: { label: "Content", type: "document" },
+			createdAt: { label: "Created", managed: true, type: "datetime" },
+			publishedAt: { label: "Published", managed: true, type: "datetime" },
+			status: { label: "Status", managed: true, type: "select" },
+		})
 	})
 
-	it("leaves the rest of the Config loading", () => {
-		const { config } = rejected()
+	describe("with a Field colliding with a Feature", () => {
+		const collision = () =>
+			parse({
+				collections: { posts: POSTS },
+				singletons: {
+					about: {
+						...ABOUT,
+						features: { timestamps: { createdAt: true } },
+						schema: {
+							...ABOUT.schema,
+							createdAt: { label: "Written on", type: "date" },
+						},
+					},
+					site: { ...ABOUT, label: "Site" },
+				},
+			})
 
-		expect(Object.keys(config?.singletons ?? {})).toEqual([])
-		expect(Object.keys(config?.collections ?? {})).toEqual(["posts"])
+		it("reports an error scoped to the Singleton that has it", () => {
+			const { errors } = collision()
+
+			expect(errors).toHaveLength(1)
+			expect(errors[0].path).toBe("singletons.about.schema.createdAt")
+			expect(errors[0].message).toContain("timestamps.createdAt")
+		})
+
+		it("still loads the rest of the Config", () => {
+			const { config } = collision()
+
+			expect(Object.keys(config?.singletons ?? {})).toEqual(["site"])
+			expect(Object.keys(config?.collections ?? {})).toEqual(["posts"])
+		})
 	})
 })
 

@@ -1,4 +1,4 @@
-/** Where a collection and its editor live, for one project. */
+/** Where an entity and its editor live, for one project. */
 export interface ProjectLocation {
 	repoName: string
 	repoOwnerLogin: string
@@ -18,6 +18,26 @@ export function getCollectionPath(
 	collectionSlug: string,
 ) {
 	return `/${project.repoOwnerLogin}/${project.repoName}/collections/${collectionSlug}`
+}
+
+/** The Singleton's own page: the one document it holds. */
+export function getSingletonPath(
+	project: ProjectLocation,
+	singletonSlug: string,
+) {
+	return `/${project.repoOwnerLogin}/${project.repoName}/singletons/${singletonSlug}`
+}
+
+/**
+ * Where a Singleton is edited, and where its array rows open their own editors
+ * beneath. A Collection's equivalent stays private to this module, but this one
+ * is exported: a Singleton's own page links straight to its editor.
+ */
+export function getSingletonEditorPath(
+	project: ProjectLocation,
+	singletonSlug: string,
+) {
+	return `${getSingletonPath(project, singletonSlug)}/editor`
 }
 
 function collectionEditorPath(

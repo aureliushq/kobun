@@ -1,8 +1,22 @@
 import { ChevronLeft, PanelRightClose, PanelRightOpen } from "lucide-react"
-import { useCallback, useMemo, useState } from "react"
+import {
+	useCallback,
+	useEffect,
+	useEffectEvent,
+	useMemo,
+	useState,
+} from "react"
 import { Link, Outlet, useBeforeUnload, useBlocker } from "react-router"
 import invariant from "tiny-invariant"
-import { getCollectionPath } from "@/core/editor/drafts"
+import {
+	getCollectionPath,
+	getSingletonEditorPath,
+	getSingletonPath,
+} from "@/core/editor/drafts"
+import {
+	type EditorSaveError,
+	toEditorSaveError,
+} from "@/core/editor/editor-action"
 import { toPrimaryEditorAction } from "@/core/editor/primary-action"
 import { requireCollection, requireSingleton } from "@/core/project-context"
 import { requirePageContext } from "@/core/project-context/project-context.server"
@@ -34,7 +48,7 @@ import { usePrimaryEditorAction } from "./use-primary-editor-action"
  * it turned out not to have.
  */
 export async function loader({ context, params, request }: Route.LoaderArgs) {
-	const { collection_slug, name, owner, singleton_slug } = params
+	const { collection_slug, field_key, name, owner, singleton_slug } = params
 	const ctx = await requirePageContext({ context, params, request })
 	// Which target the split control's primary button runs, keyed by the writer
 	// `requirePageContext` already resolved — so the choice follows them to
@@ -52,9 +66,16 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
 
 	if (singleton_slug) {
 		const { singleton } = requireSingleton(ctx, singleton_slug)
+		const project = { repoName: name, repoOwnerLogin: owner }
+		const singletonPath = getSingletonPath(project, singleton_slug)
+		const editorPath = getSingletonEditorPath(project, singleton_slug)
 		return {
+			// The Singleton's editor and its rows' editors all edit its one Draft,
+			// so moving between them leaves nothing behind (#94).
+			draftEditorPath: editorPath,
 			parentLabel: singleton.label,
-			parentPath: `/${owner}/${name}/singletons/${singleton_slug}`,
+			// A row goes back to the Singleton it is part of.
+			parentPath: field_key ? editorPath : singletonPath,
 			primaryAction,
 		}
 	}
@@ -64,6 +85,7 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
 	const { collection } = requireCollection(ctx, collection_slug)
 
 	return {
+		draftEditorPath: null,
 		parentLabel: collection.label,
 		parentPath: getCollectionPath(
 			{ repoName: name, repoOwnerLogin: owner },
@@ -94,12 +116,12 @@ type EditorAction = "save" | "commit" | "publish"
  * kept Draft — the same misreading, inverted.
  */
 function saveStatusFor(
-	actionError: string | null,
+	error: EditorSaveError | null,
 	pendingAction: EditorAction | null,
 	controls: EditorLayoutControls | null,
 	hasActed: boolean,
 ) {
-	if (actionError) return actionError
+	if (error) return error.message
 	if (pendingAction === "publish") return "Publishing…"
 	if (pendingAction === "commit") return "Saving to GitHub…"
 	if (pendingAction === "save" || controls?.autosaveState.isSaving)
@@ -114,11 +136,21 @@ function saveStatusFor(
 	return ""
 }
 
+/**
+ * Whether a refusal is a normal outcome rather than a failure. A Revision
+ * Conflict is one by definition, and a Stale Source is its counterpart on
+ * GitHub's side: both say the work moved elsewhere, neither says Kobun broke,
+ * so neither is dressed as an error (#166).
+ */
+function isOutcome(error: EditorSaveError | null) {
+	return error?.code === "revision-conflict" || error?.code === "stale-source"
+}
+
 const EditorLayout = ({ loaderData }: Route.ComponentProps) => {
-	const { parentLabel, parentPath } = loaderData
+	const { draftEditorPath, parentLabel, parentPath } = loaderData
 	const [controls, setControls] = useState<EditorLayoutControls | null>(null)
 	const [pendingAction, setPendingAction] = useState<EditorAction | null>(null)
-	const [actionError, setActionError] = useState<string | null>(null)
+	const [actionError, setActionError] = useState<EditorSaveError | null>(null)
 	// Whether this editor session has put the writer's work anywhere yet. The
 	// autosave's own `lastSavedAt` answers it for typing; an action that ran to
 	// completion answers it for a commit or a publish, which never touch it.
@@ -137,16 +169,26 @@ const EditorLayout = ({ loaderData }: Route.ComponentProps) => {
 			await run()
 			setHasActed(true)
 		} catch (error) {
-			setActionError(
-				error instanceof Error ? error.message : "Editor action failed",
-			)
+			setActionError(toEditorSaveError(error, "Editor action failed"))
 		} finally {
 			setPendingAction(null)
 		}
 	}
 
+	// A request the editor sent that failed, clicked or autosaved, is its to
+	// report; the header's own is for what never got that far. It goes once
+	// the next save starts, or it would outlive the save that fixed it (#159).
+	const saveError = controls?.saveError ?? null
+	useEffect(() => {
+		if (saveError === null) setActionError(null)
+	}, [saveError])
+	const statusError = actionError ?? saveError
+	// The editor holds from here on: every request after a Revision Conflict
+	// carries the same stale Revision, so only a reload moves the writer on.
+	const isConflicted = saveError?.code === "revision-conflict"
+
 	const saveStatus = saveStatusFor(
-		actionError,
+		statusError,
 		pendingAction,
 		controls,
 		hasActed,
@@ -160,10 +202,28 @@ const EditorLayout = ({ loaderData }: Route.ComponentProps) => {
 	const leavingWouldStrand =
 		primaryAction === "commit" && controls?.hasUncommittedWork === true
 
+	/** Keystrokes D1 does not have yet, whatever target the writer chose. */
+	const hasUnsavedEdits =
+		controls?.autosaveState.isDirty === true ||
+		controls?.autosaveState.isSaving === true
+	// Set when keeping them on the way out failed. A failure may not recur, so
+	// the writer is held once to be told; after that, or where a Revision
+	// Conflict already said they cannot be kept, they are let go rather than
+	// held on a page they can only escape by reloading.
+	const [couldNotKeepEdits, setCouldNotKeepEdits] = useState(false)
+	useEffect(() => {
+		if (!hasUnsavedEdits) setCouldNotKeepEdits(false)
+	}, [hasUnsavedEdits])
+	const keepsEditsBeforeLeaving =
+		hasUnsavedEdits && !couldNotKeepEdits && !isConflicted
+
 	/**
-	 * A writer who chose Save to GitHub asked for the repository to be where
-	 * their work is. Leaving with it behind is worth stopping for — the Draft is
-	 * safe in D1, but that is not what they asked for (ADR-0008).
+	 * Two reasons to stop a writer on their way out. Keystrokes autosave has not
+	 * kept are saved first, so the page they are going to reads the Draft with
+	 * them in it rather than racing the save an unmount would send. And a writer
+	 * who chose Save to GitHub asked for the repository to be where their work
+	 * is: leaving with it behind is worth a warning — the Draft is safe in D1,
+	 * but that is not what they asked for (ADR-0008).
 	 *
 	 * Two guards, both load-bearing. Comparing pathnames lets the `?draft=`
 	 * adoption through, which is a search-only replace and not a writer walking
@@ -173,10 +233,40 @@ const EditorLayout = ({ loaderData }: Route.ComponentProps) => {
 	 */
 	const blocker = useBlocker(
 		({ currentLocation, nextLocation }) =>
-			leavingWouldStrand &&
+			(leavingWouldStrand || keepsEditsBeforeLeaving) &&
 			pendingAction === null &&
 			currentLocation.pathname !== nextLocation.pathname,
 	)
+
+	// A page that edits the same Draft leaves nothing behind in the repository
+	// that staying would not.
+	const staysOnDraft =
+		draftEditorPath !== null &&
+		blocker.location !== undefined &&
+		(blocker.location.pathname === draftEditorPath ||
+			blocker.location.pathname.startsWith(`${draftEditorPath}/`))
+	const warnsBeforeLeaving =
+		blocker.state === "blocked" && leavingWouldStrand && !staysOnDraft
+
+	const [isLeaving, setIsLeaving] = useState(false)
+	const leave = async () => {
+		if (blocker.state !== "blocked" || isLeaving) return
+		setIsLeaving(true)
+		try {
+			if (keepsEditsBeforeLeaving) await controls?.save()
+			blocker.proceed()
+		} catch (error) {
+			setActionError(toEditorSaveError(error, "Editor action failed"))
+			setCouldNotKeepEdits(true)
+			blocker.reset()
+		} finally {
+			setIsLeaving(false)
+		}
+	}
+	const leaveUnwarned = useEffectEvent(() => void leave())
+	useEffect(() => {
+		if (blocker.state === "blocked" && !warnsBeforeLeaving) leaveUnwarned()
+	}, [blocker.state, warnsBeforeLeaving])
 
 	// Closing the tab is leaving too. The browser's own dialogue carries no
 	// message, which is why the blocker above exists; this is only the half that
@@ -221,19 +311,38 @@ const EditorLayout = ({ loaderData }: Route.ComponentProps) => {
 						</Link>
 						<span className="truncate font-medium text-sm">{parentLabel}</span>
 					</div>
-					{/* Rendered even when empty, so a screen reader has a stable
-					    region to be told about saves in. */}
-					<span
-						aria-live="polite"
-						className={cn(
-							"justify-self-end truncate text-xs",
-							actionError ? "text-destructive" : "text-muted-foreground",
-						)}
-						data-testid="editor-save-status"
-						title={saveStatus}
-					>
-						{saveStatus}
-					</span>
+					<div className="flex min-w-0 items-center gap-2 justify-self-end">
+						{/* Rendered even when empty, so a screen reader has a stable
+						    region to be told about saves in. */}
+						<span
+							aria-live="polite"
+							className={cn(
+								"truncate text-xs",
+								!statusError
+									? "text-muted-foreground"
+									: isOutcome(statusError)
+										? "text-foreground"
+										: "text-destructive",
+							)}
+							data-testid="editor-save-status"
+							title={saveStatus}
+						>
+							{saveStatus}
+						</span>
+						{/* A reload opens the Draft as the other session left it. What
+						    was typed here since the last save is not in it, which the
+						    editor's own unload guard asks about first. */}
+						{isConflicted ? (
+							<Button
+								type="button"
+								variant="outline"
+								size="sm"
+								onClick={() => window.location.reload()}
+							>
+								Reload
+							</Button>
+						) : null}
+					</div>
 					<div className="flex items-center gap-3">
 						{controls?.toggleProperties ? (
 							<Button
@@ -286,7 +395,7 @@ const EditorLayout = ({ loaderData }: Route.ComponentProps) => {
 				</section>
 			</main>
 			<AlertDialog
-				open={blocker.state === "blocked"}
+				open={warnsBeforeLeaving}
 				onOpenChange={(open) => {
 					if (!open) blocker.reset?.()
 				}}
@@ -304,7 +413,10 @@ const EditorLayout = ({ loaderData }: Route.ComponentProps) => {
 						<AlertDialogCancel onClick={() => blocker.reset?.()}>
 							Stay
 						</AlertDialogCancel>
-						<AlertDialogAction onClick={() => blocker.proceed?.()}>
+						<AlertDialogAction
+							disabled={isLeaving}
+							onClick={() => void leave()}
+						>
 							Leave anyway
 						</AlertDialogAction>
 					</AlertDialogFooter>

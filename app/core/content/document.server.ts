@@ -43,7 +43,7 @@ const DATA_CODECS = {
 
 type DataOnlyFormat = keyof typeof DATA_CODECS
 
-function isDataOnly(format: Format): format is DataOnlyFormat {
+export function isDataOnly(format: Format): format is DataOnlyFormat {
 	return format in DATA_CODECS
 }
 

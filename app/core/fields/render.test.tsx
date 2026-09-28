@@ -314,11 +314,11 @@ describe("the rich panel over an array at the top level", () => {
 		})
 	}
 
-	it("heads a card with the array's label and an Add link for its item", () => {
+	it("heads a card with the array's label and a link to add in the editor", () => {
 		const { container } = renderSections([{ title: "Intro" }])
 		expect(container).toHaveTextContent("Sections")
-		const add = screen.getByRole("link", { name: "Add Section" })
-		expect(add).toHaveAttribute("href", `${EDITOR_PATH}/sections/new`)
+		const add = screen.getByRole("link", { name: "Add in editor" })
+		expect(add).toHaveAttribute("href", EDITOR_PATH)
 	})
 
 	it("gives each row a numbered trigger titled by its title-ish field", () => {
@@ -397,7 +397,9 @@ describe("the rich panel over an array of one scalar item", () => {
 			fieldKey: "links",
 		})
 		expect(screen.getByRole("button")).toHaveTextContent("https://kobun.io")
-		expect(screen.getByRole("link", { name: "Add Link" })).toBeInTheDocument()
+		expect(
+			screen.getByRole("link", { name: "Add in editor" }),
+		).toBeInTheDocument()
 	})
 })
 

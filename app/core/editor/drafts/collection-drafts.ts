@@ -61,7 +61,7 @@ export async function listCollectionDrafts(
 		createdAt: draft.createdAt.getTime(),
 		data: draftData(draft.metadata) ?? {},
 		heading: draftHeading(draft, collection),
-		href: getDraftEditorPath(draft, project),
+		href: getDraftEditorPath({ ...draft, collectionSlug }, project),
 		id: draft.id,
 		committedRevision: draft.committedRevision,
 		revision: draft.revision,

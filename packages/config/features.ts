@@ -1,16 +1,15 @@
 import type z from "zod"
 import { fieldSchema } from "./schema"
 import type {
-	AuthoredCollection,
-	Collection,
 	ConfigError,
 	Features,
+	Field,
 	ManagedField,
 	ResolvedField,
 } from "./types"
 
 /**
- * A Field a Feature contributes to the Collections that enable it.
+ * A Field a Feature contributes to the Collections and Singletons that enable it.
  *
  * `flag` is how the Feature is named back to the writer when their own Field
  * collides with this one — the config path they would edit, not a prose name.
@@ -108,35 +107,53 @@ export const managedFieldsFor = (
 	Object.fromEntries(enabledBy(features).map(({ field, key }) => [key, field]))
 
 /**
- * A Collection's authored schema plus the Fields its Features contribute.
+ * An authored Collection or Singleton plus the Fields its Features contribute.
  *
  * A declared Field whose key a Feature also provides is an error rather than
  * either silent resolution: letting the Field win makes the Feature quietly do
  * nothing, and letting the Feature win makes the writer's Field — its type, its
  * label, its options — quietly vanish from the editor (ADR-0005). Paths are
- * relative to the Collection; the caller scopes them to its key.
+ * relative to the entry; the caller scopes them to its key.
  */
-export const expandFeatures = (
-	collection: AuthoredCollection,
-): { collection: Collection | null; errors: ConfigError[] } => {
-	const errors = enabledBy(collection.features)
-		.filter(({ key }) => key in collection.schema)
+export const expandFeatures = <
+	Authored extends { features?: Features; schema: Record<string, Field> },
+>(
+	authored: Authored,
+): {
+	errors: ConfigError[]
+	resolved:
+		| (Omit<Authored, "schema"> & { schema: Record<string, ResolvedField> })
+		| null
+} => {
+	const errors = enabledBy(authored.features)
+		.filter(({ key }) => key in authored.schema)
 		.map(({ flag, key }) => ({
 			code: "feature_field_collision",
 			message: `Field "${key}" collides with the "${flag}" feature, which provides it. Remove the field or turn the feature off.`,
 			path: `schema.${key}`,
 		}))
 
-	if (errors.length > 0) return { collection: null, errors }
+	if (errors.length > 0) return { errors, resolved: null }
 
 	return {
-		collection: {
-			...collection,
+		errors: [],
+		resolved: {
+			...authored,
 			schema: {
-				...collection.schema,
-				...managedFieldsFor(collection.features),
+				...authored.schema,
+				...managedFieldsFor(authored.features),
 			},
 		},
-		errors: [],
 	}
 }
+
+/**
+ * Whether a resolved schema has a Publication State for Publish to declare.
+ *
+ * Asked of the resolved schema rather than of the `features` block: Features
+ * expand into Managed Fields once, and consumers see plain Fields and need no
+ * knowledge that Features exist (ADR-0005). The `status` Field is the whole of
+ * what Publish writes, so its presence is the question.
+ */
+export const hasPublicationState = (schema: Record<string, ResolvedField>) =>
+	managedField(schema, "status") !== null

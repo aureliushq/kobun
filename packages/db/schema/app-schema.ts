@@ -1,5 +1,6 @@
 import { relations, sql } from "drizzle-orm"
 import {
+	check,
 	index,
 	integer,
 	primaryKey,
@@ -115,7 +116,8 @@ export const editorDraft = sqliteTable(
 		projectId: text("project_id")
 			.notNull()
 			.references(() => project.id, { onDelete: "cascade" }),
-		collectionSlug: text("collection_slug").notNull(),
+		collectionSlug: text("collection_slug"),
+		singletonSlug: text("singleton_slug"),
 		itemSlug: text("item_slug"),
 		sourcePath: text("source_path"),
 		sourceSha: text("source_sha"),
@@ -143,6 +145,13 @@ export const editorDraft = sqliteTable(
 			table.sourcePath,
 		),
 		index("editor_draft_committedAt_idx").on(table.committedAt),
+		// A Draft belongs to a Collection or to a Singleton, never both and never
+		// neither. The columns are spelled out rather than interpolated so the
+		// expression survives drizzle-kit rebuilding the table under another name.
+		check(
+			"editor_draft_owner_check",
+			sql`(collection_slug IS NULL) <> (singleton_slug IS NULL)`,
+		),
 	],
 )
 
