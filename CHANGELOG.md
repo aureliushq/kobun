@@ -1,5 +1,11 @@
 # kobun
 
+## 0.7.0
+
+### Minor Changes
+
+- 1c0efe5: Singletons get their own editor, with drafts, autosave, row editing and Save to GitHub. Page loads and autosaves also make fewer GitHub requests
+
 ## 0.6.3
 
 ### Patch Changes
