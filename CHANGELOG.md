@@ -1,5 +1,11 @@
 # kobun
 
+## 0.6.3
+
+### Patch Changes
+
+- 7baf008: The test run and the database health check now work in a fresh clone or worktree that has no local database yet, instead of stopping with "No SQLite databases found".
+
 ## 0.6.2
 
 ### Patch Changes

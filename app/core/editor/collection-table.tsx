@@ -34,6 +34,9 @@ import {
 	DRAFT_MARKER_LABELS,
 	type DraftMarker,
 	draftMarker,
+	getCollectionItemEditorPath,
+	getNewItemEditorPath,
+	type ProjectLocation,
 } from "@/core/editor/drafts"
 import { resolveTitleKey } from "@/core/fields"
 import { Timestamp } from "@/core/preferences/timestamp"
@@ -139,13 +142,15 @@ function singularize(s: string): string {
  */
 function NewItemButton({
 	collection,
-	editorBase,
+	collectionSlug,
+	project,
 }: {
 	collection: Collection
-	editorBase: string
+	collectionSlug: string
+	project: ProjectLocation
 }) {
 	return (
-		<Link to={`${editorBase}/new`}>
+		<Link to={getNewItemEditorPath(project, collectionSlug)}>
 			<Button>New {singularize(collection.label)}</Button>
 		</Link>
 	)
@@ -194,14 +199,16 @@ function CollectionFrame({
  */
 export function CollectionTable({
 	collection,
+	collectionSlug,
 	drafts,
-	editorBase,
 	listing,
+	project,
 }: {
 	collection: Collection
+	collectionSlug: string
 	drafts: CollectionDraft[]
-	editorBase: string
 	listing: CollectionListing
+	project: ProjectLocation
 }) {
 	const pending = listing === "pending"
 	const unavailable = listing === "unavailable"
@@ -235,7 +242,9 @@ export function CollectionTable({
 				createdAt:
 					(draft && deriveCreatedAt(collection.schema, draft.data)) ??
 					deriveCreatedAt(collection.schema, item.data),
-				href: draft?.href ?? `${editorBase}/item/${encodeURIComponent(slug)}`,
+				href:
+					draft?.href ??
+					getCollectionItemEditorPath(project, collectionSlug, slug),
 				id: item.path,
 				marker: draft ? draftMarker(draft) : null,
 				// Off the Source, always. A Draft says who holds the newer copy; it
@@ -277,9 +286,10 @@ export function CollectionTable({
 		return [...itemRows, ...draftRows]
 	}, [
 		collection.schema,
+		collectionSlug,
 		drafts,
-		editorBase,
 		items,
+		project,
 		titleFieldKey,
 		slugFieldKey,
 	])
@@ -507,7 +517,11 @@ export function CollectionTable({
 							))}
 						</SelectContent>
 					</Select>
-					<NewItemButton collection={collection} editorBase={editorBase} />
+					<NewItemButton
+						collection={collection}
+						collectionSlug={collectionSlug}
+						project={project}
+					/>
 				</div>
 			}
 			collection={collection}

@@ -2,6 +2,7 @@ import { expect, test } from "vitest"
 import {
 	getCollectionPath,
 	getDraftEditorPath,
+	getNewItemEditorPath,
 	getSingletonEditorPath,
 	getSingletonPath,
 	isDraftAdoptionNavigation,
@@ -40,6 +41,12 @@ test("addresses a source-backed draft by the item it belongs to", () => {
 test("addresses the collection a draft belongs to", () => {
 	expect(getCollectionPath(PROJECT, "posts")).toBe(
 		"/acme/website/collections/posts",
+	)
+})
+
+test("addresses a new item before any draft names it", () => {
+	expect(getNewItemEditorPath(PROJECT, "posts")).toBe(
+		"/acme/website/collections/posts/editor/new",
 	)
 })
 
