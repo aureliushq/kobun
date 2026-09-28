@@ -366,17 +366,14 @@ test("refuses a matching publish whose draft moved before the delete", async () 
 	})
 	// The other session saves while we are scanning the directory for a duplicate
 	// slug — the draft we were about to drop now holds work of its own, and only
-	// the guarded delete can say so. The first listing is the one that resolves
-	// the source, so the race belongs to the second.
+	// the guarded delete can say so. The source is resolved by reading its one
+	// file, so the only listing is the duplicate-slug scan.
 	const list = sourceStore.list
-	let listings = 0
 	vi.spyOn(sourceStore, "list").mockImplementation(async (path) => {
-		if (++listings === 2) {
-			await db
-				.update(editorDraft)
-				.set({ markdown: "Later work", revision: 3 })
-				.where(eq(editorDraft.id, seeded.id))
-		}
+		await db
+			.update(editorDraft)
+			.set({ markdown: "Later work", revision: 3 })
+			.where(eq(editorDraft.id, seeded.id))
 		return list(path)
 	})
 
