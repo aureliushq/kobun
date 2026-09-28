@@ -37,15 +37,17 @@ export function getCollectionItemEditorPath(
 }
 
 /**
- * The editor for an item that has never been committed. It carries its Draft in
- * the query string, since nothing in the repository names it yet.
+ * The editor for an item that has never been committed. Once it has a Draft it
+ * carries that Draft in the query string, since nothing in the repository names
+ * it yet; before its first save it has none to carry.
  */
-function getNewItemEditorPath(
+export function getNewItemEditorPath(
 	project: ProjectLocation,
 	collectionSlug: string,
-	draftId: string,
+	draftId?: string,
 ) {
-	return `${collectionEditorPath(project, collectionSlug)}/new?draft=${encodeURIComponent(draftId)}`
+	const path = `${collectionEditorPath(project, collectionSlug)}/new`
+	return draftId ? `${path}?draft=${encodeURIComponent(draftId)}` : path
 }
 
 /**

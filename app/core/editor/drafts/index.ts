@@ -17,10 +17,12 @@ export {
 	loadDashboardDrafts,
 } from "./dashboard-drafts"
 export { countDirtyDrafts } from "./dirty-drafts"
+export type { ProjectLocation } from "./draft-paths"
 export {
 	getCollectionItemEditorPath,
 	getCollectionPath,
 	getDraftEditorPath,
+	getNewItemEditorPath,
 	isDraftAdoptionNavigation,
 } from "./draft-paths"
 export type { DraftMarker } from "./draft-state"

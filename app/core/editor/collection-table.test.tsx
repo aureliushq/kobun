@@ -89,9 +89,10 @@ function list(
 		<MemoryRouter>
 			<CollectionTable
 				collection={collection}
+				collectionSlug="posts"
 				drafts={drafts}
-				editorBase={EDITOR_BASE}
 				listing={listing}
+				project={{ repoName: "site", repoOwnerLogin: "acme" }}
 			/>
 		</MemoryRouter>,
 	)
