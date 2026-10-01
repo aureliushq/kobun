@@ -598,6 +598,112 @@ describe("an autosave the server refuses", () => {
 	})
 })
 
+// A Worker over its CPU limit answers with the platform's own 5xx page, which
+// says nothing a writer can act on (#174).
+describe("a Save to GitHub the server fails", () => {
+	const SERVER_FAILURE = "GitHub save failed — try again later, or use Save."
+
+	async function commit(setControls: ReturnType<typeof vi.fn>) {
+		await act(async () => {
+			await lastControls(setControls)
+				?.commit()
+				.catch(() => undefined)
+		})
+	}
+
+	beforeEach(() => {
+		vi.spyOn(console, "error").mockImplementation(() => {})
+	})
+
+	it("says so in one short line when the failure is an error page", async () => {
+		vi.mocked(fetch).mockResolvedValue(
+			new Response("<!DOCTYPE html><html><body>Worker exceeded</body></html>", {
+				headers: { "Content-Type": "text/html; charset=UTF-8" },
+				status: 503,
+			}),
+		)
+		const { setControls } = editor(opened())
+
+		await commit(setControls)
+
+		expect(lastControls(setControls)?.saveError).toEqual({
+			code: null,
+			message: SERVER_FAILURE,
+		})
+	})
+
+	it("says so in one short line when the failure is plain text", async () => {
+		vi.mocked(fetch).mockResolvedValue(
+			new Response("error code: 1102", { status: 503 }),
+		)
+		const { setControls } = editor(opened())
+
+		await commit(setControls)
+
+		expect(lastControls(setControls)?.saveError).toEqual({
+			code: null,
+			message: SERVER_FAILURE,
+		})
+	})
+
+	it("says so in one short line even when the failure is JSON", async () => {
+		vi.mocked(fetch).mockResolvedValue(
+			Response.json({ error: "Internal error" }, { status: 500 }),
+		)
+		const { setControls } = editor(opened())
+
+		await commit(setControls)
+
+		expect(lastControls(setControls)?.saveError?.message).toBe(SERVER_FAILURE)
+	})
+
+	it("still passes on a refusal the action wrote", async () => {
+		vi.mocked(fetch).mockResolvedValue(
+			Response.json(
+				{
+					code: "duplicate-slug",
+					error: "Another item already uses slug “hello”",
+					ok: false,
+				},
+				{ status: 409 },
+			),
+		)
+		const { setControls } = editor(opened())
+
+		await commit(setControls)
+
+		expect(lastControls(setControls)?.saveError).toEqual({
+			code: "duplicate-slug",
+			message: "Another item already uses slug “hello”",
+		})
+	})
+
+	it("leaves the writer's work in place for a Save right after", async () => {
+		vi.mocked(fetch)
+			.mockResolvedValueOnce(new Response("", { status: 503 }))
+			.mockResolvedValueOnce(
+				Response.json({ draftId: "draft-1", ok: true, revision: 1 }),
+			)
+		const { setControls } = dataOnly()
+		fireEvent.change(title(), { target: { value: "Renamed" } })
+
+		await commit(setControls)
+		expect(lastControls(setControls)?.saveError?.message).toBe(SERVER_FAILURE)
+		expect(title().value).toBe("Renamed")
+
+		await act(async () => {
+			await lastControls(setControls)?.save()
+		})
+
+		expect(lastControls(setControls)?.saveError).toBeNull()
+		const [, request] = vi.mocked(fetch).mock.calls[1] ?? []
+		expect(JSON.parse(String(request?.body))).toMatchObject({
+			fields: { title: "Renamed" },
+			intent: "save",
+		})
+	})
+})
+
 // A Revision Conflict does not clear by retrying: every request after it carries
 // the same stale Revision (#166).
 describe("a Draft another session changed first", () => {

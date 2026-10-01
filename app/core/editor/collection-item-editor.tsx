@@ -274,6 +274,11 @@ export function CollectionItemEditor({
 						revision?: number | null
 						collectionPath?: string
 					} = {}
+					// The action refuses with a 4xx. A 5xx on a commit is the
+					// platform's — a Worker over its CPU limit, say — and whatever
+					// it says, the writer can only retry or keep a Draft (#174).
+					const isServerFailure =
+						response.status >= 500 && intent !== EditorActionIntents.SAVE
 					try {
 						result = JSON.parse(responseText) as typeof result
 					} catch {
@@ -289,7 +294,9 @@ export function CollectionItemEditor({
 					}
 					if (!response.ok) {
 						throw new EditorActionError(
-							result.error ?? "Could not save the editor draft",
+							isServerFailure
+								? "GitHub save failed — try again later, or use Save."
+								: (result.error ?? "Could not save the editor draft"),
 							readRefusalCode(result.code),
 						)
 					}
