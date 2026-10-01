@@ -22,7 +22,7 @@ jobs:
           ref: ${{ github.event.release.tag_name }}
 
       - name: ⎔ Setup node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version-file: .tool-versions
 
@@ -46,7 +46,7 @@ jobs:
           ref: ${{ github.event.release.tag_name }}
 
       - name: ⎔ Setup node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version-file: .tool-versions
 
@@ -72,7 +72,7 @@ jobs:
           ref: ${{ github.event.release.tag_name }}
 
       - name: ⎔ Setup node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version-file: .tool-versions
 
@@ -109,7 +109,7 @@ jobs:
           ref: ${{ github.event.release.tag_name }}
 
       - name: ⎔ Setup node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version-file: .tool-versions
 
@@ -142,7 +142,7 @@ jobs:
           ref: ${{ github.event.release.tag_name }}
 
       - name: ⎔ Setup node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version-file: .tool-versions
 
@@ -206,7 +206,7 @@ jobs:
           ref: ${{ github.event.release.tag_name }}
 
       - name: ⎔ Setup node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version-file: .tool-versions
 
@@ -242,7 +242,7 @@ jobs:
           ref: ${{ github.event.release.tag_name }}
 
       - name: ⎔ Setup node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version-file: .tool-versions
 
@@ -291,7 +291,7 @@ jobs:
           ref: ${{ github.event.release.tag_name }}
 
       - name: ⎔ Setup node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version-file: .tool-versions
 
