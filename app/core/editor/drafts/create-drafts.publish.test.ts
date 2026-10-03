@@ -357,24 +357,22 @@ test("deletes the draft without committing when the content matches the source",
 })
 
 test("refuses a matching publish whose draft moved before the delete", async () => {
-	const { db, drafts, source, sourceStore } = setup()
+	const { db, drafts, source } = setup()
 	const seeded = seedSourceBackedDraft({
 		markdown: SOURCE_BODY,
 		committedRevision: 1,
 		revision: 2,
 		sourceSha: source.sha,
 	})
-	// The other session saves while we are scanning the directory for a duplicate
-	// slug — the draft we were about to drop now holds work of its own, and only
-	// the guarded delete can say so. The source is resolved by reading its one
-	// file, so the only listing is the duplicate-slug scan.
-	const list = sourceStore.list
-	vi.spyOn(sourceStore, "list").mockImplementation(async (path) => {
-		await db
-			.update(editorDraft)
+	// The other session saves just before the delete — the draft we were about
+	// to drop now holds work of its own, and only the guarded delete can say so.
+	const remove = db.delete.bind(db)
+	vi.spyOn(db, "delete").mockImplementationOnce((table) => {
+		db.update(editorDraft)
 			.set({ markdown: "Later work", revision: 3 })
 			.where(eq(editorDraft.id, seeded.id))
-		return list(path)
+			.run()
+		return remove(table)
 	})
 
 	const result = await drafts.publish(

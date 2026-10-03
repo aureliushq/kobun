@@ -38,9 +38,14 @@ export function collectionFileFormat(file: { name: string }): Format {
 	return file.name.endsWith(".mdx") ? "mdx" : "md"
 }
 
-function getEffectiveSlug(
+/**
+ * The Slug an item answers to: its slug field, or its filename when that is
+ * empty. Asks only for a name, so a listing that already holds the parsed Data
+ * can answer without the file's bytes.
+ */
+export function getEffectiveSlug(
 	collection: CollectionConfig,
-	file: RepositoryCollectionFile,
+	file: { name: string },
 	frontmatter: Record<string, unknown>,
 ) {
 	const slugField = Object.entries(collection.schema).find(

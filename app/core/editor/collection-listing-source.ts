@@ -64,6 +64,14 @@ export interface CollectionSourceFile {
  * what the cache remembers, and only the cache remembers anything.
  */
 export interface CollectionListingSource {
+	/**
+	 * One file with its bytes, for a directory where only a few files changed:
+	 * the cache reads those rather than the whole directory again.
+	 */
+	file(
+		repository: RepositoryAddress,
+		path: string,
+	): Promise<CollectionSourceFile>
 	files(
 		repository: RepositoryAddress,
 		path: string,

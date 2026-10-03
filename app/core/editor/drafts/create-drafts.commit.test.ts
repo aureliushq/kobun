@@ -265,6 +265,50 @@ test("refuses a commit whose slug another item already uses", async () => {
 	expect(result).toEqual({ code: "duplicate-slug", ok: false, slug: "hello" })
 })
 
+test("refuses a commit that renames an item's slug to one another item uses", async () => {
+	const { drafts } = setup()
+	putSource(FIELDS)
+	harness.sourceStore.put({
+		content: stringifyFrontmatter(SOURCE_BODY, {
+			slug: "taken",
+			title: "Taken",
+		}),
+		path: `${TEST_DIRECTORY_PATH}/taken.md`,
+	})
+
+	const result = await drafts.commit(
+		commitItem({ fields: { slug: "taken", title: "Hello" } }),
+	)
+
+	expect(result).toEqual({ code: "duplicate-slug", ok: false, slug: "taken" })
+})
+
+test("does not look for a duplicate when an item keeps its slug", async () => {
+	const { drafts } = setup()
+	putSource(FIELDS)
+	const items = vi.spyOn(harness.listing, "items")
+
+	const result = await drafts.commit(
+		commitItem({ fields: { ...FIELDS, title: "Edited" } }),
+	)
+
+	expect(result).toMatchObject({ ok: true })
+	expect(items).not.toHaveBeenCalled()
+})
+
+test("looks for a duplicate in the listing, reading no file to do it", async () => {
+	const { drafts, sourceStore } = setup()
+	putSource(FIELDS)
+	const items = vi.spyOn(harness.listing, "items")
+	const read = vi.spyOn(sourceStore, "read")
+	const seeded = harness.seedDraft({ markdown: DRAFT_BODY, revision: 1 })
+
+	await drafts.commit(commitNewItem(seeded.id, { expectedRevision: 1 }))
+
+	expect(items).toHaveBeenCalledOnce()
+	expect(read).not.toHaveBeenCalled()
+})
+
 test("refuses a commit whose source moved on github, keeping what the writer typed", async () => {
 	const { drafts } = setup()
 	const source = putSource(FIELDS)

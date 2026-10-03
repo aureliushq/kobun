@@ -1,5 +1,7 @@
 # The drafts module owns the publish commit, behind a SourceStore port
 
+> **Amended.** The port no longer has `list`: the module finds files by Slug through an injected `listItems`, which reads the Collection listing cache, and the port is `read` and `write`. See [ADR-0012](./0012-slug-lookups-read-the-listing-cache-revalidated-every-time.md). Everything else here stands as accepted.
+
 The draft ↔ published state machine (revision guards, rebase, publish → sync → delete) was inlined in `collection-editor.tsx`'s loader/action and untestable. We extracted it into a `drafts` module (`app/core/editor/drafts/`, `createDrafts` factory) and decided the module **executes the GitHub commit itself**, through an injected narrow `SourceStore` port (`list`, `write(path, content, expectedSha)`), rather than returning a "please commit this" intent for the route to execute. Publish is not commit-then-done — it's commit → guarded sync UPDATE → fallback sync → delete-when-synced, with GitHub's stale-sha 409 translated into a draft-level conflict; an intent-returning design would split that chain back across the route seam, recreating the disease. The port also absorbs all GitHub identity (`env`, `installationId`, `owner`, `name`) into its adapter closure, so the module's world is just a database and a place source files live.
 
 ## Consequences

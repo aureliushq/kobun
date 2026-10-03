@@ -46,8 +46,21 @@ export interface DraftsContext {
 	 * so a test can say what "now" is rather than race the wall clock.
 	 */
 	now?: () => Date
+	/**
+	 * The Collection's items as the listing cache holds them — a name, a path and
+	 * the parsed Data, revalidated against the repository on every call. What a
+	 * Slug lookup needs, without reading or parsing every file (ADR 0012).
+	 */
+	listItems: () => Promise<ListedItem[]>
 	project: { id: string }
 	sourceStore: SourceStore
+}
+
+/** One Collection Item as the listing names it: no Body, no bytes. */
+export interface ListedItem {
+	data: Record<string, unknown>
+	name: string
+	path: string
 }
 
 /** A Singleton's Drafts, at the one path its Source lives at. */

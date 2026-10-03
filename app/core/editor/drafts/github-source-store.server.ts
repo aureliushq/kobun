@@ -2,7 +2,6 @@ import {
 	createOrUpdateGithubTextFile,
 	getGithubFileContent,
 	hasStatus,
-	listGithubDirectoryFiles,
 } from "@/github/octokit.server"
 import type { InstallationID } from "@/types/github"
 import type {
@@ -25,21 +24,6 @@ export function createGithubSourceStore(context: {
 	const { env, installationId, name, owner } = context
 
 	return {
-		list: async (path: string) => {
-			try {
-				return await listGithubDirectoryFiles(
-					env,
-					installationId,
-					owner,
-					name,
-					path,
-				)
-			} catch (error) {
-				// A collection whose directory does not exist yet simply has no files.
-				if (hasStatus(error, 404)) return []
-				throw error
-			}
-		},
 		read: async (path: string) => {
 			try {
 				const file = await getGithubFileContent(
