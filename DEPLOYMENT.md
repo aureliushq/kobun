@@ -43,6 +43,7 @@ For production self-hosting, you need at least one database. First, log in to Cl
 ```bash
 bunx wrangler login
 bunx wrangler d1 create kobun-production
+bunx wrangler r2 bucket create kobun-staged-images-production
 ```
 
 > [!TIP]
@@ -53,11 +54,14 @@ bunx wrangler d1 create kobun-production
 > ```bash
 > bunx wrangler d1 create kobun-development
 > bunx wrangler d1 create kobun-preview
+> bunx wrangler r2 bucket create kobun-staged-images-preview
 > ```
+>
+> Local development and the test environment use Miniflare's local R2, so they need no bucket.
 
 ### Update wrangler.json
 
-Update `wrangler.json` with your worker name, database names, and database IDs returned from the commands above. Update the `BETTER_AUTH_URL` var in each environment to match your domain.
+Update `wrangler.json` with your worker name, database names, database IDs and R2 bucket names from the commands above. Update the `BETTER_AUTH_URL` var in each environment to match your domain.
 
 ---
 

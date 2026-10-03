@@ -111,8 +111,8 @@ test("opens an existing item that has no draft", async () => {
 })
 
 test("opens an item from the file named after its Slug, without listing the directory", async () => {
-	const { drafts, sourceStore } = setup()
-	const list = vi.spyOn(sourceStore, "list")
+	const { drafts } = setup()
+	const list = vi.spyOn(harness.listing, "items")
 
 	const result = await drafts.open({ mode: "item", slug: "hello" })
 
@@ -127,12 +127,19 @@ test("finds an item whose frontmatter Slug differs from its filename", async () 
 		path: `${TEST_DIRECTORY_PATH}/2024-greeting.md`,
 	})
 
+	const read = vi.spyOn(sourceStore, "read")
+
 	const result = await drafts.open({ mode: "item", slug: "greeting" })
 
 	expect(result).toMatchObject({
 		ok: true,
 		source: { itemSlug: "greeting", path: renamed.path, sha: renamed.sha },
 	})
+	// The listing names the file; only that one file is read and parsed.
+	expect(read.mock.calls).toEqual([
+		[`${TEST_DIRECTORY_PATH}/greeting.md`],
+		[renamed.path],
+	])
 })
 
 test("passes over a file named after the Slug when its frontmatter names another item", async () => {

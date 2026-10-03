@@ -13,6 +13,7 @@ import {
 	usePropertiesPanel,
 } from "@/core/editor/collection-item-editor"
 import {
+	createCollectionListingCache,
 	invalidateCollectionListing,
 	withListingInvalidation,
 } from "@/core/editor/collection-listing-cache.server"
@@ -32,6 +33,7 @@ import {
 	readEditorActionPayload,
 	saveResponse,
 } from "@/core/editor/editor-action"
+import { createGithubCollectionListingSource } from "@/core/editor/github-collection-listing-source.server"
 import { requireCollection } from "@/core/project-context"
 import { requirePageContext } from "@/core/project-context/project-context.server"
 import { posthogContext } from "@/lib/posthog-middleware"
@@ -60,6 +62,10 @@ async function resolveCollectionEditorContext({
 	}
 
 	const { db, env, installationId, name, owner, projectRow } = ctx
+	const listings = createCollectionListingCache({
+		db,
+		listingSource: createGithubCollectionListingSource(env),
+	})
 	return {
 		collection,
 		collectionSlug: collection_slug,
@@ -67,6 +73,14 @@ async function resolveCollectionEditorContext({
 		directoryPath,
 		env,
 		installationId,
+		// Slug lookups read the listing the Collection page serves, revalidated
+		// every time, rather than every file in the directory (ADR 0012).
+		listItems: () =>
+			listings.resolveCurrent(
+				projectRow,
+				{ installationId, name, owner },
+				directoryPath,
+			),
 		name,
 		owner,
 		projectRow,
@@ -98,6 +112,7 @@ function createDraftsFor(
 		collectionSlug: resolved.collectionSlug,
 		db: resolved.db,
 		directoryPath: resolved.directoryPath,
+		listItems: resolved.listItems,
 		project: { id: resolved.projectRow.id },
 		sourceStore: resolved.sourceStore,
 	})
@@ -285,10 +300,17 @@ export default function CollectionEditor({ loaderData }: Route.ComponentProps) {
 	}
 
 	// A new item's content was awaited, so there is no boundary here at all and
-	// therefore no placeholder to fall back to.
+	// therefore no placeholder to fall back to. Its first Save to GitHub moves
+	// the URL to the item path without re-running the loader, so this branch
+	// stays rendered and the editor stays mounted (#176). The mode follows the
+	// URL, which now names the item.
 	if (loaderData.mode === "new") {
 		return (
-			<CollectionItemEditor {...chrome} mode="new" opened={loaderData.opened} />
+			<CollectionItemEditor
+				{...chrome}
+				mode={params.editor_mode === "item" ? "item" : "new"}
+				opened={loaderData.opened}
+			/>
 		)
 	}
 

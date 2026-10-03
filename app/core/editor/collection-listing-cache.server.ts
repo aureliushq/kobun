@@ -24,6 +24,13 @@ import type { SourceStore } from "./drafts/source-store"
  */
 export const COLLECTION_LISTING_CACHE_TTL_MS = 60_000
 
+/**
+ * How many changed files are read one request each before the whole directory
+ * is read in one query instead. Bounded by the Workers subrequest limit (50 on
+ * the free plan), which the rest of the request shares.
+ */
+export const INCREMENTAL_READ_LIMIT = 10
+
 /** What deciding whether a stored listing can be served takes, and no more. */
 type ListingRow = typeof collectionListing.$inferSelect
 
@@ -125,6 +132,46 @@ function toItems(files: CollectionSourceFile[]): CollectionItem[] {
 		path: file.path,
 		sha: file.sha,
 	}))
+}
+
+/**
+ * What a fresh entry list changed against the row: the cached items it still
+ * names at the same sha, by name — their parse is still the file's — and the
+ * md/mdx entries that need reading (ADR 0012). Null when the whole directory is
+ * cheaper to read in one query: nothing is cached, or more changed than is
+ * worth a request each.
+ */
+function changedSince(
+	entries: CollectionListingEntry[],
+	cached: Cached | null,
+): {
+	changed: CollectionListingEntry[]
+	kept: Map<string, CollectionItem>
+} | null {
+	if (!cached) return null
+	const current = new Set(entries.map(({ name, sha }) => `${name}:${sha}`))
+	const kept = new Map(
+		cached.items
+			.filter(({ name, sha }) => current.has(`${name}:${sha}`))
+			.map((item) => [item.name, item]),
+	)
+	const changed = entries.filter(
+		(entry) => isMarkdownCollectionFile(entry) && !kept.has(entry.name),
+	)
+	return changed.length > INCREMENTAL_READ_LIMIT ? null : { changed, kept }
+}
+
+/** The kept and freshly parsed items, in the order the directory lists them. */
+function inEntryOrder(
+	entries: CollectionListingEntry[],
+	kept: Map<string, CollectionItem>,
+	parsed: CollectionItem[],
+): CollectionItem[] {
+	const fresh = new Map(parsed.map((item) => [item.name, item]))
+	return entries.flatMap(({ name }) => {
+		const item = fresh.get(name) ?? kept.get(name)
+		return item ? [item] : []
+	})
 }
 
 /**
@@ -233,7 +280,12 @@ export function createCollectionListingCache(deps: {
 		directoryPath: string,
 		cached: Cached | null,
 		now: number,
+		failClosed = false,
 	): Promise<CollectionItem[]> {
+		// What an unreachable repository is answered with. A read that gates a
+		// commit gets the failure instead of the row: a Slug checked against a
+		// listing GitHub could not confirm is a check that did not happen.
+		const fallback = failClosed ? null : cached
 		// An ETag is only sent when there is a listing to fall back on. A
 		// `not-modified` against a row holding nothing would pin this Collection
 		// empty past every window (ADR-0003) — which is why the validator and
@@ -245,7 +297,7 @@ export function createCollectionListingCache(deps: {
 				path: directoryPath,
 			}),
 		)
-		if (!read.ok) return unreachable(cached, read.error)
+		if (!read.ok) return unreachable(fallback, read.error)
 
 		if (read.value.kind === "not-modified") {
 			// Nothing changed, so nothing is rewritten — but the window reopens, or
@@ -261,25 +313,51 @@ export function createCollectionListingCache(deps: {
 		// would tell a writer their Collection is empty for a whole window.
 		if (read.value.kind === "not-found") return []
 
-		const hash = await fingerprint(read.value.entries)
+		const { entries, etag } = read.value
+		const hash = await fingerprint(entries)
 		// A rotated validator over a directory that never changed. Shas are
 		// content addressed, so there is nothing to re-read and nothing to
 		// re-parse — only the ETag worth sending next time.
 		if (cached && hash === cached.row.entriesHash) {
-			await recordCheck(cached.row, now, read.value.etag)
+			await recordCheck(cached.row, now, etag)
 			return cached.items
 		}
 
+		// A file that changes between the entry list and its own read is stored
+		// at the newer sha under the older hash. The next revalidation sees the
+		// sha differ and reads it again, so this costs a read, never a wrong row.
+		const delta = changedSince(entries, cached)
 		const files = await guard(() =>
-			listingSource.files(repository, directoryPath),
+			delta
+				? Promise.all(
+						delta.changed.map((entry) =>
+							listingSource.file(repository, `${directoryPath}/${entry.name}`),
+						),
+					)
+				: listingSource.files(repository, directoryPath),
 		)
-		if (!files.ok) return unreachable(cached, files.error)
+		if (!files.ok) return unreachable(fallback, files.error)
 
 		// Parsed before anything is written, so a file kobun cannot read rejects
 		// rather than being remembered as an absence.
-		const items = toItems(files.value)
-		await remember(projectId, directoryPath, now, items, hash, read.value.etag)
+		const parsed = toItems(files.value)
+		const items = delta ? inEntryOrder(entries, delta.kept, parsed) : parsed
+		await remember(projectId, directoryPath, now, items, hash, etag)
 		return items
+	}
+
+	async function readCached(
+		projectId: string,
+		directoryPath: string,
+	): Promise<Cached | null> {
+		const row = await db.query.collectionListing.findFirst({
+			where: and(
+				eq(collectionListing.projectId, projectId),
+				eq(collectionListing.directoryPath, directoryPath),
+			),
+		})
+		const items = row ? storedListing(row.items) : null
+		return row && items ? { items, row } : null
 	}
 
 	async function resolve(
@@ -288,14 +366,7 @@ export function createCollectionListingCache(deps: {
 		directoryPath: string,
 	): Promise<CollectionItem[]> {
 		const now = Date.now()
-		const row = await db.query.collectionListing.findFirst({
-			where: and(
-				eq(collectionListing.projectId, project.id),
-				eq(collectionListing.directoryPath, directoryPath),
-			),
-		})
-		const items = row ? storedListing(row.items) : null
-		const cached = row && items ? { items, row } : null
+		const cached = await readCached(project.id, directoryPath)
 
 		if (cached) {
 			const age = now - cached.row.checkedAt.getTime()
@@ -307,7 +378,30 @@ export function createCollectionListingCache(deps: {
 		return await revalidate(project.id, repository, directoryPath, cached, now)
 	}
 
-	return { resolve }
+	/**
+	 * The listing as the repository holds it now, for a read that gates a commit
+	 * (ADR 0012). The window is skipped, never the row: an unchanged directory
+	 * still costs one conditional read and no text, and a changed one costs only
+	 * the files that changed. An unreachable repository rejects rather than
+	 * serving the row, so the gate fails closed.
+	 */
+	async function resolveCurrent(
+		project: { id: string },
+		repository: RepositoryAddress,
+		directoryPath: string,
+	): Promise<CollectionItem[]> {
+		const cached = await readCached(project.id, directoryPath)
+		return await revalidate(
+			project.id,
+			repository,
+			directoryPath,
+			cached,
+			Date.now(),
+			true,
+		)
+	}
+
+	return { resolve, resolveCurrent }
 }
 
 /**
@@ -318,9 +412,10 @@ export function createCollectionListingCache(deps: {
  * a listing source, and making it build one to throw away would be wiring for
  * nothing.
  *
- * It deletes rather than expires, so "invalidated" and "never cached" are one
- * state — and the ETag it drops is one already known to be stale, which could
- * only buy a 304 that cannot happen.
+ * It expires rather than deletes (ADR 0012). The next resolve revalidates, and
+ * the items it keeps are what let it read only the file the write changed
+ * instead of the whole directory again. The ETag is dropped: it is already
+ * known to be stale, so it could only buy a 304 that cannot happen.
  */
 export async function invalidateCollectionListing(
 	db: CollectionListingDatabase,
@@ -328,7 +423,8 @@ export async function invalidateCollectionListing(
 	directoryPath: string,
 ): Promise<void> {
 	await db
-		.delete(collectionListing)
+		.update(collectionListing)
+		.set({ checkedAt: new Date(0), etag: null })
 		.where(
 			and(
 				eq(collectionListing.projectId, projectId),
@@ -357,7 +453,6 @@ export function withListingInvalidation(
 	return {
 		// Called through rather than handed over, so the wrapped store keeps
 		// whatever receiver its own implementation expects.
-		list: (path) => store.list(path),
 		read: (path) => store.read(path),
 		write: async (input) => {
 			const result = await store.write(input)

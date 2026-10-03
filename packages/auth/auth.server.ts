@@ -4,7 +4,7 @@ import { drizzle } from "drizzle-orm/d1"
 import * as schema from "../db/schema"
 import { getAutosend } from "../marketing/autosend.server"
 
-export function getAuth(env: Env) {
+function createAuth(env: Env) {
 	const db = drizzle(env.DB, { schema, casing: "snake_case" })
 	return betterAuth({
 		appName: "Kobun",
@@ -55,6 +55,24 @@ export function getAuth(env: Env) {
 			},
 		},
 	})
+}
+
+/**
+ * One instance per environment. A request reads the session more than once
+ * (the PostHog middleware, then the Project Context), and building Better Auth
+ * is the expensive part, not the read. Sharing it is safe: every `auth.api`
+ * call runs on its own copy of the context. Keyed weakly on `env`, so an
+ * environment that goes away takes its instance with it.
+ */
+const instances = new WeakMap<Env, ReturnType<typeof createAuth>>()
+
+export function getAuth(env: Env) {
+	let auth = instances.get(env)
+	if (!auth) {
+		auth = createAuth(env)
+		instances.set(env, auth)
+	}
+	return auth
 }
 
 // WARNING: ONLY USE THIS WHEN RUNNING BETTER AUTH CLI. USE getAuth FOR AUTH.

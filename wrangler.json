@@ -32,6 +32,12 @@
 			"database_id": "<DATABASE_ID>"
 		}
 	],
+	"r2_buckets": [
+		{
+			"binding": "IMAGES",
+			"bucket_name": "kobun-staged-images-development"
+		}
+	],
 	"vars": {
 		"BETTER_AUTH_URL": "http://localhost:5173",
 		"GITHUB_APP_ID": "3006163",
@@ -44,6 +50,12 @@
 					"binding": "DB",
 					"database_name": "kobun-production",
 					"database_id": "97ff3659-f488-4522-b4d4-4d16a0b325ec"
+				}
+			],
+			"r2_buckets": [
+				{
+					"binding": "IMAGES",
+					"bucket_name": "kobun-staged-images-production"
 				}
 			],
 			"vars": {
@@ -60,6 +72,12 @@
 					"database_id": "faa93bcf-9d7c-4351-9d49-cba75f6e572e"
 				}
 			],
+			"r2_buckets": [
+				{
+					"binding": "IMAGES",
+					"bucket_name": "kobun-staged-images-preview"
+				}
+			],
 			"vars": {
 				"BETTER_AUTH_URL": "https://dev.app.kobun.io",
 				"GITHUB_APP_ID": "3017727",
@@ -72,6 +90,12 @@
 					"binding": "DB",
 					"database_name": "kobun-development",
 					"database_id": "<DATABASE_ID>"
+				}
+			],
+			"r2_buckets": [
+				{
+					"binding": "IMAGES",
+					"bucket_name": "kobun-staged-images-development"
 				}
 			],
 			"vars": {

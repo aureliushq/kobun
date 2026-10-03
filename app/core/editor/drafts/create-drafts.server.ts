@@ -10,6 +10,7 @@ import {
 } from "@/core/content/document.server"
 import {
 	findCollectionItemBySlug,
+	getEffectiveSlug,
 	isMarkdownCollectionFile,
 } from "@/core/editor/collection-items.server"
 import {
@@ -39,6 +40,7 @@ import type {
 	DraftRow,
 	DraftsContext,
 	DraftsDatabase,
+	ListedItem,
 	OpenInput,
 	OpenResult,
 	ResolvedSaveInput,
@@ -714,12 +716,12 @@ function collectionEntity({
 	collection,
 	collectionSlug,
 	directoryPath,
-	sourceStore,
+	listItems,
 }: {
 	collection: Collection
 	collectionSlug: string
 	directoryPath: string
-	sourceStore: SourceStore
+	listItems: () => Promise<ListedItem[]>
 }): DraftEntity<string> {
 	/** The Slug these fields name, which is what the item will be addressed by. */
 	function effectiveSlug(fields: FieldRecord) {
@@ -735,14 +737,18 @@ function collectionEntity({
 	 * The address's errors are checked first, so this is only ever asked of a
 	 * Slug that could be a filename at all — the third and last of the rules a
 	 * Slug answers to, and the only one that needs the repository rather than the
-	 * string.
+	 * string. An item keeping the Slug it already has is not asked at all, and
+	 * the rest is answered from the listing's parsed Data rather than every
+	 * file's bytes (ADR 0012).
 	 */
 	async function isSlugTaken(slug: string, source: ResolvedSource | null) {
-		const files = await sourceStore.list(directoryPath)
-		return files.filter(isMarkdownCollectionFile).some((file) => {
-			if (source && file.path === source.path) return false
-			return findCollectionItemBySlug(collection, [file], slug) !== null
-		})
+		if (source?.itemSlug === slug) return false
+		const items = await listItems()
+		return items.some(
+			(item) =>
+				item.path !== source?.path &&
+				getEffectiveSlug(collection, item, item.data) === slug,
+		)
 	}
 
 	return {
@@ -784,6 +790,7 @@ export function createDrafts(context: DraftsContext) {
 		collectionSlug,
 		db,
 		directoryPath,
+		listItems,
 		now,
 		project,
 		sourceStore,
@@ -794,7 +801,7 @@ export function createDrafts(context: DraftsContext) {
 			collection,
 			collectionSlug,
 			directoryPath,
-			sourceStore,
+			listItems,
 		}),
 		now,
 		project,
@@ -807,12 +814,13 @@ export function createDrafts(context: DraftsContext) {
 	 * transition below is not.
 	 *
 	 * The file named after the Slug is asked for first, since that is where a
-	 * new item lands: one read, where the listing pulls every file in the
-	 * directory and runs on every autosave. Only a file that still answers to
-	 * the Slug is taken; anything else — no such file, or a frontmatter Slug
-	 * that names another item — falls back to the listing. A second file
-	 * claiming the same Slug is not looked for here; Commit's collision check
-	 * still refuses it.
+	 * new item lands, and this runs on every autosave. Only a file that still
+	 * answers to the Slug is taken; anything else — no such file, or a
+	 * frontmatter Slug that names another item — falls back to the listing,
+	 * which names the file that does answer to it. That one file is then read
+	 * live, so the editor never opens a cached copy (ADR 0012). A second file
+	 * claiming the same Slug is not looked for on the first path; Commit's
+	 * collision check still refuses it.
 	 */
 	async function resolveSource(slug: string): Promise<ResolvedSource | null> {
 		const namedPath = `${directoryPath}/${slug}.${collection.format}`
@@ -824,12 +832,14 @@ export function createDrafts(context: DraftsContext) {
 			if (found) return found
 		}
 
-		const files = await sourceStore.list(directoryPath)
-		return findCollectionItemBySlug(
-			collection,
-			files.filter(isMarkdownCollectionFile),
-			slug,
+		const matches = (await listItems()).filter(
+			(item) => getEffectiveSlug(collection, item, item.data) === slug,
 		)
+		if (matches.length > 1) {
+			throw new Error(`Multiple collection items use slug "${slug}"`)
+		}
+		const listed = matches[0] ? await sourceStore.read(matches[0].path) : null
+		return listed ? findCollectionItemBySlug(collection, [listed], slug) : null
 	}
 
 	async function openNewItem(draftId: string | null): Promise<OpenResult> {

@@ -3,6 +3,11 @@ import invariant from "tiny-invariant"
 import { expandFeatures } from "@/config/features"
 import { collectionSchema, singletonSchema } from "@/config/schema"
 import type { Collection, Singleton } from "@/config/types"
+import { parseDocument } from "@/core/content/document.server"
+import {
+	collectionFileFormat,
+	isMarkdownCollectionFile,
+} from "@/core/editor/collection-items.server"
 import {
 	editorDraft,
 	githubInstallation,
@@ -17,11 +22,13 @@ import type {
 	SourceWriteInput,
 	SourceWriteResult,
 } from "./source-store"
-import type { DraftRow, DraftsDatabase } from "./types"
+import type { DraftRow, DraftsDatabase, ListedItem } from "./types"
 
 export interface FakeSourceStore extends SourceStore {
 	/** The stored Source file, for asserting on what a write left behind. */
 	get(path: string): SourceFile | undefined
+	/** Direct children of `path`, which is what a listing of it would name. */
+	list(path: string): Promise<SourceFile[]>
 	/** Seed or replace a Source file, minting a sha when none is given. */
 	put(file: { content: string; path: string; sha?: string }): SourceFile
 	/** Make the next write to `path` report a stale sha, whatever it carries. */
@@ -97,6 +104,12 @@ export interface DraftsTestHarness {
 	/** The same handle the module holds, so spies on it are seen by the module. */
 	db: DraftsDatabase
 	drafts: ReturnType<typeof createDrafts>
+	/**
+	 * The listing the module looks Slugs up in, read off the fake repository so
+	 * it is always current — the listing cache's own job, tested on its own.
+	 * Called through, so a test can spy on it.
+	 */
+	listing: { items(): Promise<ListedItem[]> }
 	projectId: string
 	/** The Draft as it now stands, for asserting on what a transition wrote. */
 	readDraft(id: string): Promise<DraftRow | undefined>
@@ -203,7 +216,7 @@ export const TEST_DATA_SINGLETON: Singleton = resolveSingleton({
 })
 
 export interface SingletonDraftsTestHarness
-	extends Omit<DraftsTestHarness, "drafts"> {
+	extends Omit<DraftsTestHarness, "drafts" | "listing"> {
 	drafts: ReturnType<typeof createSingletonDrafts>
 }
 
@@ -214,7 +227,7 @@ export interface SingletonDraftsTestHarness
 function createHarnessBase(options: {
 	files?: SourceFile[]
 	seedDefaults: Partial<DraftRow>
-}): Omit<DraftsTestHarness, "drafts"> {
+}): Omit<DraftsTestHarness, "drafts" | "listing"> {
 	const { close, db: sqliteDb } = createInMemoryDb()
 	const projectId = "project-1"
 
@@ -293,6 +306,16 @@ export function createDraftsTestHarness(
 		files: options.files,
 		seedDefaults: { collectionSlug: TEST_COLLECTION_SLUG },
 	})
+	const listing = {
+		items: async (): Promise<ListedItem[]> =>
+			(await base.sourceStore.list(TEST_DIRECTORY_PATH))
+				.filter(isMarkdownCollectionFile)
+				.map((file) => ({
+					data: parseDocument(file.content, collectionFileFormat(file)).data,
+					name: file.name,
+					path: file.path,
+				})),
+	}
 	return {
 		...base,
 		drafts: createDrafts({
@@ -300,10 +323,12 @@ export function createDraftsTestHarness(
 			collectionSlug: TEST_COLLECTION_SLUG,
 			db: base.db,
 			directoryPath: TEST_DIRECTORY_PATH,
+			listItems: () => listing.items(),
 			now: options.now,
 			project: { id: base.projectId },
 			sourceStore: base.sourceStore,
 		}),
+		listing,
 	}
 }
 

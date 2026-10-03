@@ -18,11 +18,16 @@ import {
 	readRefusalCode,
 	toEditorSaveError,
 } from "@/core/editor/editor-action"
+import {
+	checkStagedImage,
+	stagedImageBaseUrl,
+} from "@/core/editor/staged-images"
 import { usePreferences } from "@/core/preferences/context"
 import {
 	type AutosaveState,
 	type EditorRefApi,
 	EditorWordCount,
+	type ImageUploadAdapter,
 	RichTextEditor,
 } from "@/editor"
 import { Separator } from "@/ui/components/base/separator"
@@ -184,6 +189,32 @@ export function CollectionItemEditor({
 	const [autosaveState, setAutosaveState] =
 		useState<AutosaveState>(initialAutosaveState)
 	const assetBaseUrl = `/api/repo-asset/${encodeURIComponent(owner)}/${encodeURIComponent(name)}`
+	// An image added to the Body is staged as it lands, and the Draft keeps only
+	// the URL it is served from. The node shows whatever this throws (#177).
+	const imageUpload = useMemo<ImageUploadAdapter>(
+		() => ({
+			upload: async (file) => {
+				const body = new FormData()
+				body.set("file", file)
+				const response = await fetch(stagedImageBaseUrl(owner, name), {
+					body,
+					method: "POST",
+				}).catch(() => {
+					throw new Error("Could not upload the image")
+				})
+				const result = (await response.json().catch(() => ({}))) as {
+					error?: string
+					src?: string
+				}
+				if (!response.ok || !result.src) {
+					throw new Error(result.error ?? "Could not upload the image")
+				}
+				return result.src
+			},
+			validate: (file) => checkStagedImage(file)?.error ?? null,
+		}),
+		[name, owner],
+	)
 	const { documentKey, managedFields, sidebarFields, titleKey } = useMemo(
 		() => getCollectionEditorFields(schema),
 		[schema],
@@ -203,6 +234,19 @@ export function CollectionItemEditor({
 			isMountedRef.current = false
 		}
 	}, [])
+	// What every mutation addresses, read when it is sent rather than when it was
+	// queued. An autosave queued behind the first Save to GitHub on a new item is
+	// sent after the commit has made it an item, and must go there (#176).
+	const targetRef = useRef({
+		mode,
+		path: `${location.pathname}${location.search}`,
+	})
+	useEffect(() => {
+		targetRef.current = {
+			mode,
+			path: `${location.pathname}${location.search}`,
+		}
+	}, [location.pathname, location.search, mode])
 
 	/**
 	 * Put the Draft the first save minted in the URL, which is how a reload finds
@@ -240,7 +284,7 @@ export function CollectionItemEditor({
 					if (conflictRef.current) throw conflictRef.current
 					setSaveError(null)
 					const { response, responseText } = await fetch(
-						`/api/editor${location.pathname}${location.search}`,
+						`/api/editor${targetRef.current.path}`,
 						{
 							method: "POST",
 							headers: { "Content-Type": "application/json" },
@@ -274,6 +318,11 @@ export function CollectionItemEditor({
 						revision?: number | null
 						collectionPath?: string
 					} = {}
+					// The action refuses with a 4xx. A 5xx on a commit is the
+					// platform's — a Worker over its CPU limit, say — and whatever
+					// it says, the writer can only retry or keep a Draft (#174).
+					const isServerFailure =
+						response.status >= 500 && intent !== EditorActionIntents.SAVE
 					try {
 						result = JSON.parse(responseText) as typeof result
 					} catch {
@@ -289,7 +338,9 @@ export function CollectionItemEditor({
 					}
 					if (!response.ok) {
 						throw new EditorActionError(
-							result.error ?? "Could not save the editor draft",
+							isServerFailure
+								? "GitHub save failed — try again later, or use Save."
+								: (result.error ?? "Could not save the editor draft"),
 							readRefusalCode(result.code),
 						)
 					}
@@ -334,12 +385,20 @@ export function CollectionItemEditor({
 					// A Save to GitHub turned this new item into one the repository
 					// names. The URL has to follow, or the next keystroke mints a
 					// second Draft with no Source and the commit after it is refused
-					// as a duplicate slug.
+					// as a duplicate slug. The loader is skipped, as for a Draft's
+					// adoption: the editor already holds what was committed, and
+					// re-running it would remount the editor over a read from GitHub
+					// (#176).
 					if (result.itemPath) {
-						await navigate(result.itemPath, { replace: true })
+						targetRef.current = { mode: "item", path: result.itemPath }
+						await navigate(result.itemPath, {
+							defaultShouldRevalidate: false,
+							preventScrollReset: true,
+							replace: true,
+						})
 						return
 					}
-					if (mode === "new" && draftIdRef.current)
+					if (targetRef.current.mode === "new" && draftIdRef.current)
 						await adoptDraftId(draftIdRef.current)
 				})
 				.catch((error: unknown) => {
@@ -358,7 +417,7 @@ export function CollectionItemEditor({
 			mutationQueueRef.current = operation.catch(() => undefined)
 			return operation
 		},
-		[adoptDraftId, location.pathname, location.search, mode, navigate],
+		[adoptDraftId, navigate],
 	)
 
 	// A data-only Format mounts no rich-text editor to carry saves, so this
@@ -586,6 +645,7 @@ export function CollectionItemEditor({
 						<RichTextEditor
 							key={documentKey ?? "fallback-content"}
 							ref={registerEditorRef}
+							imageUpload={imageUpload}
 							initialContent={opened.content}
 							onAutosaveStateChange={setAutosaveState}
 							persistence={persistence}
