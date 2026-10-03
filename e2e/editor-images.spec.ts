@@ -1,4 +1,8 @@
 import { expect, type Page, test } from "@playwright/test"
+import {
+	checkStagedImage,
+	STAGED_IMAGE_MAX_BYTES,
+} from "@/core/editor/staged-images"
 import { E2E_NAME, E2E_OWNER, signInWriter } from "./support/signed-in-writer"
 
 // A 1×1 PNG, so the browser has a real picture to decode once it is served.
@@ -104,15 +108,16 @@ test("stages an image pasted or dropped into the editor", async ({ page }) => {
 })
 
 test("tells the writer why an image was refused", async ({ page }) => {
-	await insertThroughSlashCommand(page, {
+	const svg = {
 		buffer: Buffer.from("<svg xmlns='http://www.w3.org/2000/svg'/>"),
 		mimeType: "image/svg+xml",
 		name: "logo.svg",
-	})
+	}
+	await insertThroughSlashCommand(page, svg)
 
 	await expect(
 		page.getByText(
-			"Failed to upload: Use a PNG, JPEG, GIF, WebP or AVIF image.",
+			`Failed to upload: ${checkStagedImage({ size: 0, type: svg.mimeType })?.error}`,
 		),
 	).toBeVisible()
 })
@@ -120,13 +125,14 @@ test("tells the writer why an image was refused", async ({ page }) => {
 test("refuses an oversized image on the server, whatever the editor allowed", async ({
 	page,
 }) => {
+	const huge = { size: STAGED_IMAGE_MAX_BYTES + 1, type: "image/png" }
 	const response = await page.request.post(
 		`/api/staged-image/${E2E_OWNER}/${E2E_NAME}`,
 		{
 			multipart: {
 				file: {
-					buffer: Buffer.alloc(5 * 1024 * 1024 + 1),
-					mimeType: "image/png",
+					buffer: Buffer.alloc(huge.size),
+					mimeType: huge.type,
 					name: "huge.png",
 				},
 			},
@@ -135,6 +141,6 @@ test("refuses an oversized image on the server, whatever the editor allowed", as
 
 	expect(response.status()).toBe(413)
 	expect(await response.json()).toEqual({
-		error: "Images can be at most 5 MB.",
+		error: checkStagedImage(huge)?.error,
 	})
 })
