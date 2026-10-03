@@ -18,11 +18,16 @@ import {
 	readRefusalCode,
 	toEditorSaveError,
 } from "@/core/editor/editor-action"
+import {
+	checkStagedImage,
+	stagedImageBaseUrl,
+} from "@/core/editor/staged-images"
 import { usePreferences } from "@/core/preferences/context"
 import {
 	type AutosaveState,
 	type EditorRefApi,
 	EditorWordCount,
+	type ImageUploadAdapter,
 	RichTextEditor,
 } from "@/editor"
 import { Separator } from "@/ui/components/base/separator"
@@ -184,6 +189,32 @@ export function CollectionItemEditor({
 	const [autosaveState, setAutosaveState] =
 		useState<AutosaveState>(initialAutosaveState)
 	const assetBaseUrl = `/api/repo-asset/${encodeURIComponent(owner)}/${encodeURIComponent(name)}`
+	// An image added to the Body is staged as it lands, and the Draft keeps only
+	// the URL it is served from. The node shows whatever this throws (#177).
+	const imageUpload = useMemo<ImageUploadAdapter>(
+		() => ({
+			upload: async (file) => {
+				const body = new FormData()
+				body.set("file", file)
+				const response = await fetch(stagedImageBaseUrl(owner, name), {
+					body,
+					method: "POST",
+				}).catch(() => {
+					throw new Error("Could not upload the image")
+				})
+				const result = (await response.json().catch(() => ({}))) as {
+					error?: string
+					src?: string
+				}
+				if (!response.ok || !result.src) {
+					throw new Error(result.error ?? "Could not upload the image")
+				}
+				return result.src
+			},
+			validate: (file) => checkStagedImage(file)?.error ?? null,
+		}),
+		[name, owner],
+	)
 	const { documentKey, managedFields, sidebarFields, titleKey } = useMemo(
 		() => getCollectionEditorFields(schema),
 		[schema],
@@ -614,6 +645,7 @@ export function CollectionItemEditor({
 						<RichTextEditor
 							key={documentKey ?? "fallback-content"}
 							ref={registerEditorRef}
+							imageUpload={imageUpload}
 							initialContent={opened.content}
 							onAutosaveStateChange={setAutosaveState}
 							persistence={persistence}

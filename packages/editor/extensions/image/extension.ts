@@ -82,7 +82,9 @@ export const CustomImageExtension = Node.create<{
 		const src = node.attrs?.src ?? ""
 		const alt = node.attrs?.alt ?? ""
 		const title = node.attrs?.title ?? ""
-		if (!src) return ""
+		// Until its upload lands, `src` is a preview only this tab can read.
+		const status = node.attrs?.status
+		if (!src || status === "uploading" || status === "error") return ""
 		return title ? `![${alt}](${src} "${title}")` : `![${alt}](${src})`
 	},
 
@@ -96,17 +98,22 @@ export const CustomImageExtension = Node.create<{
 				(file) =>
 				({ chain }) => {
 					const adapter = this.options.uploadAdapter
-					if (!adapter || validateImageFile(file, adapter)) return false
+					if (!adapter) return false
 
+					// A refused file still lands, as an error the writer can read
+					// and delete, rather than vanishing without a word.
+					const errorMessage = validateImageFile(file, adapter)
 					return chain()
 						.insertContent({
 							type: this.name,
-							attrs: {
-								src: URL.createObjectURL(file),
-								alt: file.name,
-								status: "uploading",
-								file,
-							},
+							attrs: errorMessage
+								? { alt: file.name, errorMessage, status: "error" }
+								: {
+										src: URL.createObjectURL(file),
+										alt: file.name,
+										status: "uploading",
+										file,
+									},
 						})
 						.run()
 				},

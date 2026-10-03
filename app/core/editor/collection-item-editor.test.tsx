@@ -20,6 +20,7 @@ import {
 	EditorWidth,
 	type UserPreferenceValues,
 } from "@/db/types"
+import type { ImageUploadAdapter } from "@/editor"
 
 import {
 	CollectionItemEditor,
@@ -39,6 +40,7 @@ import {
  */
 
 const mocks = vi.hoisted(() => ({
+	imageUpload: undefined as ImageUploadAdapter | undefined,
 	persistence: undefined as
 		| { onAutoSave?: (markdown: string) => Promise<void> }
 		| undefined,
@@ -51,6 +53,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@/editor", () => ({
 	EditorWordCount: () => <div data-testid="word-count" />,
 	RichTextEditor: (props: {
+		imageUpload?: ImageUploadAdapter
 		initialContent?: string
 		persistence?: {
 			onAutoSave?: (markdown: string) => Promise<void>
@@ -59,6 +62,7 @@ vi.mock("@/editor", () => ({
 		ref?: (api: unknown) => void
 	}) => {
 		mocks.richTextEditor(props.initialContent)
+		mocks.imageUpload = props.imageUpload
 		mocks.persistence = props.persistence
 		props.ref?.({
 			focus: vi.fn(),
@@ -148,6 +152,7 @@ const title = () => screen.getByLabelText("Title") as HTMLTextAreaElement
 
 beforeEach(() => {
 	mocks.richTextEditor.mockClear()
+	mocks.imageUpload = undefined
 	mocks.persistence = undefined
 	vi.stubGlobal("fetch", vi.fn())
 })
@@ -234,6 +239,57 @@ describe("a Collection Item whose content has arrived", () => {
 		expect(lastControls(setControls)?.canSave).toBe(true)
 		expect(lastControls(setControls)?.canCommit).toBe(true)
 		expect(lastControls(setControls)?.canPublish).toBe(true)
+	})
+})
+
+describe("an image the writer adds to the Body", () => {
+	const photo = () =>
+		new File([new Uint8Array(4)], "photo.png", { type: "image/png" })
+
+	it("stages it under the Project and keeps the URL it is served from", async () => {
+		vi.mocked(fetch).mockResolvedValue(
+			Response.json({ src: "/api/staged-image/acme/site/abc.png" }),
+		)
+		editor(opened())
+
+		const src = await mocks.imageUpload?.upload(photo())
+
+		expect(src).toBe("/api/staged-image/acme/site/abc.png")
+		const [url, init] = vi.mocked(fetch).mock.calls[0]
+		expect(url).toBe("/api/staged-image/acme/site")
+		expect(init?.method).toBe("POST")
+		expect((init?.body as FormData).get("file")).toBeInstanceOf(File)
+	})
+
+	it("fails with what the server said, so the writer can read it", async () => {
+		vi.mocked(fetch).mockResolvedValue(
+			Response.json({ error: "Images can be at most 5 MB." }, { status: 413 }),
+		)
+		editor(opened())
+
+		await expect(mocks.imageUpload?.upload(photo())).rejects.toThrow(
+			"Images can be at most 5 MB.",
+		)
+	})
+
+	it("fails readably when the server cannot be reached", async () => {
+		vi.mocked(fetch).mockRejectedValue(new TypeError("Failed to fetch"))
+		editor(opened())
+
+		await expect(mocks.imageUpload?.upload(photo())).rejects.toThrow(
+			"Could not upload the image",
+		)
+	})
+
+	it("refuses a file the server would refuse, before sending it", () => {
+		editor(opened())
+
+		const svg = new File(["<svg/>"], "logo.svg", { type: "image/svg+xml" })
+
+		expect(mocks.imageUpload?.validate?.(svg)).toBe(
+			"Use a PNG, JPEG, GIF, WebP or AVIF image.",
+		)
+		expect(mocks.imageUpload?.validate?.(photo())).toBeNull()
 	})
 })
 

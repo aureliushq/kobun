@@ -107,3 +107,63 @@ describe("image upload node view", () => {
 		editor.destroy()
 	})
 })
+
+describe("image upload failures", () => {
+	afterEach(() => vi.unstubAllGlobals())
+
+	function mountEditor(imageUpload: ImageUploadAdapter) {
+		vi.stubGlobal("URL", {
+			...URL,
+			createObjectURL: vi.fn().mockReturnValue("blob:preview"),
+		})
+		const editor = new Editor({
+			element: document.createElement("div"),
+			extensions: getEditorExtensions({ imageUpload }),
+		})
+		render(<EditorContent editor={editor} />)
+		return editor
+	}
+
+	it("shows why a file was refused instead of dropping it", () => {
+		const upload = vi.fn()
+		const editor = mountEditor(adapter({ maxFileSize: 10, upload }))
+
+		act(() => {
+			editor.commands.insertImageComponent(imageFile({ size: 11 }))
+		})
+
+		expect(
+			screen.getByText("Failed to upload: Image must be 10 bytes or smaller."),
+		).toBeVisible()
+		expect(upload).not.toHaveBeenCalled()
+		expect(editor.getMarkdown().trim()).toBe("")
+		editor.destroy()
+	})
+
+	it("shows the upload's error and keeps its preview out of the Markdown", async () => {
+		const editor = mountEditor(
+			adapter({ upload: vi.fn().mockRejectedValue(new Error("Too big")) }),
+		)
+
+		act(() => {
+			editor.commands.insertImageComponent(imageFile())
+		})
+
+		expect(await screen.findByText("Failed to upload: Too big")).toBeVisible()
+		expect(editor.getMarkdown().trim()).toBe("")
+		editor.destroy()
+	})
+
+	it("keeps an image out of the Markdown until its upload finishes", () => {
+		const editor = mountEditor(
+			adapter({ upload: vi.fn(() => new Promise<string>(() => undefined)) }),
+		)
+
+		act(() => {
+			editor.commands.insertImageComponent(imageFile())
+		})
+
+		expect(editor.getMarkdown().trim()).toBe("")
+		editor.destroy()
+	})
+})
