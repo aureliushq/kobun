@@ -25,7 +25,18 @@ export interface SourceWriteInput {
 	content: string
 	/** The sha the writer believes the Source is at; omitted when creating it. */
 	expectedSha?: string
+	/**
+	 * Images the content links to, written in the same commit: a refused write
+	 * leaves none of them behind.
+	 */
+	images?: SourceImage[]
 	message: string
+	path: string
+}
+
+/** An image's bytes and the repository path they are written to. */
+export interface SourceImage {
+	bytes: Uint8Array
 	path: string
 }
 

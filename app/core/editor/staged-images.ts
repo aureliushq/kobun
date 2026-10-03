@@ -28,7 +28,47 @@ export function checkStagedImage(file: Pick<File, "size" | "type">) {
 	return null
 }
 
+/**
+ * Where a Staged Image is held in R2: under its Project, so an id from another
+ * Project is not found.
+ */
+export function stagedImageKey(projectId: string, imageId: string) {
+	return `${projectId}/${imageId}`
+}
+
 /** Where a Project's Staged Images are uploaded to and served from. */
 export function stagedImageBaseUrl(owner: string, name: string) {
 	return `/api/staged-image/${encodeURIComponent(owner)}/${encodeURIComponent(name)}`
+}
+
+/** A Staged Image a Commit writes, and the repository path it is written to. */
+export interface CommittedImage {
+	id: string
+	path: string
+	src: string
+}
+
+/**
+ * The Body as it is committed: each Staged Image it still uses points at its
+ * path in the media directory, and those images are named so the Commit can
+ * write them. An image the writer removed is not in the Body, so it is not
+ * named and never reaches the repository.
+ */
+export function commitStagedImages(
+	markdown: string,
+	baseUrl: string,
+	mediaPath: string,
+): { images: CommittedImage[]; markdown: string } {
+	const extensions = [...new Set(STAGED_IMAGE_TYPES.values())].join("|")
+	const pattern = new RegExp(
+		`${baseUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}/([0-9a-f-]{36}\\.(?:${extensions}))`,
+		"g",
+	)
+	const images = new Map<string, CommittedImage>()
+	const committed = markdown.replace(pattern, (src, id: string) => {
+		const path = `${mediaPath}/${id}`
+		images.set(id, { id, path, src })
+		return path
+	})
+	return { images: [...images.values()], markdown: committed }
 }

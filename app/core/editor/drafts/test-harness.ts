@@ -8,6 +8,7 @@ import {
 	collectionFileFormat,
 	isMarkdownCollectionFile,
 } from "@/core/editor/collection-items.server"
+import { stagedImageBaseUrl } from "@/core/editor/staged-images"
 import {
 	editorDraft,
 	githubInstallation,
@@ -22,11 +23,14 @@ import type {
 	SourceWriteInput,
 	SourceWriteResult,
 } from "./source-store"
+import type { StagedImageStore } from "./staged-image-store"
 import type { DraftRow, DraftsDatabase, ListedItem } from "./types"
 
 export interface FakeSourceStore extends SourceStore {
 	/** The stored Source file, for asserting on what a write left behind. */
 	get(path: string): SourceFile | undefined
+	/** The bytes an image write left at `path`. */
+	getImage(path: string): Uint8Array | undefined
 	/** Direct children of `path`, which is what a listing of it would name. */
 	list(path: string): Promise<SourceFile[]>
 	/** Seed or replace a Source file, minting a sha when none is given. */
@@ -43,6 +47,7 @@ export function createFakeSourceStore(
 	seed: SourceFile[] = [],
 ): FakeSourceStore {
 	const files = new Map<string, SourceFile>()
+	const images = new Map<string, Uint8Array>()
 	const stale = new Set<string>()
 	let shas = 0
 
@@ -61,6 +66,7 @@ export function createFakeSourceStore(
 
 	return {
 		get: (path: string) => files.get(path),
+		getImage: (path: string) => images.get(path),
 		list: async (path: string) =>
 			[...files.values()].filter(
 				(file) =>
@@ -89,6 +95,8 @@ export function createFakeSourceStore(
 				input.expectedSha !== undefined || !existing,
 				`${input.path} already exists; a write must carry its sha`,
 			)
+			for (const image of input.images ?? [])
+				images.set(image.path, image.bytes)
 			const written = put({ content: input.content, path: input.path })
 			return {
 				commitSha: `commit-${written.sha}`,
@@ -98,6 +106,33 @@ export function createFakeSourceStore(
 		},
 	}
 }
+
+export interface FakeStagedImageStore extends StagedImageStore {
+	/** Whether an image is still staged under `id`. */
+	has(id: string): boolean
+	/** Stage an image, answering the link the editor would put in the Body. */
+	put(id: string, bytes: Uint8Array): string
+}
+
+/** A Map standing in for R2, under the URL the editor serves the test Project's images from. */
+export function createFakeStagedImageStore(): FakeStagedImageStore {
+	const images = new Map<string, Uint8Array>()
+	const baseUrl = stagedImageBaseUrl("acme", "blog")
+	return {
+		baseUrl,
+		delete: async (ids) => {
+			for (const id of ids) images.delete(id)
+		},
+		has: (id) => images.has(id),
+		put: (id, bytes) => {
+			images.set(id, bytes)
+			return `${baseUrl}/${id}`
+		},
+		read: async (id) => images.get(id) ?? null,
+	}
+}
+
+export const TEST_MEDIA_PATH = "src/assets/images"
 
 export interface DraftsTestHarness {
 	close(): void
@@ -115,6 +150,7 @@ export interface DraftsTestHarness {
 	readDraft(id: string): Promise<DraftRow | undefined>
 	seedDraft(values: Partial<DraftRow>): DraftRow
 	sourceStore: FakeSourceStore
+	stagedImages: FakeStagedImageStore
 }
 
 export const TEST_COLLECTION_SLUG = "posts"
@@ -267,6 +303,7 @@ function createHarnessBase(options: {
 	// differs from production, so the module keeps its exact D1 type.
 	const db = sqliteDb as unknown as DraftsDatabase
 	const sourceStore = createFakeSourceStore(options.files)
+	const stagedImages = createFakeStagedImageStore()
 	let drafts = 0
 
 	return {
@@ -291,6 +328,7 @@ function createHarnessBase(options: {
 			return row
 		},
 		sourceStore,
+		stagedImages,
 	}
 }
 
@@ -324,9 +362,11 @@ export function createDraftsTestHarness(
 			db: base.db,
 			directoryPath: TEST_DIRECTORY_PATH,
 			listItems: () => listing.items(),
+			mediaPath: TEST_MEDIA_PATH,
 			now: options.now,
 			project: { id: base.projectId },
 			sourceStore: base.sourceStore,
+			stagedImages: base.stagedImages,
 		}),
 		listing,
 	}
@@ -358,11 +398,13 @@ export function createSingletonDraftsTestHarness(
 		drafts: createSingletonDrafts({
 			db: base.db,
 			filePath,
+			mediaPath: TEST_MEDIA_PATH,
 			now: options.now,
 			project: { id: base.projectId },
 			singleton: options.singleton ?? TEST_SINGLETON,
 			singletonSlug: TEST_SINGLETON_SLUG,
 			sourceStore: base.sourceStore,
+			stagedImages: base.stagedImages,
 		}),
 	}
 }

@@ -167,3 +167,45 @@ describe("image upload failures", () => {
 		editor.destroy()
 	})
 })
+
+describe("replacing image sources", () => {
+	const STAGED = "/api/staged-image/acme/blog/cat.png"
+
+	function mountEditor() {
+		const editor = new Editor({
+			content: `Intro\n\n![A cat](${STAGED})\n\n![A dog](media/dog.png)`,
+			contentType: "markdown",
+			element: document.createElement("div"),
+			extensions: getEditorExtensions({ imageUpload: adapter() }),
+		})
+		render(<EditorContent editor={editor} />)
+		return editor
+	}
+
+	it("points each named image at its new source and leaves the rest alone", () => {
+		const editor = mountEditor()
+
+		act(() => {
+			editor.commands.replaceImageSources({ [STAGED]: "media/cat.png" })
+		})
+
+		expect(editor.getMarkdown().trim()).toBe(
+			"Intro\n\n![A cat](media/cat.png)\n\n![A dog](media/dog.png)",
+		)
+		editor.destroy()
+	})
+
+	// The old source may be gone by the time anyone undoes: a committed Staged
+	// Image is no longer staged.
+	it("is not something undo brings back", () => {
+		const editor = mountEditor()
+		act(() => {
+			editor.commands.insertContent("x")
+			editor.commands.replaceImageSources({ [STAGED]: "media/cat.png" })
+			editor.commands.undo()
+		})
+
+		expect(editor.getMarkdown()).toContain("![A cat](media/cat.png)")
+		editor.destroy()
+	})
+})

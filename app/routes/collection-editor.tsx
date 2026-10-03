@@ -26,6 +26,7 @@ import {
 } from "@/core/editor/drafts"
 import { createDrafts } from "@/core/editor/drafts/create-drafts.server"
 import { createGithubSourceStore } from "@/core/editor/drafts/github-source-store.server"
+import { createR2StagedImageStore } from "@/core/editor/drafts/r2-staged-image-store.server"
 import {
 	commitResponse,
 	draftRefusalResponse,
@@ -81,6 +82,7 @@ async function resolveCollectionEditorContext({
 				{ installationId, name, owner },
 				directoryPath,
 			),
+		mediaPath: ctx.config.mediaPath,
 		name,
 		owner,
 		projectRow,
@@ -91,6 +93,12 @@ async function resolveCollectionEditorContext({
 			createGithubSourceStore({ env, installationId, name, owner }),
 			() => invalidateCollectionListing(db, projectRow.id, directoryPath),
 		),
+		stagedImages: createR2StagedImageStore({
+			bucket: env.IMAGES,
+			name,
+			owner,
+			projectId: projectRow.id,
+		}),
 	}
 }
 
@@ -113,8 +121,10 @@ function createDraftsFor(
 		db: resolved.db,
 		directoryPath: resolved.directoryPath,
 		listItems: resolved.listItems,
+		mediaPath: resolved.mediaPath,
 		project: { id: resolved.projectRow.id },
 		sourceStore: resolved.sourceStore,
+		stagedImages: resolved.stagedImages,
 	})
 }
 

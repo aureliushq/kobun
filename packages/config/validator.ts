@@ -55,6 +55,15 @@ export const validateConfig = (
 	const basePath =
 		typeof parsedRaw.basePath === "string" ? parsedRaw.basePath : "src/content"
 
+	// mediaPath: optional, defaults to "src/assets/images". Committed images are
+	// linked by their repository path, which has no leading slash: one with a
+	// slash is a path on the site, and the editor would not look in the repo.
+	const mediaPath = (
+		typeof parsedRaw.mediaPath === "string"
+			? parsedRaw.mediaPath
+			: "src/assets/images"
+	).replace(/^\/+|\/+$/g, "")
+
 	// collections: required object
 	const collections: Record<string, Collection> = {}
 	const rawCollections = parsedRaw.collections
@@ -154,6 +163,7 @@ export const validateConfig = (
 				basePath,
 				collections,
 				errors,
+				mediaPath,
 				singletons,
 				version: versionResult.success ? versionResult.data : 0,
 			}

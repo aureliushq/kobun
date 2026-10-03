@@ -11,6 +11,8 @@ declare module "@tiptap/core" {
 	interface Commands<ReturnType> {
 		customImage: {
 			insertImageComponent: (file: File) => ReturnType
+			/** Point images at new sources, keyed by the source each has now. */
+			replaceImageSources: (sources: Record<string, string>) => ReturnType
 		}
 	}
 }
@@ -116,6 +118,21 @@ export const CustomImageExtension = Node.create<{
 									},
 						})
 						.run()
+				},
+			replaceImageSources:
+				(sources) =>
+				({ state, tr }) => {
+					let replaced = false
+					state.doc.descendants((node, pos) => {
+						const src = node.type.name === this.name && sources[node.attrs.src]
+						if (!src) return
+						tr.setNodeMarkup(pos, undefined, { ...node.attrs, src })
+						replaced = true
+					})
+					// Undo would bring back a source that may no longer exist: the
+					// host moves an image before it says where to.
+					if (replaced) tr.setMeta("addToHistory", false)
+					return replaced
 				},
 		}
 	},

@@ -412,6 +412,7 @@ test("repoints the draft at the new source when the sync loses the race", async 
 		commitSha: `commit-${committed?.sha}`,
 		draftId: seeded.id,
 		fields: FIELDS,
+		images: {},
 		itemSlug: "hello",
 		ok: true,
 		outcome: "committed-unsynced",

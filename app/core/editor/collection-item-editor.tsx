@@ -22,6 +22,7 @@ import {
 	checkStagedImage,
 	stagedImageBaseUrl,
 } from "@/core/editor/staged-images"
+import { previewSrc } from "@/core/fields/image"
 import { usePreferences } from "@/core/preferences/context"
 import {
 	type AutosaveState,
@@ -185,14 +186,17 @@ export function CollectionItemEditor({
 	// writer typing into work it cannot keep, and a reload is the way on (#166).
 	const conflictRef = useRef<EditorActionError | null>(null)
 	const [isConflicted, setIsConflicted] = useState(false)
-	const mutationQueueRef = useRef<Promise<void>>(Promise.resolve())
+	const mutationQueueRef = useRef<Promise<unknown>>(Promise.resolve())
 	const [autosaveState, setAutosaveState] =
 		useState<AutosaveState>(initialAutosaveState)
 	const assetBaseUrl = `/api/repo-asset/${encodeURIComponent(owner)}/${encodeURIComponent(name)}`
 	// An image added to the Body is staged as it lands, and the Draft keeps only
 	// the URL it is served from. The node shows whatever this throws (#177).
+	// Once committed it is linked by its repository path, shown through the
+	// asset route like an image Field's.
 	const imageUpload = useMemo<ImageUploadAdapter>(
 		() => ({
+			resolveSrc: (src) => previewSrc(src, assetBaseUrl),
 			upload: async (file) => {
 				const body = new FormData()
 				body.set("file", file)
@@ -213,7 +217,7 @@ export function CollectionItemEditor({
 			},
 			validate: (file) => checkStagedImage(file)?.error ?? null,
 		}),
-		[name, owner],
+		[assetBaseUrl, name, owner],
 	)
 	const { documentKey, managedFields, sidebarFields, titleKey } = useMemo(
 		() => getCollectionEditorFields(schema),
@@ -314,6 +318,7 @@ export function CollectionItemEditor({
 						draftId?: string | null
 						error?: string
 						fields?: FieldRecord | null
+						images?: Record<string, string>
 						itemPath?: string
 						revision?: number | null
 						collectionPath?: string
@@ -375,6 +380,9 @@ export function CollectionItemEditor({
 						fieldsRef.current = result.fields
 						setFields(result.fields)
 					}
+					// Where a commit moved each Staged Image, for the Body to follow:
+					// the staged copies are gone once the repository holds them.
+					const moved = { imageSources: result.images ?? {} }
 					// Awaited so the editor stays in its committing state until the
 					// collection page has actually loaded, rather than sitting idle and
 					// re-clickable while its loader runs.
@@ -396,10 +404,11 @@ export function CollectionItemEditor({
 							preventScrollReset: true,
 							replace: true,
 						})
-						return
+						return moved
 					}
 					if (targetRef.current.mode === "new" && draftIdRef.current)
 						await adoptDraftId(draftIdRef.current)
+					return moved
 				})
 				.catch((error: unknown) => {
 					if (
@@ -425,11 +434,15 @@ export function CollectionItemEditor({
 	// the header's actions and their gates then run exactly as they do over one.
 	const bodilessEditor = useMemo<EditorHandle>(
 		() => ({
-			commit: () => sendAction(EditorActionIntents.COMMIT, ""),
+			commit: async () => {
+				await sendAction(EditorActionIntents.COMMIT, "")
+			},
 			focus: () => undefined,
 			getEditor: () => null,
 			hasUnsavedChanges: () => false,
-			publish: () => sendAction(EditorActionIntents.PUBLISH, ""),
+			publish: async () => {
+				await sendAction(EditorActionIntents.PUBLISH, "")
+			},
 			save: async () => {
 				setAutosaveState((state) => ({ ...state, isSaving: true }))
 				try {
@@ -491,12 +504,15 @@ export function CollectionItemEditor({
 
 	const persistence = useMemo(
 		() => ({
-			onAutoSave: (markdown: string) =>
-				sendAction(EditorActionIntents.SAVE, markdown),
+			onAutoSave: async (markdown: string) => {
+				await sendAction(EditorActionIntents.SAVE, markdown)
+			},
+			// The one answer the editor reads: where the commit moved images.
 			onCommit: (markdown: string) =>
 				sendAction(EditorActionIntents.COMMIT, markdown),
-			onPublish: (markdown: string) =>
-				sendAction(EditorActionIntents.PUBLISH, markdown),
+			onPublish: async (markdown: string) => {
+				await sendAction(EditorActionIntents.PUBLISH, markdown)
+			},
 		}),
 		[sendAction],
 	)

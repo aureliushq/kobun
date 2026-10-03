@@ -2,6 +2,7 @@ import {
 	checkStagedImage,
 	STAGED_IMAGE_TYPES,
 	stagedImageBaseUrl,
+	stagedImageKey,
 } from "@/core/editor/staged-images"
 import { requireApiAccess } from "@/core/project-context/project-context.server"
 import type { Route } from "./+types/api.staged-image"
@@ -32,7 +33,7 @@ export async function action({ context, params, request }: Route.ActionArgs) {
 	const imageId = `${crypto.randomUUID()}.${STAGED_IMAGE_TYPES.get(file.type)}`
 	// R2 refuses a stream whose length it cannot know, and the size is capped.
 	await env.IMAGES.put(
-		`${projectRow.id}/${imageId}`,
+		stagedImageKey(projectRow.id, imageId),
 		await file.arrayBuffer(),
 		{
 			httpMetadata: { contentType: file.type },
@@ -54,7 +55,7 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
 	})
 
 	const object = params.image_id
-		? await env.IMAGES.get(`${projectRow.id}/${params.image_id}`)
+		? await env.IMAGES.get(stagedImageKey(projectRow.id, params.image_id))
 		: null
 	if (!object) return new Response("Not Found", { status: 404 })
 

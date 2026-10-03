@@ -42,7 +42,10 @@ import {
 const mocks = vi.hoisted(() => ({
 	imageUpload: undefined as ImageUploadAdapter | undefined,
 	persistence: undefined as
-		| { onAutoSave?: (markdown: string) => Promise<void> }
+		| {
+				onAutoSave?: (markdown: string) => Promise<void>
+				onCommit?: (markdown: string) => Promise<unknown>
+		  }
 		| undefined,
 	richTextEditor: vi.fn(),
 }))
@@ -290,6 +293,35 @@ describe("an image the writer adds to the Body", () => {
 			"Use a PNG, JPEG, GIF, WebP or AVIF image.",
 		)
 		expect(mocks.imageUpload?.validate?.(photo())).toBeNull()
+	})
+
+	// The repository may be private, so a committed image is shown through the
+	// asset route; a Staged Image is already served by the app.
+	it("shows a committed image from the repository and a staged one as it is", () => {
+		editor(opened())
+
+		expect(mocks.imageUpload?.resolveSrc?.("src/assets/images/abc.png")).toBe(
+			"/api/repo-asset/acme/site/src/assets/images/abc.png",
+		)
+		expect(
+			mocks.imageUpload?.resolveSrc?.("/api/staged-image/acme/site/abc.png"),
+		).toBe("/api/staged-image/acme/site/abc.png")
+	})
+
+	// The writer stays in the editor after a Save to GitHub, and the staged copy
+	// is gone, so the Body has to follow the image into the repository.
+	it("tells the editor where a Save to GitHub moved each image", async () => {
+		const images = {
+			"/api/staged-image/acme/site/abc.png": "src/assets/images/abc.png",
+		}
+		vi.mocked(fetch).mockResolvedValue(
+			Response.json({ draftDeleted: true, images, ok: true }),
+		)
+		editor(opened())
+
+		await expect(mocks.persistence?.onCommit?.("![](x)")).resolves.toEqual({
+			imageSources: images,
+		})
 	})
 })
 

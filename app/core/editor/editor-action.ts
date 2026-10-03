@@ -201,9 +201,10 @@ export function commitResponse(
 		})
 	}
 	// The Data as it was committed, so the properties panel reflects what the
-	// system stamped without a reload. A Save to GitHub leaves the writer in the
-	// editor, so state holding pre-stamp values would read as Dirty against the
-	// Source it just created.
+	// system stamped without a reload, and the links each Staged Image now has
+	// in the repository, so the Body can follow them. A Save to GitHub leaves
+	// the writer in the editor, so state holding pre-stamp values would read as
+	// Dirty against the Source it just created.
 	if (committed.outcome === "committed-unsynced") {
 		return Response.json({
 			ok: true,
@@ -212,6 +213,7 @@ export function commitResponse(
 			draftSynced: false,
 			collectionPath,
 			fields: committed.fields,
+			images: committed.images,
 			itemPath,
 		})
 	}
@@ -223,6 +225,7 @@ export function commitResponse(
 		revision: committed.revision,
 		collectionPath,
 		fields: committed.fields,
+		images: committed.images,
 		itemPath,
 	})
 }

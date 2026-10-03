@@ -9,6 +9,7 @@ import type { FieldRecord } from "@/core/editor/collection-metadata"
 import type * as schema from "@/db/schema"
 import type { editorDraft } from "@/db/schema/app-schema"
 import type { SourceStore } from "./source-store"
+import type { StagedImageStore } from "./staged-image-store"
 
 /**
  * Production runs on D1; tests run the same schema on in-memory SQLite and cast
@@ -52,8 +53,11 @@ export interface DraftsContext {
 	 * Slug lookup needs, without reading or parsing every file (ADR 0012).
 	 */
 	listItems: () => Promise<ListedItem[]>
+	/** Where a Commit writes the Staged Images its Body uses, as a repository path. */
+	mediaPath: string
 	project: { id: string }
 	sourceStore: SourceStore
+	stagedImages: StagedImageStore
 }
 
 /** One Collection Item as the listing names it: no Body, no bytes. */
@@ -68,11 +72,13 @@ export interface SingletonDraftsContext {
 	db: DraftsDatabase
 	/** The Singleton's Source file, whether or not it exists yet. */
 	filePath: string
+	mediaPath: string
 	now?: () => Date
 	project: { id: string }
 	singleton: Singleton
 	singletonSlug: string
 	sourceStore: SourceStore
+	stagedImages: StagedImageStore
 }
 
 /** Whose Draft a row is: a Collection's or a Singleton's, never both. */
@@ -226,6 +232,8 @@ export type CommitResult<ItemSlug extends string | null = string> =
 			 * against the Source the commit just created.
 			 */
 			fields: FieldRecord
+			/** Each Staged Image link the commit wrote, and the path it now links. */
+			images: Record<string, string>
 			itemSlug: ItemSlug
 			ok: true
 			outcome: "committed"
@@ -240,6 +248,7 @@ export type CommitResult<ItemSlug extends string | null = string> =
 			commitSha?: string
 			draftId: string
 			fields: FieldRecord
+			images: Record<string, string>
 			itemSlug: ItemSlug
 			ok: true
 			outcome: "committed-unsynced"
