@@ -203,6 +203,19 @@ export function CollectionItemEditor({
 			isMountedRef.current = false
 		}
 	}, [])
+	// What every mutation addresses, read when it is sent rather than when it was
+	// queued. An autosave queued behind the first Save to GitHub on a new item is
+	// sent after the commit has made it an item, and must go there (#176).
+	const targetRef = useRef({
+		mode,
+		path: `${location.pathname}${location.search}`,
+	})
+	useEffect(() => {
+		targetRef.current = {
+			mode,
+			path: `${location.pathname}${location.search}`,
+		}
+	}, [location.pathname, location.search, mode])
 
 	/**
 	 * Put the Draft the first save minted in the URL, which is how a reload finds
@@ -240,7 +253,7 @@ export function CollectionItemEditor({
 					if (conflictRef.current) throw conflictRef.current
 					setSaveError(null)
 					const { response, responseText } = await fetch(
-						`/api/editor${location.pathname}${location.search}`,
+						`/api/editor${targetRef.current.path}`,
 						{
 							method: "POST",
 							headers: { "Content-Type": "application/json" },
@@ -341,12 +354,20 @@ export function CollectionItemEditor({
 					// A Save to GitHub turned this new item into one the repository
 					// names. The URL has to follow, or the next keystroke mints a
 					// second Draft with no Source and the commit after it is refused
-					// as a duplicate slug.
+					// as a duplicate slug. The loader is skipped, as for a Draft's
+					// adoption: the editor already holds what was committed, and
+					// re-running it would remount the editor over a read from GitHub
+					// (#176).
 					if (result.itemPath) {
-						await navigate(result.itemPath, { replace: true })
+						targetRef.current = { mode: "item", path: result.itemPath }
+						await navigate(result.itemPath, {
+							defaultShouldRevalidate: false,
+							preventScrollReset: true,
+							replace: true,
+						})
 						return
 					}
-					if (mode === "new" && draftIdRef.current)
+					if (targetRef.current.mode === "new" && draftIdRef.current)
 						await adoptDraftId(draftIdRef.current)
 				})
 				.catch((error: unknown) => {
@@ -365,7 +386,7 @@ export function CollectionItemEditor({
 			mutationQueueRef.current = operation.catch(() => undefined)
 			return operation
 		},
-		[adoptDraftId, location.pathname, location.search, mode, navigate],
+		[adoptDraftId, navigate],
 	)
 
 	// A data-only Format mounts no rich-text editor to carry saves, so this

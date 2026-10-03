@@ -300,10 +300,17 @@ export default function CollectionEditor({ loaderData }: Route.ComponentProps) {
 	}
 
 	// A new item's content was awaited, so there is no boundary here at all and
-	// therefore no placeholder to fall back to.
+	// therefore no placeholder to fall back to. Its first Save to GitHub moves
+	// the URL to the item path without re-running the loader, so this branch
+	// stays rendered and the editor stays mounted (#176). The mode follows the
+	// URL, which now names the item.
 	if (loaderData.mode === "new") {
 		return (
-			<CollectionItemEditor {...chrome} mode="new" opened={loaderData.opened} />
+			<CollectionItemEditor
+				{...chrome}
+				mode={params.editor_mode === "item" ? "item" : "new"}
+				opened={loaderData.opened}
+			/>
 		)
 	}
 
