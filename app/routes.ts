@@ -66,10 +66,7 @@ export default [
 		),
 		route("set-preference", "routes/api.set-preference.ts"),
 		route("set-theme", "routes/api.set-theme.ts"),
-		route(
-			"staged-image/:owner/:name/:image_id?",
-			"routes/api.staged-image.ts",
-		),
+		route("staged-image/:owner/:name/:image_id?", "routes/api.staged-image.ts"),
 	]),
 	route("/component-examples", "routes/example.tsx"),
 ] satisfies RouteConfig
