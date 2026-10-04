@@ -22,6 +22,7 @@ export type EditorRefusalCode = DraftRefusal["code"]
 
 const REFUSAL_CODES: Record<EditorRefusalCode, true> = {
 	"duplicate-slug": true,
+	"missing-image": true,
 	"not-found": true,
 	"revision-conflict": true,
 	"stale-source": true,
@@ -32,6 +33,8 @@ function refusalMessage(refusal: DraftRefusal) {
 	switch (refusal.code) {
 		case "duplicate-slug":
 			return `Another item already uses slug “${refusal.slug}”`
+		case "missing-image":
+			return "An image in the document is no longer available. Remove it and add it again."
 		case "not-found":
 			return "Draft not found"
 		case "revision-conflict":
@@ -45,6 +48,7 @@ function refusalMessage(refusal: DraftRefusal) {
 
 const REFUSAL_STATUS: Record<EditorRefusalCode, number> = {
 	"duplicate-slug": 409,
+	"missing-image": 422,
 	"not-found": 404,
 	"revision-conflict": 409,
 	"stale-source": 409,

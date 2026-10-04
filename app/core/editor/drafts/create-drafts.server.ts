@@ -86,7 +86,6 @@ interface ImageToCommit extends CommittedImage {
 function createDraftLifecycle<ItemSlug extends string | null>(context: {
 	db: DraftsDatabase
 	entity: DraftEntity<ItemSlug>
-	mediaPath: string
 	now?: () => Date
 	project: { id: string }
 	sourceStore: SourceStore
@@ -95,7 +94,6 @@ function createDraftLifecycle<ItemSlug extends string | null>(context: {
 	const {
 		db,
 		entity,
-		mediaPath,
 		now = () => new Date(),
 		project,
 		sourceStore,
@@ -570,7 +568,7 @@ function createDraftLifecycle<ItemSlug extends string | null>(context: {
 		const staged = commitStagedImages(
 			input.markdown,
 			stagedImages.baseUrl,
-			mediaPath,
+			stagedImages.mediaPath,
 		)
 		const committing: ResolvedSaveInput = {
 			...input,
@@ -650,15 +648,7 @@ function createDraftLifecycle<ItemSlug extends string | null>(context: {
 		// Checked before anything is stamped, for the reason a refused gate stamps
 		// nothing: the Draft must come out of a refusal as the writer left it.
 		const images = await readStagedImages(staged.images)
-		if (!images) {
-			return {
-				code: "validation",
-				errors: [
-					"An image in the document is no longer available. Remove it and add it again.",
-				],
-				ok: false,
-			}
-		}
+		if (!images) return { code: "missing-image", ok: false }
 
 		// Every gate has passed, so this commit is happening — and now the stamps
 		// go into the Draft, still before the commit itself. A Draft that outlives
@@ -874,7 +864,6 @@ export function createDrafts(context: DraftsContext) {
 		db,
 		directoryPath,
 		listItems,
-		mediaPath,
 		now,
 		project,
 		sourceStore,
@@ -888,7 +877,6 @@ export function createDrafts(context: DraftsContext) {
 			directoryPath,
 			listItems,
 		}),
-		mediaPath,
 		now,
 		project,
 		sourceStore,
@@ -1041,7 +1029,6 @@ export function createSingletonDrafts(context: SingletonDraftsContext) {
 	const {
 		db,
 		filePath,
-		mediaPath,
 		now,
 		project,
 		singleton,
@@ -1052,7 +1039,6 @@ export function createSingletonDrafts(context: SingletonDraftsContext) {
 	const lifecycle = createDraftLifecycle({
 		db,
 		entity: singletonEntity({ filePath, singleton, singletonSlug }),
-		mediaPath,
 		now,
 		project,
 		sourceStore,

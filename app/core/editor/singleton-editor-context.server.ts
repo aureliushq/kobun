@@ -30,7 +30,6 @@ export async function resolveSingletonEditorContext({
 		drafts: createSingletonDrafts({
 			db,
 			filePath,
-			mediaPath: ctx.config.mediaPath,
 			project: { id: projectRow.id },
 			singleton,
 			singletonSlug: params.singleton_slug,
@@ -42,6 +41,7 @@ export async function resolveSingletonEditorContext({
 			}),
 			stagedImages: createR2StagedImageStore({
 				bucket: env.IMAGES,
+				mediaPath: ctx.config.mediaPath,
 				name,
 				owner,
 				projectId: projectRow.id,

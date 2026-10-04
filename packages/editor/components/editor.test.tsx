@@ -117,7 +117,8 @@ describe("RichTextEditor autosave", () => {
 	it("commits the current markdown and marks it saved", async () => {
 		const testEditor = createTestEditor("Initial")
 		mocks.useEditor.mockReturnValue(testEditor.editor)
-		const onCommit = vi.fn()
+		// A handler that answers nothing, synchronously, is still a commit.
+		const onCommit = vi.fn((_markdown: string): void => undefined)
 		const ref = createRef<EditorRefApi>()
 		render(<RichTextEditor ref={ref} persistence={{ onCommit }} />)
 

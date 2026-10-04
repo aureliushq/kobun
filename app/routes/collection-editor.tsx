@@ -82,7 +82,6 @@ async function resolveCollectionEditorContext({
 				{ installationId, name, owner },
 				directoryPath,
 			),
-		mediaPath: ctx.config.mediaPath,
 		name,
 		owner,
 		projectRow,
@@ -95,6 +94,7 @@ async function resolveCollectionEditorContext({
 		),
 		stagedImages: createR2StagedImageStore({
 			bucket: env.IMAGES,
+			mediaPath: ctx.config.mediaPath,
 			name,
 			owner,
 			projectId: projectRow.id,
@@ -121,7 +121,6 @@ function createDraftsFor(
 		db: resolved.db,
 		directoryPath: resolved.directoryPath,
 		listItems: resolved.listItems,
-		mediaPath: resolved.mediaPath,
 		project: { id: resolved.projectRow.id },
 		sourceStore: resolved.sourceStore,
 		stagedImages: resolved.stagedImages,

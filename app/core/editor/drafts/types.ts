@@ -53,8 +53,6 @@ export interface DraftsContext {
 	 * Slug lookup needs, without reading or parsing every file (ADR 0012).
 	 */
 	listItems: () => Promise<ListedItem[]>
-	/** Where a Commit writes the Staged Images its Body uses, as a repository path. */
-	mediaPath: string
 	project: { id: string }
 	sourceStore: SourceStore
 	stagedImages: StagedImageStore
@@ -72,7 +70,6 @@ export interface SingletonDraftsContext {
 	db: DraftsDatabase
 	/** The Singleton's Source file, whether or not it exists yet. */
 	filePath: string
-	mediaPath: string
 	now?: () => Date
 	project: { id: string }
 	singleton: Singleton
@@ -213,6 +210,8 @@ export type CommitAction = "commit" | "publish"
  */
 export type DraftRefusal =
 	| { code: "duplicate-slug"; ok: false; slug: string }
+	/** The Body links a Staged Image that is no longer staged. */
+	| { code: "missing-image"; ok: false }
 	| { code: "not-found" | "revision-conflict" | "stale-source"; ok: false }
 	| { code: "validation"; errors: string[]; ok: false }
 

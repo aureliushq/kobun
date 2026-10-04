@@ -107,7 +107,7 @@ interface PersistenceAdapter {
   onAutoSave?: (markdown: string) => void | Promise<void>
   onCommit?: (
     markdown: string,
-  ) => Promise<{ imageSources: Record<string, string> } | undefined>
+  ) => void | Promise<{ imageSources: Record<string, string> } | void>
   onPublish?: (markdown: string) => void | Promise<void>
 }
 ```

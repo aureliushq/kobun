@@ -124,6 +124,7 @@ export function createFakeStagedImageStore(): FakeStagedImageStore {
 			for (const id of ids) images.delete(id)
 		},
 		has: (id) => images.has(id),
+		mediaPath: TEST_MEDIA_PATH,
 		put: (id, bytes) => {
 			images.set(id, bytes)
 			return `${baseUrl}/${id}`
@@ -362,7 +363,6 @@ export function createDraftsTestHarness(
 			db: base.db,
 			directoryPath: TEST_DIRECTORY_PATH,
 			listItems: () => listing.items(),
-			mediaPath: TEST_MEDIA_PATH,
 			now: options.now,
 			project: { id: base.projectId },
 			sourceStore: base.sourceStore,
@@ -398,7 +398,6 @@ export function createSingletonDraftsTestHarness(
 		drafts: createSingletonDrafts({
 			db: base.db,
 			filePath,
-			mediaPath: TEST_MEDIA_PATH,
 			now: options.now,
 			project: { id: base.projectId },
 			singleton: options.singleton ?? TEST_SINGLETON,

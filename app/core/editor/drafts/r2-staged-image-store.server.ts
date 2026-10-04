@@ -8,11 +8,12 @@ import type { StagedImageStore } from "./staged-image-store"
  */
 export function createR2StagedImageStore(context: {
 	bucket: R2Bucket
+	mediaPath: string
 	name: string
 	owner: string
 	projectId: string
 }): StagedImageStore {
-	const { bucket, name, owner, projectId } = context
+	const { bucket, mediaPath, name, owner, projectId } = context
 	const key = (id: string) => stagedImageKey(projectId, id)
 
 	return {
@@ -22,5 +23,6 @@ export function createR2StagedImageStore(context: {
 			const object = await bucket.get(key(id))
 			return object ? new Uint8Array(await object.arrayBuffer()) : null
 		},
+		mediaPath,
 	}
 }

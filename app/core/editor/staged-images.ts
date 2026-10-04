@@ -61,7 +61,8 @@ export function commitStagedImages(
 ): { images: CommittedImage[]; markdown: string } {
 	const extensions = [...new Set(STAGED_IMAGE_TYPES.values())].join("|")
 	const pattern = new RegExp(
-		`${baseUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}/([0-9a-f-]{36}\\.(?:${extensions}))`,
+		// A link copied out of the browser carries the origin it was served from.
+		`(?:https?://[^/\\s"'()]+)?${baseUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}/([0-9a-f-]{36}\\.(?:${extensions}))`,
 		"g",
 	)
 	const images = new Map<string, CommittedImage>()

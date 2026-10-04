@@ -128,7 +128,7 @@ test("refuses a Body linking to an image that is no longer staged, and keeps wha
 
 	const result = await drafts.commit(commitItem(markdown))
 
-	expect(result).toMatchObject({ code: "validation", ok: false })
+	expect(result).toEqual({ code: "missing-image", ok: false })
 	expect(committedBody()).toBe("Old body\n")
 	const opened = await drafts.open({ mode: "item", slug: "hello" })
 	expect(opened).toMatchObject({ content: markdown, ok: true })

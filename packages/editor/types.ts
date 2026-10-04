@@ -23,7 +23,8 @@ export interface PersistenceAdapter {
 	 */
 	onCommit?: (
 		markdown: string,
-	) => Promise<{ imageSources: Record<string, string> } | undefined>
+		// biome-ignore lint/suspicious/noConfusingVoidType: a handler with nothing to answer returns nothing, as it could before images moved
+	) => void | Promise<{ imageSources: Record<string, string> } | void>
 	onPublish?: (markdown: string) => void | Promise<void>
 }
 

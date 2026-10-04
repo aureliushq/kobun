@@ -40,3 +40,19 @@ test("leaves links that are not this Project's Staged Images alone", () => {
 		markdown,
 	})
 })
+
+// A link copied from the browser carries the origin the image was served from.
+test("points an absolute link to a Staged Image at its path too", () => {
+	const markdown = `![A cat](https://app.kobun.io${BASE_URL}/${PNG})`
+
+	expect(commitStagedImages(markdown, BASE_URL, "media")).toEqual({
+		images: [
+			{
+				id: PNG,
+				path: `media/${PNG}`,
+				src: `https://app.kobun.io${BASE_URL}/${PNG}`,
+			},
+		],
+		markdown: `![A cat](media/${PNG})`,
+	})
+})
