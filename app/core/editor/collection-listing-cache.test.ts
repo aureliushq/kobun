@@ -508,6 +508,17 @@ test("only md and mdx entries become items", async () => {
 	])
 })
 
+// A Parent Item's Subcollections live in a directory beside its file
+// (ADR-0012). The parent Collection's listing stays flat: the directory is not
+// an item.
+test("a Parent Item's Subcollection directory does not become an item", async () => {
+	harness.source.put(DIRECTORY, "first", "")
+
+	const items = await resolve()
+
+	expect(items.map((item) => item.name)).toEqual(["first.md", "second.md"])
+})
+
 test("invalidating drops the row, so the next resolve reads GitHub again", async () => {
 	await resolve()
 	harness.source.calls.length = 0

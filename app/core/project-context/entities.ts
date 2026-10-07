@@ -1,4 +1,4 @@
-import type { Collection, Singleton } from "@/config/types"
+import type { Collection, Singleton, Subcollection } from "@/config/types"
 import type { ProjectContextOk } from "./types"
 
 /** A Config declares no paths; where its entities live is a convention. */
@@ -41,6 +41,37 @@ export function requireCollection(
 		collection,
 		collectionSlug: slug,
 		directoryPath: repositoryPath(ctx.config.basePath, slug),
+	}
+}
+
+/**
+ * The Subcollection a URL names, and the directory one Parent Item's items of
+ * it live in: beside the Parent Item's file, named after its filename stem
+ * (ADR-0012). Whether that Parent Item has a Source is the caller's to check —
+ * it takes a listing, and this stays as pure as its siblings.
+ */
+export function requireSubcollection(
+	ctx: Pick<ProjectContextOk, "config">,
+	collectionSlug: string,
+	subcollectionKey: string,
+	parentStem: string,
+): {
+	directoryPath: string
+	parent: ContentDirectory
+	subcollection: Subcollection
+} {
+	const parent = requireCollection(ctx, collectionSlug)
+	const subcollection = parent.collection.subcollections?.[subcollectionKey]
+	if (!subcollection) notFound("Subcollection")
+
+	return {
+		directoryPath: repositoryPath(
+			parent.directoryPath,
+			parentStem,
+			subcollectionKey,
+		),
+		parent,
+		subcollection,
 	}
 }
 

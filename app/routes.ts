@@ -14,6 +14,10 @@ export default [
 			"/:owner/:name/collections/:collection_slug",
 			"routes/collection.tsx",
 		),
+		route(
+			"/:owner/:name/collections/:collection_slug/items/:parent_item/:subcollection_key",
+			"routes/subcollection.tsx",
+		),
 		route("/:owner/:name/singletons/:singleton_slug", "routes/singleton.tsx"),
 		// Project-scoped, so unlike `/settings` it belongs under the layout that
 		// resolves a Project — and under the one wrapper that renders rather than

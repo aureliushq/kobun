@@ -20,6 +20,20 @@ export function getCollectionPath(
 	return `/${project.repoOwnerLogin}/${project.repoName}/collections/${collectionSlug}`
 }
 
+/**
+ * One Parent Item's page of one Subcollection, addressed by the Parent Item's
+ * filename stem (ADR-0012). `items/` keeps a Parent Item called `editor` from
+ * answering to the Collection's own editor route.
+ */
+export function getSubcollectionPath(
+	project: ProjectLocation,
+	collectionSlug: string,
+	parentStem: string,
+	subcollectionKey: string,
+) {
+	return `${getCollectionPath(project, collectionSlug)}/items/${encodeURIComponent(parentStem)}/${subcollectionKey}`
+}
+
 /** The Singleton's own page: the one document it holds. */
 export function getSingletonPath(
 	project: ProjectLocation,

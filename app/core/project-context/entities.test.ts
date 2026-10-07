@@ -1,8 +1,16 @@
 import { expect, test } from "vitest"
 import { singletonSchema } from "@/config/schema"
 import type { NormalizedConfig } from "@/config/types"
-import { requireCollection, requireSingleton } from "./entities"
-import { catchResponse, TEST_CONFIG } from "./test-harness"
+import {
+	requireCollection,
+	requireSingleton,
+	requireSubcollection,
+} from "./entities"
+import {
+	catchResponse,
+	TEST_CONFIG,
+	TEST_SUBCOLLECTION_CONFIG,
+} from "./test-harness"
 
 function withBasePath(basePath: string) {
 	return { config: { ...TEST_CONFIG, basePath } as NormalizedConfig }
@@ -62,4 +70,37 @@ test("names the Singleton's file after its own Format", () => {
 
 test("refuses a Singleton slug the Config does not declare", () => {
 	expect(statusOfThrown(() => requireSingleton(CTX, "contact"))).toBe(404)
+})
+
+const SUBCOLLECTION_CTX = { config: TEST_SUBCOLLECTION_CONFIG }
+
+test("finds a Subcollection and the directory beside its Parent Item's file", () => {
+	const { directoryPath, parent, subcollection } = requireSubcollection(
+		SUBCOLLECTION_CTX,
+		"projects",
+		"updates",
+		"acme",
+	)
+
+	expect(subcollection).toBe(
+		TEST_SUBCOLLECTION_CONFIG.collections.projects.subcollections?.updates,
+	)
+	expect(parent.directoryPath).toBe("content/projects")
+	expect(directoryPath).toBe("content/projects/acme/updates")
+})
+
+test("refuses a Subcollection key the Collection does not declare", () => {
+	expect(
+		statusOfThrown(() =>
+			requireSubcollection(SUBCOLLECTION_CTX, "projects", "invoices", "acme"),
+		),
+	).toBe(404)
+})
+
+test("refuses a Subcollection on a Collection that declares none", () => {
+	expect(
+		statusOfThrown(() =>
+			requireSubcollection(SUBCOLLECTION_CTX, "posts", "updates", "hello"),
+		),
+	).toBe(404)
 })
