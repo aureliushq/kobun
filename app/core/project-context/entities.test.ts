@@ -18,14 +18,14 @@ test("finds a Collection and the directory its Sources live in", () => {
 	const { collection, directoryPath } = requireCollection(CTX, "posts")
 
 	expect(collection).toBe(TEST_CONFIG.collections.posts)
-	expect(directoryPath).toBe("content/posts")
+	expect(directoryPath).toBe("content/collections/posts")
 })
 
 test.each([
-	["content", "content/posts"],
-	["content/", "content/posts"],
-	["/content//", "/content/posts"],
-	["", "/posts"],
+	["content", "content/collections/posts"],
+	["content/", "content/collections/posts"],
+	["/content//", "/content/collections/posts"],
+	["", "/collections/posts"],
 ])("collapses repeated slashes in a base path of %o", (basePath, expected) => {
 	expect(requireCollection(withBasePath(basePath), "posts").directoryPath).toBe(
 		expected,

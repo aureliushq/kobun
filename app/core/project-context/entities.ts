@@ -27,7 +27,7 @@ export function requireCollection(
 
 	return {
 		collection,
-		directoryPath: repositoryPath(ctx.config.basePath, slug),
+		directoryPath: repositoryPath(ctx.config.basePath, "collections", slug),
 	}
 }
 
