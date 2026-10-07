@@ -1,5 +1,17 @@
 # kobun
 
+## 0.8.1
+
+### Patch Changes
+
+- 66228a3: Fix type errors from upgrading dependencies
+
+## 0.8.0
+
+### Minor Changes
+
+- 8c0b8fb: Editor image uploads now go to R2 staging and get committed to the repo's media directory on Save to GitHub and Publish. This also fixes several editor, Save to GitHub and account-settings bugs.
+
 ## 0.7.0
 
 ### Minor Changes
