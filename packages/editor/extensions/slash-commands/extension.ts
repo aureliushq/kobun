@@ -1,7 +1,7 @@
 import type { Editor, Range } from "@tiptap/core"
 import { Extension } from "@tiptap/core"
 import { PluginKey } from "@tiptap/pm/state"
-import { Suggestion } from "@tiptap/suggestion"
+import { Suggestion, type SuggestionOptions } from "@tiptap/suggestion"
 import { slashSuggestionOptions } from "./suggestions"
 
 export interface SlashCommandItem {
@@ -14,7 +14,9 @@ export interface SlashCommandItem {
 
 const slashCommandPluginKey = new PluginKey("slashCommands")
 
-export const SlashCommandsExtension = Extension.create({
+export const SlashCommandsExtension = Extension.create<{
+	suggestion: Omit<SuggestionOptions<SlashCommandItem>, "editor">
+}>({
 	name: "slashCommands",
 
 	addOptions() {
