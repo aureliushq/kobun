@@ -1,5 +1,11 @@
 # kobun
 
+## 0.8.1
+
+### Patch Changes
+
+- 66228a3: Fix type errors from upgrading dependencies
+
 ## 0.8.0
 
 ### Minor Changes
