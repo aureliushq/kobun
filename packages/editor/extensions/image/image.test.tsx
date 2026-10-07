@@ -84,7 +84,7 @@ describe("image upload node view", () => {
 		})
 
 		expect(
-			screen.getByRole("status", { name: "Uploading image" }),
+			await screen.findByRole("status", { name: "Uploading image" }),
 		).toBeVisible()
 		expect(screen.getByRole("img", { name: "image.png" })).toHaveAttribute(
 			"src",
@@ -124,7 +124,7 @@ describe("image upload failures", () => {
 		return editor
 	}
 
-	it("shows why a file was refused instead of dropping it", () => {
+	it("shows why a file was refused instead of dropping it", async () => {
 		const upload = vi.fn()
 		const editor = mountEditor(adapter({ maxFileSize: 10, upload }))
 
@@ -133,7 +133,9 @@ describe("image upload failures", () => {
 		})
 
 		expect(
-			screen.getByText("Failed to upload: Image must be 10 bytes or smaller."),
+			await screen.findByText(
+				"Failed to upload: Image must be 10 bytes or smaller.",
+			),
 		).toBeVisible()
 		expect(upload).not.toHaveBeenCalled()
 		expect(editor.getMarkdown().trim()).toBe("")
