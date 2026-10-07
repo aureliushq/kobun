@@ -20,7 +20,7 @@ Both paths are relative to the repository root.
 
 | Option | Default | What it is |
 | --- | --- | --- |
-| `basePath` | `src/content` | Where Collections (`<basePath>/<collection>/`) and Singletons (`<basePath>/singletons/`) live. |
+| `basePath` | `src/content` | Where Collections (`<basePath>/collections/<collection>/`) and Singletons (`<basePath>/singletons/`) live. |
 | `mediaPath` | `src/assets/images` | Where images added in the editor are written on Save to GitHub or Publish. The Markdown links each one by this path, for example `src/assets/images/<id>.png`. |
 
 ## Tech Stack
