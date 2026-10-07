@@ -132,8 +132,17 @@ export const RichTextEditor = forwardRef<EditorRefApi, RichTextEditorProps>(
 					// Unlike `publish`, the writer stays here afterwards, and the bytes
 					// are in the repository: there is nothing left unsaved to warn about.
 					const markdown = editor.getMarkdown()
-					await persistence.onCommit(markdown)
-					autosave.markContentSaved(markdown)
+					const committed = await persistence.onCommit(markdown)
+					const imageSources = committed?.imageSources ?? {}
+					editor.commands.replaceImageSources(imageSources)
+					// What was committed is the sent markdown with the images moved,
+					// so anything typed meanwhile still reads as unsaved.
+					autosave.markContentSaved(
+						Object.entries(imageSources).reduce(
+							(moved, [from, to]) => moved.replaceAll(from, to),
+							markdown,
+						),
+					)
 				},
 				publish: async () => {
 					if (!editor)

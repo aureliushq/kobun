@@ -27,6 +27,7 @@ import {
 } from "@/core/editor/drafts"
 import { createDrafts } from "@/core/editor/drafts/create-drafts.server"
 import { createGithubSourceStore } from "@/core/editor/drafts/github-source-store.server"
+import { createR2StagedImageStore } from "@/core/editor/drafts/r2-staged-image-store.server"
 import {
 	commitResponse,
 	draftRefusalResponse,
@@ -58,13 +59,14 @@ import type { Route } from "./+types/collection-editor"
 async function requireContentDirectory(
 	ctx: Awaited<ReturnType<typeof requirePageContext>>,
 	params: Route.LoaderArgs["params"],
+	listings: ReturnType<typeof createCollectionListingCache>,
 	{ committing }: { committing: boolean },
 ): Promise<ContentDirectory> {
 	const { collection_slug, parent_item, subcollection_key } = params
 	if (!parent_item || !subcollection_key) {
 		return requireCollection(ctx, collection_slug)
 	}
-	const { db, env, installationId, name, owner, projectRow } = ctx
+	const { installationId, name, owner, projectRow } = ctx
 	const directory = requireSubcollection(
 		ctx,
 		collection_slug,
@@ -72,14 +74,9 @@ async function requireContentDirectory(
 		parent_item,
 	)
 	const repository = { installationId, name, owner }
-	const parentItems: { name: string }[] = committing
-		? await createGithubSourceStore({ ...repository, env }).list(
-				directory.parent.directoryPath,
-			)
-		: await createCollectionListingCache({
-				db,
-				listingSource: createGithubCollectionListingSource(env),
-			}).resolve(projectRow, repository, directory.parent.directoryPath)
+	const parentItems = await (committing
+		? listings.resolveCurrent
+		: listings.resolve)(projectRow, repository, directory.parent.directoryPath)
 	requireParentItem(parentItems, parent_item)
 	return directory
 }
@@ -97,7 +94,13 @@ async function resolveCollectionEditorContext(
 ) {
 	const ctx = await requirePageContext({ context, params, request })
 	const { db, env, installationId, name, owner, projectRow } = ctx
-	const directory = await requireContentDirectory(ctx, params, { committing })
+	const listings = createCollectionListingCache({
+		db,
+		listingSource: createGithubCollectionListingSource(env),
+	})
+	const directory = await requireContentDirectory(ctx, params, listings, {
+		committing,
+	})
 	const { format } = directory.collection
 	if (format !== "md" && format !== "mdx") {
 		throw new Response("Rich text editing requires an md or mdx collection", {
@@ -110,6 +113,14 @@ async function resolveCollectionEditorContext(
 		directory,
 		env,
 		installationId,
+		// Slug lookups read the listing the Collection page serves, revalidated
+		// every time, rather than every file in the directory (ADR 0012).
+		listItems: () =>
+			listings.resolveCurrent(
+				projectRow,
+				{ installationId, name, owner },
+				directory.directoryPath,
+			),
 		name,
 		owner,
 		projectRow,
@@ -121,6 +132,13 @@ async function resolveCollectionEditorContext(
 			() =>
 				invalidateCollectionListing(db, projectRow.id, directory.directoryPath),
 		),
+		stagedImages: createR2StagedImageStore({
+			bucket: env.IMAGES,
+			mediaPath: ctx.config.mediaPath,
+			name,
+			owner,
+			projectId: projectRow.id,
+		}),
 	}
 }
 
@@ -140,8 +158,10 @@ function createDraftsFor(
 	return createDrafts({
 		...resolved.directory,
 		db: resolved.db,
+		listItems: resolved.listItems,
 		project: { id: resolved.projectRow.id },
 		sourceStore: resolved.sourceStore,
+		stagedImages: resolved.stagedImages,
 	})
 }
 
@@ -333,10 +353,17 @@ export default function CollectionEditor({ loaderData }: Route.ComponentProps) {
 	}
 
 	// A new item's content was awaited, so there is no boundary here at all and
-	// therefore no placeholder to fall back to.
+	// therefore no placeholder to fall back to. Its first Save to GitHub moves
+	// the URL to the item path without re-running the loader, so this branch
+	// stays rendered and the editor stays mounted (#176). The mode follows the
+	// URL, which now names the item.
 	if (loaderData.mode === "new") {
 		return (
-			<CollectionItemEditor {...chrome} mode="new" opened={loaderData.opened} />
+			<CollectionItemEditor
+				{...chrome}
+				mode={params.editor_mode === "item" ? "item" : "new"}
+				opened={loaderData.opened}
+			/>
 		)
 	}
 

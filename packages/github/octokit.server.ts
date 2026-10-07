@@ -383,10 +383,24 @@ export async function getGithubFileBytes(
 		throw new Error(`Expected file at ${owner}/${repo}:${path}`)
 	}
 
+	// The contents API inlines bytes only up to 1 MB; past that `content` is
+	// empty and `encoding` is "none". The blob API carries files up to 100 MB.
+	const content =
+		data.encoding === "none"
+			? (
+					await octokit.git.getBlob({
+						owner,
+						repo,
+						file_sha: data.sha,
+						headers: GITHUB_HEADERS,
+					})
+				).data.content
+			: data.content
+
 	return {
 		sha: data.sha,
 		path: data.path,
-		bytes: Buffer.from(data.content, "base64"),
+		bytes: Buffer.from(content, "base64"),
 	}
 }
 
@@ -497,5 +511,122 @@ export async function createOrUpdateGithubTextFile(
 	return {
 		commitSha: data.commit.sha,
 		contentSha,
+	}
+}
+
+/** How many heads a commit is built on before a busy branch is reported. */
+const COMMIT_ATTEMPTS = 3
+
+/**
+ * Write several files to the default branch in one commit, gated on one of
+ * them being where the caller believes it is: at `guard.sha`, or absent when
+ * that is null. Null when the guard fails, and nothing is written.
+ *
+ * Built from the Git Data API — blobs, a tree over the head's, a commit, then
+ * the ref — because the contents API commits one file at a time, and a commit
+ * refused halfway would leave the first files behind. The ref update refuses to
+ * drop a commit that landed meanwhile; that one may not touch the guarded file,
+ * so the commit is built again on the new head, the blobs reused.
+ */
+export async function commitGithubFiles(
+	env: Env,
+	installationId: InstallationID,
+	owner: string,
+	repo: string,
+	options: {
+		files: { content: string | Uint8Array; path: string }[]
+		guard: { path: string; sha: string | null }
+		message: string
+	},
+): Promise<{ commitSha: string; shas: Record<string, string> } | null> {
+	const octokit = getGithubInstallationOctokit(env, installationId)
+	let blobs: { path: string; sha: string }[] | null = null
+
+	for (let attempt = 1; ; attempt++) {
+		const { repository } = await octokit.graphql<{
+			repository: {
+				defaultBranchRef: {
+					name: string
+					target: {
+						file: { oid: string } | null
+						oid: string
+						tree: { oid: string }
+					}
+				}
+			}
+		}>(
+			`query($owner: String!, $repo: String!, $path: String!) {
+				repository(owner: $owner, name: $repo) {
+					defaultBranchRef {
+						name
+						target {
+							... on Commit {
+								oid
+								tree { oid }
+								file(path: $path) { oid }
+							}
+						}
+					}
+				}
+			}`,
+			{ owner, repo, path: options.guard.path },
+		)
+		const branch = repository.defaultBranchRef
+		if ((branch.target.file?.oid ?? null) !== options.guard.sha) return null
+
+		blobs ??= await Promise.all(
+			options.files.map(async ({ content, path }) => {
+				const { data } = await octokit.git.createBlob({
+					owner,
+					repo,
+					...(typeof content === "string"
+						? { content, encoding: "utf-8" }
+						: {
+								content: Buffer.from(content).toString("base64"),
+								encoding: "base64",
+							}),
+					headers: GITHUB_HEADERS,
+				})
+				return { path, sha: data.sha }
+			}),
+		)
+		const { data: tree } = await octokit.git.createTree({
+			owner,
+			repo,
+			base_tree: branch.target.tree.oid,
+			tree: blobs.map(({ path, sha }) => ({
+				mode: "100644" as const,
+				path,
+				sha,
+				type: "blob" as const,
+			})),
+			headers: GITHUB_HEADERS,
+		})
+		const { data: commit } = await octokit.git.createCommit({
+			owner,
+			repo,
+			message: options.message,
+			parents: [branch.target.oid],
+			tree: tree.sha,
+			headers: GITHUB_HEADERS,
+		})
+		try {
+			await octokit.git.updateRef({
+				owner,
+				repo,
+				ref: `heads/${branch.name}`,
+				sha: commit.sha,
+				force: false,
+				headers: GITHUB_HEADERS,
+			})
+		} catch (error) {
+			if (hasStatus(error, 422) && attempt < COMMIT_ATTEMPTS) continue
+			throw error
+		}
+
+		return {
+			commitSha: commit.sha,
+			shas: Object.fromEntries(blobs.map(({ path, sha }) => [path, sha])),
+		}
 	}
 }

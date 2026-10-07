@@ -12,6 +12,7 @@ import { ConfigStatus, ProjectStatus } from "@/db/types"
 import {
 	COLLECTION_LISTING_CACHE_TTL_MS,
 	createCollectionListingCache,
+	INCREMENTAL_READ_LIMIT,
 	invalidateCollectionListing,
 	withListingInvalidation,
 } from "./collection-listing-cache.server"
@@ -41,6 +42,7 @@ function post(title: string) {
 type SourceCall =
 	| ({ kind: "read" } & CollectionListingRequest)
 	| { kind: "files"; path: string }
+	| { kind: "file"; path: string }
 
 interface FakeListingSource extends CollectionListingSource {
 	calls: SourceCall[]
@@ -122,6 +124,17 @@ function createFakeListingSource(
 				path: `${path}/${name}`,
 				sha: file.sha,
 			}))
+		},
+		file: async (
+			_repository: RepositoryAddress,
+			path: string,
+		): Promise<CollectionSourceFile> => {
+			calls.push({ kind: "file", path })
+			const slash = path.lastIndexOf("/")
+			const name = path.slice(slash + 1)
+			const file = directories.get(path.slice(0, slash))?.files.get(name)
+			if (!file) throw new Error(`no file at ${path}`)
+			return { content: file.content, name, path, sha: file.sha }
 		},
 		put,
 		read: async (
@@ -275,6 +288,14 @@ function resolve(directoryPath = DIRECTORY, projectId = PROJECT_ID) {
 	return harness.listings.resolve({ id: projectId }, REPOSITORY, directoryPath)
 }
 
+function resolveCurrent(directoryPath = DIRECTORY) {
+	return harness.listings.resolveCurrent(
+		{ id: PROJECT_ID },
+		REPOSITORY,
+		directoryPath,
+	)
+}
+
 test("reads the directory once and remembers what it parsed", async () => {
 	const items = await resolve()
 
@@ -332,6 +353,27 @@ test("revalidates once the window has closed, carrying the stored ETag", async (
 	expect(harness.source.calls).toEqual([
 		{ etag: `"etag-2"`, kind: "read", path: DIRECTORY },
 	])
+})
+
+test("a current listing is asked for even inside the window", async () => {
+	await resolve()
+	harness.source.calls.length = 0
+
+	const items = await resolveCurrent()
+
+	expect(items).toHaveLength(2)
+	expect(harness.source.calls).toEqual([
+		{ etag: `"etag-2"`, kind: "read", path: DIRECTORY },
+	])
+})
+
+test("a current listing sees a file added inside the window", async () => {
+	await resolve()
+	harness.source.put(DIRECTORY, "third.md", post("Third"))
+
+	const items = await resolveCurrent()
+
+	expect(items.map((item) => item.name)).toContain("third.md")
 })
 
 test("revalidates a row whose last check is in the future", async () => {
@@ -420,6 +462,54 @@ test("re-parses and rewrites the row when the directory changed", async () => {
 	expect(after?.items).not.toBe(before?.items)
 })
 
+test("a changed directory reads only the files that changed", async () => {
+	await resolve()
+	harness.source.put(DIRECTORY, "second.md", post("Second, edited"))
+	harness.source.put(DIRECTORY, "third.md", post("Third"))
+	harness.source.calls.length = 0
+
+	const items = await resolveCurrent()
+
+	expect(harness.source.calls).toEqual([
+		{ etag: `"etag-2"`, kind: "read", path: DIRECTORY },
+		{ kind: "file", path: `${DIRECTORY}/second.md` },
+		{ kind: "file", path: `${DIRECTORY}/third.md` },
+	])
+	expect(items.map((item) => item.data.title)).toEqual([
+		"First",
+		"Second, edited",
+		"Third",
+	])
+})
+
+test("a file gone from the directory drops out of the listing", async () => {
+	await resolve()
+	harness.source.remove(DIRECTORY, "first.md")
+	harness.source.calls.length = 0
+
+	const items = await resolveCurrent()
+
+	expect(items.map((item) => item.name)).toEqual(["second.md"])
+	expect(harness.source.calls).toEqual([
+		{ etag: `"etag-2"`, kind: "read", path: DIRECTORY },
+	])
+})
+
+test("a directory changed past the per-file limit is read in full", async () => {
+	await resolve()
+	for (let i = 0; i <= INCREMENTAL_READ_LIMIT; i++)
+		harness.source.put(DIRECTORY, `extra-${i}.md`, post(`Extra ${i}`))
+	harness.source.calls.length = 0
+
+	const items = await resolveCurrent()
+
+	expect(items).toHaveLength(INCREMENTAL_READ_LIMIT + 3)
+	expect(harness.source.calls.map((call) => call.kind)).toEqual([
+		"read",
+		"files",
+	])
+})
+
 test("serves the cached listing when the repository is unreachable, and writes nothing", async () => {
 	await resolve()
 	const before = harness.readRow()
@@ -430,6 +520,13 @@ test("serves the cached listing when the repository is unreachable, and writes n
 
 	expect(items).toHaveLength(2)
 	expect(harness.readRow()).toEqual(before)
+})
+
+test("a current listing rejects when the repository is unreachable, even with a row to serve", async () => {
+	await resolve()
+	harness.source.failNext(new Error("API rate limit exceeded"))
+
+	await expect(resolveCurrent()).rejects.toThrow("API rate limit exceeded")
 })
 
 test("rejects when the repository is unreachable and nothing is cached", async () => {
@@ -519,17 +616,21 @@ test("a Parent Item's Subcollection directory does not become an item", async ()
 	expect(items.map((item) => item.name)).toEqual(["first.md", "second.md"])
 })
 
-test("invalidating drops the row, so the next resolve reads GitHub again", async () => {
+test("invalidating expires the row, so the next resolve reads only what changed", async () => {
 	await resolve()
+	harness.source.put(DIRECTORY, "second.md", post("Second, committed"))
 	harness.source.calls.length = 0
 
 	await invalidateCollectionListing(harness.db, PROJECT_ID, DIRECTORY)
 
-	expect(harness.readRow()).toBeUndefined()
-	await resolve()
+	const items = await resolve()
 	expect(harness.source.calls).toEqual([
 		{ etag: null, kind: "read", path: DIRECTORY },
-		{ kind: "files", path: DIRECTORY },
+		{ kind: "file", path: `${DIRECTORY}/second.md` },
+	])
+	expect(items.map((item) => item.data.title)).toEqual([
+		"First",
+		"Second, committed",
 	])
 })
 
@@ -540,8 +641,8 @@ test("invalidating one directory leaves another Project's listing of it alone", 
 
 	await invalidateCollectionListing(harness.db, PROJECT_ID, DIRECTORY)
 
-	expect(harness.readRow(DIRECTORY, PROJECT_ID)).toBeUndefined()
-	expect(harness.readRow(DIRECTORY, "project-2")).toBeDefined()
+	expect(harness.readRow(DIRECTORY, PROJECT_ID)?.checkedAt.getTime()).toBe(0)
+	expect(harness.readRow(DIRECTORY, "project-2")?.checkedAt).toEqual(NOW)
 })
 
 test("two Projects over the same directory keep their own rows", async () => {
@@ -617,18 +718,4 @@ test("a refused write changed nothing, so it forgets nothing", async () => {
 
 	expect(result).toEqual({ ok: false, reason: "stale-sha" })
 	expect(forgotten).toEqual([])
-})
-
-test("listing through the wrapped store is passed straight through", async () => {
-	const store = createFakeSourceStore([
-		{
-			content: post("First"),
-			name: "first.md",
-			path: `${DIRECTORY}/first.md`,
-			sha: "sha-1",
-		},
-	])
-	const wrapped = withListingInvalidation(store, async () => {})
-
-	expect(await wrapped.list(DIRECTORY)).toEqual(await store.list(DIRECTORY))
 })

@@ -465,3 +465,23 @@ describe("subcollections on a Collection", () => {
 		)
 	})
 })
+
+describe("the media directory", () => {
+	it("defaults to src/assets/images", () => {
+		const { config } = parse({ collections: { posts: POSTS } })
+
+		expect(config?.mediaPath).toBe("src/assets/images")
+	})
+
+	// A link with a leading slash is a path on the site, not in the repository,
+	// and the editor would not look for it there.
+	it("is a repository path, whatever slashes surround it", () => {
+		const { config, errors } = parse({
+			collections: { posts: POSTS },
+			mediaPath: "/public/images/",
+		})
+
+		expect(errors).toEqual([])
+		expect(config?.mediaPath).toBe("public/images")
+	})
+})

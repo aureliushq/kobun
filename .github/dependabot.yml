@@ -25,6 +25,7 @@ updates:
         exclude-patterns:
           - "@cloudflare/*"
           - "wrangler"
+          - "@tiptap/*"
 
       cloudflare:
         patterns:
@@ -47,3 +48,7 @@ updates:
         patterns:
           - "@storybook/*"
           - "storybook"
+
+      tiptap:
+        patterns:
+          - "@tiptap/*"

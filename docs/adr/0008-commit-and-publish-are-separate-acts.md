@@ -113,15 +113,18 @@ Kobun's to manage in that Collection. `deriveStatus` reading an absent `status` 
 | valid Slug — it is the filename | refuse | refuse |
 | duplicate Slug | refuse | refuse |
 | moved Source | refuse | refuse |
+| Staged Image no longer staged | refuse | refuse |
 | metadata validation | allow | refuse |
 | required document empty | allow | refuse |
 
 Identically whether the `publish` Feature is on or off. The three structural gates are about
 where the bytes land: an invalid Slug has no filename, a duplicate Slug commits on top of a
 different item and destroys it, a moved Source drops whatever replaced it. Those are Kobun's to
-refuse because Kobun would be the one doing the damage. "Required" is a claim about a *finished*
-item, and Publish is the action that makes that claim — holding it against a backup makes the
-backup useless for the half-written post it exists for.
+refuse because Kobun would be the one doing the damage. A Body linking a Staged Image that is no
+longer staged is the same kind of damage, added with #178: the commit would land a link to an
+image that is nowhere, so it is refused as `missing-image` on both paths. "Required" is a claim
+about a *finished* item, and Publish is the action that makes that claim — holding it against a
+backup makes the backup useless for the half-written post it exists for.
 
 A Collection with no `publish` Feature therefore has no gated path to the repository, where
 today it has one. That is deliberate. Kobun is a CMS; enforcing that a repository only ever

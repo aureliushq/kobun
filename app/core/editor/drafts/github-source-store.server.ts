@@ -1,8 +1,8 @@
 import {
+	commitGithubFiles,
 	createOrUpdateGithubTextFile,
 	getGithubFileContent,
 	hasStatus,
-	listGithubDirectoryFiles,
 } from "@/github/octokit.server"
 import type { InstallationID } from "@/types/github"
 import type {
@@ -25,21 +25,6 @@ export function createGithubSourceStore(context: {
 	const { env, installationId, name, owner } = context
 
 	return {
-		list: async (path: string) => {
-			try {
-				return await listGithubDirectoryFiles(
-					env,
-					installationId,
-					owner,
-					name,
-					path,
-				)
-			} catch (error) {
-				// A collection whose directory does not exist yet simply has no files.
-				if (hasStatus(error, 404)) return []
-				throw error
-			}
-		},
 		read: async (path: string) => {
 			try {
 				const file = await getGithubFileContent(
@@ -61,6 +46,34 @@ export function createGithubSourceStore(context: {
 			}
 		},
 		write: async (input: SourceWriteInput): Promise<SourceWriteResult> => {
+			// Content linking to images commits them with it, all or none, so a
+			// refused write leaves no image behind. Content alone keeps the one
+			// call the contents API needs.
+			if (input.images?.length) {
+				const committed = await commitGithubFiles(
+					env,
+					installationId,
+					owner,
+					name,
+					{
+						files: [
+							...input.images.map(({ bytes, path }) => ({
+								content: bytes,
+								path,
+							})),
+							{ content: input.content, path: input.path },
+						],
+						guard: { path: input.path, sha: input.expectedSha ?? null },
+						message: input.message,
+					},
+				)
+				if (!committed) return { ok: false, reason: "stale-sha" }
+				return {
+					commitSha: committed.commitSha,
+					contentSha: committed.shas[input.path],
+					ok: true,
+				}
+			}
 			try {
 				const { commitSha, contentSha } = await createOrUpdateGithubTextFile(
 					env,

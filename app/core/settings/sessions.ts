@@ -22,7 +22,7 @@ interface SessionRow {
 /**
  * The writer's sessions, in the shape the page renders.
  *
- * The projection is the point, not a convenience. `auth.api.listSessions`
+ * The projection is the point, not a convenience. `listActiveSessions`
  * returns whole rows, and a session row carries the `token` that *is* the
  * session — put one in a loader payload and every other device the writer owns
  * is in the page source. Revoking is keyed by `id` instead, and the action

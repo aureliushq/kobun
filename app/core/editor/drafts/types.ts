@@ -5,6 +5,7 @@ import type { ContentDirectory } from "@/core/project-context"
 import type * as schema from "@/db/schema"
 import type { editorDraft } from "@/db/schema/app-schema"
 import type { SourceStore } from "./source-store"
+import type { StagedImageStore } from "./staged-image-store"
 
 /**
  * Production runs on D1; tests run the same schema on in-memory SQLite and cast
@@ -39,8 +40,22 @@ export interface DraftsContext extends ContentDirectory {
 	 * so a test can say what "now" is rather than race the wall clock.
 	 */
 	now?: () => Date
+	/**
+	 * The Collection's items as the listing cache holds them — a name, a path and
+	 * the parsed Data, revalidated against the repository on every call. What a
+	 * Slug lookup needs, without reading or parsing every file (ADR 0012).
+	 */
+	listItems: () => Promise<ListedItem[]>
 	project: { id: string }
 	sourceStore: SourceStore
+	stagedImages: StagedImageStore
+}
+
+/** One Collection Item as the listing names it: no Body, no bytes. */
+export interface ListedItem {
+	data: Record<string, unknown>
+	name: string
+	path: string
 }
 
 /** A Singleton's Drafts, at the one path its Source lives at. */
@@ -53,6 +68,7 @@ export interface SingletonDraftsContext {
 	singleton: Singleton
 	singletonSlug: string
 	sourceStore: SourceStore
+	stagedImages: StagedImageStore
 }
 
 /**
@@ -200,6 +216,8 @@ export type CommitAction = "commit" | "publish"
  */
 export type DraftRefusal =
 	| { code: "duplicate-slug"; ok: false; slug: string }
+	/** The Body links a Staged Image that is no longer staged. */
+	| { code: "missing-image"; ok: false }
 	| { code: "not-found" | "revision-conflict" | "stale-source"; ok: false }
 	| { code: "validation"; errors: string[]; ok: false }
 
@@ -219,6 +237,8 @@ export type CommitResult<ItemSlug extends string | null = string> =
 			 * against the Source the commit just created.
 			 */
 			fields: FieldRecord
+			/** Each Staged Image link the commit wrote, and the path it now links. */
+			images: Record<string, string>
 			itemSlug: ItemSlug
 			ok: true
 			outcome: "committed"
@@ -233,6 +253,7 @@ export type CommitResult<ItemSlug extends string | null = string> =
 			commitSha?: string
 			draftId: string
 			fields: FieldRecord
+			images: Record<string, string>
 			itemSlug: ItemSlug
 			ok: true
 			outcome: "committed-unsynced"

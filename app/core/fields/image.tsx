@@ -72,7 +72,7 @@ export const imageField: FieldTypeDefFor<"image"> = {
  * root-relative path — the editor leaves one alone, because a writer who typed
  * a leading slash meant a path on this site, not in the repository.
  */
-function previewSrc(raw: string, assetBaseUrl?: string) {
+export function previewSrc(raw: string, assetBaseUrl?: string) {
 	if (/^(https?:|data:|\/)/i.test(raw) || !assetBaseUrl) return raw
 	return `${assetBaseUrl}/${encodeSegments(raw)}`
 }

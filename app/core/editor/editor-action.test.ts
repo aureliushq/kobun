@@ -13,6 +13,7 @@ describe("a refusal the editor is answered with", () => {
 		[{ code: "stale-source", ok: false }, 409],
 		[{ code: "duplicate-slug", ok: false, slug: "hello" }, 409],
 		[{ code: "not-found", ok: false }, 404],
+		[{ code: "missing-image", ok: false }, 422],
 		[{ code: "validation", errors: ["Title is required"], ok: false }, 422],
 	])("names its code: %o", async (refusal, status) => {
 		const response = draftRefusalResponse(refusal)

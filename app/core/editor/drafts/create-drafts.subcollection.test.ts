@@ -7,6 +7,7 @@ import { createDrafts } from "./create-drafts.server"
 import {
 	createDraftsTestHarness,
 	type DraftsTestHarness,
+	listFakeItems,
 	TEST_COLLECTION_WITH_FEATURES,
 } from "./test-harness"
 import type { CommitInput, DraftContent } from "./types"
@@ -50,8 +51,11 @@ function draftsOver(directory: ContentDirectory) {
 		...directory,
 		db: harness.db,
 		now: () => new Date(CREATED),
+		listItems: () =>
+			listFakeItems(harness.sourceStore, directory.directoryPath),
 		project: { id: harness.projectId },
 		sourceStore: harness.sourceStore,
+		stagedImages: harness.stagedImages,
 	})
 }
 

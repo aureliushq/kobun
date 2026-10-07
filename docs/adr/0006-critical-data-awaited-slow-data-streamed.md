@@ -175,8 +175,10 @@ structural rather than a behaviour of the framework's internals.
 streamed half while the editor is open: a new promise resuspends the boundary and remounts
 `RichTextEditor`, losing whatever the writer had typed. It is safe today because `sendAction` posts
 through `fetch` rather than a router submission, the page route's own `action` is only ever reached
-at `/api/editor/…`, and `shouldRevalidate` already declines the one navigation that occurs. Three
-independent reasons, none of them written down until now.
+at `/api/editor/…`, and neither navigation the editor makes runs the loader: `shouldRevalidate`
+declines a Draft's adoption, and the first Save to GitHub on a new item moves to the item path with
+`defaultShouldRevalidate: false`. The route keeps its `new` answer through that move, so the editor
+stays mounted; only the URL and the `mode` it hands the editor change (#176).
 
 ## Amendment: a value awaited so it can outlive the streamed half
 

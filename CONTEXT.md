@@ -18,6 +18,7 @@ Glossary of domain terms. Keep implementation details out — this is vocabulary
 - **Synced** — a Draft whose content matches its Source after a Commit. A Synced Draft is deleted; the Source alone remains.
 - **Revision Conflict** — a save or commit carrying a stale expected Revision: another session changed the Draft first. A normal outcome, not an error.
 - **Stale Source** — a Draft whose Source changed on GitHub after the Draft went Dirty. Committing is refused until the writer copies or discards their Draft.
+- **Staged Image** — an image the writer added to a Body, held by Kobun until a Commit writes it to the repository. A Draft refers to it only by the URL it is served from, in its Markdown; like a Draft, it never reaches the repository by itself.
 
 ## Access
 

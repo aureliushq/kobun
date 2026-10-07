@@ -113,6 +113,8 @@ export type NormalizedConfig = {
 	basePath: string
 	collections: Record<string, Collection>
 	errors: ConfigError[]
+	/** Where committed images are written, as a repository path. */
+	mediaPath: string
 	singletons: Record<string, Singleton>
 	version: number
 }

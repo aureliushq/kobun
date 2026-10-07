@@ -2,6 +2,8 @@
 status: accepted
 ---
 
+> **Amended.** The drafts module no longer reads the repository live: `isSlugTaken` and `resolveSource` read this cache through `resolveCurrent`, which skips the window but keeps the row, and a write now expires the row instead of deleting it. See [ADR-0012](./0012-slug-lookups-read-the-listing-cache-revalidated-every-time.md). Everything else here stands as accepted.
+
 # The Collection listing is served from the D1 cache and revalidated on the directory's own identity
 
 Since [#99](https://github.com/aureliushq/kobun/issues/99) every sidebar destination prefetches on

@@ -9,6 +9,7 @@ import { ProfileSection } from "@/core/settings/profile-section"
 import { describeSessions } from "@/core/settings/sessions"
 import { SessionsSection } from "@/core/settings/sessions-section"
 import { dbContext } from "@/db/context"
+import { listActiveSessions } from "@/db/session"
 import { readUserPreferences } from "@/db/user-preference"
 import { posthogContext } from "@/lib/posthog-middleware"
 import { Alert, AlertDescription } from "@/ui/components/base/alert"
@@ -25,8 +26,8 @@ import type { Route } from "./+types/settings"
  * its URL, so none of `project-context.server.ts`'s wrappers can resolve one
  * (ADR-0010).
  *
- * Everything is awaited. `listSessions` is a read of the writer's own rows,
- * about the weight of the Projects query the layout already waits for, so
+ * Everything is awaited. `listActiveSessions` is a read of the writer's own
+ * rows, about the weight of the Projects query the layout already waits for, so
  * ADR-0006's case for streaming does not apply.
  *
  * Every Preference stored here is read back where it applies — the sidebar, the
@@ -41,7 +42,7 @@ export async function loader({ context, request }: Route.LoaderArgs) {
 
 	const [preferences, sessions] = await Promise.all([
 		readUserPreferences(db, session.user.id),
-		auth.api.listSessions({ headers: request.headers }),
+		listActiveSessions(db, session.user.id),
 	])
 
 	return {
@@ -80,7 +81,7 @@ export async function action({ context, request }: Route.ActionArgs) {
 		// The list is already scoped to this writer, so finding the row here is
 		// both the ownership check and the way to the token — which is why the
 		// page was never given one.
-		const sessions = await auth.api.listSessions({ headers: request.headers })
+		const sessions = await listActiveSessions(db, session.user.id)
 		const target = sessions.find((row) => row.id === sessionId)
 		if (!target) {
 			// Reachable rather than defensive: the page holds the list it was
