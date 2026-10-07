@@ -234,7 +234,7 @@ bun run db:migrate:production
 ```
 
 > [!IMPORTANT]
-> This requires `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` in `.env`, and the production database ID in `wrangler.json`. You can [create an API token here](https://dash.cloudflare.com/profile/api-tokens) — it needs **D1:Edit** and **Workers Scripts:Edit** permissions.
+> This requires `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` in `.env`, and the production database ID in `wrangler.json`. You can [create an API token here](https://dash.cloudflare.com/profile/api-tokens) — it needs **D1:Edit**, **Workers R2 Storage:Edit** and **Workers Scripts:Edit** permissions.
 
 > **Development only** — for local development:
 >
@@ -301,7 +301,7 @@ gh secret set CLOUDFLARE_API_TOKEN --app dependabot
 
 | Secret | Required | Description |
 | --- | --- | --- |
-| `CLOUDFLARE_API_TOKEN` | Yes | Needs D1:Edit and Workers Scripts:Edit permissions. [Create one here](https://dash.cloudflare.com/profile/api-tokens). |
+| `CLOUDFLARE_API_TOKEN` | Yes | Needs D1:Edit, Workers R2 Storage:Edit and Workers Scripts:Edit permissions. [Create one here](https://dash.cloudflare.com/profile/api-tokens). |
 | `CLOUDFLARE_ACCESS_CLIENT_SECRET` | No | For smoke tests behind Cloudflare Access |
 
 > [!NOTE]
