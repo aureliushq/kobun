@@ -143,7 +143,7 @@
 		"storybook": "10.6.1",
 		"tailwindcss": "4.1.18",
 		"tsx": "4.21.0",
-		"typescript": "5.9.3",
+		"typescript": "7.0.2",
 		"vite": "8.1.5",
 		"vitest": "4.1.10",
 		"wrangler": "4.147.0"
