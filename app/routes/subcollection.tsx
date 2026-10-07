@@ -11,8 +11,11 @@ import {
 	listCollectionDrafts,
 } from "@/core/editor/drafts"
 import { createGithubCollectionListingSource } from "@/core/editor/github-collection-listing-source.server"
-import { resolveTitleKey } from "@/core/fields"
-import { requireParentItem, requireSubcollection } from "@/core/project-context"
+import {
+	parentItemTitle,
+	requireParentItem,
+	requireSubcollection,
+} from "@/core/project-context"
 import { requirePageContext } from "@/core/project-context/project-context.server"
 import { H1 } from "@/ui/components/base/typegraphy"
 import { cn } from "@/ui/lib/utils"
@@ -46,14 +49,13 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
 		await listings.resolve(projectRow, repository, parent.directoryPath),
 		parent_item,
 	)
-	const titleKey = resolveTitleKey(parent.collection.schema)
 
 	return {
 		// Awaited for the reason the Collection page's are: one indexed read of a
 		// table this request has already resolved the Project of.
 		drafts: await listCollectionDrafts(db, projectRow, directory),
 		items: listings.resolve(projectRow, repository, directory.directoryPath),
-		parentTitle: String((titleKey && parentItem.data[titleKey]) || parent_item),
+		parentTitle: parentItemTitle(parent.collection, parentItem),
 		project,
 		subcollection: directory.collection,
 		// The table builds its editor links off this, so they point at the

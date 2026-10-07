@@ -1,6 +1,14 @@
 import { eq } from "drizzle-orm"
 import { Outlet, type ShouldRevalidateFunctionArgs } from "react-router"
+import { createCollectionListingCache } from "@/core/editor/collection-listing-cache.server"
+import { getSubcollectionPath } from "@/core/editor/drafts"
+import { createGithubCollectionListingSource } from "@/core/editor/github-collection-listing-source.server"
 import { usePreferences } from "@/core/preferences/context"
+import {
+	parentItemStem,
+	parentItemTitle,
+	requireCollection,
+} from "@/core/project-context"
 import { requireProjectPage } from "@/core/project-context/project-context.server"
 import { fetchReleaseInfo } from "@/core/release-info.server"
 import {
@@ -30,7 +38,8 @@ export async function loader({
 	url,
 }: Route.LoaderArgs) {
 	const ctx = await requireProjectPage({ context, params, request })
-	const { config, db, projectRow, session } = ctx
+	const { config, db, env, installationId, name, owner, projectRow, session } =
+		ctx
 
 	// The seam answers about one Project; the repository switcher asks for all of
 	// them. Lists are the caller's job, so this query stays here rather than
@@ -39,6 +48,40 @@ export async function loader({
 		where: eq(project.userId, session.user.id),
 		with: { githubInstallation: true },
 	})
+
+	// Streamed, one promise per Collection, so a listing GitHub cannot answer
+	// drops only its own Parent Items from the sidebar (ADR-0006). It is the
+	// Collection page's own cached listing, so a sidebar on every page costs a
+	// read of D1 most of the time (ADR-0011).
+	const listings = createCollectionListingCache({
+		db,
+		listingSource: createGithubCollectionListingSource(env),
+	})
+	const projectLocation = { repoName: name, repoOwnerLogin: owner }
+	const repository = { installationId, name, owner }
+	const parentItems = Object.fromEntries(
+		Object.entries(config?.collections ?? {}).flatMap(([key, collection]) => {
+			// A Parent Item opens on its first Subcollection; the page's tabs
+			// reach the rest.
+			const [subcollectionKey] = Object.keys(collection.subcollections ?? {})
+			if (!config || !subcollectionKey) return []
+			const { directoryPath } = requireCollection({ config }, key)
+			const items = listings
+				.resolve(projectRow, repository, directoryPath)
+				.then((listed) =>
+					listed.map((item) => ({
+						href: getSubcollectionPath(
+							projectLocation,
+							key,
+							parentItemStem(item.name),
+							subcollectionKey,
+						),
+						title: parentItemTitle(collection, item),
+					})),
+				)
+			return [[key, items]]
+		}),
+	)
 
 	const currentVersion = KOBUN_VERSION
 	const appUrl = import.meta.env.VITE_KOBUN_APP_URL
@@ -55,6 +98,7 @@ export async function loader({
 		config,
 		// What the page below renders when there is no Config to render from.
 		configProblem: ctx.config ? null : ctx.configProblem,
+		parentItems,
 		projects,
 		// Streamed, not awaited: a version badge is not worth blocking the page
 		// on an origin that may never answer. Started below the guard above, so
@@ -78,11 +122,13 @@ export async function loader({
 
 /**
  * Nothing this loader answers with depends on a Preference: it resolves a
- * Project, lists the Projects the switcher offers, and arms a release check. A
+ * Project, lists the Projects the switcher offers, arms a release check, and
+ * lists the Parent Items of each Collection with Subcollections. A
  * Preference is account-scoped and says how Kobun looks, so a write of one is
  * never news about the Project — and re-running this for it would spend a
  * Config read (D1-cached on a short TTL, conditionally revalidated past it —
- * ADR-0003), a Project query and an outbound release fetch on a keystroke.
+ * ADR-0003), a Project query, an outbound release fetch and a Collection listing read
+ * (ADR-0011) on a keystroke.
  *
  * Matched on the target rather than the key, because that is the true reason:
  * no Preference belongs in this answer, not just `sidebarOpen`. The root loader
@@ -116,6 +162,7 @@ const DashboardLayout = ({ loaderData }: Route.ComponentProps) => {
 			<DashboardSidebar
 				activeProject={loaderData.activeProject}
 				config={config}
+				parentItems={loaderData.parentItems}
 				projects={loaderData.projects}
 				releaseInfo={loaderData.releaseInfo}
 				user={loaderData.user}

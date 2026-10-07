@@ -2,6 +2,7 @@ import { describe, expect, it, test } from "vitest"
 import { singletonSchema } from "@/config/schema"
 import type { NormalizedConfig } from "@/config/types"
 import {
+	parentItemTitle,
 	requireCollection,
 	requireParentItem,
 	requireSingleton,
@@ -143,5 +144,30 @@ describe("the Parent Item a URL names", () => {
 	// never reaches a path.
 	it("is a 404 for a stem that would climb out of the Collection", () => {
 		expect(statusOfThrown(() => requireParentItem(PARENTS, ".."))).toBe(404)
+	})
+})
+
+describe("a Parent Item's title", () => {
+	const PROJECTS = TEST_SUBCOLLECTION_CONFIG.collections.projects
+
+	it("is its title Field", () => {
+		expect(
+			parentItemTitle(PROJECTS, { data: { title: "Acme" }, name: "acme.md" }),
+		).toBe("Acme")
+	})
+
+	it("falls back to its filename stem when the title is empty", () => {
+		expect(
+			parentItemTitle(PROJECTS, { data: { title: "" }, name: "acme.mdx" }),
+		).toBe("acme")
+	})
+
+	it("falls back to its filename stem when the schema has no title", () => {
+		expect(
+			parentItemTitle(
+				{ ...PROJECTS, schema: {} },
+				{ data: { title: "Acme" }, name: "acme.md" },
+			),
+		).toBe("acme")
 	})
 })

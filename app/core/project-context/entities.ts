@@ -1,4 +1,5 @@
 import type { Collection, Singleton } from "@/config/types"
+import { resolveTitleKey } from "@/core/fields"
 import type { ProjectContextOk } from "./types"
 
 /** A Config declares no paths; where its entities live is a convention. */
@@ -80,7 +81,17 @@ export function requireSubcollection(
 	}
 }
 
-const stem = (name: string) => name.replace(/\.mdx?$/, "")
+/** A Parent Item's filename without its extension: how URLs name it (ADR-0012). */
+export const parentItemStem = (name: string) => name.replace(/\.mdx?$/, "")
+
+/** What a Parent Item is labelled by: its title Field, else its filename stem. */
+export function parentItemTitle(
+	collection: Collection,
+	item: { data: Record<string, unknown>; name: string },
+): string {
+	const titleKey = resolveTitleKey(collection.schema)
+	return String((titleKey && item.data[titleKey]) || parentItemStem(item.name))
+}
 
 /**
  * The Parent Item a URL names, by its filename stem (ADR-0012), from its
@@ -94,7 +105,7 @@ export function requireParentItem<Item extends { name: string }>(
 	items: Item[],
 	parentStem: string,
 ): Item {
-	const parent = items.find((item) => stem(item.name) === parentStem)
+	const parent = items.find((item) => parentItemStem(item.name) === parentStem)
 	if (!parent) notFound("Parent Item")
 	return parent
 }

@@ -28,6 +28,8 @@ export { connectProject } from "./connect-project"
 export { createProjectContext } from "./create-project-context"
 export type { ContentDirectory } from "./entities"
 export {
+	parentItemStem,
+	parentItemTitle,
 	requireCollection,
 	requireParentItem,
 	requireSingleton,
