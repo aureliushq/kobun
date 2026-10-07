@@ -437,6 +437,16 @@ describe("subcollections on a Collection", () => {
 		})
 	})
 
+	it("refuses subcollections that are not a map", () => {
+		const { config, errors } = parse({
+			collections: { projects: { ...POSTS, subcollections: ["updates"] } },
+		})
+
+		expect(errors).toHaveLength(1)
+		expect(errors[0].path).toBe("collections.projects.subcollections")
+		expect(config?.collections.projects).toBeDefined()
+	})
+
 	it("scopes a Field colliding with a Feature to the Subcollection", () => {
 		const { errors } = projects({
 			updates: {

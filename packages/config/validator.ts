@@ -1,5 +1,5 @@
 import YAML from "yaml"
-import type z from "zod"
+import z from "zod"
 import { expandFeatures } from "./features"
 import {
 	collectionSchema,
@@ -199,16 +199,13 @@ const resolveSubcollections = (
 	errors: ConfigError[],
 ): Record<string, Subcollection> => {
 	const subcollections: Record<string, Subcollection> = {}
-	if (!isObject(raw)) {
-		errors.push({
-			code: "invalid_type",
-			message: "subcollections must be an object",
-			path: prefix,
-		})
+	const result = z.record(z.string(), z.unknown()).safeParse(raw)
+	if (!result.success) {
+		errors.push(...zodIssuesToConfigError(result.error.issues, prefix))
 		return subcollections
 	}
 
-	for (const [key, value] of Object.entries(raw)) {
+	for (const [key, value] of Object.entries(result.data)) {
 		const subcollection = resolveEntry(
 			value,
 			subcollectionSchema,
