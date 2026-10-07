@@ -70,7 +70,7 @@
 		"@fontsource-variable/geist": "5.2.8",
 		"@octokit/auth-app": "8.2.0",
 		"@octokit/rest": "22.0.1",
-		"@posthog/react": "1.10.3",
+		"@posthog/react": "1.11.3",
 		"@tanstack/react-table": "8.21.3",
 		"@tiptap/core": "3.31.4",
 		"@tiptap/extension-character-count": "3.31.4",
