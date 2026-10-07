@@ -43,6 +43,7 @@ For production self-hosting, you need at least one database. First, log in to Cl
 ```bash
 bunx wrangler login
 bunx wrangler d1 create kobun-production
+bunx wrangler r2 bucket create kobun-staged-images-production
 ```
 
 > [!TIP]
@@ -53,11 +54,14 @@ bunx wrangler d1 create kobun-production
 > ```bash
 > bunx wrangler d1 create kobun-development
 > bunx wrangler d1 create kobun-preview
+> bunx wrangler r2 bucket create kobun-staged-images-preview
 > ```
+>
+> Local development and the test environment use Miniflare's local R2, so they need no bucket.
 
 ### Update wrangler.json
 
-Update `wrangler.json` with your worker name, database names, and database IDs returned from the commands above. Update the `BETTER_AUTH_URL` var in each environment to match your domain.
+Update `wrangler.json` with your worker name, database names, database IDs and R2 bucket names from the commands above. Update the `BETTER_AUTH_URL` var in each environment to match your domain.
 
 ---
 
@@ -230,7 +234,7 @@ bun run db:migrate:production
 ```
 
 > [!IMPORTANT]
-> This requires `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` in `.env`, and the production database ID in `wrangler.json`. You can [create an API token here](https://dash.cloudflare.com/profile/api-tokens) — it needs **D1:Edit** and **Workers Scripts:Edit** permissions.
+> This requires `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` in `.env`, and the production database ID in `wrangler.json`. You can [create an API token here](https://dash.cloudflare.com/profile/api-tokens) — it needs **D1:Edit**, **Workers R2 Storage:Edit** and **Workers Scripts:Edit** permissions.
 
 > **Development only** — for local development:
 >
@@ -297,7 +301,7 @@ gh secret set CLOUDFLARE_API_TOKEN --app dependabot
 
 | Secret | Required | Description |
 | --- | --- | --- |
-| `CLOUDFLARE_API_TOKEN` | Yes | Needs D1:Edit and Workers Scripts:Edit permissions. [Create one here](https://dash.cloudflare.com/profile/api-tokens). |
+| `CLOUDFLARE_API_TOKEN` | Yes | Needs D1:Edit, Workers R2 Storage:Edit and Workers Scripts:Edit permissions. [Create one here](https://dash.cloudflare.com/profile/api-tokens). |
 | `CLOUDFLARE_ACCESS_CLIENT_SECRET` | No | For smoke tests behind Cloudflare Access |
 
 > [!NOTE]

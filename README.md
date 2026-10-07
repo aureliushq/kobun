@@ -14,6 +14,15 @@
 4. **Select a repository** to create a project.
 5. Kobun looks for a **config file** (`.kobun.json` or `.kobun.yml`) in the repository root.
 
+### Config paths
+
+Both paths are relative to the repository root.
+
+| Option | Default | What it is |
+| --- | --- | --- |
+| `basePath` | `src/content` | Where Collections (`<basePath>/<collection>/`) and Singletons (`<basePath>/singletons/`) live. |
+| `mediaPath` | `src/assets/images` | Where images added in the editor are written on Save to GitHub or Publish. The Markdown links each one by this path, for example `src/assets/images/<id>.png`. |
+
 ## Tech Stack
 
 - **Framework** — React Router v7 + Vite + React 19 + TypeScript

@@ -20,6 +20,7 @@ import {
 	EditorWidth,
 	type UserPreferenceValues,
 } from "@/db/types"
+import type { ImageUploadAdapter } from "@/editor"
 
 import {
 	CollectionItemEditor,
@@ -39,8 +40,12 @@ import {
  */
 
 const mocks = vi.hoisted(() => ({
+	imageUpload: undefined as ImageUploadAdapter | undefined,
 	persistence: undefined as
-		| { onAutoSave?: (markdown: string) => Promise<void> }
+		| {
+				onAutoSave?: (markdown: string) => Promise<void>
+				onCommit?: (markdown: string) => Promise<unknown>
+		  }
 		| undefined,
 	richTextEditor: vi.fn(),
 }))
@@ -51,6 +56,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@/editor", () => ({
 	EditorWordCount: () => <div data-testid="word-count" />,
 	RichTextEditor: (props: {
+		imageUpload?: ImageUploadAdapter
 		initialContent?: string
 		persistence?: {
 			onAutoSave?: (markdown: string) => Promise<void>
@@ -59,6 +65,7 @@ vi.mock("@/editor", () => ({
 		ref?: (api: unknown) => void
 	}) => {
 		mocks.richTextEditor(props.initialContent)
+		mocks.imageUpload = props.imageUpload
 		mocks.persistence = props.persistence
 		props.ref?.({
 			focus: vi.fn(),
@@ -148,6 +155,7 @@ const title = () => screen.getByLabelText("Title") as HTMLTextAreaElement
 
 beforeEach(() => {
 	mocks.richTextEditor.mockClear()
+	mocks.imageUpload = undefined
 	mocks.persistence = undefined
 	vi.stubGlobal("fetch", vi.fn())
 })
@@ -234,6 +242,86 @@ describe("a Collection Item whose content has arrived", () => {
 		expect(lastControls(setControls)?.canSave).toBe(true)
 		expect(lastControls(setControls)?.canCommit).toBe(true)
 		expect(lastControls(setControls)?.canPublish).toBe(true)
+	})
+})
+
+describe("an image the writer adds to the Body", () => {
+	const photo = () =>
+		new File([new Uint8Array(4)], "photo.png", { type: "image/png" })
+
+	it("stages it under the Project and keeps the URL it is served from", async () => {
+		vi.mocked(fetch).mockResolvedValue(
+			Response.json({ src: "/api/staged-image/acme/site/abc.png" }),
+		)
+		editor(opened())
+
+		const src = await mocks.imageUpload?.upload(photo())
+
+		expect(src).toBe("/api/staged-image/acme/site/abc.png")
+		const [url, init] = vi.mocked(fetch).mock.calls[0]
+		expect(url).toBe("/api/staged-image/acme/site")
+		expect(init?.method).toBe("POST")
+		expect((init?.body as FormData).get("file")).toBeInstanceOf(File)
+	})
+
+	it("fails with what the server said, so the writer can read it", async () => {
+		vi.mocked(fetch).mockResolvedValue(
+			Response.json({ error: "Images can be at most 5 MB." }, { status: 413 }),
+		)
+		editor(opened())
+
+		await expect(mocks.imageUpload?.upload(photo())).rejects.toThrow(
+			"Images can be at most 5 MB.",
+		)
+	})
+
+	it("fails readably when the server cannot be reached", async () => {
+		vi.mocked(fetch).mockRejectedValue(new TypeError("Failed to fetch"))
+		editor(opened())
+
+		await expect(mocks.imageUpload?.upload(photo())).rejects.toThrow(
+			"Could not upload the image",
+		)
+	})
+
+	it("refuses a file the server would refuse, before sending it", () => {
+		editor(opened())
+
+		const svg = new File(["<svg/>"], "logo.svg", { type: "image/svg+xml" })
+
+		expect(mocks.imageUpload?.validate?.(svg)).toBe(
+			"Use a PNG, JPEG, GIF, WebP or AVIF image.",
+		)
+		expect(mocks.imageUpload?.validate?.(photo())).toBeNull()
+	})
+
+	// The repository may be private, so a committed image is shown through the
+	// asset route; a Staged Image is already served by the app.
+	it("shows a committed image from the repository and a staged one as it is", () => {
+		editor(opened())
+
+		expect(mocks.imageUpload?.resolveSrc?.("src/assets/images/abc.png")).toBe(
+			"/api/repo-asset/acme/site/src/assets/images/abc.png",
+		)
+		expect(
+			mocks.imageUpload?.resolveSrc?.("/api/staged-image/acme/site/abc.png"),
+		).toBe("/api/staged-image/acme/site/abc.png")
+	})
+
+	// The writer stays in the editor after a Save to GitHub, and the staged copy
+	// is gone, so the Body has to follow the image into the repository.
+	it("tells the editor where a Save to GitHub moved each image", async () => {
+		const images = {
+			"/api/staged-image/acme/site/abc.png": "src/assets/images/abc.png",
+		}
+		vi.mocked(fetch).mockResolvedValue(
+			Response.json({ draftDeleted: true, images, ok: true }),
+		)
+		editor(opened())
+
+		await expect(mocks.persistence?.onCommit?.("![](x)")).resolves.toEqual({
+			imageSources: images,
+		})
 	})
 })
 
@@ -595,6 +683,112 @@ describe("an autosave the server refuses", () => {
 		})
 
 		expect(lastControls(setControls)?.saveError).toBeNull()
+	})
+})
+
+// A Worker over its CPU limit answers with the platform's own 5xx page, which
+// says nothing a writer can act on (#174).
+describe("a Save to GitHub the server fails", () => {
+	const SERVER_FAILURE = "GitHub save failed — try again later, or use Save."
+
+	async function commit(setControls: ReturnType<typeof vi.fn>) {
+		await act(async () => {
+			await lastControls(setControls)
+				?.commit()
+				.catch(() => undefined)
+		})
+	}
+
+	beforeEach(() => {
+		vi.spyOn(console, "error").mockImplementation(() => {})
+	})
+
+	it("says so in one short line when the failure is an error page", async () => {
+		vi.mocked(fetch).mockResolvedValue(
+			new Response("<!DOCTYPE html><html><body>Worker exceeded</body></html>", {
+				headers: { "Content-Type": "text/html; charset=UTF-8" },
+				status: 503,
+			}),
+		)
+		const { setControls } = editor(opened())
+
+		await commit(setControls)
+
+		expect(lastControls(setControls)?.saveError).toEqual({
+			code: null,
+			message: SERVER_FAILURE,
+		})
+	})
+
+	it("says so in one short line when the failure is plain text", async () => {
+		vi.mocked(fetch).mockResolvedValue(
+			new Response("error code: 1102", { status: 503 }),
+		)
+		const { setControls } = editor(opened())
+
+		await commit(setControls)
+
+		expect(lastControls(setControls)?.saveError).toEqual({
+			code: null,
+			message: SERVER_FAILURE,
+		})
+	})
+
+	it("says so in one short line even when the failure is JSON", async () => {
+		vi.mocked(fetch).mockResolvedValue(
+			Response.json({ error: "Internal error" }, { status: 500 }),
+		)
+		const { setControls } = editor(opened())
+
+		await commit(setControls)
+
+		expect(lastControls(setControls)?.saveError?.message).toBe(SERVER_FAILURE)
+	})
+
+	it("still passes on a refusal the action wrote", async () => {
+		vi.mocked(fetch).mockResolvedValue(
+			Response.json(
+				{
+					code: "duplicate-slug",
+					error: "Another item already uses slug “hello”",
+					ok: false,
+				},
+				{ status: 409 },
+			),
+		)
+		const { setControls } = editor(opened())
+
+		await commit(setControls)
+
+		expect(lastControls(setControls)?.saveError).toEqual({
+			code: "duplicate-slug",
+			message: "Another item already uses slug “hello”",
+		})
+	})
+
+	it("leaves the writer's work in place for a Save right after", async () => {
+		vi.mocked(fetch)
+			.mockResolvedValueOnce(new Response("", { status: 503 }))
+			.mockResolvedValueOnce(
+				Response.json({ draftId: "draft-1", ok: true, revision: 1 }),
+			)
+		const { setControls } = dataOnly()
+		fireEvent.change(title(), { target: { value: "Renamed" } })
+
+		await commit(setControls)
+		expect(lastControls(setControls)?.saveError?.message).toBe(SERVER_FAILURE)
+		expect(title().value).toBe("Renamed")
+
+		await act(async () => {
+			await lastControls(setControls)?.save()
+		})
+
+		expect(lastControls(setControls)?.saveError).toBeNull()
+		const [, request] = vi.mocked(fetch).mock.calls[1] ?? []
+		expect(JSON.parse(String(request?.body))).toMatchObject({
+			fields: { title: "Renamed" },
+			intent: "save",
+		})
 	})
 })
 

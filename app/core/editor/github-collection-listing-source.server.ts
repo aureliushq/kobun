@@ -1,4 +1,5 @@
 import {
+	getGithubFileContent,
 	hasStatus,
 	listGithubDirectoryEntriesConditional,
 	listGithubDirectoryFiles,
@@ -22,6 +23,18 @@ export function createGithubCollectionListingSource(
 	env: Env,
 ): CollectionListingSource {
 	return {
+		// A file the entries just listed; a 404 here is a race with a delete, and
+		// failing this revalidation is the honest answer to it.
+		file: async ({ installationId, name, owner }, path) => {
+			const file = await getGithubFileContent(
+				env,
+				installationId,
+				owner,
+				name,
+				path,
+			)
+			return { ...file, name: path.slice(path.lastIndexOf("/") + 1) }
+		},
 		// No 404 catch here, deliberately. `read` has already answered whether
 		// this directory is there, so a 404 arriving at this point is the
 		// installation's auth exchange failing rather than an empty Collection,

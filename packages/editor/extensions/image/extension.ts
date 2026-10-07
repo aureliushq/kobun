@@ -11,6 +11,8 @@ declare module "@tiptap/core" {
 	interface Commands<ReturnType> {
 		customImage: {
 			insertImageComponent: (file: File) => ReturnType
+			/** Point images at new sources, keyed by the source each has now. */
+			replaceImageSources: (sources: Record<string, string>) => ReturnType
 		}
 	}
 }
@@ -82,7 +84,9 @@ export const CustomImageExtension = Node.create<{
 		const src = node.attrs?.src ?? ""
 		const alt = node.attrs?.alt ?? ""
 		const title = node.attrs?.title ?? ""
-		if (!src) return ""
+		// Until its upload lands, `src` is a preview only this tab can read.
+		const status = node.attrs?.status
+		if (!src || status === "uploading" || status === "error") return ""
 		return title ? `![${alt}](${src} "${title}")` : `![${alt}](${src})`
 	},
 
@@ -96,19 +100,39 @@ export const CustomImageExtension = Node.create<{
 				(file) =>
 				({ chain }) => {
 					const adapter = this.options.uploadAdapter
-					if (!adapter || validateImageFile(file, adapter)) return false
+					if (!adapter) return false
 
+					// A refused file still lands, as an error the writer can read
+					// and delete, rather than vanishing without a word.
+					const errorMessage = validateImageFile(file, adapter)
 					return chain()
 						.insertContent({
 							type: this.name,
-							attrs: {
-								src: URL.createObjectURL(file),
-								alt: file.name,
-								status: "uploading",
-								file,
-							},
+							attrs: errorMessage
+								? { alt: file.name, errorMessage, status: "error" }
+								: {
+										src: URL.createObjectURL(file),
+										alt: file.name,
+										status: "uploading",
+										file,
+									},
 						})
 						.run()
+				},
+			replaceImageSources:
+				(sources) =>
+				({ state, tr }) => {
+					let replaced = false
+					state.doc.descendants((node, pos) => {
+						const src = node.type.name === this.name && sources[node.attrs.src]
+						if (!src) return
+						tr.setNodeMarkup(pos, undefined, { ...node.attrs, src })
+						replaced = true
+					})
+					// Undo would bring back a source that may no longer exist: the
+					// host moves an image before it says where to.
+					if (replaced) tr.setMeta("addToHistory", false)
+					return replaced
 				},
 		}
 	},

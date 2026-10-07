@@ -1,6 +1,7 @@
 import { getSingletonEditorPath, getSingletonPath } from "@/core/editor/drafts"
 import { createSingletonDrafts } from "@/core/editor/drafts/create-drafts.server"
 import { createGithubSourceStore } from "@/core/editor/drafts/github-source-store.server"
+import { createR2StagedImageStore } from "@/core/editor/drafts/r2-staged-image-store.server"
 import { requireSingleton } from "@/core/project-context"
 import {
 	type ProjectContextArgs,
@@ -37,6 +38,13 @@ export async function resolveSingletonEditorContext({
 				installationId,
 				name,
 				owner,
+			}),
+			stagedImages: createR2StagedImageStore({
+				bucket: env.IMAGES,
+				mediaPath: ctx.config.mediaPath,
+				name,
+				owner,
+				projectId: projectRow.id,
 			}),
 		}),
 		name,

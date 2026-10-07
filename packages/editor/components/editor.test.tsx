@@ -40,6 +40,15 @@ function createTestEditor(initialMarkdown = "") {
 				emitUpdate()
 			},
 			focus: vi.fn(),
+			// Moves images the way the real command does: the change is the
+			// document's, and announced to it like any other.
+			replaceImageSources: (sources: Record<string, string>) => {
+				for (const [from, to] of Object.entries(sources)) {
+					markdown = markdown.replaceAll(from, to)
+				}
+				emitUpdate()
+				return true
+			},
 			setContent,
 		},
 		getHTML: () => `<p>${markdown}</p>`,
@@ -108,7 +117,8 @@ describe("RichTextEditor autosave", () => {
 	it("commits the current markdown and marks it saved", async () => {
 		const testEditor = createTestEditor("Initial")
 		mocks.useEditor.mockReturnValue(testEditor.editor)
-		const onCommit = vi.fn()
+		// A handler that answers nothing, synchronously, is still a commit.
+		const onCommit = vi.fn((_markdown: string): void => undefined)
 		const ref = createRef<EditorRefApi>()
 		render(<RichTextEditor ref={ref} persistence={{ onCommit }} />)
 
@@ -119,6 +129,33 @@ describe("RichTextEditor autosave", () => {
 		// The bytes reached the repository and the writer stays in the editor, so
 		// warning them about unsaved work would be a lie.
 		expect(ref.current?.hasUnsavedChanges()).toBe(false)
+	})
+
+	// A commit can move what the document links to — a Staged Image now lives in
+	// the repository — and the writer stays here, so the document has to follow.
+	it("follows the image sources a commit moved, and holds nothing unsaved", async () => {
+		const testEditor = createTestEditor()
+		mocks.useEditor.mockReturnValue(testEditor.editor)
+		const onAutoSave = vi.fn()
+		const onCommit = vi.fn().mockResolvedValue({
+			imageSources: { "/staged/cat.png": "media/cat.png" },
+		})
+		const ref = createRef<EditorRefApi>()
+		render(
+			<RichTextEditor
+				ref={ref}
+				autosaveDelay={100}
+				persistence={{ onAutoSave, onCommit }}
+			/>,
+		)
+
+		act(() => testEditor.update("![A cat](/staged/cat.png)"))
+		await act(async () => ref.current?.commit())
+		await act(async () => vi.advanceTimersByTimeAsync(100))
+
+		expect(ref.current?.getMarkdown()).toBe("![A cat](media/cat.png)")
+		expect(ref.current?.hasUnsavedChanges()).toBe(false)
+		expect(onAutoSave).not.toHaveBeenCalled()
 	})
 
 	it("publishes the current markdown without changing dirty state", async () => {

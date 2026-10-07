@@ -17,7 +17,14 @@ export interface ImageUploadAdapter {
 
 export interface PersistenceAdapter {
 	onAutoSave?: (markdown: string) => void | Promise<void>
-	onCommit?: (markdown: string) => void | Promise<void>
+	/**
+	 * May answer with images the commit moved, keyed by the source each had: the
+	 * document follows them, since the writer stays in it afterwards.
+	 */
+	onCommit?: (
+		markdown: string,
+		// biome-ignore lint/suspicious/noConfusingVoidType: a handler with nothing to answer returns nothing, as it could before images moved
+	) => void | Promise<{ imageSources: Record<string, string> } | void>
 	onPublish?: (markdown: string) => void | Promise<void>
 }
 

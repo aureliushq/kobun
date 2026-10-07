@@ -10,6 +10,7 @@ import {
 } from "@/core/content/document.server"
 import {
 	findCollectionItemBySlug,
+	getEffectiveSlug,
 	isMarkdownCollectionFile,
 } from "@/core/editor/collection-items.server"
 import {
@@ -19,6 +20,10 @@ import {
 	validateMetadata,
 	validateSlug,
 } from "@/core/editor/collection-metadata"
+import {
+	type CommittedImage,
+	commitStagedImages,
+} from "@/core/editor/staged-images"
 import { editorDraft } from "@/db/schema/app-schema"
 import { isDraftDirty } from "./draft-state"
 import {
@@ -28,6 +33,7 @@ import {
 	withPublishedStatus,
 } from "./managed-stamps"
 import type { SourceStore } from "./source-store"
+import type { StagedImageStore } from "./staged-image-store"
 import type {
 	CommitAction,
 	CommitAddress,
@@ -39,6 +45,7 @@ import type {
 	DraftRow,
 	DraftsContext,
 	DraftsDatabase,
+	ListedItem,
 	OpenInput,
 	OpenResult,
 	ResolvedSaveInput,
@@ -65,6 +72,11 @@ interface CommittedSource<ItemSlug extends string | null> {
 	sha: string
 }
 
+/** A Staged Image a Commit is about to write, with the bytes it writes. */
+interface ImageToCommit extends CommittedImage {
+	bytes: Uint8Array
+}
+
 /**
  * The Draft lifecycle over one entity of one project — a Collection or a
  * Singleton — against Sources already located. Every transition is reported as
@@ -77,8 +89,16 @@ function createDraftLifecycle<ItemSlug extends string | null>(context: {
 	now?: () => Date
 	project: { id: string }
 	sourceStore: SourceStore
+	stagedImages: StagedImageStore
 }) {
-	const { db, entity, now = () => new Date(), project, sourceStore } = context
+	const {
+		db,
+		entity,
+		now = () => new Date(),
+		project,
+		sourceStore,
+		stagedImages,
+	} = context
 
 	/** What a new item's Fields hold before anyone has typed into them. */
 	const defaultFields = applyMetadataDefaults(entity.schema, {})
@@ -422,6 +442,22 @@ function createDraftLifecycle<ItemSlug extends string | null>(context: {
 	}
 
 	/**
+	 * The bytes of every Staged Image the commit writes, or null when one is no
+	 * longer staged: a Body linking to it would commit a link to nothing.
+	 */
+	async function readStagedImages(
+		images: CommittedImage[],
+	): Promise<ImageToCommit[] | null> {
+		const read = await Promise.all(
+			images.map(async (image) => {
+				const bytes = await stagedImages.read(image.id)
+				return bytes ? { ...image, bytes } : null
+			}),
+		)
+		return read.every((image) => image !== null) ? read : null
+	}
+
+	/**
 	 * Commit the writer's content and reconcile the Draft with what landed. Every
 	 * gate has passed by the time this runs; what is left is the chain that must
 	 * not come apart — commit, sync, delete-when-Synced (ADR-0001).
@@ -431,6 +467,7 @@ function createDraftLifecycle<ItemSlug extends string | null>(context: {
 		draft: DraftRow,
 		address: CommitAddress<ItemSlug>,
 		action: CommitAction,
+		images: ImageToCommit[],
 	): Promise<CommitResult<ItemSlug>> {
 		const { source } = input
 		const { itemSlug, path } = address
@@ -450,6 +487,7 @@ function createDraftLifecycle<ItemSlug extends string | null>(context: {
 				source ? { raw: source.raw } : undefined,
 			),
 			expectedSha: source?.sha,
+			images: images.map(({ bytes, path }) => ({ bytes, path })),
 			// The publish is the notable event in a reviewer's history; a plain
 			// commit is a file change (ADR-0008).
 			message:
@@ -459,6 +497,20 @@ function createDraftLifecycle<ItemSlug extends string | null>(context: {
 			path,
 		})
 		if (!committed.ok) return { code: "stale-source", ok: false }
+		// The repository holds the images now, so the staged copies go, the way
+		// the Draft does once Synced. Failing to forget one leaves an object
+		// nothing links to, which costs storage and nothing else: the commit
+		// has landed and must still be reported as landed.
+		if (images.length) {
+			await stagedImages
+				.delete(images.map((image) => image.id))
+				.catch(() => undefined)
+		}
+		// Which link became which path, so an editor still holding the staged
+		// links can follow the Body to the repository.
+		const committedImages = Object.fromEntries(
+			images.map((image) => [image.src, image.path]),
+		)
 
 		const committedSource: CommittedSource<ItemSlug> = {
 			itemSlug,
@@ -472,6 +524,7 @@ function createDraftLifecycle<ItemSlug extends string | null>(context: {
 				commitSha: committed.commitSha,
 				draftId: draft.id,
 				fields: input.fields,
+				images: committedImages,
 				itemSlug,
 				ok: true,
 				outcome: "committed-unsynced",
@@ -483,6 +536,7 @@ function createDraftLifecycle<ItemSlug extends string | null>(context: {
 			draftDeleted,
 			draftId: draft.id,
 			fields: input.fields,
+			images: committedImages,
 			itemSlug,
 			ok: true,
 			outcome: "committed",
@@ -508,6 +562,18 @@ function createDraftLifecycle<ItemSlug extends string | null>(context: {
 	): Promise<CommitResult<ItemSlug>> {
 		const bodyless = refuseBodyless(input)
 		if (bodyless) return bodyless
+		// What is committed links each Staged Image by the path it lands at in the
+		// repository, so the comparison and the stamps below see the Body as it
+		// will be committed. What the writer typed is still what is kept first.
+		const staged = commitStagedImages(
+			input.markdown,
+			stagedImages.baseUrl,
+			stagedImages.mediaPath,
+		)
+		const committing: ResolvedSaveInput = {
+			...input,
+			markdown: staged.markdown,
+		}
 		// Publication State is declared *before* the comparison, so a transition is
 		// itself the change that gets committed: a Publish over a Source already
 		// committed as `draft` differs, and commits. No clock enters the comparison
@@ -517,10 +583,10 @@ function createDraftLifecycle<ItemSlug extends string | null>(context: {
 		const intent: ResolvedSaveInput =
 			action === "publish"
 				? {
-						...input,
+						...committing,
 						fields: withPublishedStatus(entity.schema, input.fields),
 					}
-				: input
+				: committing
 
 		// The timestamps are observational, so they land only once the comparison
 		// has decided there is a change — and before the Draft is persisted. The
@@ -530,7 +596,7 @@ function createDraftLifecycle<ItemSlug extends string | null>(context: {
 		// refusal cannot turn a Clean Draft Dirty.
 		const unchanged = matchesSource(intent)
 		const stamped: ResolvedSaveInput = unchanged
-			? input
+			? committing
 			: {
 					...intent,
 					fields: stampTimestamps({
@@ -579,19 +645,28 @@ function createDraftLifecycle<ItemSlug extends string | null>(context: {
 			}
 		}
 
+		// Checked before anything is stamped, for the reason a refused gate stamps
+		// nothing: the Draft must come out of a refusal as the writer left it.
+		const images = await readStagedImages(staged.images)
+		if (!images) return { code: "missing-image", ok: false }
+
 		// Every gate has passed, so this commit is happening — and now the stamps
 		// go into the Draft, still before the commit itself. A Draft that outlives
 		// the commit then holds exactly what was committed, which is what keeps the
 		// churn bug from returning (#87). A schema with no Managed Fields has
-		// nothing to add here and this writes nothing.
+		// nothing to add here and this writes nothing. The Body keeps its staged
+		// links: a refused commit leaves the images staged, and only those links
+		// find them again. A commit that lands deletes this Draft, or leaves it to
+		// the session that saved over it.
 		const restamped = await writeDraft({
 			...stamped,
+			markdown: input.markdown,
 			draftId: draft.id,
 			expectedRevision: draft.revision,
 		})
 		if (!restamped.ok) return restamped
 
-		return commitToSource(stamped, restamped.draft, address, action)
+		return commitToSource(stamped, restamped.draft, address, action, images)
 	}
 
 	/**
@@ -714,12 +789,12 @@ function collectionEntity({
 	collection,
 	collectionSlug,
 	directoryPath,
-	sourceStore,
+	listItems,
 }: {
 	collection: Collection
 	collectionSlug: string
 	directoryPath: string
-	sourceStore: SourceStore
+	listItems: () => Promise<ListedItem[]>
 }): DraftEntity<string> {
 	/** The Slug these fields name, which is what the item will be addressed by. */
 	function effectiveSlug(fields: FieldRecord) {
@@ -735,14 +810,18 @@ function collectionEntity({
 	 * The address's errors are checked first, so this is only ever asked of a
 	 * Slug that could be a filename at all — the third and last of the rules a
 	 * Slug answers to, and the only one that needs the repository rather than the
-	 * string.
+	 * string. An item keeping the Slug it already has is not asked at all, and
+	 * the rest is answered from the listing's parsed Data rather than every
+	 * file's bytes (ADR 0012).
 	 */
 	async function isSlugTaken(slug: string, source: ResolvedSource | null) {
-		const files = await sourceStore.list(directoryPath)
-		return files.filter(isMarkdownCollectionFile).some((file) => {
-			if (source && file.path === source.path) return false
-			return findCollectionItemBySlug(collection, [file], slug) !== null
-		})
+		if (source?.itemSlug === slug) return false
+		const items = await listItems()
+		return items.some(
+			(item) =>
+				item.path !== source?.path &&
+				getEffectiveSlug(collection, item, item.data) === slug,
+		)
 	}
 
 	return {
@@ -784,9 +863,11 @@ export function createDrafts(context: DraftsContext) {
 		collectionSlug,
 		db,
 		directoryPath,
+		listItems,
 		now,
 		project,
 		sourceStore,
+		stagedImages,
 	} = context
 	const lifecycle = createDraftLifecycle({
 		db,
@@ -794,11 +875,12 @@ export function createDrafts(context: DraftsContext) {
 			collection,
 			collectionSlug,
 			directoryPath,
-			sourceStore,
+			listItems,
 		}),
 		now,
 		project,
 		sourceStore,
+		stagedImages,
 	})
 
 	/**
@@ -807,12 +889,13 @@ export function createDrafts(context: DraftsContext) {
 	 * transition below is not.
 	 *
 	 * The file named after the Slug is asked for first, since that is where a
-	 * new item lands: one read, where the listing pulls every file in the
-	 * directory and runs on every autosave. Only a file that still answers to
-	 * the Slug is taken; anything else — no such file, or a frontmatter Slug
-	 * that names another item — falls back to the listing. A second file
-	 * claiming the same Slug is not looked for here; Commit's collision check
-	 * still refuses it.
+	 * new item lands, and this runs on every autosave. Only a file that still
+	 * answers to the Slug is taken; anything else — no such file, or a
+	 * frontmatter Slug that names another item — falls back to the listing,
+	 * which names the file that does answer to it. That one file is then read
+	 * live, so the editor never opens a cached copy (ADR 0012). A second file
+	 * claiming the same Slug is not looked for on the first path; Commit's
+	 * collision check still refuses it.
 	 */
 	async function resolveSource(slug: string): Promise<ResolvedSource | null> {
 		const namedPath = `${directoryPath}/${slug}.${collection.format}`
@@ -824,12 +907,14 @@ export function createDrafts(context: DraftsContext) {
 			if (found) return found
 		}
 
-		const files = await sourceStore.list(directoryPath)
-		return findCollectionItemBySlug(
-			collection,
-			files.filter(isMarkdownCollectionFile),
-			slug,
+		const matches = (await listItems()).filter(
+			(item) => getEffectiveSlug(collection, item, item.data) === slug,
 		)
+		if (matches.length > 1) {
+			throw new Error(`Multiple collection items use slug "${slug}"`)
+		}
+		const listed = matches[0] ? await sourceStore.read(matches[0].path) : null
+		return listed ? findCollectionItemBySlug(collection, [listed], slug) : null
 	}
 
 	async function openNewItem(draftId: string | null): Promise<OpenResult> {
@@ -941,14 +1026,23 @@ function singletonEntity({
  * carry its id.
  */
 export function createSingletonDrafts(context: SingletonDraftsContext) {
-	const { db, filePath, now, project, singleton, singletonSlug, sourceStore } =
-		context
+	const {
+		db,
+		filePath,
+		now,
+		project,
+		singleton,
+		singletonSlug,
+		sourceStore,
+		stagedImages,
+	} = context
 	const lifecycle = createDraftLifecycle({
 		db,
 		entity: singletonEntity({ filePath, singleton, singletonSlug }),
 		now,
 		project,
 		sourceStore,
+		stagedImages,
 	})
 
 	/** The Singleton's Source, or null while nobody has created it. */
