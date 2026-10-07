@@ -1,7 +1,7 @@
 import { and, eq, isNull, sql } from "drizzle-orm"
 import type { SQLiteColumn } from "drizzle-orm/sqlite-core"
 import invariant from "tiny-invariant"
-import type { Collection, Singleton } from "@/config/types"
+import type { Singleton } from "@/config/types"
 import { canonicalMetadata } from "@/core/content"
 import {
 	isDataOnly,
@@ -19,6 +19,7 @@ import {
 	validateMetadata,
 	validateSlug,
 } from "@/core/editor/collection-metadata"
+import type { ContentDirectory } from "@/core/project-context"
 import { editorDraft } from "@/db/schema/app-schema"
 import { isDraftDirty } from "./draft-state"
 import {
@@ -715,12 +716,7 @@ function collectionEntity({
 	collectionSlug,
 	directoryPath,
 	sourceStore,
-}: {
-	collection: Collection
-	collectionSlug: string
-	directoryPath: string
-	sourceStore: SourceStore
-}): DraftEntity<string> {
+}: ContentDirectory & { sourceStore: SourceStore }): DraftEntity<string> {
 	/** The Slug these fields name, which is what the item will be addressed by. */
 	function effectiveSlug(fields: FieldRecord) {
 		const slugField = getSlugField(collection.schema)

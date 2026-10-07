@@ -11,7 +11,19 @@ function notFound(what: string): never {
 }
 
 /**
- * The Collection a URL names, and the directory its Sources live in.
+ * A directory of Collection Items: where their Sources live, the Collection
+ * whose schema, label and Format they share, and the key their Drafts are
+ * owned under. Pages and Drafts work from this rather than from a URL's
+ * Collection key, so a top-level Collection is one way of resolving it.
+ */
+export interface ContentDirectory {
+	collection: Collection
+	collectionSlug: string
+	directoryPath: string
+}
+
+/**
+ * The Collection a URL names, as the content directory its Sources live in.
  *
  * Narrowing is deliberately not part of the resolver: a route that addresses no
  * entity — an asset, a layout — has no slug to narrow by, and the two callers
@@ -21,12 +33,13 @@ function notFound(what: string): never {
 export function requireCollection(
 	ctx: Pick<ProjectContextOk, "config">,
 	slug: string,
-): { collection: Collection; directoryPath: string } {
+): ContentDirectory {
 	const collection = ctx.config.collections[slug]
 	if (!collection) notFound("Collection")
 
 	return {
 		collection,
+		collectionSlug: slug,
 		directoryPath: repositoryPath(ctx.config.basePath, slug),
 	}
 }

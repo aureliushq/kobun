@@ -50,10 +50,10 @@ async function resolveCollectionEditorContext({
 	params,
 	request,
 }: Route.LoaderArgs | Route.ActionArgs) {
-	const { collection_slug } = params
 	const ctx = await requirePageContext({ context, params, request })
-	const { collection, directoryPath } = requireCollection(ctx, collection_slug)
-	if (collection.format !== "md" && collection.format !== "mdx") {
+	const directory = requireCollection(ctx, params.collection_slug)
+	const { format } = directory.collection
+	if (format !== "md" && format !== "mdx") {
 		throw new Response("Rich text editing requires an md or mdx collection", {
 			status: 422,
 		})
@@ -61,10 +61,8 @@ async function resolveCollectionEditorContext({
 
 	const { db, env, installationId, name, owner, projectRow } = ctx
 	return {
-		collection,
-		collectionSlug: collection_slug,
 		db,
-		directoryPath,
+		directory,
 		env,
 		installationId,
 		name,
@@ -75,7 +73,8 @@ async function resolveCollectionEditorContext({
 		// the one place that knows both the store and the cache.
 		sourceStore: withListingInvalidation(
 			createGithubSourceStore({ env, installationId, name, owner }),
-			() => invalidateCollectionListing(db, projectRow.id, directoryPath),
+			() =>
+				invalidateCollectionListing(db, projectRow.id, directory.directoryPath),
 		),
 	}
 }
@@ -86,7 +85,7 @@ function collectionPathFor(
 ) {
 	return getCollectionPath(
 		{ repoName: resolved.name, repoOwnerLogin: resolved.owner },
-		resolved.collectionSlug,
+		resolved.directory.collectionSlug,
 	)
 }
 
@@ -94,10 +93,8 @@ function createDraftsFor(
 	resolved: Awaited<ReturnType<typeof resolveCollectionEditorContext>>,
 ) {
 	return createDrafts({
-		collection: resolved.collection,
-		collectionSlug: resolved.collectionSlug,
+		...resolved.directory,
 		db: resolved.db,
-		directoryPath: resolved.directoryPath,
 		project: { id: resolved.projectRow.id },
 		sourceStore: resolved.sourceStore,
 	})
@@ -169,17 +166,18 @@ export async function loader(args: Route.LoaderArgs) {
 	// index/_routes params), so `?draft=` is where the editor put it.
 	const draftId = new URL(args.url).searchParams.get("draft")
 	const target = getDraftTarget(args.params, draftId)
+	const { schema } = resolved.directory.collection
 
 	// Everything the shell is built from, and the only half that may redirect.
 	const shell = {
 		// Publish is absent where the Collection has no Publication State to
 		// declare; Save to GitHub is then the only path to the repository
 		// (ADR-0008).
-		canPublish: hasPublicationState(resolved.collection.schema),
+		canPublish: hasPublicationState(schema),
 		name: resolved.name,
 		owner: resolved.owner,
 		publishDisabledReason: null,
-		schema: resolved.collection.schema,
+		schema,
 	}
 	const drafts = createDraftsFor(resolved)
 
@@ -220,7 +218,10 @@ export async function action(args: Route.ActionArgs) {
 	// The button is absent where the Feature is off, so a publish arriving here is
 	// not a writer's choice; refusing it is what makes Save to GitHub the only
 	// commit path rather than only looking like it.
-	if (publishing && !hasPublicationState(resolved.collection.schema)) {
+	if (
+		publishing &&
+		!hasPublicationState(resolved.directory.collection.schema)
+	) {
 		throw new Response("This collection has no publish feature", {
 			status: 400,
 		})
@@ -243,7 +244,7 @@ export async function action(args: Route.ActionArgs) {
 			? undefined
 			: getCollectionItemEditorPath(
 					{ repoName: resolved.name, repoOwnerLogin: resolved.owner },
-					resolved.collectionSlug,
+					resolved.directory.collectionSlug,
 					committed.itemSlug,
 				)
 
@@ -256,7 +257,7 @@ export async function action(args: Route.ActionArgs) {
 		posthog?.capture({
 			event: "content_published",
 			properties: {
-				collection_slug: resolved.collectionSlug,
+				collection_slug: resolved.directory.collectionSlug,
 				repo_owner: resolved.owner,
 				repo_name: resolved.name,
 				editor_mode: target.mode,
