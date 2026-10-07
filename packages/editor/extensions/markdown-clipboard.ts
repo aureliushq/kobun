@@ -7,8 +7,17 @@ export const MarkdownClipboardExtension = Extension.create({
 			new Plugin({
 				key: new PluginKey("markdownClipboard"),
 				props: {
-					clipboardTextSerializer: (_slice) => {
-						return this.editor.getMarkdown()
+					clipboardTextSerializer: (slice) => {
+						// A selection inside one block arrives as bare inline nodes,
+						// which the serializer would set out as separate blocks.
+						const nodes = slice.content.toJSON() ?? []
+						const content = slice.content.firstChild?.isInline
+							? [{ type: "paragraph", content: nodes }]
+							: nodes
+						return (
+							this.editor.markdown?.serialize({ type: "doc", content }) ??
+							slice.content.textBetween(0, slice.content.size, "\n\n")
+						)
 					},
 				},
 			}),

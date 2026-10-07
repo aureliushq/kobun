@@ -37,6 +37,7 @@
         "isbot": "5.1.37",
         "lowlight": "3.3.0",
         "lucide-react": "0.577.0",
+        "marked": "^17.0.6",
         "posthog-js": "1.407.2",
         "posthog-node": "5.46.1",
         "react": "19.3.0",

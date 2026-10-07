@@ -40,6 +40,48 @@ describe("RichTextEditor interactions", () => {
 		expect(paragraph).toHaveAttribute("data-placeholder", "Start writing...")
 	})
 
+	it("copies only the selection as plain text", async () => {
+		const ref = createRef<EditorRefApi>()
+		render(
+			<RichTextEditor
+				ref={ref}
+				dragHandle={false}
+				initialContent={"First **paragraph**.\n\nSecond one."}
+			/>,
+		)
+		const editor = await waitFor(() => {
+			expect(ref.current?.getEditor()).not.toBeNull()
+			return ref.current?.getEditor()
+		})
+		const { view } = editor ?? {}
+		if (!view) throw new Error("Editor view missing")
+
+		// "First **paragraph**" — positions 1 to 16 inside the first paragraph.
+		const text = view.someProp("clipboardTextSerializer", (serialize) =>
+			serialize(view.state.doc.slice(1, 16), view),
+		)
+
+		expect(text).toBe("First **paragraph**")
+	})
+
+	it("reads a single newline as a soft wrap, not a line break", async () => {
+		const ref = createRef<EditorRefApi>()
+		render(
+			<RichTextEditor
+				ref={ref}
+				dragHandle={false}
+				initialContent={"Hard-wrapped\nsentence.\n\nKept  \nbreak."}
+			/>,
+		)
+		const editor = await waitFor(() => {
+			expect(ref.current?.getEditor()).not.toBeNull()
+			return ref.current?.getEditor()
+		})
+
+		expect(editor?.getHTML()).toMatch(/<p[^>]*>Hard-wrapped sentence\.<\/p>/)
+		expect(editor?.getHTML()).toMatch(/Kept<br>break\./)
+	})
+
 	it("opens and filters the slash menu as a query is typed", async () => {
 		const ref = createRef<EditorRefApi>()
 		render(<RichTextEditor ref={ref} dragHandle={false} />)

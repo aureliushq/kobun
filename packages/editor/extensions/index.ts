@@ -3,6 +3,7 @@ import CharacterCount from "@tiptap/extension-character-count"
 import { TextStyle } from "@tiptap/extension-text-style"
 import Underline from "@tiptap/extension-underline"
 import { Markdown } from "@tiptap/markdown"
+import { Tokenizer } from "marked"
 import type { ImageUploadAdapter } from "../types"
 import { CustomBlockquoteExtension } from "./blockquote"
 import { createCustomCalloutExtension } from "./callout/extension"
@@ -28,9 +29,24 @@ interface ExtensionOptions {
 	slashCommands?: SlashCommandItem[]
 }
 
+/**
+ * A single newline inside a paragraph is a soft wrap: hard-wrapped Markdown
+ * files and pasted plain text use it mid-sentence. Marked keeps it in the text,
+ * and the editor shows it as a line break, so it becomes a space here. A real
+ * break (`"  \n"` or Shift+Enter) is a separate token and is kept.
+ */
+class SoftWrapTokenizer extends Tokenizer {
+	override inlineText(src: string) {
+		const token = super.inlineText(src)
+		if (token && !token.escaped) token.text = token.text.replace(/ *\n */g, " ")
+		return token
+	}
+}
+
 export const editorMarkdownOptions = {
-	breaks: true,
+	breaks: false,
 	gfm: true,
+	tokenizer: new SoftWrapTokenizer(),
 }
 
 const MarkdownUnderlineExtension = Underline.extend({
