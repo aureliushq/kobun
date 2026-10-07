@@ -1,5 +1,11 @@
 # kobun
 
+## 0.9.0
+
+### Minor Changes
+
+- Collections are now read from `<basePath>/collections/<collection>/`, alongside `<basePath>/singletons/`. Move existing Collection directories there.
+
 ## 0.8.1
 
 ### Patch Changes
