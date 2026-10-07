@@ -1,13 +1,21 @@
 import YAML from "yaml"
 import type z from "zod"
 import { expandFeatures } from "./features"
-import { collectionSchema, singletonSchema, versionSchema } from "./schema"
+import {
+	collectionSchema,
+	singletonSchema,
+	subcollectionSchema,
+	versionSchema,
+} from "./schema"
 import type {
 	Collection,
 	ConfigError,
+	Features,
+	Field,
 	NormalizedConfig,
 	ParseResult,
 	Singleton,
+	Subcollection,
 } from "./types"
 
 /**
@@ -62,26 +70,31 @@ export const validateConfig = (
 		for (const [key, value] of Object.entries(
 			rawCollections as Record<string, unknown>,
 		)) {
-			const result = collectionSchema.safeParse(value)
-			if (!result.success) {
-				errors.push(
-					...zodIssuesToConfigError(result.error.issues, `collections.${key}`),
-				)
-				continue
-			}
+			// A bad Subcollection must not sink its Parent, so the Parent is
+			// validated without them and each is resolved on its own.
+			const { subcollections: rawSubcollections, ...parent } = isObject(value)
+				? value
+				: {}
+			const prefix = `collections.${key}`
+			const collection = resolveEntry(
+				isObject(value) ? parent : value,
+				collectionSchema,
+				prefix,
+				errors,
+			)
+			if (!collection) continue
 
-			const expanded = expandFeatures(result.data)
-			if (!expanded.resolved) {
-				errors.push(
-					...expanded.errors.map((error) => ({
-						...error,
-						path: scopePath(`collections.${key}`, error.path),
-					})),
-				)
-				continue
-			}
-
-			collections[key] = expanded.resolved
+			collections[key] =
+				rawSubcollections === undefined
+					? collection
+					: {
+							...collection,
+							subcollections: resolveSubcollections(
+								rawSubcollections,
+								`${prefix}.subcollections`,
+								errors,
+							),
+						}
 		}
 	} else if (rawCollections === undefined) {
 		errors.push({
@@ -98,26 +111,13 @@ export const validateConfig = (
 		for (const [key, value] of Object.entries(
 			rawSingletons as Record<string, unknown>,
 		)) {
-			const result = singletonSchema.safeParse(value)
-			if (!result.success) {
-				errors.push(
-					...zodIssuesToConfigError(result.error.issues, `singletons.${key}`),
-				)
-				continue
-			}
-
-			const expanded = expandFeatures(result.data)
-			if (!expanded.resolved) {
-				errors.push(
-					...expanded.errors.map((error) => ({
-						...error,
-						path: scopePath(`singletons.${key}`, error.path),
-					})),
-				)
-				continue
-			}
-
-			singletons[key] = expanded.resolved
+			const singleton = resolveEntry(
+				value,
+				singletonSchema,
+				`singletons.${key}`,
+				errors,
+			)
+			if (singleton) singletons[key] = singleton
 		}
 	}
 
@@ -164,6 +164,64 @@ export const validateConfig = (
 		errors,
 	}
 }
+
+/**
+ * One Collection, Singleton or Subcollection, validated and with its Features
+ * expanded, or `null` with its errors pushed, scoped to `prefix`.
+ */
+const resolveEntry = <
+	Authored extends { features?: Features; schema: Record<string, Field> },
+>(
+	value: unknown,
+	schema: z.ZodType<Authored>,
+	prefix: string,
+	errors: ConfigError[],
+) => {
+	const result = schema.safeParse(value)
+	if (!result.success) {
+		errors.push(...zodIssuesToConfigError(result.error.issues, prefix))
+		return null
+	}
+
+	const expanded = expandFeatures(result.data)
+	errors.push(
+		...expanded.errors.map((error) => ({
+			...error,
+			path: scopePath(prefix, error.path),
+		})),
+	)
+	return expanded.resolved
+}
+
+const resolveSubcollections = (
+	raw: unknown,
+	prefix: string,
+	errors: ConfigError[],
+): Record<string, Subcollection> => {
+	const subcollections: Record<string, Subcollection> = {}
+	if (!isObject(raw)) {
+		errors.push({
+			code: "invalid_type",
+			message: "subcollections must be an object",
+			path: prefix,
+		})
+		return subcollections
+	}
+
+	for (const [key, value] of Object.entries(raw)) {
+		const subcollection = resolveEntry(
+			value,
+			subcollectionSchema,
+			`${prefix}.${key}`,
+			errors,
+		)
+		if (subcollection) subcollections[key] = subcollection
+	}
+	return subcollections
+}
+
+const isObject = (value: unknown): value is Record<string, unknown> =>
+	typeof value === "object" && value !== null && !Array.isArray(value)
 
 /** A dotted error path, with empty segments dropped. */
 const scopePath = (...segments: PropertyKey[]): string =>

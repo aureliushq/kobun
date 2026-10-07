@@ -354,3 +354,104 @@ describe("a Config that declares nothing", () => {
 		expect(errors[0].code).toBe("parse_error")
 	})
 })
+
+describe("subcollections on a Collection", () => {
+	const UPDATES = { ...POSTS, label: "Updates" }
+
+	const projects = (subcollections: Record<string, unknown>) =>
+		parse({
+			collections: {
+				pages: PAGES,
+				projects: { ...POSTS, label: "Projects", subcollections },
+			},
+		})
+
+	it("resolves each Subcollection's Features into Managed Fields", () => {
+		const { config, errors } = projects({
+			updates: {
+				...UPDATES,
+				features: { publish: true, timestamps: { createdAt: true } },
+			},
+		})
+
+		expect(errors).toEqual([])
+		expect(
+			config?.collections.projects.subcollections?.updates.schema,
+		).toMatchObject({
+			createdAt: { managed: true, type: "datetime" },
+			publishedAt: { managed: true, type: "datetime" },
+			status: { managed: true, type: "select" },
+		})
+	})
+
+	it("refuses a Subcollection that declares Subcollections", () => {
+		const { config, errors } = projects({
+			updates: { ...UPDATES, subcollections: { notes: UPDATES } },
+		})
+
+		expect(errors).toHaveLength(1)
+		expect(errors[0].path).toBe(
+			"collections.projects.subcollections.updates.subcollections",
+		)
+		expect(config?.collections.projects).toBeDefined()
+	})
+
+	it("refuses subcollections on a Singleton", () => {
+		const { errors } = parse({
+			collections: { posts: POSTS },
+			singletons: {
+				home: { ...PAGES, subcollections: { updates: UPDATES } },
+			},
+		})
+
+		expect(errors).toHaveLength(1)
+		expect(errors[0].path).toBe("singletons.home.subcollections")
+	})
+
+	// One bad Subcollection must not blank its Parent, its siblings, or the
+	// rest of the Config.
+	describe("with a bad Subcollection", () => {
+		const { slug: _, ...noSlug } = UPDATES.schema
+		const bad = () =>
+			projects({ notes: UPDATES, updates: { ...UPDATES, schema: noSlug } })
+
+		it("reports an error scoped to that Subcollection", () => {
+			const { errors } = bad()
+
+			expect(errors).toHaveLength(1)
+			expect(errors[0].path).toBe(
+				"collections.projects.subcollections.updates.schema",
+			)
+		})
+
+		it("still loads the Parent, its other Subcollections and other Collections", () => {
+			const { config } = bad()
+
+			expect(Object.keys(config?.collections ?? {})).toEqual([
+				"pages",
+				"projects",
+			])
+			expect(
+				Object.keys(config?.collections.projects.subcollections ?? {}),
+			).toEqual(["notes"])
+		})
+	})
+
+	it("scopes a Field colliding with a Feature to the Subcollection", () => {
+		const { errors } = projects({
+			updates: {
+				...UPDATES,
+				features: { timestamps: { createdAt: true } },
+				schema: {
+					...UPDATES.schema,
+					createdAt: { label: "Written on", type: "date" },
+				},
+			},
+		})
+
+		expect(errors).toHaveLength(1)
+		expect(errors[0].path).toBe(
+			"collections.projects.subcollections.updates.schema.createdAt",
+		)
+	})
+})

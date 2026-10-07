@@ -70,9 +70,19 @@ export type AuthoredCollection = z.infer<typeof collectionSchema>
  * Fields its Features contributed. `Collection` names the resolved shape rather
  * than the authored one because resolved is what every consumer holds.
  */
-export type Collection = Omit<AuthoredCollection, "schema"> & {
+export type Collection = Omit<
+	AuthoredCollection,
+	"schema" | "subcollections"
+> & {
 	schema: Record<string, ResolvedField>
+	subcollections?: Record<string, Subcollection>
 }
+
+/**
+ * A Collection declared on a Collection: each Parent Item owns its own set of
+ * its items. Declared and resolved like a Collection, but one level only.
+ */
+export type Subcollection = Omit<Collection, "subcollections">
 
 /** A Singleton exactly as its Config declares it, before Features expand. */
 export type AuthoredSingleton = z.infer<typeof singletonSchema>
@@ -81,7 +91,7 @@ export type AuthoredSingleton = z.infer<typeof singletonSchema>
  * A Singleton as the app sees it: the authored Fields plus whatever Managed
  * Fields its Features contributed, resolved as a Collection's are.
  */
-export type Singleton = Omit<AuthoredSingleton, "schema"> & {
+export type Singleton = Omit<AuthoredSingleton, "schema" | "subcollections"> & {
 	schema: Record<string, ResolvedField>
 }
 

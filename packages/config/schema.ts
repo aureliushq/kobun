@@ -346,21 +346,37 @@ function validateContentSchema(
 	}
 }
 
+const contentShape = {
+	features: featureSchema.optional(),
+	format: z.enum([Format.JSON, Format.MD, Format.MDX, Format.YAML]),
+	label: z.string(),
+	schema: z.record(z.string(), fieldSchema),
+}
+
+// Subcollections go one level deep, and only Collections have them. The key is
+// refused rather than left to `z.object`, which would drop it with nothing said.
+export const subcollectionSchema = z
+	.object({
+		...contentShape,
+		subcollections: z
+			.never({ error: "A Subcollection cannot declare Subcollections" })
+			.optional(),
+	})
+	.superRefine((data, ctx) => validateContentSchema(data, ctx, true))
+
 export const collectionSchema = z
 	.object({
-		features: featureSchema.optional(),
-		format: z.enum([Format.JSON, Format.MD, Format.MDX, Format.YAML]),
-		label: z.string(),
-		schema: z.record(z.string(), fieldSchema),
+		...contentShape,
+		subcollections: z.record(z.string(), subcollectionSchema).optional(),
 	})
 	.superRefine((data, ctx) => validateContentSchema(data, ctx, true))
 
 export const singletonSchema = z
 	.object({
-		features: featureSchema.optional(),
-		format: z.enum([Format.JSON, Format.MD, Format.MDX, Format.YAML]),
-		label: z.string(),
-		schema: z.record(z.string(), fieldSchema),
+		...contentShape,
+		subcollections: z
+			.never({ error: "Only Collections have Subcollections" })
+			.optional(),
 	})
 	.superRefine((data, ctx) => validateContentSchema(data, ctx, false))
 
