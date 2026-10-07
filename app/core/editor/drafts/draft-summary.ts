@@ -108,3 +108,14 @@ export function draftHeading(
 		titleValue(draft, collection) ?? bodyExcerpt(draft.markdown) ?? "Untitled"
 	)
 }
+
+/**
+ * What a Subcollection's item is filed under wherever its Collection's label
+ * would stand: its Parent Item and the Subcollection, since one Subcollection
+ * label alone reads the same under every Parent Item. Named by the Parent
+ * Item's filename stem, which is what owns the items (ADR-0012) and what a
+ * caller holds without reading the Parent Item's Source.
+ */
+export function subcollectionLabel(parentItem: string, label: string) {
+	return `${parentItem} / ${label}`
+}

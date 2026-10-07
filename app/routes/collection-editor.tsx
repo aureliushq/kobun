@@ -48,14 +48,17 @@ import type { Route } from "./+types/collection-editor"
 
 /**
  * The content directory the URL names: a Collection's own, or one Parent Item's
- * of one Subcollection. The Parent Item must have a Source, read off its
- * Collection's cached listing (ADR-0011) as the Subcollection page reads it —
- * which is also what keeps a stem that is no file's from becoming a path this
- * editor commits into.
+ * of one Subcollection. The Parent Item must have a Source, which is also what
+ * keeps a stem that is no file's from becoming a path this editor reads or
+ * commits into. Opening and saving a Draft check it against the Collection's
+ * cached listing, as the Subcollection page does; a commit reads the
+ * repository live instead, since a gate on a commit may not be decided against
+ * a directory a minute out of date (ADR-0011).
  */
 async function requireContentDirectory(
 	ctx: Awaited<ReturnType<typeof requirePageContext>>,
 	params: Route.LoaderArgs["params"],
+	{ committing }: { committing: boolean },
 ): Promise<ContentDirectory> {
 	const { collection_slug, parent_item, subcollection_key } = params
 	if (!parent_item || !subcollection_key) {
@@ -68,18 +71,16 @@ async function requireContentDirectory(
 		subcollection_key,
 		parent_item,
 	)
-	const listings = createCollectionListingCache({
-		db,
-		listingSource: createGithubCollectionListingSource(env),
-	})
-	requireParentItem(
-		await listings.resolve(
-			projectRow,
-			{ installationId, name, owner },
-			directory.parent.directoryPath,
-		),
-		parent_item,
-	)
+	const repository = { installationId, name, owner }
+	const parentItems: { name: string }[] = committing
+		? await createGithubSourceStore({ ...repository, env }).list(
+				directory.parent.directoryPath,
+			)
+		: await createCollectionListingCache({
+				db,
+				listingSource: createGithubCollectionListingSource(env),
+			}).resolve(projectRow, repository, directory.parent.directoryPath)
+	requireParentItem(parentItems, parent_item)
 	return directory
 }
 
@@ -90,14 +91,13 @@ async function requireContentDirectory(
  * (ADR-0001). The md/mdx gate is an editor concern rather than a Project
  * Context one, so it stays here, layered on top of the narrower.
  */
-async function resolveCollectionEditorContext({
-	context,
-	params,
-	request,
-}: Route.LoaderArgs | Route.ActionArgs) {
+async function resolveCollectionEditorContext(
+	{ context, params, request }: Route.LoaderArgs | Route.ActionArgs,
+	{ committing = false }: { committing?: boolean } = {},
+) {
 	const ctx = await requirePageContext({ context, params, request })
 	const { db, env, installationId, name, owner, projectRow } = ctx
-	const directory = await requireContentDirectory(ctx, params)
+	const directory = await requireContentDirectory(ctx, params, { committing })
 	const { format } = directory.collection
 	if (format !== "md" && format !== "mdx") {
 		throw new Response("Rich text editing requires an md or mdx collection", {
@@ -244,8 +244,10 @@ export async function loader(args: Route.LoaderArgs) {
 }
 
 export async function action(args: Route.ActionArgs) {
-	const resolved = await resolveCollectionEditorContext(args)
 	const payload = await readEditorActionPayload(args.request)
+	const resolved = await resolveCollectionEditorContext(args, {
+		committing: payload.intent !== EditorActionIntents.SAVE,
+	})
 	const target = getDraftTarget(args.params, payload.draftId ?? null)
 	const drafts = createDraftsFor(resolved)
 	const input: SaveInput = {

@@ -3,7 +3,7 @@ import invariant from "tiny-invariant"
 import { lastKnownConfig } from "@/core/project-context"
 import { editorDraft, project } from "@/db/schema/app-schema"
 import type { ProjectLocation } from "./draft-paths"
-import { draftHeading } from "./draft-summary"
+import { draftHeading, subcollectionLabel } from "./draft-summary"
 import type { DraftsDatabase } from "./types"
 
 /**
@@ -121,9 +121,12 @@ export async function loadDashboardDrafts(
 			const collection = draft.subcollectionKey
 				? (parent?.subcollections?.[draft.subcollectionKey] ?? null)
 				: parent
+			const label =
+				collection?.label ?? draft.subcollectionKey ?? draft.collectionSlug
 			return {
-				collectionLabel:
-					collection?.label ?? draft.subcollectionKey ?? draft.collectionSlug,
+				collectionLabel: draft.parentItem
+					? subcollectionLabel(draft.parentItem, label)
+					: label,
 				collectionSlug: draft.collectionSlug,
 				heading: draftHeading(draft, collection),
 				id: draft.id,

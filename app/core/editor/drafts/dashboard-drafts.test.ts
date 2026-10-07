@@ -162,7 +162,7 @@ describe("loadDashboardDrafts", () => {
 	})
 
 	// A Subcollection's Draft is edited under its Parent Item, and is named by
-	// the Subcollection it is an item of (#182).
+	// both, so two Parent Items' Drafts of one Subcollection tell apart (#182).
 	it("links a Subcollection's Draft to its editor under the Parent Item", async () => {
 		await withStoredConfig(KOBUN_VERSION, TEST_SUBCOLLECTION_CONFIG)
 		seedDraftAt(0, {
@@ -175,7 +175,7 @@ describe("loadDashboardDrafts", () => {
 		const [draft] = (await loadDashboardDrafts(harness.db, USER_ID)).drafts
 
 		expect(draft).toMatchObject({
-			collectionLabel: "Updates",
+			collectionLabel: "acme / Updates",
 			heading: "Launch",
 		})
 		invariant(draft, "the Draft is listed")
@@ -194,6 +194,6 @@ describe("loadDashboardDrafts", () => {
 
 		const { drafts } = await loadDashboardDrafts(harness.db, USER_ID)
 
-		expect(drafts[0]?.collectionLabel).toBe("retired")
+		expect(drafts[0]?.collectionLabel).toBe("acme / retired")
 	})
 })

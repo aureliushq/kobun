@@ -13,6 +13,7 @@ import {
 	getSingletonEditorPath,
 	getSingletonPath,
 	getSubcollectionPath,
+	subcollectionLabel,
 } from "@/core/editor/drafts"
 import {
 	type EditorSaveError,
@@ -109,7 +110,7 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
 		)
 		return {
 			draftEditorPath: null,
-			parentLabel: collection.label,
+			parentLabel: subcollectionLabel(parent_item, collection.label),
 			parentPath: getSubcollectionPath(
 				project,
 				collection_slug,
