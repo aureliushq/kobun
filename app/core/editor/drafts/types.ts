@@ -55,10 +55,23 @@ export interface SingletonDraftsContext {
 	sourceStore: SourceStore
 }
 
-/** Whose Draft a row is: a Collection's or a Singleton's, never both. */
+/**
+ * Whose Draft a row is: a Collection's or a Singleton's, never both — and a
+ * Collection's own items' or one Parent Item's items of one Subcollection.
+ */
 export type DraftOwner =
-	| { collectionSlug: string; singletonSlug: null }
-	| { collectionSlug: null; singletonSlug: string }
+	| {
+			collectionSlug: string
+			parentItem: string | null
+			singletonSlug: null
+			subcollectionKey: string | null
+	  }
+	| {
+			collectionSlug: null
+			parentItem: null
+			singletonSlug: string
+			subcollectionKey: null
+	  }
 
 /** Where a commit of some content lands, and what is wrong with landing there. */
 export interface CommitAddress<ItemSlug extends string | null> {

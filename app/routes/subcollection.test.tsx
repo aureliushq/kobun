@@ -2,11 +2,8 @@ import { render, screen } from "@testing-library/react"
 import { createRoutesStub } from "react-router"
 import { describe, expect, it } from "vitest"
 import type { CollectionItem } from "@/core/editor/collection-table"
-import {
-	catchResponse,
-	TEST_SUBCOLLECTION_CONFIG,
-} from "@/core/project-context/test-harness"
-import Subcollection, { requireParentItem } from "./subcollection"
+import { TEST_SUBCOLLECTION_CONFIG } from "@/core/project-context/test-harness"
+import Subcollection from "./subcollection"
 
 /**
  * A Parent Item's Subcollection page (#181): a tab per Subcollection the
@@ -95,30 +92,5 @@ describe("a Parent Item's Subcollection page", () => {
 		expect(
 			screen.queryByText("Couldn't load this collection"),
 		).not.toBeInTheDocument()
-	})
-})
-
-describe("the Parent Item a URL names", () => {
-	const PARENTS = [
-		{ data: {}, name: "acme.md", path: "content/projects/acme.md", sha: "1" },
-		{
-			data: {},
-			name: "globex.mdx",
-			path: "content/projects/globex.mdx",
-			sha: "2",
-		},
-	]
-
-	it("is found by its filename stem, md or mdx", () => {
-		expect(requireParentItem(PARENTS, "acme")).toBe(PARENTS[0])
-		expect(requireParentItem(PARENTS, "globex")).toBe(PARENTS[1])
-	})
-
-	// The listing holds Sources only, so a Parent Item that exists only as a
-	// Draft — or no longer exists — is not in it.
-	it("is a 404 when it has no Source", () => {
-		expect(
-			catchResponse(() => requireParentItem(PARENTS, "initech")).status,
-		).toBe(404)
 	})
 })

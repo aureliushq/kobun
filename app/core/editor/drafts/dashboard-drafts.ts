@@ -22,10 +22,13 @@ export interface DashboardDraft {
 	heading: string
 	id: string
 	itemSlug: string | null
+	/** Set, with `subcollectionKey`, on a Subcollection's Draft. */
+	parentItem: string | null
 	project: ProjectLocation
 	committedRevision: number | null
 	revision: number
 	sourcePath: string | null
+	subcollectionKey: string | null
 	updatedAt: Date
 }
 
@@ -111,15 +114,21 @@ export async function loadDashboardDrafts(
 			invariant(draft.collectionSlug, "the query only reads Collection Drafts")
 			// A Collection the Config no longer declares still has Drafts, and they
 			// are still reachable — so the card falls back to the slug rather than
-			// dropping the row.
-			const collection =
+			// dropping the row. A Subcollection's Draft is named and headed by the
+			// Subcollection it is an item of, falling back to its key the same way.
+			const parent =
 				configs.get(draft.projectId)?.collections[draft.collectionSlug] ?? null
+			const collection = draft.subcollectionKey
+				? (parent?.subcollections?.[draft.subcollectionKey] ?? null)
+				: parent
 			return {
-				collectionLabel: collection?.label ?? draft.collectionSlug,
+				collectionLabel:
+					collection?.label ?? draft.subcollectionKey ?? draft.collectionSlug,
 				collectionSlug: draft.collectionSlug,
 				heading: draftHeading(draft, collection),
 				id: draft.id,
 				itemSlug: draft.itemSlug,
+				parentItem: draft.parentItem,
 				project: {
 					repoName: draft.project.repoName,
 					repoOwnerLogin: draft.project.repoOwnerLogin,
@@ -127,6 +136,7 @@ export async function loadDashboardDrafts(
 				committedRevision: draft.committedRevision,
 				revision: draft.revision,
 				sourcePath: draft.sourcePath,
+				subcollectionKey: draft.subcollectionKey,
 				updatedAt: draft.updatedAt,
 			}
 		}),

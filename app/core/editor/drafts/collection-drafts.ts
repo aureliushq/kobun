@@ -1,5 +1,5 @@
-import { and, desc, eq } from "drizzle-orm"
-import type { Collection } from "@/config/types"
+import { and, desc, eq, isNull } from "drizzle-orm"
+import type { ContentDirectory } from "@/core/project-context"
 import { editorDraft } from "@/db/schema/app-schema"
 import { dirtyDraftWhere } from "./dirty-drafts"
 import { getDraftEditorPath, type ProjectLocation } from "./draft-paths"
@@ -31,7 +31,9 @@ export interface CollectionDraft {
 }
 
 /**
- * Every Dirty Draft this Collection holds, newest first.
+ * Every Dirty Draft this content directory holds, newest first: a Collection's
+ * own items', or one Parent Item's items' of one Subcollection — never both,
+ * though a Subcollection's Drafts carry their Collection's slug too.
  *
  * Dirty is expressed as SQL rather than filtered in memory — the same
  * predicate `isDraftDirty` states, on the other side of the wire — because a
@@ -45,14 +47,24 @@ export interface CollectionDraft {
 export async function listCollectionDrafts(
 	db: DraftsDatabase,
 	project: DraftsProject,
-	collection: Collection,
-	collectionSlug: string,
+	{
+		collection,
+		collectionSlug,
+		parentItem,
+		subcollectionKey,
+	}: ContentDirectory,
 ): Promise<CollectionDraft[]> {
 	const drafts = await db.query.editorDraft.findMany({
 		orderBy: [desc(editorDraft.updatedAt)],
 		where: and(
 			eq(editorDraft.projectId, project.id),
 			eq(editorDraft.collectionSlug, collectionSlug),
+			parentItem
+				? eq(editorDraft.parentItem, parentItem)
+				: isNull(editorDraft.parentItem),
+			subcollectionKey
+				? eq(editorDraft.subcollectionKey, subcollectionKey)
+				: isNull(editorDraft.subcollectionKey),
 			dirtyDraftWhere(),
 		),
 	})

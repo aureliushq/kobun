@@ -24,13 +24,22 @@ const PROJECT = {
 	repoOwnerLogin: "acme",
 }
 
-function list() {
-	return listCollectionDrafts(
-		harness.db,
-		PROJECT,
-		TEST_COLLECTION,
-		TEST_COLLECTION_SLUG,
-	)
+const DIRECTORY = {
+	collection: TEST_COLLECTION,
+	collectionSlug: TEST_COLLECTION_SLUG,
+	directoryPath: TEST_DIRECTORY_PATH,
+}
+
+/** One Parent Item's items of one Subcollection of the same Collection. */
+const UPDATES = {
+	...DIRECTORY,
+	directoryPath: `${TEST_DIRECTORY_PATH}/hello/updates`,
+	parentItem: "hello",
+	subcollectionKey: "updates",
+}
+
+function list(directory = DIRECTORY) {
+	return listCollectionDrafts(harness.db, PROJECT, directory)
 }
 
 afterEach(() => {
@@ -45,6 +54,51 @@ test("lists only the drafts of the collection it was asked about", async () => {
 	expect((await list()).map((draft) => draft.heading)).toEqual(["Mine…"])
 })
 
+// A Subcollection's Drafts are the Collection's too, by their Collection
+// column — but they are its Parent Item's to list, not the Collection page's.
+test("leaves a Subcollection's drafts off its Collection's list", async () => {
+	const { seedDraft } = setup()
+	seedDraft({ markdown: "Mine", revision: 1 })
+	seedDraft({
+		markdown: "An update",
+		parentItem: "hello",
+		revision: 1,
+		subcollectionKey: "updates",
+	})
+
+	expect((await list()).map((draft) => draft.heading)).toEqual(["Mine…"])
+})
+
+test("lists one Parent Item's drafts of one Subcollection, linked to their editor", async () => {
+	const { seedDraft } = setup()
+	seedDraft({ markdown: "Mine", revision: 1 })
+	const update = seedDraft({
+		markdown: "An update",
+		parentItem: "hello",
+		revision: 1,
+		subcollectionKey: "updates",
+	})
+	seedDraft({
+		markdown: "Another Parent's",
+		parentItem: "world",
+		revision: 1,
+		subcollectionKey: "updates",
+	})
+	seedDraft({
+		markdown: "A note",
+		parentItem: "hello",
+		revision: 1,
+		subcollectionKey: "notes",
+	})
+
+	expect(await list(UPDATES)).toMatchObject([
+		{
+			heading: "An update…",
+			href: `/acme/blog/collections/posts/items/hello/updates/editor/new?draft=${update.id}`,
+		},
+	])
+})
+
 test("lists only the drafts of the project it was asked about", async () => {
 	const { seedDraft } = setup()
 	seedDraft({ markdown: "Mine", revision: 1 })
@@ -52,8 +106,7 @@ test("lists only the drafts of the project it was asked about", async () => {
 	const drafts = await listCollectionDrafts(
 		harness.db,
 		{ ...PROJECT, id: "project-2" },
-		TEST_COLLECTION,
-		TEST_COLLECTION_SLUG,
+		DIRECTORY,
 	)
 
 	expect(drafts).toEqual([])

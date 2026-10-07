@@ -29,6 +29,7 @@ export { createProjectContext } from "./create-project-context"
 export type { ContentDirectory } from "./entities"
 export {
 	requireCollection,
+	requireParentItem,
 	requireSingleton,
 	requireSubcollection,
 } from "./entities"

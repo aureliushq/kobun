@@ -3,6 +3,7 @@ import invariant from "tiny-invariant"
 import { expandFeatures } from "@/config/features"
 import { collectionSchema, singletonSchema } from "@/config/schema"
 import type { Collection, Singleton } from "@/config/types"
+import type { ContentDirectory } from "@/core/project-context"
 import {
 	editorDraft,
 	githubInstallation,
@@ -284,22 +285,34 @@ function createHarnessBase(options: {
 export function createDraftsTestHarness(
 	options: {
 		collection?: Collection
+		/**
+		 * The content directory the Drafts are over, whole — a Subcollection's,
+		 * say. `collection` is ignored when this is given.
+		 */
+		directory?: ContentDirectory
 		files?: SourceFile[]
 		/** What the module reads as the current time when it stamps a value. */
 		now?: () => Date
 	} = {},
 ): DraftsTestHarness {
+	const directory = options.directory ?? {
+		collection: options.collection ?? TEST_COLLECTION,
+		collectionSlug: TEST_COLLECTION_SLUG,
+		directoryPath: TEST_DIRECTORY_PATH,
+	}
 	const base = createHarnessBase({
 		files: options.files,
-		seedDefaults: { collectionSlug: TEST_COLLECTION_SLUG },
+		seedDefaults: {
+			collectionSlug: directory.collectionSlug,
+			parentItem: directory.parentItem ?? null,
+			subcollectionKey: directory.subcollectionKey ?? null,
+		},
 	})
 	return {
 		...base,
 		drafts: createDrafts({
-			collection: options.collection ?? TEST_COLLECTION,
-			collectionSlug: TEST_COLLECTION_SLUG,
+			...directory,
 			db: base.db,
-			directoryPath: TEST_DIRECTORY_PATH,
 			now: options.now,
 			project: { id: base.projectId },
 			sourceStore: base.sourceStore,

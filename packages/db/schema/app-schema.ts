@@ -118,6 +118,10 @@ export const editorDraft = sqliteTable(
 			.references(() => project.id, { onDelete: "cascade" }),
 		collectionSlug: text("collection_slug"),
 		singletonSlug: text("singleton_slug"),
+		// Set together, on a Collection's Draft only: the Parent Item's filename
+		// stem and the Subcollection key its items are owned under (ADR-0012).
+		parentItem: text("parent_item"),
+		subcollectionKey: text("subcollection_key"),
 		itemSlug: text("item_slug"),
 		sourcePath: text("source_path"),
 		sourceSha: text("source_sha"),
@@ -146,11 +150,13 @@ export const editorDraft = sqliteTable(
 		),
 		index("editor_draft_committedAt_idx").on(table.committedAt),
 		// A Draft belongs to a Collection or to a Singleton, never both and never
-		// neither. The columns are spelled out rather than interpolated so the
-		// expression survives drizzle-kit rebuilding the table under another name.
+		// neither; a Subcollection's Draft names its Parent Item and Subcollection
+		// both, and only under a Collection. The columns are spelled out rather
+		// than interpolated so the expression survives drizzle-kit rebuilding the
+		// table under another name.
 		check(
 			"editor_draft_owner_check",
-			sql`(collection_slug IS NULL) <> (singleton_slug IS NULL)`,
+			sql`(collection_slug IS NULL) <> (singleton_slug IS NULL) AND (parent_item IS NULL) = (subcollection_key IS NULL) AND (subcollection_key IS NULL OR collection_slug IS NOT NULL)`,
 		),
 	],
 )

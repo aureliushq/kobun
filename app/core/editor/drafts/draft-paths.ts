@@ -4,12 +4,39 @@ export interface ProjectLocation {
 	repoOwnerLogin: string
 }
 
-/** A Draft, as far as addressing its editor goes. */
-interface DraftLocation {
+/**
+ * A content directory, as far as addressing its pages goes: a Collection, or
+ * one Parent Item's items of one of its Subcollections.
+ */
+interface DirectoryLocation {
 	collectionSlug: string
+	parentItem?: string | null
+	subcollectionKey?: string | null
+}
+
+/** A Draft, as far as addressing its editor goes. */
+interface DraftLocation extends DirectoryLocation {
 	id: string
 	itemSlug: string | null
 	sourcePath: string | null
+}
+
+/**
+ * What a content directory's pages hang off below `collections/`: the
+ * Collection's slug, or for a Subcollection its Parent Item's page of it,
+ * addressed by the Parent Item's filename stem (ADR-0012). `items/` keeps a
+ * Parent Item called `editor` from answering to the Collection's own editor
+ * route. Every path below takes this where it takes a Collection's slug, so a
+ * Subcollection's list and editor sit where a Collection's do.
+ */
+export function contentDirectorySlug({
+	collectionSlug,
+	parentItem,
+	subcollectionKey,
+}: DirectoryLocation) {
+	return parentItem && subcollectionKey
+		? `${collectionSlug}/items/${encodeURIComponent(parentItem)}/${subcollectionKey}`
+		: collectionSlug
 }
 
 /** The Collection's own page: the list of items it holds. */
@@ -20,18 +47,17 @@ export function getCollectionPath(
 	return `/${project.repoOwnerLogin}/${project.repoName}/collections/${collectionSlug}`
 }
 
-/**
- * One Parent Item's page of one Subcollection, addressed by the Parent Item's
- * filename stem (ADR-0012). `items/` keeps a Parent Item called `editor` from
- * answering to the Collection's own editor route.
- */
+/** One Parent Item's page of one Subcollection. */
 export function getSubcollectionPath(
 	project: ProjectLocation,
 	collectionSlug: string,
-	parentStem: string,
+	parentItem: string,
 	subcollectionKey: string,
 ) {
-	return `${getCollectionPath(project, collectionSlug)}/items/${encodeURIComponent(parentStem)}/${subcollectionKey}`
+	return getCollectionPath(
+		project,
+		contentDirectorySlug({ collectionSlug, parentItem, subcollectionKey }),
+	)
 }
 
 /** The Singleton's own page: the one document it holds. */
@@ -92,12 +118,13 @@ export function getDraftEditorPath(
 	draft: DraftLocation,
 	project: ProjectLocation,
 ) {
+	const directorySlug = contentDirectorySlug(draft)
 	if (!draft.sourcePath) {
-		return getNewItemEditorPath(project, draft.collectionSlug, draft.id)
+		return getNewItemEditorPath(project, directorySlug, draft.id)
 	}
 	return getCollectionItemEditorPath(
 		project,
-		draft.collectionSlug,
+		directorySlug,
 		draft.itemSlug ?? draft.id,
 	)
 }

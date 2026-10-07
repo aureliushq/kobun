@@ -6,44 +6,29 @@ import {
 	CollectionTable,
 } from "@/core/editor/collection-table"
 import {
-	type CollectionDraft,
+	contentDirectorySlug,
 	getSubcollectionPath,
+	listCollectionDrafts,
 } from "@/core/editor/drafts"
 import { createGithubCollectionListingSource } from "@/core/editor/github-collection-listing-source.server"
 import { resolveTitleKey } from "@/core/fields"
-import { requireSubcollection } from "@/core/project-context"
+import { requireParentItem, requireSubcollection } from "@/core/project-context"
 import { requirePageContext } from "@/core/project-context/project-context.server"
 import { H1 } from "@/ui/components/base/typegraphy"
 import { cn } from "@/ui/lib/utils"
 import type { Route } from "./+types/subcollection"
 
-const stem = (name: string) => name.replace(/\.mdx?$/, "")
-
-/**
- * The Parent Item a URL names, by its filename stem (ADR-0012). The listing
- * holds Sources only, so a Parent Item that exists only as a Draft — or no
- * longer exists — is a not-found: its Subcollections exist once it has a
- * Source.
- */
-export function requireParentItem(
-	items: CollectionItem[],
-	parentStem: string,
-): CollectionItem {
-	const parent = items.find((item) => stem(item.name) === parentStem)
-	if (!parent) throw new Response("Parent Item not found", { status: 404 })
-	return parent
-}
-
 export async function loader({ context, params, request }: Route.LoaderArgs) {
 	const ctx = await requirePageContext({ context, params, request })
 	const { db, env, installationId, name, owner, projectRow } = ctx
 	const { collection_slug, parent_item, subcollection_key } = params
-	const { directoryPath, parent, subcollection } = requireSubcollection(
+	const directory = requireSubcollection(
 		ctx,
 		collection_slug,
 		subcollection_key,
 		parent_item,
 	)
+	const { parent } = directory
 
 	const listings = createCollectionListingCache({
 		db,
@@ -64,15 +49,16 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
 	const titleKey = resolveTitleKey(parent.collection.schema)
 
 	return {
-		// None yet: a Draft has no Subcollection to be owned by until #182.
-		drafts: [] as CollectionDraft[],
-		items: listings.resolve(projectRow, repository, directoryPath),
+		// Awaited for the reason the Collection page's are: one indexed read of a
+		// table this request has already resolved the Project of.
+		drafts: await listCollectionDrafts(db, projectRow, directory),
+		items: listings.resolve(projectRow, repository, directory.directoryPath),
 		parentTitle: String((titleKey && parentItem.data[titleKey]) || parent_item),
 		project,
-		subcollection,
-		// The table builds its editor links off this, so they point at where
-		// #182 puts the Subcollection editor.
-		tableSlug: `${collection_slug}/items/${encodeURIComponent(parent_item)}/${subcollection_key}`,
+		subcollection: directory.collection,
+		// The table builds its editor links off this, so they point at the
+		// Subcollection's editor under this Parent Item.
+		tableSlug: contentDirectorySlug(directory),
 		tabs: Object.entries(parent.collection.subcollections ?? {}).map(
 			([key, { label }]) => ({
 				href: getSubcollectionPath(project, collection_slug, parent_item, key),

@@ -13,10 +13,12 @@ import {
 	usePropertiesPanel,
 } from "@/core/editor/collection-item-editor"
 import {
+	createCollectionListingCache,
 	invalidateCollectionListing,
 	withListingInvalidation,
 } from "@/core/editor/collection-listing-cache.server"
 import {
+	contentDirectorySlug,
 	type DraftTarget,
 	getCollectionItemEditorPath,
 	getCollectionPath,
@@ -32,11 +34,54 @@ import {
 	readEditorActionPayload,
 	saveResponse,
 } from "@/core/editor/editor-action"
-import { requireCollection } from "@/core/project-context"
+import { createGithubCollectionListingSource } from "@/core/editor/github-collection-listing-source.server"
+import {
+	type ContentDirectory,
+	requireCollection,
+	requireParentItem,
+	requireSubcollection,
+} from "@/core/project-context"
 import { requirePageContext } from "@/core/project-context/project-context.server"
 import { posthogContext } from "@/lib/posthog-middleware"
 import { EditorActionIntents } from "@/ui/lib/types"
 import type { Route } from "./+types/collection-editor"
+
+/**
+ * The content directory the URL names: a Collection's own, or one Parent Item's
+ * of one Subcollection. The Parent Item must have a Source, read off its
+ * Collection's cached listing (ADR-0011) as the Subcollection page reads it —
+ * which is also what keeps a stem that is no file's from becoming a path this
+ * editor commits into.
+ */
+async function requireContentDirectory(
+	ctx: Awaited<ReturnType<typeof requirePageContext>>,
+	params: Route.LoaderArgs["params"],
+): Promise<ContentDirectory> {
+	const { collection_slug, parent_item, subcollection_key } = params
+	if (!parent_item || !subcollection_key) {
+		return requireCollection(ctx, collection_slug)
+	}
+	const { db, env, installationId, name, owner, projectRow } = ctx
+	const directory = requireSubcollection(
+		ctx,
+		collection_slug,
+		subcollection_key,
+		parent_item,
+	)
+	const listings = createCollectionListingCache({
+		db,
+		listingSource: createGithubCollectionListingSource(env),
+	})
+	requireParentItem(
+		await listings.resolve(
+			projectRow,
+			{ installationId, name, owner },
+			directory.parent.directoryPath,
+		),
+		parent_item,
+	)
+	return directory
+}
 
 /**
  * The seam, plus what it deliberately leaves to its callers: which Collection
@@ -51,7 +96,8 @@ async function resolveCollectionEditorContext({
 	request,
 }: Route.LoaderArgs | Route.ActionArgs) {
 	const ctx = await requirePageContext({ context, params, request })
-	const directory = requireCollection(ctx, params.collection_slug)
+	const { db, env, installationId, name, owner, projectRow } = ctx
+	const directory = await requireContentDirectory(ctx, params)
 	const { format } = directory.collection
 	if (format !== "md" && format !== "mdx") {
 		throw new Response("Rich text editing requires an md or mdx collection", {
@@ -59,7 +105,6 @@ async function resolveCollectionEditorContext({
 		})
 	}
 
-	const { db, env, installationId, name, owner, projectRow } = ctx
 	return {
 		db,
 		directory,
@@ -85,7 +130,7 @@ function collectionPathFor(
 ) {
 	return getCollectionPath(
 		{ repoName: resolved.name, repoOwnerLogin: resolved.owner },
-		resolved.directory.collectionSlug,
+		contentDirectorySlug(resolved.directory),
 	)
 }
 
@@ -244,7 +289,7 @@ export async function action(args: Route.ActionArgs) {
 			? undefined
 			: getCollectionItemEditorPath(
 					{ repoName: resolved.name, repoOwnerLogin: resolved.owner },
-					resolved.directory.collectionSlug,
+					contentDirectorySlug(resolved.directory),
 					committed.itemSlug,
 				)
 
@@ -302,7 +347,7 @@ export default function CollectionEditor({ loaderData }: Route.ComponentProps) {
 		// first save mints a Draft, and a key that noticed would remount the
 		// editor, destroying the document being typed into.
 		<Suspense
-			key={`${params.collection_slug}/${params.collection_item_slug}`}
+			key={`${params.collection_slug}/${params.parent_item}/${params.subcollection_key}/${params.collection_item_slug}`}
 			fallback={<CollectionItemEditor {...chrome} mode="item" opened={null} />}
 		>
 			{/* No `errorElement`, which is ADR 0006's rule one taken deliberately

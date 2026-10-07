@@ -33,9 +33,11 @@ function draft(index: number): DashboardDraft {
 		heading: `Draft ${index}`,
 		id: `draft-${index}`,
 		itemSlug: null,
+		parentItem: null,
 		project: { repoName: "blog", repoOwnerLogin: "acme" },
 		revision: 1,
 		sourcePath: null,
+		subcollectionKey: null,
 		updatedAt: new Date("2026-09-01T12:00:00Z"),
 	}
 }

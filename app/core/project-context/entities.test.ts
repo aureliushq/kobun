@@ -1,8 +1,9 @@
-import { expect, test } from "vitest"
+import { describe, expect, it, test } from "vitest"
 import { singletonSchema } from "@/config/schema"
 import type { NormalizedConfig } from "@/config/types"
 import {
 	requireCollection,
+	requireParentItem,
 	requireSingleton,
 	requireSubcollection,
 } from "./entities"
@@ -75,18 +76,35 @@ test("refuses a Singleton slug the Config does not declare", () => {
 const SUBCOLLECTION_CTX = { config: TEST_SUBCOLLECTION_CONFIG }
 
 test("finds a Subcollection and the directory beside its Parent Item's file", () => {
-	const { directoryPath, parent, subcollection } = requireSubcollection(
+	const directory = requireSubcollection(
 		SUBCOLLECTION_CTX,
 		"projects",
 		"updates",
 		"acme",
 	)
 
-	expect(subcollection).toBe(
+	expect(directory.collection).toBe(
 		TEST_SUBCOLLECTION_CONFIG.collections.projects.subcollections?.updates,
 	)
-	expect(parent.directoryPath).toBe("content/projects")
-	expect(directoryPath).toBe("content/projects/acme/updates")
+	expect(directory.parent.directoryPath).toBe("content/projects")
+	expect(directory.directoryPath).toBe("content/projects/acme/updates")
+})
+
+// Its Drafts are owned by all three, so a second Parent Item's or a second
+// Subcollection's are never mistaken for these (#182).
+test("names the Collection, Parent Item and Subcollection its Drafts are owned by", () => {
+	const { collectionSlug, parentItem, subcollectionKey } = requireSubcollection(
+		SUBCOLLECTION_CTX,
+		"projects",
+		"updates",
+		"acme",
+	)
+
+	expect({ collectionSlug, parentItem, subcollectionKey }).toEqual({
+		collectionSlug: "projects",
+		parentItem: "acme",
+		subcollectionKey: "updates",
+	})
 })
 
 test("refuses a Subcollection key the Collection does not declare", () => {
@@ -103,4 +121,27 @@ test("refuses a Subcollection on a Collection that declares none", () => {
 			requireSubcollection(SUBCOLLECTION_CTX, "posts", "updates", "hello"),
 		),
 	).toBe(404)
+})
+
+describe("the Parent Item a URL names", () => {
+	const PARENTS = [{ name: "acme.md" }, { name: "globex.mdx" }]
+
+	it("is found by its filename stem, md or mdx", () => {
+		expect(requireParentItem(PARENTS, "acme")).toBe(PARENTS[0])
+		expect(requireParentItem(PARENTS, "globex")).toBe(PARENTS[1])
+	})
+
+	// The listing holds Sources only, so a Parent Item that exists only as a
+	// Draft — or no longer exists — is not in it.
+	it("is a 404 when it has no Source", () => {
+		expect(statusOfThrown(() => requireParentItem(PARENTS, "initech"))).toBe(
+			404,
+		)
+	})
+
+	// A stem names a directory a commit writes into, so one that is no file's
+	// never reaches a path.
+	it("is a 404 for a stem that would climb out of the Collection", () => {
+		expect(statusOfThrown(() => requireParentItem(PARENTS, ".."))).toBe(404)
+	})
 })

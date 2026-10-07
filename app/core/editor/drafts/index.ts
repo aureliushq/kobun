@@ -19,6 +19,7 @@ export {
 export { countDirtyDrafts } from "./dirty-drafts"
 export type { ProjectLocation } from "./draft-paths"
 export {
+	contentDirectorySlug,
 	getCollectionItemEditorPath,
 	getCollectionPath,
 	getDraftEditorPath,

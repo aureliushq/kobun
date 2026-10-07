@@ -1,4 +1,4 @@
-import type { Collection, Singleton, Subcollection } from "@/config/types"
+import type { Collection, Singleton } from "@/config/types"
 import type { ProjectContextOk } from "./types"
 
 /** A Config declares no paths; where its entities live is a convention. */
@@ -20,6 +20,10 @@ export interface ContentDirectory {
 	collection: Collection
 	collectionSlug: string
 	directoryPath: string
+	/** The Parent Item's filename stem, for a Subcollection's items (ADR-0012). */
+	parentItem?: string
+	/** The Subcollection these items are, under `collectionSlug`'s Parent Item. */
+	subcollectionKey?: string
 }
 
 /**
@@ -45,34 +49,54 @@ export function requireCollection(
 }
 
 /**
- * The Subcollection a URL names, and the directory one Parent Item's items of
- * it live in: beside the Parent Item's file, named after its filename stem
- * (ADR-0012). Whether that Parent Item has a Source is the caller's to check —
- * it takes a listing, and this stays as pure as its siblings.
+ * The Subcollection a URL names, as the content directory one Parent Item's
+ * items of it live in: beside the Parent Item's file, named after its filename
+ * stem (ADR-0012). Its Drafts are owned by the Collection, the Parent Item and
+ * the Subcollection together. Whether that Parent Item has a Source is the
+ * caller's to check with `requireParentItem` — it takes a listing, and this
+ * stays as pure as its siblings.
  */
 export function requireSubcollection(
 	ctx: Pick<ProjectContextOk, "config">,
 	collectionSlug: string,
 	subcollectionKey: string,
 	parentStem: string,
-): {
-	directoryPath: string
-	parent: ContentDirectory
-	subcollection: Subcollection
-} {
+): ContentDirectory & { parent: ContentDirectory } {
 	const parent = requireCollection(ctx, collectionSlug)
 	const subcollection = parent.collection.subcollections?.[subcollectionKey]
 	if (!subcollection) notFound("Subcollection")
 
 	return {
+		collection: subcollection,
+		collectionSlug,
 		directoryPath: repositoryPath(
 			parent.directoryPath,
 			parentStem,
 			subcollectionKey,
 		),
 		parent,
-		subcollection,
+		parentItem: parentStem,
+		subcollectionKey,
 	}
+}
+
+const stem = (name: string) => name.replace(/\.mdx?$/, "")
+
+/**
+ * The Parent Item a URL names, by its filename stem (ADR-0012), from its
+ * Collection's listing. The listing holds Sources only, so a Parent Item that
+ * exists only as a Draft — or no longer exists — is a not-found: its
+ * Subcollections exist once it has a Source. It is also what keeps a stem that
+ * is no file's — `..`, an encoded `/` — from ever becoming a path to read or
+ * write.
+ */
+export function requireParentItem<Item extends { name: string }>(
+	items: Item[],
+	parentStem: string,
+): Item {
+	const parent = items.find((item) => stem(item.name) === parentStem)
+	if (!parent) notFound("Parent Item")
+	return parent
 }
 
 /** The Singleton a URL names, and the one file it lives in. */

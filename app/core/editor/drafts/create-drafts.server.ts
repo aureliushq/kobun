@@ -100,6 +100,8 @@ function createDraftLifecycle<ItemSlug extends string | null>(context: {
 				eq(editorDraft.projectId, project.id),
 				eqOrNull(editorDraft.collectionSlug, entity.owner.collectionSlug),
 				eqOrNull(editorDraft.singletonSlug, entity.owner.singletonSlug),
+				eqOrNull(editorDraft.parentItem, entity.owner.parentItem),
+				eqOrNull(editorDraft.subcollectionKey, entity.owner.subcollectionKey),
 				isNull(editorDraft.sourcePath),
 			),
 		})
@@ -709,13 +711,16 @@ function createDraftLifecycle<ItemSlug extends string | null>(context: {
 /**
  * A Collection Item as the lifecycle sees it: addressed by a Slug, which is
  * what names its file, has rules to break, and can collide with another item in
- * the Collection's directory.
+ * the Collection's directory. A Subcollection's item is one too, in its Parent
+ * Item's directory of it.
  */
 function collectionEntity({
 	collection,
 	collectionSlug,
 	directoryPath,
+	parentItem,
 	sourceStore,
+	subcollectionKey,
 }: ContentDirectory & { sourceStore: SourceStore }): DraftEntity<string> {
 	/** The Slug these fields name, which is what the item will be addressed by. */
 	function effectiveSlug(fields: FieldRecord) {
@@ -763,7 +768,12 @@ function collectionEntity({
 				: null
 		},
 		format: collection.format,
-		owner: { collectionSlug, singletonSlug: null },
+		owner: {
+			collectionSlug,
+			parentItem: parentItem ?? null,
+			singletonSlug: null,
+			subcollectionKey: subcollectionKey ?? null,
+		},
 		schema: collection.schema,
 	}
 }
@@ -775,23 +785,10 @@ function collectionEntity({
  * them (ADR-0001).
  */
 export function createDrafts(context: DraftsContext) {
-	const {
-		collection,
-		collectionSlug,
-		db,
-		directoryPath,
-		now,
-		project,
-		sourceStore,
-	} = context
+	const { collection, db, directoryPath, now, project, sourceStore } = context
 	const lifecycle = createDraftLifecycle({
 		db,
-		entity: collectionEntity({
-			collection,
-			collectionSlug,
-			directoryPath,
-			sourceStore,
-		}),
+		entity: collectionEntity(context),
 		now,
 		project,
 		sourceStore,
@@ -925,7 +922,12 @@ function singletonEntity({
 		address: () => ({ errors: [], itemSlug: null, path: filePath }),
 		collision: async () => null,
 		format: singleton.format,
-		owner: { collectionSlug: null, singletonSlug },
+		owner: {
+			collectionSlug: null,
+			parentItem: null,
+			singletonSlug,
+			subcollectionKey: null,
+		},
 		schema: singleton.schema,
 	}
 }
