@@ -245,6 +245,7 @@ const DashboardSidebar = ({
 												// same listing when it fails there.
 												<Suspense key={`${repoSlug}/${key}`} fallback={null}>
 													<Await
+														// biome-ignore lint/complexity/noUselessFragments: a null errorElement rethrows to the route (ADR-0006)
 														errorElement={<></>}
 														resolve={parentItems[key]}
 													>
