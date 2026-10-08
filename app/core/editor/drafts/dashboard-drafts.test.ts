@@ -1,9 +1,15 @@
 import { eq } from "drizzle-orm"
+import invariant from "tiny-invariant"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
-import { TEST_CONFIG } from "@/core/project-context/test-harness"
+import type { NormalizedConfig } from "@/config/types"
+import {
+	TEST_CONFIG,
+	TEST_SUBCOLLECTION_CONFIG,
+} from "@/core/project-context/test-harness"
 import { project } from "@/db/schema/app-schema"
 import { ConfigStatus } from "@/db/types"
 import { DASHBOARD_DRAFT_LIMIT, loadDashboardDrafts } from "./dashboard-drafts"
+import { getDraftEditorPath } from "./draft-paths"
 import { createDraftsTestHarness, type DraftsTestHarness } from "./test-harness"
 
 /**
@@ -38,11 +44,14 @@ function seedDraftAt(
 }
 
 /** The Project as a row whose Config the cache would serve. */
-async function withStoredConfig(configParsedBy = KOBUN_VERSION) {
+async function withStoredConfig(
+	configParsedBy = KOBUN_VERSION,
+	config: NormalizedConfig = TEST_CONFIG,
+) {
 	await harness.db
 		.update(project)
 		.set({
-			configData: JSON.stringify(TEST_CONFIG),
+			configData: JSON.stringify(config),
 			configParsedBy,
 			configPath: ".kobun.json",
 			configStatus: ConfigStatus.PRESENT,
@@ -150,5 +159,41 @@ describe("loadDashboardDrafts", () => {
 
 		expect(drafts).toHaveLength(1)
 		expect(drafts[0]?.collectionLabel).toBe("retired")
+	})
+
+	// A Subcollection's Draft is edited under its Parent Item, and is named by
+	// both, so two Parent Items' Drafts of one Subcollection tell apart (#182).
+	it("links a Subcollection's Draft to its editor under the Parent Item", async () => {
+		await withStoredConfig(KOBUN_VERSION, TEST_SUBCOLLECTION_CONFIG)
+		seedDraftAt(0, {
+			collectionSlug: "projects",
+			metadata: JSON.stringify({ title: "Launch" }),
+			parentItem: "acme",
+			subcollectionKey: "updates",
+		})
+
+		const [draft] = (await loadDashboardDrafts(harness.db, USER_ID)).drafts
+
+		expect(draft).toMatchObject({
+			collectionLabel: "acme / Updates",
+			heading: "Launch",
+		})
+		invariant(draft, "the Draft is listed")
+		expect(getDraftEditorPath(draft, draft.project)).toBe(
+			`/acme/blog/collections/projects/items/acme/updates/editor/new?draft=${draft.id}`,
+		)
+	})
+
+	it("names a Subcollection's Draft by its key when the Config no longer declares it", async () => {
+		await withStoredConfig(KOBUN_VERSION, TEST_SUBCOLLECTION_CONFIG)
+		seedDraftAt(0, {
+			collectionSlug: "projects",
+			parentItem: "acme",
+			subcollectionKey: "retired",
+		})
+
+		const { drafts } = await loadDashboardDrafts(harness.db, USER_ID)
+
+		expect(drafts[0]?.collectionLabel).toBe("acme / retired")
 	})
 })

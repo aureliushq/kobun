@@ -12,12 +12,11 @@ import { requirePageContext } from "@/core/project-context/project-context.serve
 import type { Route } from "./+types/collection"
 
 export async function loader({ context, params, request }: Route.LoaderArgs) {
-	const { collection_slug } = params
 	const ctx = await requirePageContext({ context, params, request })
 	const { db, env, installationId, name, owner, projectRow } = ctx
 	// Awaited: this 404s on a Collection the Config no longer declares, and the
 	// label and schema it returns are what say which page this is.
-	const { collection, directoryPath } = requireCollection(ctx, collection_slug)
+	const directory = requireCollection(ctx, params.collection_slug)
 
 	const listings = createCollectionListingCache({
 		db,
@@ -25,19 +24,14 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
 	})
 
 	return {
-		collection,
-		collectionSlug: collection_slug,
+		collection: directory.collection,
+		collectionSlug: directory.collectionSlug,
 		project: { repoName: name, repoOwnerLogin: owner },
 		// Awaited, though it gates nothing: one indexed read of a table this
 		// request has already resolved the Project of, and awaiting it is what
 		// puts the writer's Drafts on the first paint and keeps them there when
 		// GitHub does not answer (ADR 0006).
-		drafts: await listCollectionDrafts(
-			db,
-			projectRow,
-			collection,
-			collection_slug,
-		),
+		drafts: await listCollectionDrafts(db, projectRow, directory),
 		// Started below the guards — a promise above one is a request nobody
 		// reads. Deferred for the reason it always was: none of it decides
 		// whether this page may be seen (ADR 0006), and anything that throws in
@@ -49,7 +43,7 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
 		items: listings.resolve(
 			projectRow,
 			{ installationId, name, owner },
-			directoryPath,
+			directory.directoryPath,
 		),
 	}
 }

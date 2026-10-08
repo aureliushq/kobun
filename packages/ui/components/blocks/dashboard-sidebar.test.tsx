@@ -2,6 +2,7 @@ import { render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { createRoutesStub } from "react-router"
 import { beforeEach, describe, expect, it } from "vitest"
+import type { NormalizedConfig } from "@/config"
 import type { ProjectWithGithubInstallation } from "@/db/types"
 import { SidebarProvider } from "@/ui/components/base/sidebar"
 import { ThemeContext } from "@/ui/hooks/use-theme"
@@ -47,14 +48,21 @@ beforeEach(() => {
 	loggedOut = null
 })
 
-function sidebar() {
+function sidebar({
+	config = null,
+	parentItems,
+}: {
+	config?: NormalizedConfig | null
+	parentItems?: Record<string, Promise<{ href: string; title: string }[]>>
+} = {}) {
 	const Stub = createRoutesStub([
 		{
 			Component: () => (
 				<SidebarProvider>
 					<DashboardSidebar
 						activeProject={PROJECT}
-						config={null}
+						config={config}
+						parentItems={parentItems}
 						projects={[PROJECT, OTHER_PROJECT]}
 						releaseInfo={Promise.resolve({
 							changelogUrl: "https://kobun.dev/changelog",
@@ -207,5 +215,70 @@ describe("the project switcher", () => {
 		expect(
 			other.querySelector('[data-slot="active-project"]'),
 		).not.toBeInTheDocument()
+	})
+})
+
+/**
+ * A Collection's Parent Items, listed under it (#183). They stream in from the
+ * cached Collection listing, so the rest of the sidebar never waits on them.
+ */
+describe("the Parent Items under a Collection", () => {
+	// Only what the sidebar reads: a Collection with Subcollections, one
+	// without, and a Singleton.
+	const CONFIG = {
+		collections: {
+			posts: { label: "Posts" },
+			projects: { label: "Projects", subcollections: { notes: {} } },
+		},
+		singletons: { about: { label: "About" } },
+	} as unknown as NormalizedConfig
+	const ACME = "/acme/blog/collections/projects/items/acme/notes"
+
+	it("lists each by title, linking to its Subcollection page", async () => {
+		sidebar({
+			config: CONFIG,
+			parentItems: {
+				projects: Promise.resolve([
+					{ href: ACME, title: "Acme" },
+					{
+						href: "/acme/blog/collections/projects/items/globex/notes",
+						title: "Globex",
+					},
+				]),
+			},
+		})
+
+		expect(await screen.findByRole("link", { name: "Acme" })).toHaveAttribute(
+			"href",
+			ACME,
+		)
+		expect(screen.getByRole("link", { name: "Globex" })).toBeInTheDocument()
+		expect(screen.getByRole("link", { name: "Projects" })).toHaveAttribute(
+			"href",
+			"/acme/blog/collections/projects",
+		)
+		// Only Projects declares Subcollections, so Posts has no list under it.
+		expect(screen.getAllByRole("link", { name: /Acme|Globex/ })).toHaveLength(2)
+		expect(
+			screen.getByRole("link", { name: "Posts" }).closest("li"),
+		).not.toContainElement(screen.getByRole("link", { name: "Acme" }))
+	})
+
+	it("leaves the rest of the sidebar when the listing fails", async () => {
+		const failed = Promise.reject(new Error("GitHub is unreachable"))
+		failed.catch(() => {})
+		sidebar({
+			config: CONFIG,
+			parentItems: { projects: failed },
+		})
+
+		expect(
+			await screen.findByRole("link", { name: "Projects" }),
+		).toBeInTheDocument()
+		expect(screen.getByRole("link", { name: "Posts" })).toBeInTheDocument()
+		expect(screen.getByRole("link", { name: "About" })).toBeInTheDocument()
+		expect(
+			screen.getByRole("button", { name: /Ada Lovelace/ }),
+		).toBeInTheDocument()
 	})
 })

@@ -38,6 +38,44 @@ test("addresses a source-backed draft by the item it belongs to", () => {
 	).toBe("/acme/website/collections/posts/editor/item/hello%20world")
 })
 
+// A Subcollection's pages hang off its Parent Item's page, so its Drafts are
+// edited there too (#182).
+test("addresses a Subcollection's uncommitted draft under its Parent Item", () => {
+	expect(
+		getDraftEditorPath(
+			{
+				collectionSlug: "projects",
+				id: "draft-id",
+				itemSlug: null,
+				parentItem: "acme",
+				sourcePath: null,
+				subcollectionKey: "updates",
+			},
+			PROJECT,
+		),
+	).toBe(
+		"/acme/website/collections/projects/items/acme/updates/editor/new?draft=draft-id",
+	)
+})
+
+test("addresses a Subcollection's source-backed draft by its item", () => {
+	expect(
+		getDraftEditorPath(
+			{
+				collectionSlug: "projects",
+				id: "draft-id",
+				itemSlug: "launch",
+				parentItem: "acme",
+				sourcePath: "content/projects/acme/updates/launch.md",
+				subcollectionKey: "updates",
+			},
+			PROJECT,
+		),
+	).toBe(
+		"/acme/website/collections/projects/items/acme/updates/editor/item/launch",
+	)
+})
+
 test("addresses the collection a draft belongs to", () => {
 	expect(getCollectionPath(PROJECT, "posts")).toBe(
 		"/acme/website/collections/posts",

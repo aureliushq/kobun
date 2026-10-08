@@ -26,7 +26,15 @@ export type {
 } from "./connect-project"
 export { connectProject } from "./connect-project"
 export { createProjectContext } from "./create-project-context"
-export { requireCollection, requireSingleton } from "./entities"
+export type { ContentDirectory } from "./entities"
+export {
+	parentItemStem,
+	parentItemTitle,
+	requireCollection,
+	requireParentItem,
+	requireSingleton,
+	requireSubcollection,
+} from "./entities"
 export { toPageContext, toProjectPage } from "./page-context"
 export type {
 	ApiAccessContext,

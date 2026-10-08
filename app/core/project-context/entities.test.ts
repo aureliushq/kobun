@@ -1,8 +1,18 @@
-import { expect, test } from "vitest"
+import { describe, expect, it, test } from "vitest"
 import { singletonSchema } from "@/config/schema"
 import type { NormalizedConfig } from "@/config/types"
-import { requireCollection, requireSingleton } from "./entities"
-import { catchResponse, TEST_CONFIG } from "./test-harness"
+import {
+	parentItemTitle,
+	requireCollection,
+	requireParentItem,
+	requireSingleton,
+	requireSubcollection,
+} from "./entities"
+import {
+	catchResponse,
+	TEST_CONFIG,
+	TEST_SUBCOLLECTION_CONFIG,
+} from "./test-harness"
 
 function withBasePath(basePath: string) {
 	return { config: { ...TEST_CONFIG, basePath } as NormalizedConfig }
@@ -62,4 +72,104 @@ test("names the Singleton's file after its own Format", () => {
 
 test("refuses a Singleton slug the Config does not declare", () => {
 	expect(statusOfThrown(() => requireSingleton(CTX, "contact"))).toBe(404)
+})
+
+const SUBCOLLECTION_CTX = { config: TEST_SUBCOLLECTION_CONFIG }
+
+test("finds a Subcollection and the directory beside its Parent Item's file", () => {
+	const directory = requireSubcollection(
+		SUBCOLLECTION_CTX,
+		"projects",
+		"updates",
+		"acme",
+	)
+
+	expect(directory.collection).toBe(
+		TEST_SUBCOLLECTION_CONFIG.collections.projects.subcollections?.updates,
+	)
+	expect(directory.parent.directoryPath).toBe("content/collections/projects")
+	expect(directory.directoryPath).toBe(
+		"content/collections/projects/acme/updates",
+	)
+})
+
+// Its Drafts are owned by all three, so a second Parent Item's or a second
+// Subcollection's are never mistaken for these (#182).
+test("names the Collection, Parent Item and Subcollection its Drafts are owned by", () => {
+	const { collectionSlug, parentItem, subcollectionKey } = requireSubcollection(
+		SUBCOLLECTION_CTX,
+		"projects",
+		"updates",
+		"acme",
+	)
+
+	expect({ collectionSlug, parentItem, subcollectionKey }).toEqual({
+		collectionSlug: "projects",
+		parentItem: "acme",
+		subcollectionKey: "updates",
+	})
+})
+
+test("refuses a Subcollection key the Collection does not declare", () => {
+	expect(
+		statusOfThrown(() =>
+			requireSubcollection(SUBCOLLECTION_CTX, "projects", "invoices", "acme"),
+		),
+	).toBe(404)
+})
+
+test("refuses a Subcollection on a Collection that declares none", () => {
+	expect(
+		statusOfThrown(() =>
+			requireSubcollection(SUBCOLLECTION_CTX, "posts", "updates", "hello"),
+		),
+	).toBe(404)
+})
+
+describe("the Parent Item a URL names", () => {
+	const PARENTS = [{ name: "acme.md" }, { name: "globex.mdx" }]
+
+	it("is found by its filename stem, md or mdx", () => {
+		expect(requireParentItem(PARENTS, "acme")).toBe(PARENTS[0])
+		expect(requireParentItem(PARENTS, "globex")).toBe(PARENTS[1])
+	})
+
+	// The listing holds Sources only, so a Parent Item that exists only as a
+	// Draft — or no longer exists — is not in it.
+	it("is a 404 when it has no Source", () => {
+		expect(statusOfThrown(() => requireParentItem(PARENTS, "initech"))).toBe(
+			404,
+		)
+	})
+
+	// A stem names a directory a commit writes into, so one that is no file's
+	// never reaches a path.
+	it("is a 404 for a stem that would climb out of the Collection", () => {
+		expect(statusOfThrown(() => requireParentItem(PARENTS, ".."))).toBe(404)
+	})
+})
+
+describe("a Parent Item's title", () => {
+	const PROJECTS = TEST_SUBCOLLECTION_CONFIG.collections.projects
+
+	it("is its title Field", () => {
+		expect(
+			parentItemTitle(PROJECTS, { data: { title: "Acme" }, name: "acme.md" }),
+		).toBe("Acme")
+	})
+
+	it("falls back to its filename stem when the title is empty", () => {
+		expect(
+			parentItemTitle(PROJECTS, { data: { title: "" }, name: "acme.mdx" }),
+		).toBe("acme")
+	})
+
+	it("falls back to its filename stem when the schema has no title", () => {
+		expect(
+			parentItemTitle(
+				{ ...PROJECTS, schema: {} },
+				{ data: { title: "Acme" }, name: "acme.md" },
+			),
+		).toBe("acme")
+	})
 })

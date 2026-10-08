@@ -9,6 +9,7 @@ import {
 	isMarkdownCollectionFile,
 } from "@/core/editor/collection-items.server"
 import { stagedImageBaseUrl } from "@/core/editor/staged-images"
+import type { ContentDirectory } from "@/core/project-context"
 import {
 	editorDraft,
 	githubInstallation,
@@ -333,35 +334,57 @@ function createHarnessBase(options: {
 	}
 }
 
+/**
+ * The listing the module looks Slugs up in, read off the fake repository so it
+ * is always current — the listing cache's own job, tested on its own.
+ */
+export async function listFakeItems(
+	sourceStore: FakeSourceStore,
+	directoryPath: string,
+): Promise<ListedItem[]> {
+	return (await sourceStore.list(directoryPath))
+		.filter(isMarkdownCollectionFile)
+		.map((file) => ({
+			data: parseDocument(file.content, collectionFileFormat(file)).data,
+			name: file.name,
+			path: file.path,
+		}))
+}
+
 export function createDraftsTestHarness(
 	options: {
 		collection?: Collection
+		/**
+		 * The content directory the Drafts are over, whole — a Subcollection's,
+		 * say. `collection` is ignored when this is given.
+		 */
+		directory?: ContentDirectory
 		files?: SourceFile[]
 		/** What the module reads as the current time when it stamps a value. */
 		now?: () => Date
 	} = {},
 ): DraftsTestHarness {
+	const directory = options.directory ?? {
+		collection: options.collection ?? TEST_COLLECTION,
+		collectionSlug: TEST_COLLECTION_SLUG,
+		directoryPath: TEST_DIRECTORY_PATH,
+	}
 	const base = createHarnessBase({
 		files: options.files,
-		seedDefaults: { collectionSlug: TEST_COLLECTION_SLUG },
+		seedDefaults: {
+			collectionSlug: directory.collectionSlug,
+			parentItem: directory.parentItem ?? null,
+			subcollectionKey: directory.subcollectionKey ?? null,
+		},
 	})
 	const listing = {
-		items: async (): Promise<ListedItem[]> =>
-			(await base.sourceStore.list(TEST_DIRECTORY_PATH))
-				.filter(isMarkdownCollectionFile)
-				.map((file) => ({
-					data: parseDocument(file.content, collectionFileFormat(file)).data,
-					name: file.name,
-					path: file.path,
-				})),
+		items: () => listFakeItems(base.sourceStore, directory.directoryPath),
 	}
 	return {
 		...base,
 		drafts: createDrafts({
-			collection: options.collection ?? TEST_COLLECTION,
-			collectionSlug: TEST_COLLECTION_SLUG,
+			...directory,
 			db: base.db,
-			directoryPath: TEST_DIRECTORY_PATH,
 			listItems: () => listing.items(),
 			now: options.now,
 			project: { id: base.projectId },

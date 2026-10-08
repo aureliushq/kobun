@@ -14,6 +14,10 @@ export default [
 			"/:owner/:name/collections/:collection_slug",
 			"routes/collection.tsx",
 		),
+		route(
+			"/:owner/:name/collections/:collection_slug/items/:parent_item/:subcollection_key",
+			"routes/subcollection.tsx",
+		),
 		route("/:owner/:name/singletons/:singleton_slug", "routes/singleton.tsx"),
 		// Project-scoped, so unlike `/settings` it belongs under the layout that
 		// resolves a Project — and under the one wrapper that renders rather than
@@ -24,6 +28,13 @@ export default [
 		route(
 			"/:owner/:name/collections/:collection_slug/editor/:editor_mode/:collection_item_slug?",
 			"routes/collection-editor.tsx",
+		),
+		// A Subcollection's items are Collection Items in their Parent Item's
+		// directory, so the same editor edits them (#182).
+		route(
+			"/:owner/:name/collections/:collection_slug/items/:parent_item/:subcollection_key/editor/:editor_mode/:collection_item_slug?",
+			"routes/collection-editor.tsx",
+			{ id: "routes/subcollection-editor" },
 		),
 		route(
 			"/:owner/:name/singletons/:singleton_slug/editor",
@@ -50,6 +61,11 @@ export default [
 		route(
 			"editor/:owner/:name/collections/:collection_slug/editor/:editor_mode/:collection_item_slug?",
 			"routes/api.collection-editor.ts",
+		),
+		route(
+			"editor/:owner/:name/collections/:collection_slug/items/:parent_item/:subcollection_key/editor/:editor_mode/:collection_item_slug?",
+			"routes/api.collection-editor.ts",
+			{ id: "routes/api.subcollection-editor" },
 		),
 		route(
 			"editor/:owner/:name/singletons/:singleton_slug/editor",

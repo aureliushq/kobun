@@ -59,7 +59,7 @@ requireProjectPage(args)         // the dashboard: refuses only anonymous / no-p
 requireApiContext(args, opts?)   // throws Response: 401 / 404
 
 // pure narrowing helpers derive entity + paths; not part of the core:
-requireCollection(ctx, slug) → { collection, directoryPath }
+requireCollection(ctx, slug) → ContentDirectory { collection, collectionSlug, directoryPath }
 requireSingleton(ctx, slug)  → { singleton, filePath }
 ```
 

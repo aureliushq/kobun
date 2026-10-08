@@ -1,11 +1,7 @@
 import type { DrizzleD1Database } from "drizzle-orm/d1"
-import type {
-	Collection,
-	Format,
-	ResolvedField,
-	Singleton,
-} from "@/config/types"
+import type { Format, ResolvedField, Singleton } from "@/config/types"
 import type { FieldRecord } from "@/core/editor/collection-metadata"
+import type { ContentDirectory } from "@/core/project-context"
 import type * as schema from "@/db/schema"
 import type { editorDraft } from "@/db/schema/app-schema"
 import type { SourceStore } from "./source-store"
@@ -36,12 +32,9 @@ export interface ResolvedSource {
 	sha: string
 }
 
-export interface DraftsContext {
-	collection: Collection
-	collectionSlug: string
+/** A content directory's Drafts, committed through one SourceStore. */
+export interface DraftsContext extends ContentDirectory {
 	db: DraftsDatabase
-	/** Where this collection's Source files live in the repository. */
-	directoryPath: string
 	/**
 	 * The current time, for the values the system stamps into content. Injected
 	 * so a test can say what "now" is rather than race the wall clock.
@@ -78,10 +71,23 @@ export interface SingletonDraftsContext {
 	stagedImages: StagedImageStore
 }
 
-/** Whose Draft a row is: a Collection's or a Singleton's, never both. */
+/**
+ * Whose Draft a row is: a Collection's or a Singleton's, never both — and a
+ * Collection's own items' or one Parent Item's items of one Subcollection.
+ */
 export type DraftOwner =
-	| { collectionSlug: string; singletonSlug: null }
-	| { collectionSlug: null; singletonSlug: string }
+	| {
+			collectionSlug: string
+			parentItem: string | null
+			singletonSlug: null
+			subcollectionKey: string | null
+	  }
+	| {
+			collectionSlug: null
+			parentItem: null
+			singletonSlug: string
+			subcollectionKey: null
+	  }
 
 /** Where a commit of some content lands, and what is wrong with landing there. */
 export interface CommitAddress<ItemSlug extends string | null> {

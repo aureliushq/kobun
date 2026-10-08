@@ -23,13 +23,15 @@ Glossary of domain terms. Keep implementation details out — this is vocabulary
 ## Access
 
 - **Project** — a user's connection of one GitHub repository to Kobun, through a GitHub App installation. All content access happens through a Project; a repo the user doesn't have a Project for is invisible to them.
-- **Config** — a Project's parsed and validated Kobun configuration, declaring its Collections and Singletons. Lives as a file in the repository; a Project whose Config is missing or invalid has no browsable content.
+- **Config** — a Project's parsed and validated Kobun configuration, declaring its Collections (and their Subcollections) and Singletons. Lives as a file in the repository; a Project whose Config is missing or invalid has no browsable content.
 - **Disconnect** — removing a Project. Kobun forgets the repository and deletes the **Drafts** it held; the **Sources** are untouched and the GitHub App installation remains, so the same repository can be connected again. The only act that destroys a Dirty Draft in bulk.
 - **Preference** — an account-scoped choice about how Kobun looks and behaves for one person. A Preference follows the writer across every Project, is held by Kobun rather than by any repository, and never changes what a **Commit** writes — anything that would is the **Config**'s.
 
 ## Content structure
 
-- **Collection** — a directory of content items sharing a schema, addressed by slug.
+- **Collection** — a directory of content items sharing a schema, addressed by slug. A Collection may declare Subcollections.
+- **Subcollection** — a Collection declared on a Collection, one level deep. Declared like a Collection — its own label, Format, Features, and schema — and inherits nothing from its Collection. Each Parent Item owns its own set of the Subcollection's items, stored in a directory named after the Parent Item's file. Singletons have no Subcollections.
+- **Parent Item** — the Collection Item that owns a set of Subcollection items. Its items live beside it, under a directory named after its filename, not its Slug.
 - **Collection Item** — one Source file within a Collection, addressed by its slug.
 - **Singleton** — a single fixed Source file with its own schema; no slug, no directory.
 - **Slug** — the identifier of a Collection Item within its Collection, and the name of its file; must be unique across the Collection's directory, and drawn from one restricted alphabet whether it was derived from its source Field or typed over by the writer. A title that alphabet cannot spell derives no Slug, and the writer names the item instead.

@@ -18,6 +18,7 @@ import {
 	withListingInvalidation,
 } from "@/core/editor/collection-listing-cache.server"
 import {
+	contentDirectorySlug,
 	type DraftTarget,
 	getCollectionItemEditorPath,
 	getCollectionPath,
@@ -35,11 +36,50 @@ import {
 	saveResponse,
 } from "@/core/editor/editor-action"
 import { createGithubCollectionListingSource } from "@/core/editor/github-collection-listing-source.server"
-import { requireCollection } from "@/core/project-context"
+import {
+	type ContentDirectory,
+	requireCollection,
+	requireParentItem,
+	requireSubcollection,
+} from "@/core/project-context"
 import { requirePageContext } from "@/core/project-context/project-context.server"
 import { posthogContext } from "@/lib/posthog-middleware"
 import { EditorActionIntents } from "@/ui/lib/types"
 import type { Route } from "./+types/collection-editor"
+
+/**
+ * The content directory the URL names: a Collection's own, or one Parent Item's
+ * of one Subcollection. The Parent Item must have a Source, which is also what
+ * keeps a stem that is no file's from becoming a path this editor reads or
+ * commits into. Opening and saving a Draft check it against the Collection's
+ * cached listing, as the Subcollection page does; a commit reads the
+ * repository live instead, since a gate on a commit may not be decided against
+ * a directory a minute out of date (ADR-0011).
+ */
+async function requireContentDirectory(
+	ctx: Awaited<ReturnType<typeof requirePageContext>>,
+	params: Route.LoaderArgs["params"],
+	listings: ReturnType<typeof createCollectionListingCache>,
+	{ committing }: { committing: boolean },
+): Promise<ContentDirectory> {
+	const { collection_slug, parent_item, subcollection_key } = params
+	if (!parent_item || !subcollection_key) {
+		return requireCollection(ctx, collection_slug)
+	}
+	const { installationId, name, owner, projectRow } = ctx
+	const directory = requireSubcollection(
+		ctx,
+		collection_slug,
+		subcollection_key,
+		parent_item,
+	)
+	const repository = { installationId, name, owner }
+	const parentItems = await (committing
+		? listings.resolveCurrent
+		: listings.resolve)(projectRow, repository, directory.parent.directoryPath)
+	requireParentItem(parentItems, parent_item)
+	return directory
+}
 
 /**
  * The seam, plus what it deliberately leaves to its callers: which Collection
@@ -48,30 +88,29 @@ import type { Route } from "./+types/collection-editor"
  * (ADR-0001). The md/mdx gate is an editor concern rather than a Project
  * Context one, so it stays here, layered on top of the narrower.
  */
-async function resolveCollectionEditorContext({
-	context,
-	params,
-	request,
-}: Route.LoaderArgs | Route.ActionArgs) {
-	const { collection_slug } = params
+async function resolveCollectionEditorContext(
+	{ context, params, request }: Route.LoaderArgs | Route.ActionArgs,
+	{ committing = false }: { committing?: boolean } = {},
+) {
 	const ctx = await requirePageContext({ context, params, request })
-	const { collection, directoryPath } = requireCollection(ctx, collection_slug)
-	if (collection.format !== "md" && collection.format !== "mdx") {
-		throw new Response("Rich text editing requires an md or mdx collection", {
-			status: 422,
-		})
-	}
-
 	const { db, env, installationId, name, owner, projectRow } = ctx
 	const listings = createCollectionListingCache({
 		db,
 		listingSource: createGithubCollectionListingSource(env),
 	})
+	const directory = await requireContentDirectory(ctx, params, listings, {
+		committing,
+	})
+	const { format } = directory.collection
+	if (format !== "md" && format !== "mdx") {
+		throw new Response("Rich text editing requires an md or mdx collection", {
+			status: 422,
+		})
+	}
+
 	return {
-		collection,
-		collectionSlug: collection_slug,
 		db,
-		directoryPath,
+		directory,
 		env,
 		installationId,
 		// Slug lookups read the listing the Collection page serves, revalidated
@@ -80,7 +119,7 @@ async function resolveCollectionEditorContext({
 			listings.resolveCurrent(
 				projectRow,
 				{ installationId, name, owner },
-				directoryPath,
+				directory.directoryPath,
 			),
 		name,
 		owner,
@@ -90,7 +129,8 @@ async function resolveCollectionEditorContext({
 		// the one place that knows both the store and the cache.
 		sourceStore: withListingInvalidation(
 			createGithubSourceStore({ env, installationId, name, owner }),
-			() => invalidateCollectionListing(db, projectRow.id, directoryPath),
+			() =>
+				invalidateCollectionListing(db, projectRow.id, directory.directoryPath),
 		),
 		stagedImages: createR2StagedImageStore({
 			bucket: env.IMAGES,
@@ -108,7 +148,7 @@ function collectionPathFor(
 ) {
 	return getCollectionPath(
 		{ repoName: resolved.name, repoOwnerLogin: resolved.owner },
-		resolved.collectionSlug,
+		contentDirectorySlug(resolved.directory),
 	)
 }
 
@@ -116,10 +156,8 @@ function createDraftsFor(
 	resolved: Awaited<ReturnType<typeof resolveCollectionEditorContext>>,
 ) {
 	return createDrafts({
-		collection: resolved.collection,
-		collectionSlug: resolved.collectionSlug,
+		...resolved.directory,
 		db: resolved.db,
-		directoryPath: resolved.directoryPath,
 		listItems: resolved.listItems,
 		project: { id: resolved.projectRow.id },
 		sourceStore: resolved.sourceStore,
@@ -193,17 +231,18 @@ export async function loader(args: Route.LoaderArgs) {
 	// index/_routes params), so `?draft=` is where the editor put it.
 	const draftId = new URL(args.url).searchParams.get("draft")
 	const target = getDraftTarget(args.params, draftId)
+	const { schema } = resolved.directory.collection
 
 	// Everything the shell is built from, and the only half that may redirect.
 	const shell = {
 		// Publish is absent where the Collection has no Publication State to
 		// declare; Save to GitHub is then the only path to the repository
 		// (ADR-0008).
-		canPublish: hasPublicationState(resolved.collection.schema),
+		canPublish: hasPublicationState(schema),
 		name: resolved.name,
 		owner: resolved.owner,
 		publishDisabledReason: null,
-		schema: resolved.collection.schema,
+		schema,
 	}
 	const drafts = createDraftsFor(resolved)
 
@@ -225,8 +264,10 @@ export async function loader(args: Route.LoaderArgs) {
 }
 
 export async function action(args: Route.ActionArgs) {
-	const resolved = await resolveCollectionEditorContext(args)
 	const payload = await readEditorActionPayload(args.request)
+	const resolved = await resolveCollectionEditorContext(args, {
+		committing: payload.intent !== EditorActionIntents.SAVE,
+	})
 	const target = getDraftTarget(args.params, payload.draftId ?? null)
 	const drafts = createDraftsFor(resolved)
 	const input: SaveInput = {
@@ -244,7 +285,10 @@ export async function action(args: Route.ActionArgs) {
 	// The button is absent where the Feature is off, so a publish arriving here is
 	// not a writer's choice; refusing it is what makes Save to GitHub the only
 	// commit path rather than only looking like it.
-	if (publishing && !hasPublicationState(resolved.collection.schema)) {
+	if (
+		publishing &&
+		!hasPublicationState(resolved.directory.collection.schema)
+	) {
 		throw new Response("This collection has no publish feature", {
 			status: 400,
 		})
@@ -267,7 +311,7 @@ export async function action(args: Route.ActionArgs) {
 			? undefined
 			: getCollectionItemEditorPath(
 					{ repoName: resolved.name, repoOwnerLogin: resolved.owner },
-					resolved.collectionSlug,
+					contentDirectorySlug(resolved.directory),
 					committed.itemSlug,
 				)
 
@@ -280,7 +324,7 @@ export async function action(args: Route.ActionArgs) {
 		posthog?.capture({
 			event: "content_published",
 			properties: {
-				collection_slug: resolved.collectionSlug,
+				collection_slug: resolved.directory.collectionSlug,
 				repo_owner: resolved.owner,
 				repo_name: resolved.name,
 				editor_mode: target.mode,
@@ -332,7 +376,7 @@ export default function CollectionEditor({ loaderData }: Route.ComponentProps) {
 		// first save mints a Draft, and a key that noticed would remount the
 		// editor, destroying the document being typed into.
 		<Suspense
-			key={`${params.collection_slug}/${params.collection_item_slug}`}
+			key={`${params.collection_slug}/${params.parent_item}/${params.subcollection_key}/${params.collection_item_slug}`}
 			fallback={<CollectionItemEditor {...chrome} mode="item" opened={null} />}
 		>
 			{/* No `errorElement`, which is ADR 0006's rule one taken deliberately

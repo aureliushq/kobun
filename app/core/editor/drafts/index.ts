@@ -19,12 +19,14 @@ export {
 export { countDirtyDrafts } from "./dirty-drafts"
 export type { ProjectLocation } from "./draft-paths"
 export {
+	contentDirectorySlug,
 	getCollectionItemEditorPath,
 	getCollectionPath,
 	getDraftEditorPath,
 	getNewItemEditorPath,
 	getSingletonEditorPath,
 	getSingletonPath,
+	getSubcollectionPath,
 	isDraftAdoptionNavigation,
 } from "./draft-paths"
 export type { DraftMarker } from "./draft-state"
@@ -33,5 +35,5 @@ export {
 	draftMarker,
 	isDraftDirty,
 } from "./draft-state"
-export { draftHeading } from "./draft-summary"
+export { draftHeading, subcollectionLabel } from "./draft-summary"
 export type { DraftRefusal, DraftTarget, SaveInput } from "./types"

@@ -12,13 +12,19 @@ import {
 	getCollectionPath,
 	getSingletonEditorPath,
 	getSingletonPath,
+	getSubcollectionPath,
+	subcollectionLabel,
 } from "@/core/editor/drafts"
 import {
 	type EditorSaveError,
 	toEditorSaveError,
 } from "@/core/editor/editor-action"
 import { toPrimaryEditorAction } from "@/core/editor/primary-action"
-import { requireCollection, requireSingleton } from "@/core/project-context"
+import {
+	requireCollection,
+	requireSingleton,
+	requireSubcollection,
+} from "@/core/project-context"
 import { requirePageContext } from "@/core/project-context/project-context.server"
 import { readEditorPrimaryAction } from "@/db/user-preference"
 import {
@@ -48,7 +54,15 @@ import { usePrimaryEditorAction } from "./use-primary-editor-action"
  * it turned out not to have.
  */
 export async function loader({ context, params, request }: Route.LoaderArgs) {
-	const { collection_slug, field_key, name, owner, singleton_slug } = params
+	const {
+		collection_slug,
+		field_key,
+		name,
+		owner,
+		parent_item,
+		singleton_slug,
+		subcollection_key,
+	} = params
 	const ctx = await requirePageContext({ context, params, request })
 	// Which target the split control's primary button runs, keyed by the writer
 	// `requirePageContext` already resolved — so the choice follows them to
@@ -82,15 +96,37 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
 
 	// Neither slug: the route matched a URL that names no entity to go back to.
 	invariant(collection_slug, "collection_slug is required")
+	const project = { repoName: name, repoOwnerLogin: owner }
+
+	// A Subcollection's item goes back to its Parent Item's tab of it. Whether
+	// the Parent Item has a Source is the page's to check: the header only
+	// names where the writer came from.
+	if (parent_item && subcollection_key) {
+		const { collection } = requireSubcollection(
+			ctx,
+			collection_slug,
+			subcollection_key,
+			parent_item,
+		)
+		return {
+			draftEditorPath: null,
+			parentLabel: subcollectionLabel(parent_item, collection.label),
+			parentPath: getSubcollectionPath(
+				project,
+				collection_slug,
+				parent_item,
+				subcollection_key,
+			),
+			primaryAction,
+		}
+	}
+
 	const { collection } = requireCollection(ctx, collection_slug)
 
 	return {
 		draftEditorPath: null,
 		parentLabel: collection.label,
-		parentPath: getCollectionPath(
-			{ repoName: name, repoOwnerLogin: owner },
-			collection_slug,
-		),
+		parentPath: getCollectionPath(project, collection_slug),
 		primaryAction,
 	}
 }

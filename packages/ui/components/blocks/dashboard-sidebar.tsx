@@ -11,8 +11,8 @@ import {
 	SettingsIcon,
 	UserCogIcon,
 } from "lucide-react"
-import { useState } from "react"
-import { Link, useLocation, useSubmit } from "react-router"
+import { Suspense, useState } from "react"
+import { Await, Link, useLocation, useSubmit } from "react-router"
 import type { NormalizedConfig } from "@/config"
 import type { ProjectWithGithubInstallation } from "@/db/types"
 import {
@@ -44,6 +44,9 @@ import {
 	SidebarMenu,
 	SidebarMenuButton,
 	SidebarMenuItem,
+	SidebarMenuSub,
+	SidebarMenuSubButton,
+	SidebarMenuSubItem,
 	SidebarSeparator,
 	useSidebar,
 } from "@/ui/components/base/sidebar"
@@ -64,6 +67,7 @@ import { DashboardActionIntents } from "@/ui/lib/types"
 const DashboardSidebar = ({
 	activeProject,
 	config,
+	parentItems = {},
 	projects,
 	releaseInfo,
 	user,
@@ -72,6 +76,8 @@ const DashboardSidebar = ({
 	activeProject: ProjectWithGithubInstallation
 	/** Null for a Project whose Config is missing or invalid (ADR-0007). */
 	config: NormalizedConfig | null
+	/** Per Collection with Subcollections, its committed Parent Items (#183). */
+	parentItems?: Record<string, Promise<{ href: string; title: string }[]>>
 	projects: ProjectWithGithubInstallation[]
 	releaseInfo: Promise<ReleaseInfo>
 	/** The person signed in — the avatar above is the Project's organisation. */
@@ -231,6 +237,40 @@ const DashboardSidebar = ({
 											>
 												{collection.label}
 											</SidebarMenuButton>
+											{key in parentItems && (
+												// Streamed from the cached listing (ADR-0006). No
+												// skeleton: a list landing under its Collection moves
+												// nothing above it. A failed one renders nothing rather
+												// than an alert — the Collection's own page reports the
+												// same listing when it fails there.
+												<Suspense key={`${repoSlug}/${key}`} fallback={null}>
+													<Await
+														// biome-ignore lint/complexity/noUselessFragments: a null errorElement rethrows to the route (ADR-0006)
+														errorElement={<></>}
+														resolve={parentItems[key]}
+													>
+														{(items) => (
+															<SidebarMenuSub>
+																{items.map((item) => (
+																	<SidebarMenuSubItem key={item.href}>
+																		<SidebarMenuSubButton
+																			isActive={location.pathname === item.href}
+																			render={
+																				<Link
+																					prefetch="intent"
+																					to={item.href}
+																				/>
+																			}
+																		>
+																			<span>{item.title}</span>
+																		</SidebarMenuSubButton>
+																	</SidebarMenuSubItem>
+																))}
+															</SidebarMenuSub>
+														)}
+													</Await>
+												</Suspense>
+											)}
 										</SidebarMenuItem>
 									))}
 								</SidebarMenu>

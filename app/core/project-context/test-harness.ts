@@ -80,6 +80,51 @@ export const TEST_CONFIG = (() => {
 })()
 
 /**
+ * The same Config, with a Collection whose items each own Subcollections — kept
+ * apart so the minimal fixture stays minimal for everything else.
+ */
+export const TEST_SUBCOLLECTION_CONFIG = (() => {
+	const base = JSON.parse(TEST_CONFIG_JSON)
+	const { config } = validateConfig(
+		JSON.stringify({
+			...base,
+			collections: {
+				...base.collections,
+				projects: {
+					format: "md",
+					label: "Projects",
+					schema: {
+						slug: { from: "title", label: "Slug", type: "slug" },
+						title: { label: "Title", type: "text" },
+					},
+					subcollections: {
+						notes: {
+							format: "md",
+							label: "Notes",
+							schema: {
+								slug: { from: "title", label: "Slug", type: "slug" },
+								title: { label: "Title", type: "text" },
+							},
+						},
+						updates: {
+							format: "md",
+							label: "Updates",
+							schema: {
+								slug: { from: "title", label: "Slug", type: "slug" },
+								title: { label: "Title", type: "text" },
+							},
+						},
+					},
+				},
+			},
+		}),
+		"json",
+	)
+	invariant(config, "the Subcollection Config fixture must be valid")
+	return config
+})()
+
+/**
  * A resolved Project, as the translations above the resolver see one: only the
  * shape matters, since the resolver's own tests cover its contents.
  */
