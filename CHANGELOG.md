@@ -1,5 +1,11 @@
 # kobun
 
+## 0.10.0
+
+### Minor Changes
+
+- 01dd5d8: Add subcollections: declare them in a collection's config, then browse, create, edit, commit and publish items under a parent item, with parent items listed in the sidebar.
+
 ## 0.9.0
 
 ### Minor Changes
