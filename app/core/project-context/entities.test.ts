@@ -88,7 +88,9 @@ test("finds a Subcollection and the directory beside its Parent Item's file", ()
 		TEST_SUBCOLLECTION_CONFIG.collections.projects.subcollections?.updates,
 	)
 	expect(directory.parent.directoryPath).toBe("content/collections/projects")
-	expect(directory.directoryPath).toBe("content/collections/projects/acme/updates")
+	expect(directory.directoryPath).toBe(
+		"content/collections/projects/acme/updates",
+	)
 })
 
 // Its Drafts are owned by all three, so a second Parent Item's or a second
