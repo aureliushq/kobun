@@ -23,6 +23,7 @@ function control(
 			disabled={false}
 			onRun={onRun}
 			onTargetChange={onTargetChange}
+			pending={false}
 			runDisabled={false}
 			target="save"
 			{...overrides}
@@ -36,6 +37,23 @@ const chooser = () =>
 	screen.getByRole("button", { name: "Change what the save button does" })
 
 describe("the primary button", () => {
+	it("shows a spinner only while its request is in flight", () => {
+		const { rerender } = control()
+		expect(within(primary()).queryByRole("status")).toBeNull()
+
+		rerender(
+			<EditorSaveControl
+				disabled
+				onRun={vi.fn()}
+				onTargetChange={vi.fn()}
+				pending
+				runDisabled={false}
+				target="commit"
+			/>,
+		)
+		expect(within(primary()).getByRole("status")).toBeInTheDocument()
+	})
+
 	it("names the target it would run, and runs it", async () => {
 		const user = userEvent.setup()
 		const { onRun } = control()

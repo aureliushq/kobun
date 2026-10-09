@@ -9,6 +9,7 @@ import {
 	DropdownMenuRadioItem,
 	DropdownMenuTrigger,
 } from "@/ui/components/base/dropdown-menu"
+import { Spinner } from "@/ui/components/base/spinner"
 import { cn } from "@/ui/lib/utils"
 
 /**
@@ -49,6 +50,7 @@ export function EditorSaveControl({
 	disabled,
 	onRun,
 	onTargetChange,
+	pending,
 	runDisabled,
 	target,
 }: {
@@ -56,6 +58,8 @@ export function EditorSaveControl({
 	disabled: boolean
 	onRun: (target: PrimaryEditorAction) => void
 	onTargetChange: (target: PrimaryEditorAction) => void
+	/** The writer pressed this button and its request is in flight. */
+	pending: boolean
 	/** This particular target has nothing to do — a Save with nothing dirty. */
 	runDisabled: boolean
 	target: PrimaryEditorAction
@@ -69,6 +73,7 @@ export function EditorSaveControl({
 				type="button"
 				variant="outline"
 			>
+				{pending && <Spinner data-icon="inline-start" />}
 				{/* Every label this button can carry, stacked in one grid cell. The
 				    cell is as wide as the longest of them whichever is showing, so
 				    switching the target moves nothing beside it — the same reserve-
