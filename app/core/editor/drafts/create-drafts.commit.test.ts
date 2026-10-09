@@ -417,3 +417,31 @@ test("commits for a collection with no publish feature", async () => {
 		updatedAt: CREATED,
 	})
 })
+
+test("addresses a renamed item by its new Slug once the rename is committed", async () => {
+	const { drafts } = setup({ collection: TEST_COLLECTION_WITHOUT_PUBLISH })
+	putSource(FIELDS)
+	const renamed = { slug: "goodbye", title: "Goodbye" }
+
+	const result = await drafts.commit(commitItem({ fields: renamed }))
+
+	// The file keeps its name; the Slug in its Data is what changed. The old
+	// Slug answers to nothing now, which is why the editor's URL must follow.
+	expect(result).toMatchObject({ itemSlug: "goodbye", ok: true })
+	expect(
+		await drafts.commit({
+			...CONTENT,
+			fields: renamed,
+			mode: "item",
+			slug: "hello",
+		}),
+	).toEqual({ code: "not-found", ok: false })
+	expect(
+		await drafts.commit({
+			...CONTENT,
+			fields: renamed,
+			mode: "item",
+			slug: "goodbye",
+		}),
+	).toMatchObject({ ok: true })
+})

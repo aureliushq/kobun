@@ -228,6 +228,12 @@ a failure, deliberately: that listing is never going to land, and a writer with
 twenty Drafts and a toolbar frozen forever is worse served than one filtering the
 rows that did arrive.
 
+> **Amended:** Drafts no longer paint ahead of the listing. Drafts landing first
+> and items arriving under them read as the list rearranging itself, so while
+> the listing is *pending* the skeleton stands in for every row, Drafts
+> included, and they all land together. The Drafts stay awaited for the error
+> arm: a listing that fails still shows them.
+
 **A Draft whose Source the arrived listing does not hold gets no row**, and #105's
 "Drafts participate in the page's sorting and filtering rather than sitting
 outside it, or the exception is deliberate and stated" is where this is stated.

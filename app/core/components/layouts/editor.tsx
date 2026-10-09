@@ -38,6 +38,7 @@ import {
 	AlertDialogTitle,
 } from "@/ui/components/base/alert-dialog"
 import { Button } from "@/ui/components/base/button"
+import { Spinner } from "@/ui/components/base/spinner"
 import { cn } from "@/ui/lib/utils"
 import type { Route } from "./+types/editor"
 import {
@@ -404,6 +405,7 @@ const EditorLayout = ({ loaderData }: Route.ComponentProps) => {
 							disabled={busy}
 							onRun={(target) => void runAction(target)}
 							onTargetChange={setPrimaryAction}
+							pending={pendingAction === primaryAction}
 							runDisabled={nothingToRun}
 							target={primaryAction}
 						/>
@@ -421,6 +423,9 @@ const EditorLayout = ({ loaderData }: Route.ComponentProps) => {
 								title={controls.publishDisabledReason}
 								onClick={() => void runAction("publish")}
 							>
+								{pendingAction === "publish" && (
+									<Spinner data-icon="inline-start" />
+								)}
 								Publish
 							</Button>
 						) : null}

@@ -140,15 +140,15 @@ describe("a Collection whose listing has not arrived", () => {
 		)
 	})
 
-	// The Drafts are awaited, so they are real on the first paint. They are the
-	// reason a writer opened this page, and holding them back until GitHub
-	// answers would be showing a skeleton over content already in hand.
-	it("shows the writer's own Drafts while the items are still coming", () => {
-		list("pending", [draft()])
+	// The Drafts are in hand, but painting them first and the items under them
+	// later reads as the list rearranging itself; every row lands together.
+	it("holds the writer's own Drafts back until the items arrive", () => {
+		const { container } = list("pending", [draft()])
 
 		expect(
-			screen.getByRole("link", { name: "A new thought…" }),
-		).toBeInTheDocument()
+			screen.queryByRole("link", { name: "A new thought…" }),
+		).not.toBeInTheDocument()
+		expect(skeletonRows(container).length).toBeGreaterThan(0)
 	})
 })
 
@@ -296,10 +296,10 @@ describe("a Draft over a Collection Item", () => {
 		expect(screen.queryByText("Hello world")).not.toBeInTheDocument()
 	})
 
-	// Nothing has arrived to absorb it yet, so it stands alone until its item
-	// turns up — which is what puts the writer's work in front of them first.
-	it("stands alone until the listing arrives to absorb it", () => {
-		const { container } = list("pending", [OVER_HELLO])
+	// Nothing arrived to absorb it, so it stands alone rather than vanish with
+	// the listing GitHub did not answer with.
+	it("stands alone when the listing failed to arrive", () => {
+		const { container } = list("unavailable", [OVER_HELLO])
 
 		expect(bodyRows(container)).toHaveLength(1)
 		expect(

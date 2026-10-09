@@ -190,8 +190,9 @@ function CollectionFrame({
  * than a list plus flags — and the same component renders every arm of the
  * `Suspense` in `routes/collection`, which is what keeps the skeleton's
  * geometry matching the real table's by construction. `drafts` is awaited, so
- * it is real in all three: they come from the database, and losing them to
- * GitHub's silence would take away the half of the page that was still true.
+ * it is real in all three, but rows wait for the listing so the list lands
+ * whole. A failed listing still shows them: losing them to GitHub's silence
+ * would take away the half of the page that was still true.
  *
  * Every control the writer can reach while the listing is pending is either
  * disabled or needs nothing from it, so nothing is lost when React remounts the
@@ -218,6 +219,9 @@ export function CollectionTable({
 	const titleFieldKey = resolveTitleKey(collection.schema)
 
 	const rows = useMemo<Row[]>(() => {
+		// Every row lands at once, behind the skeleton: Drafts painting first and
+		// the items arriving under them reads as a list rearranging itself.
+		if (pending) return []
 		// At most one Draft tracks a given Source — the database says so, with a
 		// unique index on the pair — so an item finds its Draft by path and takes
 		// it out of the running for a row of its own.
@@ -257,9 +261,9 @@ export function CollectionTable({
 			}
 		})
 
-		// Every Draft with no Source behind it — and, until the listing arrives,
-		// every Draft with one, since there is nothing yet for its item to absorb
-		// it into.
+		// Every Draft with no Source behind it — and, when the listing failed,
+		// every Draft with one, since there is nothing for its item to absorb it
+		// into.
 		//
 		// A Draft whose Source the arrived listing does not hold gets no row, and
 		// that exception is deliberate: the file it tracks has gone from the
@@ -289,6 +293,7 @@ export function CollectionTable({
 		collectionSlug,
 		drafts,
 		items,
+		pending,
 		project,
 		titleFieldKey,
 		slugFieldKey,
@@ -561,9 +566,8 @@ export function CollectionTable({
 								))}
 							</TableRow>
 						))}
-						{/* Under the Drafts rather than instead of them: the Drafts are
-						    already here, and the skeleton stands only for the items still
-						    on their way. */}
+						{/* Instead of every row, Drafts included, so the list lands
+						    whole rather than in two halves. */}
 						{pending && <TableRowsSkeleton />}
 						{/* Neither a pending listing nor a failed one may say the
 						    Collection is empty — that is a wrong answer rather than a
