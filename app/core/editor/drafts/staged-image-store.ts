@@ -11,6 +11,8 @@ export interface StagedImageStore {
 	delete(ids: string[]): Promise<void>
 	/** Where a Commit writes them, as a repository path. */
 	mediaPath: string
+	/** What the committed Body links them by. */
+	mediaUrl: string
 	/** One image's bytes; null when nothing is staged under the id. */
 	read(id: string): Promise<Uint8Array | null>
 }

@@ -23,6 +23,7 @@ import {
 	stagedImageBaseUrl,
 } from "@/core/editor/staged-images"
 import { previewSrc } from "@/core/fields/image"
+import type { MediaLocation } from "@/core/fields/types"
 import { usePreferences } from "@/core/preferences/context"
 import {
 	type AutosaveState,
@@ -113,6 +114,7 @@ export function CollectionItemEditor({
 	canPublish,
 	editorPath,
 	hasBody,
+	media,
 	mode,
 	name,
 	opened,
@@ -132,6 +134,8 @@ export function CollectionItemEditor({
 	 * editor to hold, so its Fields take the writing column instead.
 	 */
 	hasBody: boolean
+	/** Where committed images are, for the Body and image Fields to preview. */
+	media: MediaLocation
 	mode: "item" | "new"
 	name: string
 	opened: OpenedContent | null
@@ -196,7 +200,7 @@ export function CollectionItemEditor({
 	// asset route like an image Field's.
 	const imageUpload = useMemo<ImageUploadAdapter>(
 		() => ({
-			resolveSrc: (src) => previewSrc(src, assetBaseUrl),
+			resolveSrc: (src) => previewSrc(src, assetBaseUrl, media),
 			upload: async (file) => {
 				const body = new FormData()
 				body.set("file", file)
@@ -217,7 +221,7 @@ export function CollectionItemEditor({
 			},
 			validate: (file) => checkStagedImage(file)?.error ?? null,
 		}),
-		[assetBaseUrl, name, owner],
+		[assetBaseUrl, media, name, owner],
 	)
 	const { documentKey, managedFields, sidebarFields, titleKey } = useMemo(
 		() => getCollectionEditorFields(schema),
@@ -610,6 +614,7 @@ export function CollectionItemEditor({
 			onChange={(value) => updateField(key, value)}
 			disabled={pending || isHeld}
 			assetBaseUrl={assetBaseUrl}
+			media={media}
 		/>
 	)
 

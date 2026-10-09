@@ -258,6 +258,17 @@ describe("the control over an image", () => {
 		}
 	})
 
+	it("previews a media URL from the media directory it was written to", () => {
+		const { container } = control(image, "/images/cat.png", {
+			assetBaseUrl: "/api/repo-asset/acme/site",
+			media: { path: "public/images", url: "/images" },
+		})
+
+		expect(container.querySelector("img")?.getAttribute("src")).toBe(
+			"/api/repo-asset/acme/site/public/images/cat.png",
+		)
+	})
+
 	it("shows the path as-is when there is no asset base to resolve against", () => {
 		const { container } = control(image, "images/a.png")
 		expect(container.querySelector("img")?.getAttribute("src")).toBe(

@@ -30,7 +30,7 @@ export { shouldRevalidate } from "./singleton-editor"
 async function resolveRowEditorContext(
 	args: Route.LoaderArgs | Route.ActionArgs,
 ) {
-	const { drafts, name, owner, singleton } =
+	const { drafts, media, name, owner, singleton } =
 		await resolveSingletonEditorContext(args)
 	const row = createSingletonRowDrafts({
 		drafts,
@@ -39,7 +39,7 @@ async function resolveRowEditorContext(
 		schema: singleton.schema,
 	})
 	if (!row) throw new Response("Not Found", { status: 404 })
-	return { name, owner, row }
+	return { media, name, owner, row }
 }
 
 /**
@@ -55,12 +55,13 @@ async function openRow(
 }
 
 export async function loader(args: Route.LoaderArgs) {
-	const { name, owner, row } = await resolveRowEditorContext(args)
+	const { media, name, owner, row } = await resolveRowEditorContext(args)
 
 	return {
 		canPublish: false,
 		// A row has no Body: a Source has one, and it belongs to the Singleton.
 		hasBody: false,
+		media,
 		name,
 		owner,
 		publishDisabledReason: null,
@@ -102,6 +103,7 @@ export default function SingletonItemEditor({
 	const chrome = {
 		canPublish: loaderData.canPublish,
 		hasBody: loaderData.hasBody,
+		media: loaderData.media,
 		name: loaderData.name,
 		owner: loaderData.owner,
 		panel,

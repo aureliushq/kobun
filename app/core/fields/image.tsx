@@ -1,5 +1,5 @@
 import { InlineText, TextControl } from "./presentation"
-import type { FieldTypeDefFor } from "./types"
+import type { FieldTypeDefFor, MediaLocation } from "./types"
 
 /**
  * A repository path is served through kobun's asset route rather than linked
@@ -28,13 +28,13 @@ export const imageField: FieldTypeDefFor<"image"> = {
 	defaultValue: () => "",
 	// The path is typed, not picked — there is no browser for the repository
 	// yet. The preview underneath is what tells the writer they typed it right.
-	renderControl: ({ assetBaseUrl, disabled, onChange, value }) => (
+	renderControl: ({ assetBaseUrl, disabled, media, onChange, value }) => (
 		<>
 			<TextControl disabled={disabled} onChange={onChange} value={value} />
 			{value ? (
 				<img
 					className="mt-2 max-h-40 rounded-md border object-contain"
-					src={previewSrc(String(value), assetBaseUrl)}
+					src={previewSrc(String(value), assetBaseUrl, media)}
 					alt="Preview"
 				/>
 			) : null}
@@ -71,8 +71,18 @@ export const imageField: FieldTypeDefFor<"image"> = {
  * route built and passes it in. The two also disagree on purpose about a
  * root-relative path — the editor leaves one alone, because a writer who typed
  * a leading slash meant a path on this site, not in the repository.
+ *
+ * The one site path it does follow back is the media URL: a committed image is
+ * linked by where the site serves it, and the file is in the media directory.
  */
-export function previewSrc(raw: string, assetBaseUrl?: string) {
+export function previewSrc(
+	raw: string,
+	assetBaseUrl?: string,
+	media?: MediaLocation,
+) {
+	if (media && media.url !== media.path && raw.startsWith(`${media.url}/`)) {
+		raw = `${media.path}${raw.slice(media.url.length)}`
+	}
 	if (/^(https?:|data:|\/)/i.test(raw) || !assetBaseUrl) return raw
 	return `${assetBaseUrl}/${encodeSegments(raw)}`
 }

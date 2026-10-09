@@ -72,6 +72,15 @@ export const validateConfig = (
 			: "src/assets/images"
 	).replace(/^\/+|\/+$/g, "")
 
+	// mediaUrl: optional, defaults to mediaPath. The link the committed Markdown
+	// uses, for a site that serves the media directory somewhere else — a
+	// `public/images` served at `/images`. Its leading slash is kept: it is a
+	// path on the site, not in the repository.
+	const mediaUrl =
+		typeof parsedRaw.mediaUrl === "string"
+			? parsedRaw.mediaUrl.replace(/\/+$/, "")
+			: mediaPath
+
 	// collections: required object
 	const collections: Record<string, Collection> = {}
 	const rawCollections = parsedRaw.collections
@@ -164,6 +173,7 @@ export const validateConfig = (
 				collections,
 				errors,
 				mediaPath,
+				mediaUrl,
 				singletons,
 				version: versionResult.success ? versionResult.data : 0,
 			}

@@ -27,6 +27,8 @@ export async function resolveSingletonEditorContext({
 
 	return {
 		editorPath,
+		// Where committed images are, for the editor's previews.
+		media: { path: ctx.config.mediaPath, url: ctx.config.mediaUrl },
 		drafts: createSingletonDrafts({
 			db,
 			filePath,
@@ -42,6 +44,7 @@ export async function resolveSingletonEditorContext({
 			stagedImages: createR2StagedImageStore({
 				bucket: env.IMAGES,
 				mediaPath: ctx.config.mediaPath,
+				mediaUrl: ctx.config.mediaUrl,
 				name,
 				owner,
 				projectId: projectRow.id,

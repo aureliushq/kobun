@@ -1,6 +1,7 @@
 import type { Field } from "@/config/types"
 import { renderFieldControl } from "@/core/fields"
 import { ControlRow } from "@/core/fields/presentation"
+import type { MediaLocation } from "@/core/fields/types"
 import { defaultFieldValue, updateMetadataField } from "./collection-metadata"
 
 /**
@@ -19,6 +20,7 @@ export function MetadataField({
 	editorPath,
 	field,
 	fieldKey,
+	media,
 	onChange,
 	value,
 }: {
@@ -28,6 +30,7 @@ export function MetadataField({
 	editorPath?: string
 	field: Field
 	fieldKey?: string
+	media?: MediaLocation
 	onChange(value: unknown): void
 	value: unknown
 }) {
@@ -39,6 +42,7 @@ export function MetadataField({
 				disabled,
 				editorPath,
 				fieldKey,
+				media,
 				onChange,
 				updateForSchema: updateMetadataField,
 			})}

@@ -115,6 +115,8 @@ export type NormalizedConfig = {
 	errors: ConfigError[]
 	/** Where committed images are written, as a repository path. */
 	mediaPath: string
+	/** What the committed Markdown links images by: a path on the site. */
+	mediaUrl: string
 	singletons: Record<string, Singleton>
 	version: number
 }

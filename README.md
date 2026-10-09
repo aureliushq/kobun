@@ -16,12 +16,13 @@
 
 ### Config paths
 
-Both paths are relative to the repository root.
+`basePath` and `mediaPath` are relative to the repository root. `mediaUrl` is a path on your site.
 
 | Option | Default | What it is |
 | --- | --- | --- |
 | `basePath` | `src/content` | Where Collections (`<basePath>/collections/<collection>/`) and Singletons (`<basePath>/singletons/`) live. |
-| `mediaPath` | `src/assets/images` | Where images added in the editor are written on Save to GitHub or Publish. The Markdown links each one by this path, for example `src/assets/images/<id>.png`. |
+| `mediaPath` | `src/assets/images` | Where images added in the editor are written on Save to GitHub or Publish, for example `src/assets/images/<id>.png`. |
+| `mediaUrl` | `mediaPath` | What the Markdown links each image by. Set it when your site serves the media directory at another path: `mediaPath: "public/images"` with `mediaUrl: "/images"` links `/images/<id>.png`. |
 
 ## Tech Stack
 

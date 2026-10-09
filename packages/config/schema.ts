@@ -387,6 +387,7 @@ export const kobunConfigSchema = z.object({
 	basePath: z.string().optional(),
 	collections: z.record(z.string(), collectionSchema),
 	mediaPath: z.string().optional(),
+	mediaUrl: z.string().optional(),
 	singletons: z.record(z.string(), singletonSchema).optional(),
 	version: versionSchema,
 })

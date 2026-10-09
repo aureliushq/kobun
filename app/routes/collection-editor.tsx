@@ -121,6 +121,8 @@ async function resolveCollectionEditorContext(
 				{ installationId, name, owner },
 				directory.directoryPath,
 			),
+		// Where committed images are, for the editor's previews.
+		media: { path: ctx.config.mediaPath, url: ctx.config.mediaUrl },
 		name,
 		owner,
 		projectRow,
@@ -135,6 +137,7 @@ async function resolveCollectionEditorContext(
 		stagedImages: createR2StagedImageStore({
 			bucket: env.IMAGES,
 			mediaPath: ctx.config.mediaPath,
+			mediaUrl: ctx.config.mediaUrl,
 			name,
 			owner,
 			projectId: projectRow.id,
@@ -239,6 +242,7 @@ export async function loader(args: Route.LoaderArgs) {
 		// declare; Save to GitHub is then the only path to the repository
 		// (ADR-0008).
 		canPublish: hasPublicationState(schema),
+		media: resolved.media,
 		name: resolved.name,
 		owner: resolved.owner,
 		publishDisabledReason: null,
@@ -336,7 +340,8 @@ export async function action(args: Route.ActionArgs) {
 }
 
 export default function CollectionEditor({ loaderData }: Route.ComponentProps) {
-	const { canPublish, name, owner, publishDisabledReason, schema } = loaderData
+	const { canPublish, media, name, owner, publishDisabledReason, schema } =
+		loaderData
 	const params = useParams()
 	// Above the boundary, so the panel keeps whatever the writer set while the
 	// content was still on its way.
@@ -345,6 +350,7 @@ export default function CollectionEditor({ loaderData }: Route.ComponentProps) {
 		canPublish,
 		// The route only opens md and mdx Collections, which always have one.
 		hasBody: true,
+		media,
 		name,
 		owner,
 		panel,

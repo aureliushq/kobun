@@ -484,4 +484,25 @@ describe("the media directory", () => {
 		expect(errors).toEqual([])
 		expect(config?.mediaPath).toBe("public/images")
 	})
+
+	it("is linked by its own path unless a media URL is declared", () => {
+		const { config } = parse({
+			collections: { posts: POSTS },
+			mediaPath: "public/images",
+		})
+
+		expect(config?.mediaUrl).toBe("public/images")
+	})
+
+	// A media URL is a path on the site, so its leading slash stays.
+	it("is linked by the media URL, without its trailing slash", () => {
+		const { config, errors } = parse({
+			collections: { posts: POSTS },
+			mediaPath: "public/images",
+			mediaUrl: "/images/",
+		})
+
+		expect(errors).toEqual([])
+		expect(config?.mediaUrl).toBe("/images")
+	})
 })

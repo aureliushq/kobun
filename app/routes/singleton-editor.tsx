@@ -51,7 +51,7 @@ async function openSingleton(
 }
 
 export async function loader(args: Route.LoaderArgs) {
-	const { drafts, editorPath, name, owner, singleton } =
+	const { drafts, editorPath, media, name, owner, singleton } =
 		await resolveSingletonEditorContext(args)
 
 	return {
@@ -61,6 +61,7 @@ export async function loader(args: Route.LoaderArgs) {
 		// (ADR-0008).
 		canPublish: hasPublicationState(singleton.schema),
 		hasBody: !isDataOnly(singleton.format),
+		media,
 		name,
 		owner,
 		publishDisabledReason: null,
@@ -114,6 +115,7 @@ export default function SingletonEditor({ loaderData }: Route.ComponentProps) {
 		canPublish: loaderData.canPublish,
 		editorPath: loaderData.editorPath,
 		hasBody: loaderData.hasBody,
+		media: loaderData.media,
 		name: loaderData.name,
 		owner: loaderData.owner,
 		panel,

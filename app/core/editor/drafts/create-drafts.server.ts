@@ -509,10 +509,10 @@ function createDraftLifecycle<ItemSlug extends string | null>(context: {
 				.delete(images.map((image) => image.id))
 				.catch(() => undefined)
 		}
-		// Which link became which path, so an editor still holding the staged
+		// Which link became which URL, so an editor still holding the staged
 		// links can follow the Body to the repository.
 		const committedImages = Object.fromEntries(
-			images.map((image) => [image.src, image.path]),
+			images.map((image) => [image.src, image.url]),
 		)
 
 		const committedSource: CommittedSource<ItemSlug> = {
@@ -572,6 +572,7 @@ function createDraftLifecycle<ItemSlug extends string | null>(context: {
 			input.markdown,
 			stagedImages.baseUrl,
 			stagedImages.mediaPath,
+			stagedImages.mediaUrl,
 		)
 		const committing: ResolvedSaveInput = {
 			...input,

@@ -136,6 +136,9 @@ export type RenderInlineContext<F extends ValueField> = {
 	value: unknown
 }
 
+/** Where committed images are written in the repository, and the URL the site serves them from. */
+export type MediaLocation = { path: string; url: string }
+
 /**
  * Everything an editable Field needs that is neither the Field nor its value:
  * where its asset lives, how to default a new one, how to change a record,
@@ -144,6 +147,8 @@ export type RenderInlineContext<F extends ValueField> = {
  */
 export type ControlContext = {
 	assetBaseUrl?: string
+	/** Where the media URL's images are in the repository, for previews. */
+	media?: MediaLocation
 	defaultForField: DefaultForField
 	disabled?: boolean
 	/**

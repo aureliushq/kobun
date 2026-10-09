@@ -153,3 +153,15 @@ test("a Singleton's Body commits its images the same way", async () => {
 		`![A cat](${TEST_MEDIA_PATH}/${CAT})\n`,
 	)
 })
+
+test("a declared media URL is what the Body links, and what the editor follows", async () => {
+	const { drafts, sourceStore, stagedImages } = setup()
+	stagedImages.mediaUrl = "/images"
+	const cat = stagedImages.put(CAT, CAT_BYTES)
+
+	const result = await drafts.commit(commitItem(`![A cat](${cat})\n`))
+
+	expect(result).toMatchObject({ images: { [cat]: `/images/${CAT}` } })
+	expect(sourceStore.getImage(`${TEST_MEDIA_PATH}/${CAT}`)).toEqual(CAT_BYTES)
+	expect(committedBody()).toBe(`![A cat](/images/${CAT})\n`)
+})

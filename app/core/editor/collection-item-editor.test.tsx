@@ -124,6 +124,7 @@ function editor(
 					<CollectionItemEditor
 						canPublish={canPublish}
 						hasBody={hasBody}
+						media={{ path: "src/assets/images", url: "src/assets/images" }}
 						mode={mode}
 						name="site"
 						opened={content}

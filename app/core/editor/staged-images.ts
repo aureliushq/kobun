@@ -41,23 +41,28 @@ export function stagedImageBaseUrl(owner: string, name: string) {
 	return `/api/staged-image/${encodeURIComponent(owner)}/${encodeURIComponent(name)}`
 }
 
-/** A Staged Image a Commit writes, and the repository path it is written to. */
+/**
+ * A Staged Image a Commit writes, the repository path it is written to, and the
+ * URL the Body links it by.
+ */
 export interface CommittedImage {
 	id: string
 	path: string
 	src: string
+	url: string
 }
 
 /**
- * The Body as it is committed: each Staged Image it still uses points at its
- * path in the media directory, and those images are named so the Commit can
- * write them. An image the writer removed is not in the Body, so it is not
+ * The Body as it is committed: each Staged Image it still uses points at the
+ * URL the site serves it from, and those images are named, with their path in
+ * the media directory, so the Commit can write them. An image the writer removed is not in the Body, so it is not
  * named and never reaches the repository.
  */
 export function commitStagedImages(
 	markdown: string,
 	baseUrl: string,
 	mediaPath: string,
+	mediaUrl: string,
 ): { images: CommittedImage[]; markdown: string } {
 	const extensions = [...new Set(STAGED_IMAGE_TYPES.values())].join("|")
 	const pattern = new RegExp(
@@ -67,9 +72,9 @@ export function commitStagedImages(
 	)
 	const images = new Map<string, CommittedImage>()
 	const committed = markdown.replace(pattern, (src, id: string) => {
-		const path = `${mediaPath}/${id}`
-		images.set(id, { id, path, src })
-		return path
+		const url = `${mediaUrl}/${id}`
+		images.set(id, { id, path: `${mediaPath}/${id}`, src, url })
+		return url
 	})
 	return { images: [...images.values()], markdown: committed }
 }

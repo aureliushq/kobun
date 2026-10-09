@@ -126,6 +126,7 @@ export function createFakeStagedImageStore(): FakeStagedImageStore {
 		},
 		has: (id) => images.has(id),
 		mediaPath: TEST_MEDIA_PATH,
+		mediaUrl: TEST_MEDIA_PATH,
 		put: (id, bytes) => {
 			images.set(id, bytes)
 			return `${baseUrl}/${id}`
