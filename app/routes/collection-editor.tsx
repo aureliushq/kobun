@@ -302,12 +302,13 @@ export async function action(args: Route.ActionArgs) {
 	// Publishing ends the editing session: the writer goes back to the list they
 	// came from, whichever way the publish landed. A Save to GitHub stays put —
 	// unless it just turned a new item into one the repository names, which the
-	// URL has to follow or the next keystroke mints a second Draft.
+	// URL has to follow or the next keystroke mints a second Draft, or committed
+	// a new Slug for an existing item, which the old URL no longer answers to.
 	const collectionPath = publishing ? collectionPathFor(resolved) : undefined
 	const itemPath =
 		publishing ||
-		target.mode !== "new" ||
-		committed.outcome === "matches-source"
+		committed.outcome === "matches-source" ||
+		(target.mode === "item" && committed.itemSlug === target.slug)
 			? undefined
 			: getCollectionItemEditorPath(
 					{ repoName: resolved.name, repoOwnerLogin: resolved.owner },

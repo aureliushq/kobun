@@ -396,11 +396,14 @@ export function CollectionItemEditor({
 					// as a duplicate slug. The loader is skipped, as for a Draft's
 					// adoption: the editor already holds what was committed, and
 					// re-running it would remount the editor over a read from GitHub
-					// (#176).
+					// (#176). An existing item whose Slug changed is the opposite case:
+					// the route keys its editor on the Slug, so it remounts anyway, and
+					// must remount on what was just committed.
 					if (result.itemPath) {
+						const isNew = targetRef.current.mode === "new"
 						targetRef.current = { mode: "item", path: result.itemPath }
 						await navigate(result.itemPath, {
-							defaultShouldRevalidate: false,
+							defaultShouldRevalidate: !isNew,
 							preventScrollReset: true,
 							replace: true,
 						})
