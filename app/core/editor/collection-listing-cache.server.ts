@@ -2,19 +2,18 @@ import { and, eq } from "drizzle-orm"
 import { parseDocument } from "@/core/content/document.server"
 import type { RepositoryAddress } from "@/core/project-context"
 import { collectionListing } from "@/db/schema/app-schema"
+import type { Database } from "@/db/types"
 import {
 	collectionFileFormat,
 	isMarkdownCollectionFile,
 } from "./collection-items.server"
 import type {
-	CollectionListingDatabase,
 	CollectionListingEntry,
 	CollectionListingRead,
 	CollectionListingSource,
-	CollectionSourceFile,
 } from "./collection-listing-source"
 import type { CollectionItem } from "./collection-table"
-import type { SourceStore } from "./drafts/source-store"
+import type { SourceFile, SourceStore } from "./drafts/source-store"
 
 /**
  * How long a listing is trusted without asking the repository again. A commit
@@ -125,7 +124,7 @@ async function fingerprint(entries: CollectionListingEntry[]): Promise<string> {
  * error state. It runs before anything is written, so a broken file is never
  * remembered as an absence.
  */
-function toItems(files: CollectionSourceFile[]): CollectionItem[] {
+function toItems(files: SourceFile[]): CollectionItem[] {
 	return files.filter(isMarkdownCollectionFile).map((file) => ({
 		data: parseDocument(file.content, collectionFileFormat(file)).data,
 		name: file.name,
@@ -184,7 +183,7 @@ function inEntryOrder(
  * missing directory means, what to remember — is here.
  */
 export function createCollectionListingCache(deps: {
-	db: CollectionListingDatabase
+	db: Database
 	listingSource: CollectionListingSource
 }) {
 	const { db, listingSource } = deps
@@ -418,7 +417,7 @@ export function createCollectionListingCache(deps: {
  * known to be stale, so it could only buy a 304 that cannot happen.
  */
 export async function invalidateCollectionListing(
-	db: CollectionListingDatabase,
+	db: Database,
 	projectId: string,
 	directoryPath: string,
 ): Promise<void> {

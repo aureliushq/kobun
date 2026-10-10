@@ -26,7 +26,7 @@ This guide covers everything needed to deploy Kobun, whether for production self
 - [Cloudflare](https://dash.cloudflare.com/sign-up) account
 - [GitHub](https://github.com) account
 - [Node.js](https://nodejs.org/) >= 24.13.0
-- [Bun](https://bun.sh/) >= 1.3.8
+- [Bun](https://bun.sh/) >= 1.3.14
 
 > **Development only** — this section is for contributors and is not required for production self-hosting.
 >
@@ -215,7 +215,6 @@ In CI they're passed to the Build step from GitHub Actions variables — see [En
 >
 > ```
 > CLOUDFLARE_ACCOUNT_ID=your-account-id
-> CLOUDFLARE_DATABASE_ID=your-database-id
 > CLOUDFLARE_API_TOKEN=your-api-token
 > VITE_KOBUN_HOME_URL=https://kobun.io
 > VITE_KOBUN_APP_URL=http://localhost:5173

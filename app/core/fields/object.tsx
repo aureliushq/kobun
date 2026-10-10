@@ -1,4 +1,5 @@
 import { Fragment } from "react"
+import { isPlainObject } from "@/config/types"
 import { FieldsPanel, InlineText } from "./presentation"
 import { resolveTitle } from "./roles"
 import type { FieldTypeDefFor } from "./types"
@@ -75,7 +76,5 @@ export const objectField: FieldTypeDefFor<"object"> = {
 
 /** Anything that is not a record of children holds none of them. */
 function asRecord(value: unknown): Record<string, unknown> {
-	return value && typeof value === "object" && !Array.isArray(value)
-		? (value as Record<string, unknown>)
-		: {}
+	return isPlainObject(value) ? value : {}
 }

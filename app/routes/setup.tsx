@@ -10,6 +10,7 @@ import {
 } from "lucide-react"
 import { useState } from "react"
 import {
+	createCookie,
 	data,
 	Form,
 	Link,
@@ -18,14 +19,15 @@ import {
 	useNavigation,
 } from "react-router"
 import { getAuth } from "@/auth/auth.server"
-import { syncProjectConfig } from "@/config/github.server"
 import { envContext } from "@/core/context"
 import { connectProject } from "@/core/project-context"
+import { refreshProjectConfig } from "@/core/project-context/project-context.server"
 import { dbContext } from "@/db/context"
 import { githubInstallation, project, userInstallation } from "@/db/schema"
 import {
 	getGithubAppInstallUrl,
 	getGithubInstallation,
+	hasStatus,
 	listGithubInstallationRepositories,
 } from "@/github/octokit.server"
 import { posthogContext } from "@/lib/posthog-middleware"
@@ -74,6 +76,14 @@ import {
 } from "@/ui/lib/types"
 import type { Route } from "./+types/setup"
 
+const installStateCookie = createCookie("github_install_state", {
+	httpOnly: true,
+	maxAge: 600,
+	path: PATHS.SETUP,
+	sameSite: "lax",
+	secure: true,
+})
+
 export async function loader({ context, request, url }: Route.LoaderArgs) {
 	const db = context.get(dbContext)
 	const env = context.get(envContext)
@@ -88,18 +98,10 @@ export async function loader({ context, request, url }: Route.LoaderArgs) {
 
 	// handle post-install callback
 	if (githubInstallationId) {
-		const cookieHeader = request.headers.get("Cookie")
-		const cookies: Record<string, unknown> = {}
-		if (cookieHeader) {
-			cookieHeader.split(";").forEach((cookie) => {
-				const [name, ...rest] = cookie.split("=")
-				if (name && rest.length > 0) {
-					cookies[name.trim()] = decodeURIComponent(rest.join("="))
-				}
-			})
-		}
-		const originalState = cookies.github_install_state as string
-		if (receivedState !== originalState) {
+		const originalState = await installStateCookie.parse(
+			request.headers.get("Cookie"),
+		)
+		if (!receivedState || receivedState !== originalState) {
 			throw redirect(PATHS.SETUP)
 		}
 
@@ -225,11 +227,7 @@ export async function loader({ context, request, url }: Route.LoaderArgs) {
 							installationId: li.githubInstallation.id,
 						}))
 					} catch (error) {
-						if (
-							error instanceof Error &&
-							"status" in error &&
-							error.status === 404
-						) {
+						if (hasStatus(error, 404)) {
 							await db
 								.update(githubInstallation)
 								.set({ deletedAt: new Date() })
@@ -272,8 +270,13 @@ export async function action({ context, request }: Route.ActionArgs) {
 						env,
 						installation.githubInstallationId,
 					),
-				syncConfig: (connectedProject) =>
-					syncProjectConfig(db, env, connectedProject),
+				refreshConfig: (connectedProject, installation) =>
+					refreshProjectConfig(
+						db,
+						env,
+						connectedProject,
+						installation.githubInstallationId,
+					),
 			},
 			{
 				installationId: formData.get("installation_id") as string,
@@ -293,7 +296,7 @@ export async function action({ context, request }: Route.ActionArgs) {
 			},
 		})
 
-		// The Project's dashboard, which now renders whatever the sync above
+		// The Project's dashboard, which now renders whatever the refresh above
 		// found — including a Config it could not read (ADR-0007).
 		return redirect(result.path)
 	}
@@ -307,7 +310,7 @@ export async function action({ context, request }: Route.ActionArgs) {
 
 		return redirect(installUrl, {
 			headers: {
-				"Set-Cookie": `github_install_state=${state}; HttpOnly; Secure; SameSite=Lax; Path=${PATHS.SETUP}; Max-Age=600`,
+				"Set-Cookie": await installStateCookie.serialize(state),
 			},
 		})
 	}

@@ -1,7 +1,9 @@
 import {
-	isDateDisplay,
-	isEditorFont,
-	isEditorWidth,
+	DateDisplay,
+	EditorFont,
+	EditorWidth,
+	isEnumValue,
+	isPrimaryEditorAction,
 	type UserPreferenceValues,
 } from "@/db/types"
 
@@ -9,10 +11,9 @@ import {
  * Read one Preference change off a submitted form.
  *
  * One control, one value: the account page saves as the writer changes things
- * rather than behind a Save button, the way the theme and save-target controls
- * already behave. So a submission carries a `key` and a `value` and never a
- * whole form, and this turns that pair into the patch `writeUserPreferences`
- * takes.
+ * rather than behind a Save button, the way the theme control already behaves.
+ * So a submission carries a `key` and a `value` and never a whole form, and
+ * this turns that pair into the patch `writeUserPreferences` takes.
  *
  * Null means the submission named a Preference that does not exist, or a value
  * that Preference cannot hold — the caller's cue to refuse rather than to
@@ -38,11 +39,15 @@ export function parsePreferenceUpdate(
 			return { [key]: value === "true" }
 		}
 		case "dateDisplay":
-			return isDateDisplay(value) ? { dateDisplay: value } : null
+			return isEnumValue(DateDisplay, value) ? { dateDisplay: value } : null
 		case "editorFont":
-			return isEditorFont(value) ? { editorFont: value } : null
+			return isEnumValue(EditorFont, value) ? { editorFont: value } : null
+		case "editorPrimaryAction":
+			return isPrimaryEditorAction(value)
+				? { editorPrimaryAction: value }
+				: null
 		case "editorWidth":
-			return isEditorWidth(value) ? { editorWidth: value } : null
+			return isEnumValue(EditorWidth, value) ? { editorWidth: value } : null
 		case "locale":
 			return parseLocale(value)
 		case "timezone":

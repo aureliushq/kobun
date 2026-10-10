@@ -17,6 +17,7 @@ import {
 } from "@/db/schema/app-schema"
 import { user } from "@/db/schema/auth-schema"
 import { createInMemoryDb } from "@/db/testing"
+import type { Database } from "@/db/types"
 import { createDrafts, createSingletonDrafts } from "./create-drafts.server"
 import type {
 	SourceFile,
@@ -25,7 +26,7 @@ import type {
 	SourceWriteResult,
 } from "./source-store"
 import type { StagedImageStore } from "./staged-image-store"
-import type { DraftRow, DraftsDatabase, ListedItem } from "./types"
+import type { DraftRow, ListedItem } from "./types"
 
 export interface FakeSourceStore extends SourceStore {
 	/** The stored Source file, for asserting on what a write left behind. */
@@ -140,7 +141,7 @@ export const TEST_MEDIA_PATH = "src/assets/images"
 export interface DraftsTestHarness {
 	close(): void
 	/** The same handle the module holds, so spies on it are seen by the module. */
-	db: DraftsDatabase
+	db: Database
 	drafts: ReturnType<typeof createDrafts>
 	/**
 	 * The listing the module looks Slugs up in, read off the fake repository so
@@ -304,7 +305,7 @@ function createHarnessBase(options: {
 
 	// The schema is real and the SQL is the subject under test; only the driver
 	// differs from production, so the module keeps its exact D1 type.
-	const db = sqliteDb as unknown as DraftsDatabase
+	const db = sqliteDb as unknown as Database
 	const sourceStore = createFakeSourceStore(options.files)
 	const stagedImages = createFakeStagedImageStore()
 	let drafts = 0

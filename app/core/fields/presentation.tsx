@@ -1,5 +1,5 @@
 import { Fragment } from "react"
-import type { Field } from "@/config/types"
+import { type Field, isPlainObject } from "@/config/types"
 import { Input } from "@/ui/components/base/input"
 import type { RenderChild } from "./types"
 
@@ -177,10 +177,7 @@ export function FieldsPanel({
 	if (entries.length === 0) {
 		return <JsonFallback value={value} />
 	}
-	const record =
-		value && typeof value === "object" && !Array.isArray(value)
-			? (value as Record<string, unknown>)
-			: {}
+	const record = isPlainObject(value) ? value : {}
 
 	return (
 		<div className="flex flex-col gap-4">

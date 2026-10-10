@@ -31,6 +31,21 @@ test("a writer choosing from a list gets the value that list offered", () => {
 	})
 })
 
+test("a writer choosing the editor's primary action gets the target they chose", () => {
+	expect(submit("editorPrimaryAction", "commit")).toEqual({
+		editorPrimaryAction: "commit",
+	})
+	expect(submit("editorPrimaryAction", "save")).toEqual({
+		editorPrimaryAction: "save",
+	})
+})
+
+// Publish is a separate button and never a primary (ADR-0008), so it must not
+// be settable through the same door.
+test("Publish is refused as a primary action", () => {
+	expect(submit("editorPrimaryAction", "publish")).toBeNull()
+})
+
 test("a value outside its vocabulary is refused rather than stored", () => {
 	expect(submit("editorWidth", "enormous")).toBeNull()
 	expect(submit("editorFont", "comic")).toBeNull()
@@ -40,7 +55,6 @@ test("a value outside its vocabulary is refused rather than stored", () => {
 
 test("a Preference nobody has is refused", () => {
 	expect(submit("theme", "dark")).toBeNull()
-	expect(submit("editorPrimaryAction", "commit")).toBeNull()
 })
 
 test("a submission missing its key or value is refused", () => {

@@ -143,16 +143,13 @@ describe("emoji", () => {
 		await waitFor(() => expect(editor).toBeDefined())
 		const currentEditor = editor as Editor
 		currentEditor.commands.insertContent(":smile")
-		await waitFor(() =>
-			expect(
-				EmojiSuggestionPluginKey.getState(currentEditor.state)?.active,
-			).toBe(true),
-		)
+		const item = await screen.findByText("😄")
 
 		fireEvent.keyDown(currentEditor.view.dom, { key: "Escape" })
 
 		expect(EmojiSuggestionPluginKey.getState(currentEditor.state)?.active).toBe(
 			false,
 		)
+		await waitFor(() => expect(item).not.toBeInTheDocument())
 	})
 })

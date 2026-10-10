@@ -6,7 +6,6 @@ import {
 } from "react-router"
 import invariant from "tiny-invariant"
 import { hasPublicationState } from "@/config/features"
-import { SET_PRIMARY_ACTION_PATH } from "@/core/components/layouts/use-primary-editor-action"
 import { isDataOnly } from "@/core/content/document.server"
 import {
 	CollectionItemEditor,
@@ -22,19 +21,20 @@ import {
 	saveResponse,
 } from "@/core/editor/editor-action"
 import { resolveSingletonEditorContext } from "@/core/editor/singleton-editor-context.server"
+import { SET_PREFERENCE_PATH } from "@/core/settings/use-preference"
 import { EditorActionIntents } from "@/ui/lib/types"
 import type { Route } from "./+types/singleton-editor"
 
 /**
- * Choosing which target the header's primary button runs is chrome, and says
- * nothing about the Singleton being edited — re-reading its Source would cost a
- * GitHub round trip for a menu click made mid-sentence.
+ * A Preference — such as which target the header's primary button runs — is
+ * chrome, and says nothing about the Singleton being edited. Re-reading its
+ * Source would cost a GitHub round trip for a menu click made mid-sentence.
  */
 export function shouldRevalidate({
 	defaultShouldRevalidate,
 	formAction,
 }: ShouldRevalidateFunctionArgs) {
-	if (formAction === SET_PRIMARY_ACTION_PATH) return false
+	if (formAction === SET_PREFERENCE_PATH) return false
 	return defaultShouldRevalidate
 }
 

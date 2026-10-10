@@ -37,7 +37,7 @@
 ## Prerequisites
 
 - Node.js >= 24.13.0
-- Bun >= 1.3.8
+- Bun >= 1.3.14
 
 > [!NOTE]
 > A `.tool-versions` file is included for use with [mise](https://mise.jdx.dev/) or [asdf](https://asdf-vm.com/). Run `mise install` or `asdf install` to install the correct versions.
@@ -66,7 +66,6 @@ The local app runs at [http://localhost:5173](http://localhost:5173).
 | `BETTER_AUTH_URL` | Base URL of the app (default: `http://localhost:5173`) |
 | `BETTER_AUTH_SECRET` | Auth secret. Generate with `openssl rand -base64 32` |
 | `CLOUDFLARE_ACCOUNT_ID` | Cloudflare account ID (needed for remote DB operations) |
-| `CLOUDFLARE_DATABASE_ID` | Cloudflare D1 database ID (needed for remote DB operations) |
 | `CLOUDFLARE_API_TOKEN` | Cloudflare API token (needed for remote DB operations) |
 
 ### `.dev.vars` — Runtime secrets for the local Wrangler dev server

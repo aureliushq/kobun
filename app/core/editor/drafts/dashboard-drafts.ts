@@ -2,9 +2,9 @@ import { and, count, desc, eq, inArray, isNotNull, sql } from "drizzle-orm"
 import invariant from "tiny-invariant"
 import { lastKnownConfig } from "@/core/project-context"
 import { editorDraft, project } from "@/db/schema/app-schema"
+import type { Database } from "@/db/types"
 import type { ProjectLocation } from "./draft-paths"
 import { draftHeading, subcollectionLabel } from "./draft-summary"
-import type { DraftsDatabase } from "./types"
 
 /**
  * How many Drafts the dashboard shows before it offers the rest.
@@ -67,7 +67,7 @@ export interface DashboardDrafts {
  * heading.
  */
 export async function loadDashboardDrafts(
-	db: DraftsDatabase,
+	db: Database,
 	userId: string,
 	{ all = false }: { all?: boolean } = {},
 ): Promise<DashboardDrafts> {
@@ -160,7 +160,7 @@ function collectionDraftsWhere(projectIds: string[]) {
 	)
 }
 
-async function countDrafts(db: DraftsDatabase, projectIds: string[]) {
+async function countDrafts(db: Database, projectIds: string[]) {
 	const [row] = await db
 		.select({ drafts: count() })
 		.from(editorDraft)

@@ -13,17 +13,14 @@ import {
 	CommandItem,
 	CommandList,
 } from "@/ui/components/base/command"
+import type { SuggestionMenuRef } from "../../../extensions/suggestion-popup"
 
 interface EmojiMenuProps {
 	command: (item: EmojiItem) => void
 	items: EmojiItem[]
 }
 
-export interface EmojiMenuRef {
-	onKeyDown: (props: { event: KeyboardEvent }) => boolean
-}
-
-export const EmojiMenu = forwardRef<EmojiMenuRef, EmojiMenuProps>(
+export const EmojiMenu = forwardRef<SuggestionMenuRef, EmojiMenuProps>(
 	function EmojiMenu({ items, command }, ref) {
 		const [selectedIndex, setSelectedIndex] = useState(0)
 		const listRef = useRef<HTMLDivElement>(null)

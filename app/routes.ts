@@ -76,13 +76,10 @@ export default [
 			"routes/api.singleton-item-editor.ts",
 		),
 		route("repo-asset/:owner/:name/*", "routes/api.repo-asset.ts"),
-		route(
-			"set-editor-primary-action",
-			"routes/api.set-editor-primary-action.ts",
-		),
 		route("set-preference", "routes/api.set-preference.ts"),
 		route("set-theme", "routes/api.set-theme.ts"),
 		route("staged-image/:owner/:name/:image_id?", "routes/api.staged-image.ts"),
 	]),
-	route("/component-examples", "routes/example.tsx"),
+	// Fixture page for e2e/editor.spec.ts: the editor with a mock image upload.
+	route("/editor-e2e", "routes/editor-e2e.tsx"),
 ] satisfies RouteConfig

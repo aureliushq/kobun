@@ -83,7 +83,7 @@ Four things the decision above left open, settled while building it:
 The row is written in one `INSERT … ON CONFLICT DO UPDATE` against the composite primary key, the
 first use of `onConflictDoUpdate` in this repository. One statement rather than a read and a write
 is what lets two loaders revalidate the same directory at once without a transaction, which the D1
-and better-sqlite3 drivers do not share (the same constraint `ProjectContextDatabase` states).
+and better-sqlite3 drivers do not share (the same constraint `Database` in `packages/db/types.ts` states).
 
 ## Invalidation belongs to the write, not to the publish
 

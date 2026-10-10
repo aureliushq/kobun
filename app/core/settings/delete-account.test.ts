@@ -1,6 +1,5 @@
 import { eq } from "drizzle-orm"
 import { afterEach, beforeEach, expect, test } from "vitest"
-import type { ProjectContextDatabase } from "@/core/project-context/types"
 import {
 	collectionListing,
 	editorDraft,
@@ -11,6 +10,7 @@ import {
 } from "@/db/schema/app-schema"
 import { account, session, user } from "@/db/schema/auth-schema"
 import { createInMemoryDb, type InMemoryDb } from "@/db/testing"
+import type { Database } from "@/db/types"
 import { deleteAccount } from "./delete-account.server"
 
 let close: InMemoryDb["close"]
@@ -19,7 +19,7 @@ let sqliteDb: InMemoryDb["db"]
 // The schema is real and the cascades are the subject under test; only the
 // driver differs from production, so the module keeps its exact D1 type.
 function db() {
-	return sqliteDb as unknown as ProjectContextDatabase
+	return sqliteDb as unknown as Database
 }
 
 /** A writer with a Project, a Draft, a cached listing, a session and Preferences. */

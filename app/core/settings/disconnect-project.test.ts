@@ -1,6 +1,5 @@
 import { eq } from "drizzle-orm"
 import { afterEach, beforeEach, expect, test } from "vitest"
-import type { ProjectContextDatabase } from "@/core/project-context/types"
 import {
 	collectionListing,
 	editorDraft,
@@ -11,6 +10,7 @@ import {
 } from "@/db/schema/app-schema"
 import { user } from "@/db/schema/auth-schema"
 import { createInMemoryDb, type InMemoryDb } from "@/db/testing"
+import type { Database } from "@/db/types"
 import { disconnectProject } from "./disconnect-project.server"
 
 /**
@@ -26,7 +26,7 @@ let sqliteDb: InMemoryDb["db"]
 
 // Only the driver differs from production, so the module keeps its D1 type.
 function db() {
-	return sqliteDb as unknown as ProjectContextDatabase
+	return sqliteDb as unknown as Database
 }
 
 /** A Project with a Draft and a cached Collection listing. */

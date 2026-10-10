@@ -7,15 +7,16 @@ import {
 	subcollectionSchema,
 	versionSchema,
 } from "./schema"
-import type {
-	Collection,
-	ConfigError,
-	Features,
-	Field,
-	NormalizedConfig,
-	ParseResult,
-	Singleton,
-	Subcollection,
+import {
+	type Collection,
+	type ConfigError,
+	type Features,
+	type Field,
+	isPlainObject,
+	type NormalizedConfig,
+	type ParseResult,
+	type Singleton,
+	type Subcollection,
 } from "./types"
 
 /**
@@ -90,12 +91,14 @@ export const validateConfig = (
 		)) {
 			// A bad Subcollection must not sink its Parent, so the Parent is
 			// validated without them and each is resolved on its own.
-			const { subcollections: rawSubcollections, ...parent } = isObject(value)
+			const { subcollections: rawSubcollections, ...parent } = isPlainObject(
+				value,
+			)
 				? value
 				: {}
 			const prefix = `collections.${key}`
 			const collection = resolveEntry(
-				isObject(value) ? parent : value,
+				isPlainObject(value) ? parent : value,
 				collectionSchema,
 				prefix,
 				errors,
@@ -236,9 +239,6 @@ const resolveSubcollections = (
 	}
 	return subcollections
 }
-
-const isObject = (value: unknown): value is Record<string, unknown> =>
-	typeof value === "object" && value !== null && !Array.isArray(value)
 
 /** A dotted error path, with empty segments dropped. */
 const scopePath = (...segments: PropertyKey[]): string =>

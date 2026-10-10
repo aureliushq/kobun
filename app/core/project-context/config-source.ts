@@ -18,9 +18,11 @@ export interface RepositoryAddress {
  * One conditional read. An `etag` is only meaningful for the exact path it came
  * back from, so a probe — which is looking for a Config somewhere else entirely
  * — omits it, and so does any read the module has nothing cached to fall back
- * on. Sending one otherwise risks a `not-modified` with nothing to serve.
+ * on. Sending one otherwise risks a `not-modified` with nothing to serve. The
+ * Collection listing's port reads directories the same way, where that would
+ * pin the Collection empty past every window (ADR-0011).
  */
-export interface ConfigSourceRequest {
+export interface SourceRequest {
 	etag?: string | null
 	path: string
 }
@@ -43,6 +45,6 @@ export type ConfigSourceRead =
 export interface ConfigSource {
 	read(
 		repository: RepositoryAddress,
-		request: ConfigSourceRequest,
+		request: SourceRequest,
 	): Promise<ConfigSourceRead>
 }

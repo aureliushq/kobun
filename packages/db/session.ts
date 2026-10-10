@@ -1,10 +1,6 @@
 import { and, eq, gt } from "drizzle-orm"
-import type { DrizzleD1Database } from "drizzle-orm/d1"
-import type * as schema from "./schema"
 import { session } from "./schema/auth-schema"
-
-/** The same plain-query bargain `user-preference.ts` strikes with its driver. */
-type SessionDatabase = DrizzleD1Database<typeof schema>
+import type { Database } from "./types"
 
 /**
  * The writer's sessions that have not yet expired, token included.
@@ -17,7 +13,7 @@ type SessionDatabase = DrizzleD1Database<typeof schema>
  * The token is the session, so callers project it away before anything reaches
  * a page (`describeSessions`), and keep it only to revoke.
  */
-export async function listActiveSessions(db: SessionDatabase, userId: string) {
+export async function listActiveSessions(db: Database, userId: string) {
 	return db.query.session.findMany({
 		where: and(eq(session.userId, userId), gt(session.expiresAt, new Date())),
 	})

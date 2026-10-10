@@ -1,18 +1,10 @@
-import type { DrizzleD1Database } from "drizzle-orm/d1"
 import type { Format, ResolvedField, Singleton } from "@/config/types"
 import type { FieldRecord } from "@/core/editor/collection-metadata"
 import type { ContentDirectory } from "@/core/project-context"
-import type * as schema from "@/db/schema"
 import type { editorDraft } from "@/db/schema/app-schema"
+import type { Database } from "@/db/types"
 import type { SourceStore } from "./source-store"
 import type { StagedImageStore } from "./staged-image-store"
-
-/**
- * Production runs on D1; tests run the same schema on in-memory SQLite and cast
- * to this type. The cast holds as long as the module sticks to plain queries:
- * never call `.batch()` or `.transaction()`, which differ between the drivers.
- */
-export type DraftsDatabase = DrizzleD1Database<typeof schema>
 
 export type DraftRow = typeof editorDraft.$inferSelect
 
@@ -34,7 +26,7 @@ export interface ResolvedSource {
 
 /** A content directory's Drafts, committed through one SourceStore. */
 export interface DraftsContext extends ContentDirectory {
-	db: DraftsDatabase
+	db: Database
 	/**
 	 * The current time, for the values the system stamps into content. Injected
 	 * so a test can say what "now" is rather than race the wall clock.
@@ -60,7 +52,7 @@ export interface ListedItem {
 
 /** A Singleton's Drafts, at the one path its Source lives at. */
 export interface SingletonDraftsContext {
-	db: DraftsDatabase
+	db: Database
 	/** The Singleton's Source file, whether or not it exists yet. */
 	filePath: string
 	now?: () => Date

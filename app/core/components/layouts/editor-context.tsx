@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect } from "react"
+import { createContext, useContext, useLayoutEffect } from "react"
 import type { EditorSaveError } from "@/core/editor/editor-action"
 import type { AutosaveState } from "@/editor"
 
@@ -56,7 +56,9 @@ export function useEditorLayoutControls(controls: EditorLayoutControls) {
 		throw new Error("useEditorLayoutControls must be used inside EditorLayout")
 	}
 
-	useEffect(() => {
+	// Layout, not passive: the header re-renders with the controls before the
+	// first paint, so it never shows a frame without them.
+	useLayoutEffect(() => {
 		context.setControls(controls)
 		return () => context.setControls(null)
 	}, [context, controls])

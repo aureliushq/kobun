@@ -360,6 +360,11 @@ export async function getGithubFileSha(
 /**
  * Read a single file's raw bytes from a repository.
  * Use for binary content; for text prefer getGithubFileContent.
+ *
+ * Given an ETag, GitHub answers an unchanged file with a 304, which costs no
+ * rate limit — and which octokit, like a missing file, reports by throwing.
+ * Callers classify both with `hasStatus`; what they mean is the caller's
+ * vocabulary, not this module's.
  */
 export async function getGithubFileBytes(
 	env: Env,
@@ -367,17 +372,25 @@ export async function getGithubFileBytes(
 	owner: string,
 	repo: string,
 	path: string,
-	ref?: string,
-): Promise<{ sha: string; path: string; bytes: Uint8Array<ArrayBuffer> }> {
+	etag?: string | null,
+): Promise<{
+	bytes: Uint8Array<ArrayBuffer>
+	etag: string | null
+	path: string
+	sha: string
+}> {
 	const octokit = getGithubInstallationOctokit(env, installationId)
 
-	const { data } = await octokit.repos.getContent({
+	const response = await octokit.repos.getContent({
 		owner,
 		repo,
 		path,
-		ref,
-		headers: GITHUB_HEADERS,
+		headers: {
+			...GITHUB_HEADERS,
+			...(etag ? { "if-none-match": etag } : {}),
+		},
 	})
+	const { data } = response
 
 	if (Array.isArray(data) || data.type !== "file") {
 		throw new Error(`Expected file at ${owner}/${repo}:${path}`)
@@ -398,15 +411,16 @@ export async function getGithubFileBytes(
 			: data.content
 
 	return {
-		sha: data.sha,
-		path: data.path,
 		bytes: Buffer.from(content, "base64"),
+		etag: response.headers.etag ?? null,
+		path: data.path,
+		sha: data.sha,
 	}
 }
 
 /**
- * Read a single file's content from a repository as UTF-8 text.
- * Returns the decoded content, SHA, and path.
+ * Read a single file's content from a repository as UTF-8 text, optionally
+ * conditional on an ETag (see getGithubFileBytes).
  */
 export async function getGithubFileContent(
 	env: Env,
@@ -414,7 +428,7 @@ export async function getGithubFileContent(
 	owner: string,
 	repo: string,
 	path: string,
-	ref?: string,
+	etag?: string | null,
 ) {
 	const file = await getGithubFileBytes(
 		env,
@@ -422,62 +436,14 @@ export async function getGithubFileContent(
 		owner,
 		repo,
 		path,
-		ref,
+		etag,
 	)
 
 	return {
-		sha: file.sha,
-		path: file.path,
 		content: new TextDecoder().decode(file.bytes),
-	}
-}
-
-/**
- * Read a single file as UTF-8 text, conditionally on an ETag.
- *
- * A sibling of getGithubFileContent rather than an option on it: the ETag comes
- * off the response headers, so this needs the whole response rather than the
- * destructured data, and a caller with no ETag to send wants the simpler
- * function. GitHub answers an unchanged file with a 304, which costs no rate
- * limit — and which octokit, like a missing file, reports by throwing. Callers
- * classify both with `hasStatus`; what they mean is the caller's vocabulary,
- * not this module's.
- */
-export async function getGithubFileContentConditional(
-	env: Env,
-	installationId: InstallationID,
-	owner: string,
-	repo: string,
-	path: string,
-	etag?: string | null,
-): Promise<{
-	content: string
-	etag: string | null
-	path: string
-	sha: string
-}> {
-	const octokit = getGithubInstallationOctokit(env, installationId)
-
-	const response = await octokit.repos.getContent({
-		owner,
-		repo,
-		path,
-		headers: {
-			...GITHUB_HEADERS,
-			...(etag ? { "if-none-match": etag } : {}),
-		},
-	})
-
-	const { data } = response
-	if (Array.isArray(data) || data.type !== "file") {
-		throw new Error(`Expected file at ${owner}/${repo}:${path}`)
-	}
-
-	return {
-		content: new TextDecoder().decode(Buffer.from(data.content, "base64")),
-		etag: response.headers.etag ?? null,
-		path: data.path,
-		sha: data.sha,
+		etag: file.etag,
+		path: file.path,
+		sha: file.sha,
 	}
 }
 

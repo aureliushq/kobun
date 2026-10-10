@@ -4,17 +4,21 @@ import { validateConfig } from "@/config/validator"
 import { githubInstallation, project } from "@/db/schema/app-schema"
 import { user } from "@/db/schema/auth-schema"
 import { createInMemoryDb } from "@/db/testing"
-import { ConfigStatus, type Project, ProjectStatus } from "@/db/types"
+import {
+	ConfigStatus,
+	type Database,
+	type Project,
+	ProjectStatus,
+} from "@/db/types"
 import type {
 	ConfigSource,
 	ConfigSourceRead,
-	ConfigSourceRequest,
 	RepositoryAddress,
+	SourceRequest,
 } from "./config-source"
 import { createProjectContext } from "./create-project-context"
 import type {
 	ProjectAccess,
-	ProjectContextDatabase,
 	ProjectContextOk,
 	ProjectSession,
 	SessionGetter,
@@ -152,7 +156,7 @@ export const TEST_UNCONFIGURED_CONTEXT: UnconfiguredProjectContext = {
 
 export interface FakeConfigSource extends ConfigSource {
 	/** Every read the module made, in order. */
-	calls: ConfigSourceRequest[]
+	calls: SourceRequest[]
 	/** The next read throws rather than answering — an outage, not a 404. */
 	failNext(error: unknown): void
 	/** Write a file, as a new revision: its sha and its ETag both change. */
@@ -168,7 +172,7 @@ export interface FakeConfigSource extends ConfigSource {
 export function createFakeConfigSource(
 	initial: Record<string, string> = { [TEST_CONFIG_PATH]: TEST_CONFIG_JSON },
 ): FakeConfigSource {
-	const calls: ConfigSourceRequest[] = []
+	const calls: SourceRequest[] = []
 	const files = new Map<
 		string,
 		{ content: string; etag: string; sha: string }
@@ -195,7 +199,7 @@ export function createFakeConfigSource(
 		put,
 		read: async (
 			_repository: RepositoryAddress,
-			request: ConfigSourceRequest,
+			request: SourceRequest,
 		): Promise<ConfigSourceRead> => {
 			calls.push(request)
 
@@ -243,7 +247,7 @@ export interface ProjectContextTestHarness {
 	close(): void
 	configSource: FakeConfigSource
 	/** The same handle the module holds, so spies on it are seen by the module. */
-	db: ProjectContextDatabase
+	db: Database
 	projectContext: ReturnType<typeof createProjectContext>
 	/** The Project row as it now stands — what the cache wrote, and what it left. */
 	readProject(id?: string): Project
@@ -323,7 +327,7 @@ export function createProjectContextTestHarness(
 
 	// The schema is real and the SQL is the subject under test; only the driver
 	// differs from production, so the module keeps its exact D1 type.
-	const db = sqliteDb as unknown as ProjectContextDatabase
+	const db = sqliteDb as unknown as Database
 	const configSource = createFakeConfigSource()
 	let session: ProjectSession | null = { user: { id: TEST_USER_ID } }
 	const getSession: SessionGetter = async () => session

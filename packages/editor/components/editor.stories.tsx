@@ -61,8 +61,6 @@ This content can be read and selected, but it cannot be edited.
 export const WithImageUpload: Story = {
 	args: {
 		imageUpload: {
-			allowedMimeTypes: ["image/*"],
-			maxFileSize: 5 * 1024 * 1024,
 			upload: async (file) => URL.createObjectURL(file),
 		},
 		initialContent:

@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm"
-import type { ProjectContextDatabase } from "@/core/project-context/types"
 import { project, userInstallation } from "@/db/schema/app-schema"
 import { user } from "@/db/schema/auth-schema"
+import type { Database } from "@/db/types"
 
 /**
  * Erase a writer and everything Kobun was holding for them.
@@ -28,7 +28,7 @@ import { user } from "@/db/schema/auth-schema"
  * Projects and an account — recoverable, and the alternative is not available.
  */
 export async function deleteAccount(
-	db: ProjectContextDatabase,
+	db: Database,
 	userId: string,
 ): Promise<void> {
 	await db.delete(project).where(eq(project.userId, userId))

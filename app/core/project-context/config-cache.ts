@@ -9,17 +9,17 @@ import { configFileFormat, validateConfig } from "@/config/validator"
 import { project } from "@/db/schema/app-schema"
 import {
 	ConfigStatus,
+	type Database,
 	type Project,
-	type ProjectWithGithubInstallation,
+	ProjectStatus,
 } from "@/db/types"
 import { CONFIG_PATHS } from "@/ui/lib/constants"
 import type {
 	ConfigSource,
 	ConfigSourceRead,
-	ConfigSourceRequest,
 	RepositoryAddress,
+	SourceRequest,
 } from "./config-source"
-import type { ProjectContextDatabase } from "./types"
 
 /**
  * How long a Config is trusted without asking the repository again. There is no
@@ -50,10 +50,10 @@ interface ConfigColumns {
 }
 
 /**
- * The stored Config, if the row actually holds one. `syncProjectConfig` writes
- * `JSON.stringify(null)` when parsing failed, and `JSON.parse("null")` yields
- * null rather than throwing — so a try/catch alone would hand back nothing and
- * call it a Config.
+ * The stored Config, if the row actually holds one. Setup's old sync wrote
+ * `JSON.stringify(null)` when parsing failed, rows it wrote still hold it, and
+ * `JSON.parse("null")` yields null rather than throwing — so a try/catch alone
+ * would hand back nothing and call it a Config.
  */
 function storedConfig(configData: string | null): NormalizedConfig | null {
 	if (!configData) return null
@@ -137,7 +137,7 @@ function parseConfig(path: string, content: string): ParsedConfig {
  */
 export function createConfigCache(deps: {
 	configSource: ConfigSource
-	db: ProjectContextDatabase
+	db: Database
 }) {
 	const { configSource, db } = deps
 
@@ -150,7 +150,7 @@ export function createConfigCache(deps: {
 	 */
 	async function read(
 		repository: RepositoryAddress,
-		request: ConfigSourceRequest,
+		request: SourceRequest,
 	): Promise<ConfigSourceRead | null> {
 		try {
 			return await configSource.read(repository, request)
@@ -182,7 +182,7 @@ export function createConfigCache(deps: {
 	 * is news.
 	 */
 	async function recordCheck(
-		row: ProjectWithGithubInstallation,
+		row: Project,
 		now: number,
 		columns?: ConfigColumns,
 	) {
@@ -197,7 +197,7 @@ export function createConfigCache(deps: {
 	}
 
 	async function rememberConfig(
-		row: ProjectWithGithubInstallation,
+		row: Project,
 		now: number,
 		path: string,
 		read: Extract<ConfigSourceRead, { kind: "content" }>,
@@ -218,20 +218,20 @@ export function createConfigCache(deps: {
 	/**
 	 * Where else a Config could be. Reached when the stored path 404s, which is
 	 * what renaming `.kobun.json` to `.kobun.yml` looks like from here. Reads are
-	 * unconditional: an ETag means nothing at a path it did not come from.
+	 * unconditional: an ETag means nothing at a path it did not come from. Null,
+	 * like `read`, when the repository could not be reached.
 	 */
 	async function probe(
-		row: ProjectWithGithubInstallation,
+		row: Project,
 		repository: RepositoryAddress,
-		cached: ConfigResolution | null,
 		now: number,
-	): Promise<ConfigResolution> {
+	): Promise<ConfigResolution | null> {
 		for (const path of CONFIG_PATHS) {
 			// The stored path was just read, and was not there.
 			if (path === row.configPath) continue
 
 			const found = await read(repository, { etag: null, path })
-			if (!found) return unreachable(cached)
+			if (!found) return null
 			if (found.kind !== "content") continue
 			return await rememberConfig(row, now, path, found)
 		}
@@ -252,15 +252,15 @@ export function createConfigCache(deps: {
 		return { config: null, status: ConfigStatus.MISSING }
 	}
 
+	/** Null, like `read`, when the repository could not be reached. */
 	async function revalidate(
-		row: ProjectWithGithubInstallation,
+		row: Project,
 		repository: RepositoryAddress,
 		cached: ConfigResolution | null,
 		now: number,
-	): Promise<ConfigResolution> {
+	): Promise<ConfigResolution | null> {
 		// Nowhere a Config lives, so there is nothing to revalidate against.
-		if (!isConfigPath(row.configPath))
-			return await probe(row, repository, cached, now)
+		if (!isConfigPath(row.configPath)) return await probe(row, repository, now)
 
 		// What the row remembers of a file at that path. A Project whose Config
 		// is missing remembers no file, so its ETag and its sha describe nothing
@@ -274,7 +274,7 @@ export function createConfigCache(deps: {
 			etag: remembered ? row.configEtag : null,
 			path: row.configPath,
 		})
-		if (!found) return unreachable(cached)
+		if (!found) return null
 
 		if (found.kind === "not-modified") {
 			// Nothing changed, so nothing is rewritten — but the window reopens,
@@ -283,8 +283,7 @@ export function createConfigCache(deps: {
 			return cached ?? { config: null, status: ConfigStatus.UNKNOWN }
 		}
 
-		if (found.kind === "not-found")
-			return await probe(row, repository, cached, now)
+		if (found.kind === "not-found") return await probe(row, repository, now)
 
 		// A rotated ETag over bytes that never changed. Shas are content
 		// addressed, so there is nothing to re-parse.
@@ -308,7 +307,7 @@ export function createConfigCache(deps: {
 	}
 
 	async function resolve(
-		row: ProjectWithGithubInstallation,
+		row: Project,
 		repository: RepositoryAddress,
 	): Promise<ConfigResolution> {
 		const now = Date.now()
@@ -321,10 +320,39 @@ export function createConfigCache(deps: {
 		if (cached && age !== null && age >= 0 && age < CONFIG_CACHE_TTL_MS)
 			return cached
 
-		return await revalidate(row, repository, cached, now)
+		return (
+			(await revalidate(row, repository, cached, now)) ?? unreachable(cached)
+		)
 	}
 
-	return { resolve }
+	/**
+	 * A revalidation the window does not get a say in, for a writer who has
+	 * just connected the repository or pressed Refresh. Unlike one, it is a
+	 * change to the Project: it marks it active and bumps `updatedAt`, so
+	 * setup's recent-Projects list puts it first. Written after the
+	 * revalidation, whose own write carries the old `updatedAt` through.
+	 *
+	 * The writer asked for this read, so whether it happened is reported apart
+	 * from the resolution: an unreachable repository still serves what is held,
+	 * and still writes none of it down, but the writer is told it was not reached.
+	 */
+	async function refresh(
+		row: Project,
+		repository: RepositoryAddress,
+	): Promise<{ reached: boolean; resolution: ConfigResolution }> {
+		const cached = servable(row)
+		const revalidated = await revalidate(row, repository, cached, Date.now())
+		await db
+			.update(project)
+			.set({ status: ProjectStatus.ACTIVE })
+			.where(eq(project.id, row.id))
+		return {
+			reached: revalidated !== null,
+			resolution: revalidated ?? unreachable(cached),
+		}
+	}
+
+	return { refresh, resolve }
 }
 
 /**

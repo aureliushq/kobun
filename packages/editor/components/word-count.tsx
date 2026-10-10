@@ -28,9 +28,9 @@ export function EditorWordCount({ className, editor }: EditorWordCountProps) {
 			setStats(null)
 			return
 		}
-		// `transaction` rather than `update` so a programmatic replacement that
-		// suppresses `update` (`setMarkdown`) still recounts. Selection-only
-		// transactions land on identical counts and are dropped below.
+		// `transaction` rather than `update` so a change that suppresses `update`
+		// still recounts. Selection-only transactions land on identical counts and
+		// are dropped below.
 		const read = () => {
 			const next = {
 				characters: editor.storage.characterCount.characters(),

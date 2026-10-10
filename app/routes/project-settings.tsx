@@ -1,9 +1,9 @@
 import { desc, eq } from "drizzle-orm"
-import { redirect } from "react-router"
-import { syncProjectConfig } from "@/config/github.server"
+import { data, redirect } from "react-router"
 import { chooseBackDestination } from "@/core/components/layouts/settings-back-destination"
 import { countDirtyDrafts } from "@/core/editor/drafts"
 import {
+	refreshProjectConfig,
 	requireApiAccess,
 	requireProjectPage,
 } from "@/core/project-context/project-context.server"
@@ -70,7 +70,22 @@ export async function action({ context, params, request }: Route.ActionArgs) {
 	const intent = formData.get("intent")
 
 	if (intent === SettingsActionIntents.REFRESH_CONFIGURATION) {
-		await syncProjectConfig(db, env, projectRow)
+		const { reached } = await refreshProjectConfig(
+			db,
+			env,
+			projectRow,
+			projectRow.githubInstallation.githubInstallationId,
+		)
+		// Nothing was read, so nothing on the page changed — and without this the
+		// writer would take an unchanged page for a Config that is still as it was.
+		if (!reached)
+			return data(
+				{
+					error:
+						"Kobun could not reach GitHub, so the configuration was not refreshed. Try again in a moment, or check that the Kobun GitHub App can still access this repository.",
+				},
+				{ status: 502 },
+			)
 		return { ok: true }
 	}
 

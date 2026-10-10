@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test"
 
 test.beforeEach(async ({ page }) => {
-	await page.goto("/component-examples?editor-e2e")
+	await page.goto("/editor-e2e")
 	await expect(page.locator(".ProseMirror")).toBeVisible()
 })
 

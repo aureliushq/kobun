@@ -23,37 +23,18 @@ import { ThemeContext } from "@/ui/hooks/use-theme"
 import { getThemeFromRequest, type Theme } from "@/ui/theme.server"
 import type { Route } from "./+types/root"
 import "@/core/styles/app.css"
-import appConfig from "@/config/app"
 import { posthogMiddleware } from "./lib/posthog-middleware"
 
 export const middleware: Route.MiddlewareFunction[] = [posthogMiddleware]
 
-export const links: Route.LinksFunction = () => [
-	{ rel: "preconnect", href: "https://fonts.googleapis.com" },
-	{
-		rel: "preconnect",
-		href: "https://fonts.gstatic.com",
-		crossOrigin: "anonymous",
-	},
-	{
-		rel: "stylesheet",
-		href: "https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap",
-	},
-]
-
 export function meta() {
-	return [
-		{ title: appConfig.core.appTitle },
-		{ name: "description", content: appConfig.core.appDescription },
-		{ name: "keywords", content: appConfig.core.appKeywords },
-	]
+	return [{ title: "Kobun - Git-based CMS for content and static sites." }]
 }
 
 /**
  * Read here, and only here, because the Preferences reach five surfaces under
  * three different layouts — the sidebar, the editor, the Collection list, the
- * dashboard and every date Field. The save target above it is read in the
- * editor layout for the opposite reason: one consumer.
+ * dashboard and every date Field.
  *
  * One indexed row on top of a `getSession` this loader already awaits. Server
  * side rather than in the browser, so the stored value is in the first byte and
@@ -64,7 +45,7 @@ export function meta() {
  * (ADR-0010) — but unlike theme, nothing here needs an answer for them.
  */
 export async function loader({ context, request }: Route.LoaderArgs) {
-	const theme = getThemeFromRequest(request)
+	const theme = await getThemeFromRequest(request)
 	const session = await getAuth(context.get(envContext)).api.getSession({
 		headers: request.headers,
 	})
@@ -72,11 +53,6 @@ export async function loader({ context, request }: Route.LoaderArgs) {
 		? await readUserPreferences(context.get(dbContext), session.user.id)
 		: DEFAULT_USER_PREFERENCES
 	return { preferences, theme, user: session?.user ?? null }
-}
-
-function getThemeClass(theme: Theme) {
-	if (theme === "dark") return "dark"
-	return appConfig.core.darkMode ? "dark" : ""
 }
 
 const themeScript = `
@@ -99,7 +75,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 		<html
 			lang="en"
 			data-theme={theme}
-			className={getThemeClass(theme)}
+			className="dark"
 			suppressHydrationWarning
 		>
 			<head>
@@ -107,7 +83,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 				<meta name="viewport" content="width=device-width, initial-scale=1" />
 				<Meta />
 				<link rel="icon" href="/favicon.svg" type="image/svg+xml"></link>
-				<link rel="canonical" href={appConfig.core.websiteUrl} />
+				<link rel="canonical" href="https://kobun.io" />
 				<Links />
 				<script dangerouslySetInnerHTML={{ __html: themeScript }} />
 			</head>

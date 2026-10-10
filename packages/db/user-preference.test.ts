@@ -1,11 +1,13 @@
 import { eq } from "drizzle-orm"
-import type { DrizzleD1Database } from "drizzle-orm/d1"
 import { afterEach, beforeEach, expect, test } from "vitest"
-import type * as schema from "@/db/schema"
 import { userPreference } from "@/db/schema/app-schema"
 import { user } from "@/db/schema/auth-schema"
 import { createInMemoryDb, type InMemoryDb } from "@/db/testing"
-import { DEFAULT_USER_PREFERENCES, EditorWidth } from "@/db/types"
+import {
+	type Database,
+	DEFAULT_USER_PREFERENCES,
+	EditorWidth,
+} from "@/db/types"
 import { readUserPreferences, writeUserPreferences } from "@/db/user-preference"
 
 let close: InMemoryDb["close"]
@@ -29,7 +31,7 @@ function seedPreferences() {
 }
 
 function preferences() {
-	return db as unknown as DrizzleD1Database<typeof schema>
+	return db as unknown as Database
 }
 
 function readRow() {
@@ -46,11 +48,7 @@ test("a writer who has changed nothing gets today's behaviour", () => {
 	expect(readRow()).toMatchObject({
 		dateDisplay: "relative",
 		editorFont: "sans",
-		// Must stay equal to DEFAULT_PRIMARY_EDITOR_ACTION in
-		// `app/core/editor/primary-action.ts`. Asserted as a literal rather than
-		// imported, because `packages/db` does not depend on `app`; the two are
-		// checked against each other in `app/core/editor/stored-primary-action.test.ts`,
-		// from the side where the import runs the right way.
+		// Save, so a writer's first click cannot reach the repository.
 		editorPrimaryAction: "save",
 		editorWidth: "normal",
 		locale: null,
@@ -84,6 +82,7 @@ test("the defaults a writer with no row gets are the ones the columns hold", asy
 	expect(await readUserPreferences(preferences(), "user-1")).toEqual({
 		dateDisplay: row?.dateDisplay,
 		editorFont: row?.editorFont,
+		editorPrimaryAction: row?.editorPrimaryAction,
 		editorWidth: row?.editorWidth,
 		locale: row?.locale,
 		propertiesPanelOpen: row?.propertiesPanelOpen,
@@ -106,10 +105,15 @@ test("a writer who has never changed anything still reads their Preferences", as
 
 test("a value SQLite let through outside its vocabulary reads as the default", async () => {
 	db.insert(userPreference)
-		.values({ editorWidth: "enormous", userId: "user-1" })
+		.values({
+			editorPrimaryAction: "publish",
+			editorWidth: "enormous",
+			userId: "user-1",
+		})
 		.run()
 
 	expect(await readUserPreferences(preferences(), "user-1")).toMatchObject({
+		editorPrimaryAction: "save",
 		editorWidth: EditorWidth.NORMAL,
 	})
 })

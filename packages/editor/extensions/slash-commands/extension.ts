@@ -12,7 +12,7 @@ export interface SlashCommandItem {
 	command: (props: { editor: Editor; range: Range }) => void
 }
 
-const slashCommandPluginKey = new PluginKey("slashCommands")
+export const slashCommandPluginKey = new PluginKey("slashCommands")
 
 export const SlashCommandsExtension = Extension.create<{
 	suggestion: Omit<SuggestionOptions<SlashCommandItem>, "editor">

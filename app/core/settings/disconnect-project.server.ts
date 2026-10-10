@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm"
-import type { ProjectContextDatabase } from "@/core/project-context/types"
 import { project } from "@/db/schema/app-schema"
+import type { Database } from "@/db/types"
 
 /**
  * Disconnect a Project: Kobun forgets the repository.
@@ -24,7 +24,7 @@ import { project } from "@/db/schema/app-schema"
  * it has already been given, the way `deleteAccount` takes a user id.
  */
 export async function disconnectProject(
-	db: ProjectContextDatabase,
+	db: Database,
 	projectId: string,
 ): Promise<void> {
 	await db.delete(project).where(eq(project.id, projectId))

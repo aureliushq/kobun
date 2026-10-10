@@ -9,10 +9,10 @@ type PreferenceKey = keyof UserPreferenceValues
  * One Preference control, saving as the writer changes it.
  *
  * The loader's value is the truth and the in-flight submission overrides it —
- * the shape `useTheme` and `usePrimaryEditorAction` both use, and for the same
- * reason: a `useState` seeded from a loader goes stale the moment the loader
- * revalidates, and `fetcher.formData` clears only once the loader has re-read
- * the row, so a switch never flicks back on its way to being saved.
+ * the shape `useTheme` uses, and for the same reason: a `useState` seeded
+ * from a loader goes stale the moment the loader revalidates, and
+ * `fetcher.formData` clears only once the loader has re-read the row, so a
+ * switch never flicks back on its way to being saved.
  *
  * A fetcher per Preference rather than one for the section. Two fetchers with
  * the same key share a submission, so flipping two switches quickly would leave

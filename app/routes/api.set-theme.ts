@@ -1,6 +1,5 @@
 import { data } from "react-router"
-import type { Theme } from "@/ui/theme.server"
-import { serializeThemeCookie } from "@/ui/theme.server"
+import { type Theme, themeCookie } from "@/ui/theme.server"
 import type { Route } from "./+types/api.set-theme"
 
 export async function action({ request }: Route.ActionArgs) {
@@ -15,7 +14,7 @@ export async function action({ request }: Route.ActionArgs) {
 		{ success: true },
 		{
 			headers: {
-				"Set-Cookie": serializeThemeCookie(theme),
+				"Set-Cookie": await themeCookie.serialize(theme),
 			},
 		},
 	)

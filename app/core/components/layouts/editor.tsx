@@ -19,14 +19,15 @@ import {
 	type EditorSaveError,
 	toEditorSaveError,
 } from "@/core/editor/editor-action"
-import { toPrimaryEditorAction } from "@/core/editor/primary-action"
+import { usePreferences } from "@/core/preferences/context"
 import {
 	requireCollection,
 	requireSingleton,
 	requireSubcollection,
 } from "@/core/project-context"
 import { requirePageContext } from "@/core/project-context/project-context.server"
-import { readEditorPrimaryAction } from "@/db/user-preference"
+import { usePreference } from "@/core/settings/use-preference"
+import { isPrimaryEditorAction } from "@/db/types"
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -46,7 +47,6 @@ import {
 	type EditorLayoutControls,
 } from "./editor-context"
 import { EditorSaveControl } from "./editor-save-control"
-import { usePrimaryEditorAction } from "./use-primary-editor-action"
 
 /**
  * The chrome around an editor answers to the same seam its content does, so the
@@ -65,20 +65,6 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
 		subcollection_key,
 	} = params
 	const ctx = await requirePageContext({ context, params, request })
-	// Which target the split control's primary button runs, keyed by the writer
-	// `requirePageContext` already resolved — so the choice follows them to
-	// another browser (ADR-0010).
-	//
-	// A second read of a row root has already fetched, and deliberately: root
-	// answers with the Preferences the account page owns, and the save target is
-	// not one of them. Paying for it here rather than widening that set keeps the
-	// one Preference chosen somewhere else out of the shape every other surface
-	// reads — at the cost of one more lookup by primary key, on the one page that
-	// asks.
-	const primaryAction = toPrimaryEditorAction(
-		await readEditorPrimaryAction(ctx.db, ctx.session.user.id),
-	)
-
 	if (singleton_slug) {
 		const { singleton } = requireSingleton(ctx, singleton_slug)
 		const project = { repoName: name, repoOwnerLogin: owner }
@@ -91,7 +77,6 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
 			parentLabel: singleton.label,
 			// A row goes back to the Singleton it is part of.
 			parentPath: field_key ? editorPath : singletonPath,
-			primaryAction,
 		}
 	}
 
@@ -118,7 +103,6 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
 				parent_item,
 				subcollection_key,
 			),
-			primaryAction,
 		}
 	}
 
@@ -128,7 +112,6 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
 		draftEditorPath: null,
 		parentLabel: collection.label,
 		parentPath: getCollectionPath(project, collection_slug),
-		primaryAction,
 	}
 }
 
@@ -193,9 +176,15 @@ const EditorLayout = ({ loaderData }: Route.ComponentProps) => {
 	// completion answers it for a commit or a publish, which never touch it.
 	const [hasActed, setHasActed] = useState(false)
 	const contextValue = useMemo(() => ({ setControls }), [])
-	const { primaryAction, setPrimaryAction } = usePrimaryEditorAction(
-		loaderData.primaryAction,
-	)
+	// Which target the split control's primary button runs. Root reads it with
+	// the writer's other Preferences, so the choice follows them to another
+	// browser (ADR-0010).
+	const { editorPrimaryAction } = usePreferences()
+	const { setValue: setPrimaryAction, value: primaryAction } = usePreference({
+		decode: (raw) => (isPrimaryEditorAction(raw) ? raw : editorPrimaryAction),
+		name: "editorPrimaryAction",
+		value: editorPrimaryAction,
+	})
 
 	const runAction = async (action: EditorAction) => {
 		const run = controls?.[action]

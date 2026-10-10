@@ -99,6 +99,23 @@ Collection by slug until the Project is next resolved.
 - Rows written before the column existed hold null, so every Project re-parses once on its first
   navigation after the deploy that adds it.
 
+## Amendment: connecting and Refresh go through the cache
+
+Settled in #202. `syncProjectConfig` kept its own probe, parse and status logic beside the
+cache's, so connecting a repository and the settings page's Refresh now call the cache's
+`refresh`: a revalidation the window does not get a say in. The amendments above that name
+`syncProjectConfig` describe what it did; the cache now does it, with three differences.
+
+- Refresh reads the stored path first, conditionally, and keeps that path when the Config is
+  missing, rather than probing from `.kobun.json` and resetting to it.
+- An unreachable repository writes nothing, as on every other revalidation, rather than
+  storing the network error as a `parse_error`. `refresh` reports that it did not reach the
+  repository beside the resolution it serves, and the settings page shows it as an error
+  (#248). Setup does not: a just-connected row is `UNKNOWN`, so the dashboard asks again and
+  shows `config-unreadable` if it still cannot reach the repository.
+- `refresh` marks the Project `ACTIVE` and lets `updatedAt` move, since connecting or pressing
+  Refresh is a change to the Project. A plain revalidation still leaves both alone.
+
 ## Considered options
 
 - **Always fetch from GitHub (status quo)** — zero staleness, but 1–3 GitHub round-trips + Zod on every page load, and the cache columns stay write-only dead weight.

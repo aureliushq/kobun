@@ -1,5 +1,6 @@
 import { eq } from "drizzle-orm"
 import { githubInstallation, project } from "@/db/schema/app-schema"
+import type { Database } from "@/db/types"
 import {
 	ConfigStatus,
 	type GithubInstallation,
@@ -8,7 +9,6 @@ import {
 } from "@/db/types"
 import { CONFIG_PATHS } from "@/ui/lib/constants"
 import { SetupActionErrors } from "@/ui/lib/types"
-import type { ProjectContextDatabase } from "./types"
 
 /**
  * The part of GitHub's repository listing that connecting one reads. Kept in
@@ -30,11 +30,14 @@ export interface ConnectableRepository {
  * GitHub client to exercise.
  */
 export interface ConnectProjectDeps {
-	db: ProjectContextDatabase
+	db: Database
 	listRepositories(
 		installation: GithubInstallation,
 	): Promise<ConnectableRepository[]>
-	syncConfig(connected: Project): Promise<unknown>
+	refreshConfig(
+		connected: Project,
+		installation: GithubInstallation,
+	): Promise<unknown>
 }
 
 export interface ConnectProjectInput {
@@ -55,7 +58,7 @@ export type ConnectProjectResult =
  * Connect a repository to this user: the write half of the Project seam. The
  * row says which repository this Project is and nothing about what is in it —
  * the two Config columns are `NOT NULL` and so must say something, and they say
- * the row has never been looked at. The sync that follows is what looks, so
+ * the row has never been looked at. The refresh that follows is what looks, so
  * connecting and the dashboard's refresh are the same act and go the same way
  * (ADR-0003).
  *
@@ -64,7 +67,7 @@ export type ConnectProjectResult =
  * row rather than a second one.
  */
 export async function connectProject(
-	{ db, listRepositories, syncConfig }: ConnectProjectDeps,
+	{ db, listRepositories, refreshConfig }: ConnectProjectDeps,
 	{ installationId, repoId, userId }: ConnectProjectInput,
 ): Promise<ConnectProjectResult> {
 	const installation = await db.query.githubInstallation.findFirst({
@@ -112,7 +115,7 @@ export async function connectProject(
 		})
 		.returning()
 
-	await syncConfig(connectedProject)
+	await refreshConfig(connectedProject, installation)
 
 	return {
 		ok: true,

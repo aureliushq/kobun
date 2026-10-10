@@ -2,16 +2,16 @@ import type { RouterContextProvider } from "react-router"
 import { getAuth } from "@/auth/auth.server"
 import { envContext } from "@/core/context"
 import { dbContext } from "@/db/context"
-import {
-	getGithubFileContentConditional,
-	hasStatus,
-} from "@/github/octokit.server"
+import type { Database, Project } from "@/db/types"
+import { getGithubFileContent, hasStatus } from "@/github/octokit.server"
+import type { InstallationID } from "@/types/github"
 import { toApiContext } from "./api-context"
+import { createConfigCache } from "./config-cache"
 import type {
 	ConfigSource,
 	ConfigSourceRead,
-	ConfigSourceRequest,
 	RepositoryAddress,
+	SourceRequest,
 } from "./config-source"
 import { createProjectContext } from "./create-project-context"
 import { toPageContext, toProjectPage } from "./page-context"
@@ -43,10 +43,10 @@ function createGithubConfigSource(env: Env): ConfigSource {
 	return {
 		read: async (
 			{ installationId, name, owner }: RepositoryAddress,
-			{ etag, path }: ConfigSourceRequest,
+			{ etag, path }: SourceRequest,
 		): Promise<ConfigSourceRead> => {
 			try {
-				const file = await getGithubFileContentConditional(
+				const file = await getGithubFileContent(
 					env,
 					installationId,
 					owner,
@@ -69,6 +69,30 @@ function createGithubConfigSource(env: Env): ConfigSource {
 			}
 		},
 	}
+}
+
+/**
+ * Read a Project's Config again now, whatever the cache's window says: what
+ * connecting a repository and the settings page's Refresh both do. The
+ * installation is passed in because neither caller's row carries it the same
+ * way, and both already have it to hand. Whether the repository was reached
+ * comes back beside the resolution, since nothing about a failed read is stored.
+ */
+export function refreshProjectConfig(
+	db: Database,
+	env: Env,
+	row: Project,
+	installationId: InstallationID,
+) {
+	const configCache = createConfigCache({
+		configSource: createGithubConfigSource(env),
+		db,
+	})
+	return configCache.refresh(row, {
+		installationId,
+		name: row.repoName,
+		owner: row.repoOwnerLogin,
+	})
 }
 
 /** Named so the type below can be read off it rather than spelled out. */

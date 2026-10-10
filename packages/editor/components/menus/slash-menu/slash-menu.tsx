@@ -13,18 +13,14 @@ import {
 	CommandList,
 } from "@/ui/components/base/command"
 import type { SlashCommandItem } from "../../../extensions/slash-commands/extension"
+import type { SuggestionMenuRef } from "../../../extensions/suggestion-popup"
 
 interface SlashMenuProps {
 	items: SlashCommandItem[]
 	command: (item: SlashCommandItem) => void
-	query: string
 }
 
-export interface SlashMenuRef {
-	onKeyDown: (props: { event: KeyboardEvent }) => boolean
-}
-
-export const SlashMenu = forwardRef<SlashMenuRef, SlashMenuProps>(
+export const SlashMenu = forwardRef<SuggestionMenuRef, SlashMenuProps>(
 	function SlashMenu({ items, command }, ref) {
 		const [selectedIndex, setSelectedIndex] = useState(0)
 		const listRef = useRef<HTMLDivElement>(null)
