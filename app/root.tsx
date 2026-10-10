@@ -23,30 +23,12 @@ import { ThemeContext } from "@/ui/hooks/use-theme"
 import { getThemeFromRequest, type Theme } from "@/ui/theme.server"
 import type { Route } from "./+types/root"
 import "@/core/styles/app.css"
-import appConfig from "@/config/app"
 import { posthogMiddleware } from "./lib/posthog-middleware"
 
 export const middleware: Route.MiddlewareFunction[] = [posthogMiddleware]
 
-export const links: Route.LinksFunction = () => [
-	{ rel: "preconnect", href: "https://fonts.googleapis.com" },
-	{
-		rel: "preconnect",
-		href: "https://fonts.gstatic.com",
-		crossOrigin: "anonymous",
-	},
-	{
-		rel: "stylesheet",
-		href: "https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap",
-	},
-]
-
 export function meta() {
-	return [
-		{ title: appConfig.core.appTitle },
-		{ name: "description", content: appConfig.core.appDescription },
-		{ name: "keywords", content: appConfig.core.appKeywords },
-	]
+	return [{ title: "Kobun - Git-based CMS for content and static sites." }]
 }
 
 /**
@@ -73,11 +55,6 @@ export async function loader({ context, request }: Route.LoaderArgs) {
 	return { preferences, theme, user: session?.user ?? null }
 }
 
-function getThemeClass(theme: Theme) {
-	if (theme === "dark") return "dark"
-	return appConfig.core.darkMode ? "dark" : ""
-}
-
 const themeScript = `
 (function() {
   var theme = document.documentElement.getAttribute("data-theme");
@@ -98,7 +75,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 		<html
 			lang="en"
 			data-theme={theme}
-			className={getThemeClass(theme)}
+			className="dark"
 			suppressHydrationWarning
 		>
 			<head>
@@ -106,7 +83,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 				<meta name="viewport" content="width=device-width, initial-scale=1" />
 				<Meta />
 				<link rel="icon" href="/favicon.svg" type="image/svg+xml"></link>
-				<link rel="canonical" href={appConfig.core.websiteUrl} />
+				<link rel="canonical" href="https://kobun.io" />
 				<Links />
 				<script dangerouslySetInnerHTML={{ __html: themeScript }} />
 			</head>

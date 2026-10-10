@@ -13,7 +13,7 @@ import {
 } from "lucide-react"
 import { Suspense, useState } from "react"
 import { Await, Link, useLocation, useSubmit } from "react-router"
-import type { NormalizedConfig } from "@/config"
+import type { NormalizedConfig } from "@/config/types"
 import type { ProjectWithGithubInstallation } from "@/db/types"
 import {
 	Avatar,
