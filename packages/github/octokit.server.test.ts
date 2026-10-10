@@ -3,7 +3,9 @@ import {
 	commitGithubFiles,
 	getGithubAppOctokit,
 	getGithubFileBytes,
+	getGithubFileContent,
 	getGithubInstallationOctokit,
+	hasStatus,
 } from "./octokit.server"
 
 const env = {
@@ -50,6 +52,7 @@ test("reads a file over 1 MB from its blob", async () => {
 			sha: "blob-sha",
 			type: "file",
 		},
+		headers: {},
 	} as never)
 	const getBlob = vi.spyOn(client().git, "getBlob").mockResolvedValue({
 		data: {
@@ -69,6 +72,58 @@ test("reads a file over 1 MB from its blob", async () => {
 	)
 	expect(file).toMatchObject({ path: "media/big.png", sha: "blob-sha" })
 	expect([...file.bytes]).toEqual([...bytes])
+})
+
+test("asks for a file only if it changed since the etag, and hands back the new one", async () => {
+	const getContent = vi.spyOn(client().repos, "getContent").mockResolvedValue({
+		data: {
+			content: Buffer.from("name: blog\n").toString("base64"),
+			encoding: "base64",
+			path: "kobun.yml",
+			sha: "config-sha",
+			type: "file",
+		},
+		headers: { etag: '"new"' },
+	} as never)
+
+	const file = await getGithubFileContent(
+		env,
+		7,
+		"acme",
+		"blog",
+		"kobun.yml",
+		'"old"',
+	)
+
+	expect(getContent).toHaveBeenCalledWith(
+		expect.objectContaining({
+			headers: expect.objectContaining({ "if-none-match": '"old"' }),
+		}),
+	)
+	expect(file).toEqual({
+		content: "name: blog\n",
+		etag: '"new"',
+		path: "kobun.yml",
+		sha: "config-sha",
+	})
+})
+
+// Octokit throws on GitHub's 304; the config source reads it as not-modified.
+test("lets an unchanged file's 304 through to the caller", async () => {
+	vi.spyOn(client().repos, "getContent").mockRejectedValue(
+		Object.assign(new Error("Not Modified"), { status: 304 }),
+	)
+
+	const read = getGithubFileContent(
+		env,
+		7,
+		"acme",
+		"blog",
+		"kobun.yml",
+		'"old"',
+	)
+
+	expect(hasStatus(await read.catch((error) => error), 304)).toBe(true)
 })
 
 /** The default branch's head as the commit reads it, with the guarded file at `fileSha`. */

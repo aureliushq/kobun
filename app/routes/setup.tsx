@@ -10,6 +10,7 @@ import {
 } from "lucide-react"
 import { useState } from "react"
 import {
+	createCookie,
 	data,
 	Form,
 	Link,
@@ -75,6 +76,14 @@ import {
 } from "@/ui/lib/types"
 import type { Route } from "./+types/setup"
 
+const installStateCookie = createCookie("github_install_state", {
+	httpOnly: true,
+	maxAge: 600,
+	path: PATHS.SETUP,
+	sameSite: "lax",
+	secure: true,
+})
+
 export async function loader({ context, request, url }: Route.LoaderArgs) {
 	const db = context.get(dbContext)
 	const env = context.get(envContext)
@@ -89,18 +98,10 @@ export async function loader({ context, request, url }: Route.LoaderArgs) {
 
 	// handle post-install callback
 	if (githubInstallationId) {
-		const cookieHeader = request.headers.get("Cookie")
-		const cookies: Record<string, unknown> = {}
-		if (cookieHeader) {
-			cookieHeader.split(";").forEach((cookie) => {
-				const [name, ...rest] = cookie.split("=")
-				if (name && rest.length > 0) {
-					cookies[name.trim()] = decodeURIComponent(rest.join("="))
-				}
-			})
-		}
-		const originalState = cookies.github_install_state as string
-		if (receivedState !== originalState) {
+		const originalState = await installStateCookie.parse(
+			request.headers.get("Cookie"),
+		)
+		if (!receivedState || receivedState !== originalState) {
 			throw redirect(PATHS.SETUP)
 		}
 
@@ -309,7 +310,7 @@ export async function action({ context, request }: Route.ActionArgs) {
 
 		return redirect(installUrl, {
 			headers: {
-				"Set-Cookie": `github_install_state=${state}; HttpOnly; Secure; SameSite=Lax; Path=${PATHS.SETUP}; Max-Age=600`,
+				"Set-Cookie": await installStateCookie.serialize(state),
 			},
 		})
 	}

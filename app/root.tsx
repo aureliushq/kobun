@@ -45,7 +45,7 @@ export function meta() {
  * (ADR-0010) — but unlike theme, nothing here needs an answer for them.
  */
 export async function loader({ context, request }: Route.LoaderArgs) {
-	const theme = getThemeFromRequest(request)
+	const theme = await getThemeFromRequest(request)
 	const session = await getAuth(context.get(envContext)).api.getSession({
 		headers: request.headers,
 	})

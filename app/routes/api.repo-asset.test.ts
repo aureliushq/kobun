@@ -38,9 +38,12 @@ function load(headers: Record<string, string> = {}) {
 
 beforeEach(() => {
 	vi.mocked(getGithubFileSha).mockReset().mockResolvedValue(SHA)
-	vi.mocked(getGithubFileBytes)
-		.mockReset()
-		.mockResolvedValue({ bytes: BYTES, path: "images/logo.png", sha: SHA })
+	vi.mocked(getGithubFileBytes).mockReset().mockResolvedValue({
+		bytes: BYTES,
+		etag: null,
+		path: "images/logo.png",
+		sha: SHA,
+	})
 })
 
 test("answers a copy that is still current with a 304, without downloading it", async () => {
@@ -55,6 +58,7 @@ test("sends the picture when the browser's copy is out of date", async () => {
 	vi.mocked(getGithubFileSha).mockResolvedValue("newer")
 	vi.mocked(getGithubFileBytes).mockResolvedValue({
 		bytes: BYTES,
+		etag: null,
 		path: "images/logo.png",
 		sha: "newer",
 	})

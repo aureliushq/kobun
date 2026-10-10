@@ -3,10 +3,7 @@ import { getAuth } from "@/auth/auth.server"
 import { envContext } from "@/core/context"
 import { dbContext } from "@/db/context"
 import type { Database, Project } from "@/db/types"
-import {
-	getGithubFileContentConditional,
-	hasStatus,
-} from "@/github/octokit.server"
+import { getGithubFileContent, hasStatus } from "@/github/octokit.server"
 import type { InstallationID } from "@/types/github"
 import { toApiContext } from "./api-context"
 import { createConfigCache } from "./config-cache"
@@ -49,7 +46,7 @@ function createGithubConfigSource(env: Env): ConfigSource {
 			{ etag, path }: SourceRequest,
 		): Promise<ConfigSourceRead> => {
 			try {
-				const file = await getGithubFileContentConditional(
+				const file = await getGithubFileContent(
 					env,
 					installationId,
 					owner,
