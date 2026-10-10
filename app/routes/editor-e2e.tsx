@@ -1,15 +1,7 @@
 import { useState } from "react"
-import { useSearchParams } from "react-router"
 import { RichTextEditor } from "@/editor"
-import ComponentExample from "@/ui/components/component-example"
 
-export default function Example() {
-	const [searchParams] = useSearchParams()
-	if (searchParams.has("editor-e2e")) return <EditorE2EFixture />
-	return <ComponentExample />
-}
-
-function EditorE2EFixture() {
+export default function EditorE2EFixture() {
 	const [markdown, setMarkdown] = useState("")
 
 	return (
