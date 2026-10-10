@@ -1,13 +1,14 @@
 import { act, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { useMemo, useState } from "react"
-import { createRoutesStub } from "react-router"
+import { createRoutesStub, Outlet, useLoaderData } from "react-router"
 import { describe, expect, it, vi } from "vitest"
 import {
 	EditorActionError,
 	type EditorSaveError,
 } from "@/core/editor/editor-action"
-import type { PrimaryEditorAction } from "@/core/editor/primary-action"
+import { PreferencesContext } from "@/core/preferences/context"
+import { DEFAULT_USER_PREFERENCES, type PrimaryEditorAction } from "@/db/types"
 
 import EditorLayout from "./editor"
 import {
@@ -66,36 +67,51 @@ function header({
 		return <div data-testid="editor-body" />
 	}
 
-	// Stands in for the writer's row: the action writes it, the loader reads it
-	// back. Without that the stub's loader would answer with the old target the
-	// moment the fetcher settled, and the label would flash back — which is
+	// Stands in for the writer's row: the action writes it, the root loader reads
+	// it back. Without that the stub's loader would answer with the old target
+	// the moment the fetcher settled, and the label would flash back — which is
 	// exactly the thing the optimistic value exists to prevent.
 	let stored = primaryAction
 
+	function Root() {
+		const preferences = useLoaderData<typeof DEFAULT_USER_PREFERENCES>()
+		return (
+			<PreferencesContext.Provider value={preferences}>
+				<Outlet />
+			</PreferencesContext.Provider>
+		)
+	}
+
 	const Stub = createRoutesStub([
 		{
-			Component: EditorLayout,
+			Component: Root,
 			loader: () => ({
-				draftEditorPath,
-				parentLabel: "Posts",
-				parentPath,
-				primaryAction: stored,
+				...DEFAULT_USER_PREFERENCES,
+				editorPrimaryAction: stored,
 			}),
-			path: "/editor",
-			children: registered ? [{ Component: Child, index: true }] : [],
-		},
-		{
-			Component: () => <div data-testid="collection-page" />,
-			path: parentPath,
-		},
-		{
-			action: async ({ request }: { request: Request }) => {
-				stored = String(
-					(await request.formData()).get("action"),
-				) as PrimaryEditorAction
-				return { success: true }
-			},
-			path: "/api/set-editor-primary-action",
+			path: "/",
+			children: [
+				{
+					Component: EditorLayout,
+					loader: () => ({ draftEditorPath, parentLabel: "Posts", parentPath }),
+					path: "/editor",
+					children: registered ? [{ Component: Child, index: true }] : [],
+				},
+				{
+					Component: () => <div data-testid="collection-page" />,
+					path: parentPath,
+				},
+				{
+					action: async ({ request }: { request: Request }) => {
+						const formData = await request.formData()
+						if (formData.get("key") === "editorPrimaryAction") {
+							stored = String(formData.get("value")) as PrimaryEditorAction
+						}
+						return { success: true }
+					},
+					path: "/api/set-preference",
+				},
+			],
 		},
 	])
 

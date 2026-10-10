@@ -206,8 +206,8 @@ export const collectionListing = sqliteTable(
  * writer changes something; until then the defaults below are the whole answer,
  * which is why every one of them states today's hardcoded behaviour rather than
  * an opinion — `properties_panel_open` matches `usePropertiesPanel`,
- * `editor_primary_action` matches `DEFAULT_PRIMARY_EDITOR_ACTION` in
- * `app/core/editor/primary-action.ts`, and so on down.
+ * and so on down. `DEFAULT_USER_PREFERENCES` in `../types.ts` spells them
+ * again.
  *
  * `onDelete: "cascade"`, unlike `project` and `userInstallation`, which let a
  * user's rows outlive them on purpose. Nothing here is worth keeping once the

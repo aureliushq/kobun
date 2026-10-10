@@ -16,7 +16,7 @@ import type { Route } from "./+types/api.set-preference"
  * write, so a Preference cannot be validated one way here and another way there.
  *
  * The session is read here rather than taken from a Project Context — the same
- * three lines `api.set-editor-primary-action.ts` uses, and for the same reason:
+ * three lines `routes/settings.tsx` uses, and for the same reason:
  * this path names no Project. A status rather than a redirect, because the
  * caller is a fetcher and not a navigation.
  */

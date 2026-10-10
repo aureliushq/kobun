@@ -7,6 +7,7 @@ import {
 	isDateDisplay,
 	isEditorFont,
 	isEditorWidth,
+	isPrimaryEditorAction,
 	type UserPreferenceValues,
 } from "./types"
 
@@ -44,6 +45,9 @@ export async function readUserPreferences(
 		editorFont: isEditorFont(row.editorFont)
 			? row.editorFont
 			: DEFAULT_USER_PREFERENCES.editorFont,
+		editorPrimaryAction: isPrimaryEditorAction(row.editorPrimaryAction)
+			? row.editorPrimaryAction
+			: DEFAULT_USER_PREFERENCES.editorPrimaryAction,
 		editorWidth: isEditorWidth(row.editorWidth)
 			? row.editorWidth
 			: DEFAULT_USER_PREFERENCES.editorWidth,
@@ -74,52 +78,6 @@ export async function writeUserPreferences(
 		.values({ ...DEFAULT_USER_PREFERENCES, ...patch, userId })
 		.onConflictDoUpdate({
 			set: patch,
-			target: userPreference.userId,
-		})
-}
-
-/**
- * The writer's save target, as the row holds it.
- *
- * Typed `string` rather than the pair it can be: that vocabulary is
- * `PrimaryEditorAction` in `app/core/editor/primary-action.ts`, and `packages/db`
- * does not depend on `app`. The caller coerces it with `toPrimaryEditorAction`,
- * which is where the fallback for an out-of-vocabulary value lives — the same
- * bargain `readUserPreferences` strikes with its own guards, made from the other
- * side of the boundary.
- *
- * Null is a writer with no row, which is the ordinary case rather than an error.
- */
-export async function readEditorPrimaryAction(
-	db: UserPreferenceDatabase,
-	userId: string,
-): Promise<string | null> {
-	const row = await db.query.userPreference.findFirst({
-		columns: { editorPrimaryAction: true },
-		where: eq(userPreference.userId, userId),
-	})
-	return row?.editorPrimaryAction ?? null
-}
-
-/**
- * Record the save target, creating the writer's row if choosing one is the first
- * thing they have ever changed. An upsert for that reason, exactly as
- * `writeUserPreferences` is.
- */
-export async function writeEditorPrimaryAction(
-	db: UserPreferenceDatabase,
-	userId: string,
-	action: string,
-): Promise<void> {
-	await db
-		.insert(userPreference)
-		.values({
-			...DEFAULT_USER_PREFERENCES,
-			editorPrimaryAction: action,
-			userId,
-		})
-		.onConflictDoUpdate({
-			set: { editorPrimaryAction: action },
 			target: userPreference.userId,
 		})
 }

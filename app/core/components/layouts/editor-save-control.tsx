@@ -1,5 +1,5 @@
 import { ChevronDown } from "lucide-react"
-import type { PrimaryEditorAction } from "@/core/editor/primary-action"
+import type { PrimaryEditorAction } from "@/db/types"
 import { Button } from "@/ui/components/base/button"
 import { ButtonGroup } from "@/ui/components/base/button-group"
 import {

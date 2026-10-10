@@ -52,8 +52,7 @@ export function meta() {
 /**
  * Read here, and only here, because the Preferences reach five surfaces under
  * three different layouts — the sidebar, the editor, the Collection list, the
- * dashboard and every date Field. The save target above it is read in the
- * editor layout for the opposite reason: one consumer.
+ * dashboard and every date Field.
  *
  * One indexed row on top of a `getSession` this loader already awaits. Server
  * side rather than in the browser, so the stored value is in the first byte and

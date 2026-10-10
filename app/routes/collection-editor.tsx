@@ -6,7 +6,6 @@ import {
 	useParams,
 } from "react-router"
 import { hasPublicationState } from "@/config/features"
-import { SET_PRIMARY_ACTION_PATH } from "@/core/components/layouts/use-primary-editor-action"
 import {
 	CollectionItemEditor,
 	type OpenedContent,
@@ -43,6 +42,7 @@ import {
 	requireSubcollection,
 } from "@/core/project-context"
 import { requirePageContext } from "@/core/project-context/project-context.server"
+import { SET_PREFERENCE_PATH } from "@/core/settings/use-preference"
 import { posthogContext } from "@/lib/posthog-middleware"
 import { EditorActionIntents } from "@/ui/lib/types"
 import type { Route } from "./+types/collection-editor"
@@ -197,10 +197,10 @@ export function shouldRevalidate({
 	nextUrl,
 }: ShouldRevalidateFunctionArgs) {
 	if (isDraftAdoptionNavigation(currentUrl, nextUrl)) return false
-	// Choosing which target the header's primary button runs is chrome. It says
-	// nothing about the item being edited, and re-reading the Source would cost
-	// a GitHub round trip for a menu click made mid-sentence.
-	if (formAction === SET_PRIMARY_ACTION_PATH) return false
+	// A Preference — such as which target the header's primary button runs — is
+	// chrome. It says nothing about the item being edited, and re-reading the
+	// Source would cost a GitHub round trip for a menu click made mid-sentence.
+	if (formAction === SET_PREFERENCE_PATH) return false
 	return defaultShouldRevalidate
 }
 
