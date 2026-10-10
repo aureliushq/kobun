@@ -15,19 +15,3 @@ export function H2({ children }: { children: ReactNode }) {
 		</h2>
 	)
 }
-
-export function H3({ children }: { children: ReactNode }) {
-	return (
-		<h3 className="scroll-m-20 text-balance font-semibold text-2xl tracking-tight">
-			{children}
-		</h3>
-	)
-}
-
-export function H4({ children }: { children: ReactNode }) {
-	return (
-		<h4 className="scroll-m-20 text-balance font-semibold text-xl tracking-tight">
-			{children}
-		</h4>
-	)
-}

@@ -32,7 +32,7 @@ import {
 	EmptyMedia,
 	EmptyTitle,
 } from "@/ui/components/base/empty"
-import { H2 } from "@/ui/components/base/typegraphy"
+import { H2 } from "@/ui/components/base/typography"
 import type { Route } from "./+types/singleton"
 
 type SchemaRecord = Record<string, ResolvedField>

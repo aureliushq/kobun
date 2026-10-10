@@ -17,7 +17,7 @@ import {
 	requireSubcollection,
 } from "@/core/project-context"
 import { requirePageContext } from "@/core/project-context/project-context.server"
-import { H1 } from "@/ui/components/base/typegraphy"
+import { H1 } from "@/ui/components/base/typography"
 import { cn } from "@/ui/lib/utils"
 import type { Route } from "./+types/subcollection"
 

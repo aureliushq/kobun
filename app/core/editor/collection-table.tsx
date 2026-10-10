@@ -61,7 +61,7 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/ui/components/base/table"
-import { H2 } from "@/ui/components/base/typegraphy"
+import { H2 } from "@/ui/components/base/typography"
 import { AsyncErrorAlert } from "@/ui/components/blocks/async-error-alert"
 import { TableRowsSkeleton } from "@/ui/components/blocks/skeletons"
 
