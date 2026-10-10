@@ -1,5 +1,11 @@
 # kobun
 
+## 0.11.1
+
+### Patch Changes
+
+- d541659: Fix empty-heading placeholders, header controls and Refresh configuration errors; trim unused code and dependencies.
+
 ## 0.11.0
 
 ### Minor Changes
