@@ -1,4 +1,4 @@
-import { globSync, readFileSync } from "node:fs"
+import { existsSync, readdirSync, readFileSync } from "node:fs"
 import { parseEnv } from "node:util"
 import { betterAuth } from "better-auth"
 import { drizzleAdapter } from "better-auth/adapters/drizzle"
@@ -37,11 +37,12 @@ const KOBUN_VERSION = JSON.parse(readFileSync("package.json", "utf8")).version
 
 /** The local D1 the dev server's Miniflare keeps, as `db:setup` left it. */
 function localDatabase() {
-	const [path] = globSync("./.wrangler/state/v3/d1/**/*.sqlite").filter(
-		(file) => !file.endsWith("/metadata.sqlite"),
+	const dir = ".wrangler/state/v3/d1/miniflare-D1DatabaseObject"
+	const [file] = (existsSync(dir) ? readdirSync(dir) : []).filter(
+		(name) => name.endsWith(".sqlite") && name !== "metadata.sqlite",
 	)
-	if (!path) throw new Error("No local D1 database: run `bun run db:setup`")
-	return new Database(path)
+	if (!file) throw new Error("No local D1 database: run `bun run db:setup`")
+	return new Database(`${dir}/${file}`)
 }
 
 /**

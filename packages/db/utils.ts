@@ -1,10 +1,12 @@
-import { existsSync, globSync } from "node:fs"
+import { existsSync, readdirSync } from "node:fs"
 import wranglerConfig from "../../wrangler.json"
 
+const LOCAL_D1_DIR = ".wrangler/state/v3/d1/miniflare-D1DatabaseObject"
+
 function getLocalSqliteDbUrl() {
-	const dbUrls = globSync("./.wrangler/state/v3/d1/**/*.sqlite").filter(
-		(file) => !file.endsWith("/metadata.sqlite"),
-	)
+	const dbUrls = (existsSync(LOCAL_D1_DIR) ? readdirSync(LOCAL_D1_DIR) : [])
+		.filter((file) => file.endsWith(".sqlite") && file !== "metadata.sqlite")
+		.map((file) => `${LOCAL_D1_DIR}/${file}`)
 
 	if (dbUrls.length > 1) {
 		throw new Error("Multiple SQLite databases found")
