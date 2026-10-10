@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto"
-import { mkdirSync, readdirSync, rmSync } from "node:fs"
+import { mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs"
 import z from "zod"
 import { kobunConfigSchema } from "@/config/schema"
 
@@ -24,11 +24,11 @@ for (const file of readdirSync("public/schemas")) {
 }
 
 // Write hashed schema file
-await Bun.write(`public/schemas/v1.${hash}.json`, output)
+writeFileSync(`public/schemas/v1.${hash}.json`, output)
 
 // Write hash mapping for the Worker
 mkdirSync("workers/generated", { recursive: true })
-await Bun.write(
+writeFileSync(
 	"workers/generated/schema-map.ts",
 	`export const schemaHash = "${hash}";\n`,
 )

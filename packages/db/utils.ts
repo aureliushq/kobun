@@ -1,14 +1,10 @@
-import { config } from "@dotenvx/dotenvx"
-import Database from "better-sqlite3"
-import { drizzle as drizzleLocal } from "drizzle-orm/better-sqlite3"
-import glob from "fast-glob"
+import { existsSync, globSync } from "node:fs"
 import wranglerConfig from "../../wrangler.json"
-import { drizzle as drizzleRemote } from "./drivers/d1-http"
 
 function getLocalSqliteDbUrl() {
-	const dbUrls = glob.sync("./.wrangler/state/v3/d1/**/*.sqlite", {
-		ignore: ["**/metadata.sqlite"],
-	})
+	const dbUrls = globSync("./.wrangler/state/v3/d1/**/*.sqlite").filter(
+		(file) => !file.endsWith("/metadata.sqlite"),
+	)
 
 	if (dbUrls.length > 1) {
 		throw new Error("Multiple SQLite databases found")
@@ -19,29 +15,6 @@ function getLocalSqliteDbUrl() {
 	}
 
 	return dbUrls[0]
-}
-
-export function getLocalOrRemoteDb() {
-	config({ path: ".env" })
-	if (
-		process.env.CLOUDFLARE_ACCOUNT_ID &&
-		process.env.CLOUDFLARE_DATABASE_ID &&
-		process.env.CLOUDFLARE_API_TOKEN
-	) {
-		console.log("🎫 Cloudflare credentials found")
-		console.log("🔗 Connecting to remote db...")
-		return drizzleRemote(
-			{
-				accountId: process.env.CLOUDFLARE_ACCOUNT_ID,
-				databaseId: process.env.CLOUDFLARE_DATABASE_ID,
-				token: process.env.CLOUDFLARE_API_TOKEN,
-			},
-			{ logger: true },
-		)
-	} else {
-		console.log("🔗 Connecting to local db...")
-		return drizzleLocal(new Database(getLocalSqliteDbUrl()), { logger: true })
-	}
 }
 
 function isValidCloudflareEnv(
@@ -62,7 +35,7 @@ function getDatabaseId(cloudflareEnv?: string) {
 }
 
 export function getDbCredentials() {
-	config({ path: ".env", quiet: true, ignore: ["MISSING_ENV_FILE"] })
+	if (existsSync(".env")) process.loadEnvFile()
 
 	const isRemote =
 		isValidCloudflareEnv(process.env.CLOUDFLARE_ENV) &&

@@ -66,7 +66,6 @@ The local app runs at [http://localhost:5173](http://localhost:5173).
 | `BETTER_AUTH_URL` | Base URL of the app (default: `http://localhost:5173`) |
 | `BETTER_AUTH_SECRET` | Auth secret. Generate with `openssl rand -base64 32` |
 | `CLOUDFLARE_ACCOUNT_ID` | Cloudflare account ID (needed for remote DB operations) |
-| `CLOUDFLARE_DATABASE_ID` | Cloudflare D1 database ID (needed for remote DB operations) |
 | `CLOUDFLARE_API_TOKEN` | Cloudflare API token (needed for remote DB operations) |
 
 ### `.dev.vars` — Runtime secrets for the local Wrangler dev server

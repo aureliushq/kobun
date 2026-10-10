@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto"
-import { mkdirSync, readdirSync, rmSync } from "node:fs"
+import { mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs"
 import packageJson from "../package.json"
 
 const version = packageJson.version
@@ -25,11 +25,11 @@ for (const file of readdirSync("public/manifest")) {
 }
 
 // Write hashed manifest file
-await Bun.write(`public/manifest/manifest.${hash}.json`, output)
+writeFileSync(`public/manifest/manifest.${hash}.json`, output)
 
 // Write hash mapping for the Worker
 mkdirSync("workers/generated", { recursive: true })
-await Bun.write(
+writeFileSync(
 	"workers/generated/manifest-map.ts",
 	`export const manifestHash = "${hash}";\n`,
 )

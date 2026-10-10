@@ -215,7 +215,6 @@ In CI they're passed to the Build step from GitHub Actions variables — see [En
 >
 > ```
 > CLOUDFLARE_ACCOUNT_ID=your-account-id
-> CLOUDFLARE_DATABASE_ID=your-database-id
 > CLOUDFLARE_API_TOKEN=your-api-token
 > VITE_KOBUN_HOME_URL=https://kobun.io
 > VITE_KOBUN_APP_URL=http://localhost:5173
