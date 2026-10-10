@@ -26,19 +26,8 @@ function createTestEditor(initialMarkdown = "") {
 	const emitUpdate = () => {
 		for (const handler of updateHandlers) handler()
 	}
-	const setContent = vi.fn(
-		(nextMarkdown: string, options?: { emitUpdate?: boolean }) => {
-			markdown = nextMarkdown
-			if (options?.emitUpdate !== false) emitUpdate()
-		},
-	)
-
 	const editor = {
 		commands: {
-			clearContent: () => {
-				markdown = ""
-				emitUpdate()
-			},
 			focus: vi.fn(),
 			// Moves images the way the real command does: the change is the
 			// document's, and announced to it like any other.
@@ -49,10 +38,8 @@ function createTestEditor(initialMarkdown = "") {
 				emitUpdate()
 				return true
 			},
-			setContent,
 		},
 		getHTML: () => `<p>${markdown}</p>`,
-		getJSON: () => ({ type: "doc" }),
 		getMarkdown: () => markdown,
 		on: (_event: string, handler: UpdateHandler) => {
 			updateHandlers.add(handler)
@@ -64,7 +51,6 @@ function createTestEditor(initialMarkdown = "") {
 
 	return {
 		editor,
-		setContent,
 		update(nextMarkdown: string) {
 			markdown = nextMarkdown
 			emitUpdate()
@@ -81,7 +67,7 @@ describe("RichTextEditor autosave", () => {
 		vi.useRealTimers()
 	})
 
-	it("wires autosave state and clean document loads into the ref API", async () => {
+	it("wires autosave state into the ref API", async () => {
 		const testEditor = createTestEditor("Initial")
 		mocks.useEditor.mockReturnValue(testEditor.editor)
 		const onAutoSave = vi.fn()
@@ -90,7 +76,6 @@ describe("RichTextEditor autosave", () => {
 		render(
 			<RichTextEditor
 				ref={ref}
-				autosaveDelay={100}
 				onAutosaveStateChange={onAutosaveStateChange}
 				persistence={{ onAutoSave }}
 			/>,
@@ -102,15 +87,8 @@ describe("RichTextEditor autosave", () => {
 			expect.objectContaining({ isDirty: true }),
 		)
 
-		await act(async () => vi.advanceTimersByTimeAsync(100))
+		await act(async () => vi.advanceTimersByTimeAsync(1000))
 		expect(onAutoSave).toHaveBeenCalledWith("Changed")
-		expect(ref.current?.hasUnsavedChanges()).toBe(false)
-
-		act(() => ref.current?.setMarkdown("Loaded"))
-		expect(testEditor.setContent).toHaveBeenCalledWith("Loaded", {
-			contentType: "markdown",
-			emitUpdate: false,
-		})
 		expect(ref.current?.hasUnsavedChanges()).toBe(false)
 	})
 
@@ -141,17 +119,11 @@ describe("RichTextEditor autosave", () => {
 			imageSources: { "/staged/cat.png": "media/cat.png" },
 		})
 		const ref = createRef<EditorRefApi>()
-		render(
-			<RichTextEditor
-				ref={ref}
-				autosaveDelay={100}
-				persistence={{ onAutoSave, onCommit }}
-			/>,
-		)
+		render(<RichTextEditor ref={ref} persistence={{ onAutoSave, onCommit }} />)
 
 		act(() => testEditor.update("![A cat](/staged/cat.png)"))
 		await act(async () => ref.current?.commit())
-		await act(async () => vi.advanceTimersByTimeAsync(100))
+		await act(async () => vi.advanceTimersByTimeAsync(1000))
 
 		expect(ref.current?.getMarkdown()).toBe("![A cat](media/cat.png)")
 		expect(ref.current?.hasUnsavedChanges()).toBe(false)
@@ -200,13 +172,7 @@ describe("RichTextEditor autosave", () => {
 			.mockReturnValueOnce(firstSave)
 			.mockResolvedValueOnce()
 		const ref = createRef<EditorRefApi>()
-		render(
-			<RichTextEditor
-				ref={ref}
-				autosaveDelay={100}
-				persistence={{ onAutoSave }}
-			/>,
-		)
+		render(<RichTextEditor ref={ref} persistence={{ onAutoSave }} />)
 
 		act(() => testEditor.update("Saving"))
 		const save = ref.current?.save()
@@ -215,7 +181,7 @@ describe("RichTextEditor autosave", () => {
 		await save
 
 		expect(ref.current?.hasUnsavedChanges()).toBe(true)
-		await act(async () => vi.advanceTimersByTimeAsync(100))
+		await act(async () => vi.advanceTimersByTimeAsync(1000))
 		expect(onAutoSave).toHaveBeenLastCalledWith("Newer edit")
 	})
 

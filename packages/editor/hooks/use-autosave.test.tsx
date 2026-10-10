@@ -53,7 +53,6 @@ describe("useAutosave", () => {
 			useAutosave({
 				editor: testEditor.editor,
 				persistence: { onAutoSave },
-				delay: 500,
 			}),
 		)
 
@@ -63,7 +62,7 @@ describe("useAutosave", () => {
 		expect(onAutoSave).not.toHaveBeenCalled()
 
 		await act(async () => {
-			await vi.advanceTimersByTimeAsync(499)
+			await vi.advanceTimersByTimeAsync(999)
 		})
 		expect(onAutoSave).not.toHaveBeenCalled()
 
@@ -76,7 +75,7 @@ describe("useAutosave", () => {
 		expect(result.current).toMatchObject({
 			isDirty: false,
 			isSaving: false,
-			lastSavedAt: new Date("2026-07-14T12:00:00.500Z"),
+			lastSavedAt: new Date("2026-07-14T12:00:01.000Z"),
 		})
 	})
 
@@ -91,17 +90,16 @@ describe("useAutosave", () => {
 			useAutosave({
 				editor: testEditor.editor,
 				persistence: { onAutoSave },
-				delay: 100,
 			}),
 		)
 
 		act(() => testEditor.update("First"))
-		await act(async () => vi.advanceTimersByTimeAsync(100))
+		await act(async () => vi.advanceTimersByTimeAsync(1000))
 		expect(onAutoSave).toHaveBeenCalledTimes(1)
 		expect(result.current.isSaving).toBe(true)
 
 		act(() => testEditor.update("Latest"))
-		await act(async () => vi.advanceTimersByTimeAsync(100))
+		await act(async () => vi.advanceTimersByTimeAsync(1000))
 		expect(onAutoSave).toHaveBeenCalledTimes(1)
 
 		await act(async () => firstSave.resolve())
@@ -122,16 +120,15 @@ describe("useAutosave", () => {
 			useAutosave({
 				editor: testEditor.editor,
 				persistence: { onAutoSave },
-				delay: 100,
 			}),
 		)
 
 		act(() => testEditor.update("First"))
-		await act(async () => vi.advanceTimersByTimeAsync(100))
+		await act(async () => vi.advanceTimersByTimeAsync(1000))
 		act(() => testEditor.update("Initial"))
 		await act(async () => firstSave.resolve())
 
-		await act(async () => vi.advanceTimersByTimeAsync(100))
+		await act(async () => vi.advanceTimersByTimeAsync(1000))
 		expect(onAutoSave).toHaveBeenCalledTimes(2)
 		expect(onAutoSave).toHaveBeenLastCalledWith("Initial")
 	})
@@ -160,13 +157,12 @@ describe("useAutosave", () => {
 			useAutosave({
 				editor: testEditor.editor,
 				persistence: { onAutoSave },
-				delay: 100,
 			}),
 		)
 
 		act(() => testEditor.update("Changed"))
 		act(() => testEditor.update("Initial"))
-		await act(async () => vi.advanceTimersByTimeAsync(100))
+		await act(async () => vi.advanceTimersByTimeAsync(1000))
 
 		expect(onAutoSave).not.toHaveBeenCalled()
 		expect(result.current.isDirty).toBe(false)
@@ -181,12 +177,11 @@ describe("useAutosave", () => {
 			useAutosave({
 				editor: testEditor.editor,
 				persistence: { onAutoSave },
-				delay: 100,
 			}),
 		)
 
 		act(() => testEditor.update("Changed"))
-		await act(async () => vi.advanceTimersByTimeAsync(100))
+		await act(async () => vi.advanceTimersByTimeAsync(1000))
 
 		expect(consoleError).toHaveBeenCalledWith("Autosave failed:", error)
 		expect(result.current).toMatchObject({
@@ -195,7 +190,7 @@ describe("useAutosave", () => {
 			lastSavedAt: null,
 		})
 
-		await act(async () => vi.advanceTimersByTimeAsync(100))
+		await act(async () => vi.advanceTimersByTimeAsync(1000))
 		expect(onAutoSave).toHaveBeenCalledOnce()
 	})
 
@@ -206,7 +201,6 @@ describe("useAutosave", () => {
 			useAutosave({
 				editor: testEditor.editor,
 				persistence: { onAutoSave },
-				delay: 1000,
 			}),
 		)
 
@@ -216,27 +210,5 @@ describe("useAutosave", () => {
 
 		expect(onAutoSave).toHaveBeenCalledOnce()
 		expect(onAutoSave).toHaveBeenCalledWith("Changed")
-	})
-
-	it("can mark the current document as a clean baseline", async () => {
-		const testEditor = createTestEditor("Initial")
-		const onAutoSave = vi.fn()
-		const { result } = renderHook(() =>
-			useAutosave({
-				editor: testEditor.editor,
-				persistence: { onAutoSave },
-				delay: 100,
-			}),
-		)
-
-		act(() => testEditor.update("Loaded document"))
-		act(() => result.current.markCurrentContentClean())
-		await act(async () => vi.advanceTimersByTimeAsync(100))
-
-		expect(onAutoSave).not.toHaveBeenCalled()
-		expect(result.current).toMatchObject({
-			isDirty: false,
-			lastSavedAt: null,
-		})
 	})
 })

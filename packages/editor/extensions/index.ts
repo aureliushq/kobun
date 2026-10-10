@@ -1,8 +1,9 @@
 import { type Extensions, generateHTML } from "@tiptap/core"
-import CharacterCount from "@tiptap/extension-character-count"
-import { TextStyle } from "@tiptap/extension-text-style"
+import Typography from "@tiptap/extension-typography"
 import Underline from "@tiptap/extension-underline"
+import { CharacterCount, Placeholder } from "@tiptap/extensions"
 import { Markdown } from "@tiptap/markdown"
+import StarterKit from "@tiptap/starter-kit"
 import { Tokenizer } from "marked"
 import type { ImageUploadAdapter } from "../types"
 import { CustomBlockquoteExtension } from "./blockquote"
@@ -12,21 +13,13 @@ import { DragHandleExtension } from "./drag-handle"
 import { CustomEmojiExtension } from "./emoji/extension"
 import { CustomHorizontalRuleExtension } from "./horizontal-rule"
 import { CustomImageExtension } from "./image/extension"
-import { CustomKeymapExtension } from "./keymap"
-import { CustomLinkExtension } from "./link"
 import { MarkdownClipboardExtension } from "./markdown-clipboard"
 import { MarkdownPasteExtension } from "./markdown-paste"
-import { CustomPlaceholderExtension } from "./placeholder"
-import type { SlashCommandItem } from "./slash-commands/extension"
 import { SlashCommandsExtension } from "./slash-commands/extension"
-import { createSlashSuggestionOptions } from "./slash-commands/suggestions"
-import { configuredStarterKit } from "./starter-kit"
-import { CustomTypographyExtension } from "./typography"
 
 interface ExtensionOptions {
 	imageUpload?: ImageUploadAdapter
 	placeholder?: string
-	slashCommands?: SlashCommandItem[]
 }
 
 /**
@@ -43,7 +36,7 @@ class SoftWrapTokenizer extends Tokenizer {
 	}
 }
 
-export const editorMarkdownOptions = {
+const editorMarkdownOptions = {
 	breaks: false,
 	gfm: true,
 	tokenizer: new SoftWrapTokenizer(),
@@ -62,7 +55,39 @@ export function getEditorExtensions(options: ExtensionOptions): Extensions {
 	)
 
 	extensions.push(
-		configuredStarterKit(),
+		StarterKit.configure({
+			blockquote: false,
+			bulletList: {
+				HTMLAttributes: { class: "list-disc pl-8" },
+			},
+			codeBlock: false,
+			heading: {
+				levels: [1, 2, 3, 4, 5, 6],
+			},
+			horizontalRule: false,
+			link: {
+				autolink: true,
+				HTMLAttributes: {
+					class:
+						"text-primary underline underline-offset-2 hover:text-primary/80 cursor-pointer",
+					rel: "noopener noreferrer nofollow",
+					target: "_blank",
+				},
+				linkOnPaste: true,
+				openOnClick: false,
+			},
+			listItem: {
+				HTMLAttributes: { class: "leading-normal" },
+			},
+			orderedList: {
+				HTMLAttributes: { class: "list-decimal pl-8" },
+			},
+			paragraph: {
+				HTMLAttributes: { class: "leading-relaxed" },
+			},
+			underline: false,
+			undoRedo: {},
+		}),
 		CharacterCount,
 		CustomBlockquoteExtension,
 		calloutExtension,
@@ -71,21 +96,17 @@ export function getEditorExtensions(options: ExtensionOptions): Extensions {
 		CustomEmojiExtension,
 		CustomHorizontalRuleExtension,
 		CustomImageExtension.configure({ uploadAdapter: options.imageUpload }),
-		CustomLinkExtension,
-		CustomKeymapExtension,
-		CustomPlaceholderExtension.configure({
+		Placeholder.configure({
+			includeChildren: true,
 			placeholder: options.placeholder ?? "Press '/' for commands...",
 		}),
-		CustomTypographyExtension,
+		Typography,
 		Markdown.configure({
 			markedOptions: editorMarkdownOptions,
 		}),
 		MarkdownClipboardExtension,
 		MarkdownPasteExtension,
-		SlashCommandsExtension.configure({
-			suggestion: createSlashSuggestionOptions(options.slashCommands),
-		}),
-		TextStyle,
+		SlashCommandsExtension,
 		MarkdownUnderlineExtension,
 	)
 

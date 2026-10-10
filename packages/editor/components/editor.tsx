@@ -22,11 +22,8 @@ export const RichTextEditor = forwardRef<EditorRefApi, RichTextEditorProps>(
 			onChange,
 			readOnly = false,
 			dragHandle = true,
-			className,
 			persistence,
-			autosaveDelay,
 			onAutosaveStateChange,
-			slashCommands,
 		} = props
 
 		const containerRef = useRef<HTMLDivElement>(null)
@@ -44,12 +41,10 @@ export const RichTextEditor = forwardRef<EditorRefApi, RichTextEditorProps>(
 			imageUpload,
 			readOnly,
 			onChange,
-			slashCommands,
 		})
 		const autosave = useAutosave({
 			editor,
 			persistence,
-			delay: autosaveDelay,
 		})
 
 		useEffect(() => {
@@ -88,21 +83,9 @@ export const RichTextEditor = forwardRef<EditorRefApi, RichTextEditorProps>(
 					if (!editor) return ""
 					return editor.getMarkdown()
 				},
-				getJSON: () => {
-					if (!editor) return { type: "doc", content: [] }
-					return editor.getJSON()
-				},
 				getHTML: () => {
 					if (!editor) return ""
 					return editor.getHTML()
-				},
-				setMarkdown: (markdown: string) => {
-					if (!editor) return
-					editor.commands.setContent(markdown, {
-						contentType: "markdown",
-						emitUpdate: false,
-					})
-					autosave.markCurrentContentClean()
 				},
 				focus: (position?: "start" | "end" | "all") => {
 					if (!editor) return
@@ -154,10 +137,6 @@ export const RichTextEditor = forwardRef<EditorRefApi, RichTextEditorProps>(
 					}
 					await persistence.onPublish(editor.getMarkdown())
 				},
-				clear: () => {
-					if (!editor) return
-					editor.commands.clearContent()
-				},
 				getEditor: () => editor,
 			}),
 			[editor, autosave, persistence],
@@ -175,7 +154,6 @@ export const RichTextEditor = forwardRef<EditorRefApi, RichTextEditorProps>(
 					// reflows the column 3rem sideways. The handle inside it is
 					// the part that goes away.
 					dragHandle && "pl-12",
-					className,
 				)}
 			>
 				<EditorContent editor={editor} />

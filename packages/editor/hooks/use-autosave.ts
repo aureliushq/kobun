@@ -9,7 +9,6 @@ import {
 import type { AutosaveState, PersistenceAdapter } from "../types"
 
 interface UseAutosaveOptions {
-	delay?: number
 	editor: Editor | null
 	persistence?: PersistenceAdapter
 }
@@ -17,8 +16,9 @@ interface UseAutosaveOptions {
 interface UseAutosaveResult extends AutosaveState {
 	hasUnsavedChanges: () => boolean
 	markContentSaved: (markdown: string) => void
-	markCurrentContentClean: () => void
 }
+
+const AUTOSAVE_DELAY_MS = 1000
 
 const initialState: AutosaveState = {
 	isDirty: false,
@@ -33,7 +33,6 @@ interface PendingUnmountSave {
 }
 
 export function useAutosave({
-	delay = 1000,
 	editor,
 	persistence,
 }: UseAutosaveOptions): UseAutosaveResult {
@@ -50,8 +49,6 @@ export function useAutosave({
 	const generationRef = useRef(0)
 	const mountedRef = useRef(false)
 	const onAutoSaveRef = useRef(persistence?.onAutoSave)
-	const normalizedDelay = Math.max(0, delay)
-	const delayRef = useRef(normalizedDelay)
 	const startSaveRef = useRef(
 		(
 			_snapshot: string,
@@ -113,7 +110,7 @@ export function useAutosave({
 				return
 			}
 			startSaveRef.current(snapshot, generationRef.current, onAutoSave)
-		}, delayRef.current)
+		}, AUTOSAVE_DELAY_MS)
 	}
 
 	startSaveRef.current = (snapshot, generation, onAutoSave) => {
@@ -227,24 +224,9 @@ export function useAutosave({
 	}, [clearTimer, editor, updateState])
 
 	useEffect(() => {
-		delayRef.current = normalizedDelay
 		if (!persistence?.onAutoSave) clearTimer()
 		else if (dirtyRef.current) scheduleSaveRef.current()
-	}, [clearTimer, normalizedDelay, persistence?.onAutoSave])
-
-	const markCurrentContentClean = useCallback(() => {
-		clearTimer()
-		generationRef.current += 1
-		saveRequestedRef.current = false
-		pendingUnmountSaveRef.current = null
-		baselineRef.current = editorRef.current?.getMarkdown() ?? ""
-		dirtyRef.current = false
-		updateState({
-			isDirty: false,
-			isSaving: activeSaveRef.current !== null,
-			lastSavedAt: null,
-		})
-	}, [clearTimer, updateState])
+	}, [clearTimer, persistence?.onAutoSave])
 
 	const markContentSaved = useCallback(
 		(markdown: string) => {
@@ -263,6 +245,5 @@ export function useAutosave({
 		...state,
 		hasUnsavedChanges: () => dirtyRef.current,
 		markContentSaved,
-		markCurrentContentClean,
 	}
 }

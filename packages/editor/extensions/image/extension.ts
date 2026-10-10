@@ -4,9 +4,6 @@ import { ReactNodeViewRenderer } from "@tiptap/react"
 import type { ImageUploadAdapter } from "../../types"
 import { ImageNodeView } from "./image-node-view"
 
-const defaultMaxFileSize = 5 * 1024 * 1024
-const defaultAllowedMimeTypes = ["image/*"]
-
 declare module "@tiptap/core" {
 	interface Commands<ReturnType> {
 		customImage: {
@@ -15,30 +12,6 @@ declare module "@tiptap/core" {
 			replaceImageSources: (sources: Record<string, string>) => ReturnType
 		}
 	}
-}
-
-export function validateImageFile(
-	file: File,
-	adapter: ImageUploadAdapter,
-): string | null {
-	const customError = adapter.validate?.(file)
-	if (customError) return customError
-
-	const maxFileSize = adapter.maxFileSize ?? defaultMaxFileSize
-	if (file.size > maxFileSize) {
-		return `Image must be ${maxFileSize} bytes or smaller.`
-	}
-
-	const allowedMimeTypes = adapter.allowedMimeTypes ?? defaultAllowedMimeTypes
-	const isAllowed = allowedMimeTypes.some((allowedType) =>
-		allowedType.endsWith("/*")
-			? file.type.startsWith(allowedType.slice(0, -1))
-			: file.type === allowedType,
-	)
-
-	return isAllowed
-		? null
-		: `Image type ${file.type || "unknown"} is not allowed.`
 }
 
 export const CustomImageExtension = Node.create<{
@@ -104,7 +77,7 @@ export const CustomImageExtension = Node.create<{
 
 					// A refused file still lands, as an error the writer can read
 					// and delete, rather than vanishing without a word.
-					const errorMessage = validateImageFile(file, adapter)
+					const errorMessage = adapter.validate?.(file)
 					return chain()
 						.insertContent({
 							type: this.name,
