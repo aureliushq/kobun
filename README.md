@@ -37,7 +37,7 @@
 ## Prerequisites
 
 - Node.js >= 24.13.0
-- Bun >= 1.3.8
+- Bun >= 1.3.14
 
 > [!NOTE]
 > A `.tool-versions` file is included for use with [mise](https://mise.jdx.dev/) or [asdf](https://asdf-vm.com/). Run `mise install` or `asdf install` to install the correct versions.
