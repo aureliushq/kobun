@@ -37,7 +37,7 @@ function getDatabaseId(cloudflareEnv?: string) {
 }
 
 export function getDbCredentials() {
-	if (existsSync(".env")) process.loadEnvFile()
+	if (existsSync(".env")) process.loadEnvFile?.()
 
 	const isRemote =
 		isValidCloudflareEnv(process.env.CLOUDFLARE_ENV) &&
