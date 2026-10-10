@@ -1,24 +1,15 @@
 import { eq } from "drizzle-orm"
-import type { DrizzleD1Database } from "drizzle-orm/d1"
-import type * as schema from "./schema"
 import { userPreference } from "./schema/app-schema"
 import {
+	type Database,
+	DateDisplay,
 	DEFAULT_USER_PREFERENCES,
-	isDateDisplay,
-	isEditorFont,
-	isEditorWidth,
+	EditorFont,
+	EditorWidth,
+	isEnumValue,
 	isPrimaryEditorAction,
 	type UserPreferenceValues,
 } from "./types"
-
-/**
- * Production runs on D1; tests run the same schema on in-memory SQLite and cast
- * to this type. The cast holds as long as this module sticks to plain queries —
- * never `.batch()` or `.transaction()`, which differ between the drivers. The
- * same bargain `app/core/project-context/types.ts` strikes, spelt out again
- * rather than imported: `packages/db` does not depend on `app`.
- */
-type UserPreferenceDatabase = DrizzleD1Database<typeof schema>
 
 /**
  * The writer's Preferences, with the defaults standing in for anything they
@@ -30,7 +21,7 @@ type UserPreferenceDatabase = DrizzleD1Database<typeof schema>
  * so a page that trusted the string could render a width that does not exist.
  */
 export async function readUserPreferences(
-	db: UserPreferenceDatabase,
+	db: Database,
 	userId: string,
 ): Promise<UserPreferenceValues> {
 	const row = await db.query.userPreference.findFirst({
@@ -39,16 +30,16 @@ export async function readUserPreferences(
 	if (!row) return DEFAULT_USER_PREFERENCES
 
 	return {
-		dateDisplay: isDateDisplay(row.dateDisplay)
+		dateDisplay: isEnumValue(DateDisplay, row.dateDisplay)
 			? row.dateDisplay
 			: DEFAULT_USER_PREFERENCES.dateDisplay,
-		editorFont: isEditorFont(row.editorFont)
+		editorFont: isEnumValue(EditorFont, row.editorFont)
 			? row.editorFont
 			: DEFAULT_USER_PREFERENCES.editorFont,
 		editorPrimaryAction: isPrimaryEditorAction(row.editorPrimaryAction)
 			? row.editorPrimaryAction
 			: DEFAULT_USER_PREFERENCES.editorPrimaryAction,
-		editorWidth: isEditorWidth(row.editorWidth)
+		editorWidth: isEnumValue(EditorWidth, row.editorWidth)
 			? row.editorWidth
 			: DEFAULT_USER_PREFERENCES.editorWidth,
 		locale: row.locale,
@@ -69,7 +60,7 @@ export async function readUserPreferences(
  * so a partial write never invents values the writer did not choose.
  */
 export async function writeUserPreferences(
-	db: UserPreferenceDatabase,
+	db: Database,
 	userId: string,
 	patch: Partial<UserPreferenceValues>,
 ): Promise<void> {

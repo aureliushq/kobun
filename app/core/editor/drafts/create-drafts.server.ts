@@ -26,6 +26,7 @@ import {
 } from "@/core/editor/staged-images"
 import type { ContentDirectory } from "@/core/project-context"
 import { editorDraft } from "@/db/schema/app-schema"
+import type { Database } from "@/db/types"
 import { isDraftDirty } from "./draft-state"
 import {
 	stampAtCreation,
@@ -45,7 +46,6 @@ import type {
 	DraftRefusal,
 	DraftRow,
 	DraftsContext,
-	DraftsDatabase,
 	ListedItem,
 	OpenInput,
 	OpenResult,
@@ -85,7 +85,7 @@ interface ImageToCommit extends CommittedImage {
  * an exception — so callers map outcomes instead of catching them (ADR-0001).
  */
 function createDraftLifecycle<ItemSlug extends string | null>(context: {
-	db: DraftsDatabase
+	db: Database
 	entity: DraftEntity<ItemSlug>
 	now?: () => Date
 	project: { id: string }

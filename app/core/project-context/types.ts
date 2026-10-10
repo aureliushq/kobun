@@ -1,15 +1,6 @@
-import type { DrizzleD1Database } from "drizzle-orm/d1"
 import type { NormalizedConfig } from "@/config/types"
-import type * as schema from "@/db/schema"
-import type { ProjectWithGithubInstallation } from "@/db/types"
+import type { Database, ProjectWithGithubInstallation } from "@/db/types"
 import type { InstallationID } from "@/types/github"
-
-/**
- * Production runs on D1; tests run the same schema on in-memory SQLite and cast
- * to this type. The cast holds as long as the module sticks to plain queries:
- * never call `.batch()` or `.transaction()`, which differ between the drivers.
- */
-export type ProjectContextDatabase = DrizzleD1Database<typeof schema>
 
 /**
  * The least a session can be and still answer the module's only question about
@@ -143,7 +134,7 @@ export interface SkipConfig {
  * attached out here, where a request actually exists.
  */
 export interface RequestHandles {
-	db: ProjectContextDatabase
+	db: Database
 	env: Env
 }
 

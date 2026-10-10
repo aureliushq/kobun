@@ -1,12 +1,11 @@
 import { and, eq } from "drizzle-orm"
 import { project } from "@/db/schema/app-schema"
-import { ConfigStatus } from "@/db/types"
+import { ConfigStatus, type Database } from "@/db/types"
 import { type ConfigResolution, createConfigCache } from "./config-cache"
 import type { ConfigSource } from "./config-source"
 import type {
 	ConfigProblem,
 	ProjectAccessResult,
-	ProjectContextDatabase,
 	ProjectContextRefusal,
 	ProjectContextResult,
 	ProjectSession,
@@ -58,7 +57,7 @@ export function createProjectContext<
 	TSession extends ProjectSession = ProjectSession,
 >(deps: {
 	configSource: ConfigSource
-	db: ProjectContextDatabase
+	db: Database
 	getSession: SessionGetter<TSession>
 }) {
 	const { configSource, db, getSession } = deps

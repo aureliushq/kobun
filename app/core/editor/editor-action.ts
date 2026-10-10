@@ -1,3 +1,4 @@
+import { isPlainObject } from "@/config/types"
 import type { OpenedContent } from "@/core/editor/collection-item-editor"
 import type { FieldRecord } from "@/core/editor/collection-metadata"
 import type { DraftRefusal } from "@/core/editor/drafts"
@@ -133,10 +134,6 @@ interface EditorActionPayload {
 	fields: FieldRecord
 }
 
-function isFieldRecord(value: unknown): value is FieldRecord {
-	return !!value && typeof value === "object" && !Array.isArray(value)
-}
-
 export async function readEditorActionPayload(
 	request: Request,
 ): Promise<EditorActionPayload> {
@@ -146,12 +143,12 @@ export async function readEditorActionPayload(
 			value.intent !== EditorActionIntents.COMMIT &&
 			value.intent !== EditorActionIntents.PUBLISH) ||
 		typeof value.markdown !== "string" ||
-		!isFieldRecord(value.fields)
+		!isPlainObject(value.fields)
 	) {
 		throw new Response("Invalid editor action", { status: 400 })
 	}
 	return {
-		baseFields: isFieldRecord(value.baseFields) ? value.baseFields : null,
+		baseFields: isPlainObject(value.baseFields) ? value.baseFields : null,
 		draftId: typeof value.draftId === "string" ? value.draftId : null,
 		expectedRevision:
 			typeof value.expectedRevision === "number"

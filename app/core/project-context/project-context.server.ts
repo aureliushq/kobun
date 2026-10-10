@@ -2,7 +2,7 @@ import type { RouterContextProvider } from "react-router"
 import { getAuth } from "@/auth/auth.server"
 import { envContext } from "@/core/context"
 import { dbContext } from "@/db/context"
-import type { Project } from "@/db/types"
+import type { Database, Project } from "@/db/types"
 import {
 	getGithubFileContentConditional,
 	hasStatus,
@@ -13,17 +13,12 @@ import { createConfigCache } from "./config-cache"
 import type {
 	ConfigSource,
 	ConfigSourceRead,
-	ConfigSourceRequest,
 	RepositoryAddress,
+	SourceRequest,
 } from "./config-source"
 import { createProjectContext } from "./create-project-context"
 import { toPageContext, toProjectPage } from "./page-context"
-import type {
-	ApiAccessContext,
-	PageContext,
-	ProjectContextDatabase,
-	ProjectPageContext,
-} from "./types"
+import type { ApiAccessContext, PageContext, ProjectPageContext } from "./types"
 
 /**
  * What every route already receives. Typed structurally rather than off a
@@ -51,7 +46,7 @@ function createGithubConfigSource(env: Env): ConfigSource {
 	return {
 		read: async (
 			{ installationId, name, owner }: RepositoryAddress,
-			{ etag, path }: ConfigSourceRequest,
+			{ etag, path }: SourceRequest,
 		): Promise<ConfigSourceRead> => {
 			try {
 				const file = await getGithubFileContentConditional(
@@ -87,7 +82,7 @@ function createGithubConfigSource(env: Env): ConfigSource {
  * comes back beside the resolution, since nothing about a failed read is stored.
  */
 export function refreshProjectConfig(
-	db: ProjectContextDatabase,
+	db: Database,
 	env: Env,
 	row: Project,
 	installationId: InstallationID,

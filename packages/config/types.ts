@@ -9,7 +9,6 @@ import type {
 	featureSchema,
 	fieldSchema,
 	imageFieldSchema,
-	kobunConfigSchema,
 	multiSelectFieldSchema,
 	objectFieldSchema,
 	selectFieldSchema,
@@ -107,8 +106,6 @@ export type Singleton = Omit<AuthoredSingleton, "schema" | "subcollections"> & {
 export type Format = `${Collection["format"]}`
 
 ////////////////////// CONFIGURATION TYPES //////////////////////
-export type KobunConfig = z.infer<typeof kobunConfigSchema>
-
 export type NormalizedConfig = {
 	basePath: string
 	collections: Record<string, Collection>
@@ -132,3 +129,9 @@ export type ParseResult = {
 	config: NormalizedConfig | null
 	errors: ConfigError[]
 }
+
+/** A JSON-style object: not null, not an array. */
+export const isPlainObject = (
+	value: unknown,
+): value is Record<string, unknown> =>
+	typeof value === "object" && value !== null && !Array.isArray(value)

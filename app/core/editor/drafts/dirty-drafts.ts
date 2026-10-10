@@ -1,6 +1,6 @@
 import { and, count, eq, isNull, or, sql } from "drizzle-orm"
 import { editorDraft } from "@/db/schema/app-schema"
-import type { DraftsDatabase } from "./types"
+import type { Database } from "@/db/types"
 
 /**
  * Dirty, as a `WHERE` clause: `isDraftDirty` said in SQL.
@@ -25,7 +25,7 @@ export function dirtyDraftWhere() {
  * be deleted unread (#137).
  */
 export async function countDirtyDrafts(
-	db: DraftsDatabase,
+	db: Database,
 	projectId: string,
 ): Promise<number> {
 	const [row] = await db

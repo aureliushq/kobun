@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm"
 import invariant from "tiny-invariant"
 import { afterEach, expect, test } from "vitest"
 import { githubInstallation, project } from "@/db/schema/app-schema"
-import { ConfigStatus, type Project } from "@/db/types"
+import { ConfigStatus, type Database, type Project } from "@/db/types"
 import { SetupActionErrors } from "@/ui/lib/types"
 import {
 	type ConnectableRepository,
@@ -19,7 +19,6 @@ import {
 	TEST_OWNER,
 	TEST_USER_ID,
 } from "./test-harness"
-import type { ProjectContextDatabase } from "./types"
 
 const INSTALLATION = "installation-1"
 
@@ -60,7 +59,7 @@ afterEach(() => {
  * is the only thing these tests vary — and it is what decides whether the
  * dashboard the writer is sent to has a Config to render.
  */
-function fakeRefresh(db: ProjectContextDatabase, found: "missing" | "present") {
+function fakeRefresh(db: Database, found: "missing" | "present") {
 	const refreshed: string[] = []
 
 	const columns =
@@ -107,7 +106,7 @@ function targetOf(path: string) {
 }
 
 function connect(
-	db: ProjectContextDatabase,
+	db: Database,
 	refreshConfig: (connected: Project) => Promise<unknown>,
 	repoId: string,
 ): Promise<ConnectProjectResult> {

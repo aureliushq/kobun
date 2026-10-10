@@ -1,9 +1,12 @@
-import type { githubInstallation, project, userPreference } from "./schema"
+import type { DrizzleD1Database } from "drizzle-orm/d1"
+import type * as schema from "./schema"
 
-export enum RepositorySelection {
-	ALL = "all",
-	SELECTED = "selected",
-}
+/**
+ * Production runs on D1; tests run the same schema on in-memory SQLite and cast
+ * to this type. The cast holds as long as callers stick to plain queries:
+ * never call `.batch()` or `.transaction()`, which differ between the drivers.
+ */
+export type Database = DrizzleD1Database<typeof schema>
 
 export enum ConfigStatus {
 	UNKNOWN = "unknown",
@@ -67,16 +70,11 @@ export type PrimaryEditorAction = (typeof PRIMARY_EDITOR_ACTIONS)[number]
  * browser before the round trip settles. This module imports the schema with
  * `import type`, so reaching for it from the client costs nothing at runtime.
  */
-export function isEditorWidth(value: unknown): value is EditorWidth {
-	return Object.values(EditorWidth).includes(value as EditorWidth)
-}
-
-export function isEditorFont(value: unknown): value is EditorFont {
-	return Object.values(EditorFont).includes(value as EditorFont)
-}
-
-export function isDateDisplay(value: unknown): value is DateDisplay {
-	return Object.values(DateDisplay).includes(value as DateDisplay)
+export function isEnumValue<T extends Record<string, string>>(
+	values: T,
+	value: unknown,
+): value is T[keyof T] {
+	return Object.values(values).includes(value as T[keyof T])
 }
 
 export function isPrimaryEditorAction(
@@ -141,9 +139,8 @@ export const DEFAULT_USER_PREFERENCES: UserPreferenceValues = {
 	wordCountVisible: true,
 }
 
-export type GithubInstallation = typeof githubInstallation.$inferSelect
-export type Project = typeof project.$inferSelect
-export type UserPreference = typeof userPreference.$inferSelect
+export type GithubInstallation = typeof schema.githubInstallation.$inferSelect
+export type Project = typeof schema.project.$inferSelect
 
 export type ProjectWithGithubInstallation = Project & {
 	githubInstallation: GithubInstallation

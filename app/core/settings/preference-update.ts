@@ -1,7 +1,8 @@
 import {
-	isDateDisplay,
-	isEditorFont,
-	isEditorWidth,
+	DateDisplay,
+	EditorFont,
+	EditorWidth,
+	isEnumValue,
 	isPrimaryEditorAction,
 	type UserPreferenceValues,
 } from "@/db/types"
@@ -38,15 +39,15 @@ export function parsePreferenceUpdate(
 			return { [key]: value === "true" }
 		}
 		case "dateDisplay":
-			return isDateDisplay(value) ? { dateDisplay: value } : null
+			return isEnumValue(DateDisplay, value) ? { dateDisplay: value } : null
 		case "editorFont":
-			return isEditorFont(value) ? { editorFont: value } : null
+			return isEnumValue(EditorFont, value) ? { editorFont: value } : null
 		case "editorPrimaryAction":
 			return isPrimaryEditorAction(value)
 				? { editorPrimaryAction: value }
 				: null
 		case "editorWidth":
-			return isEditorWidth(value) ? { editorWidth: value } : null
+			return isEnumValue(EditorWidth, value) ? { editorWidth: value } : null
 		case "locale":
 			return parseLocale(value)
 		case "timezone":

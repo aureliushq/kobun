@@ -1,5 +1,6 @@
 import { eq } from "drizzle-orm"
 import { githubInstallation, project } from "@/db/schema/app-schema"
+import type { Database } from "@/db/types"
 import {
 	ConfigStatus,
 	type GithubInstallation,
@@ -8,7 +9,6 @@ import {
 } from "@/db/types"
 import { CONFIG_PATHS } from "@/ui/lib/constants"
 import { SetupActionErrors } from "@/ui/lib/types"
-import type { ProjectContextDatabase } from "./types"
 
 /**
  * The part of GitHub's repository listing that connecting one reads. Kept in
@@ -30,7 +30,7 @@ export interface ConnectableRepository {
  * GitHub client to exercise.
  */
 export interface ConnectProjectDeps {
-	db: ProjectContextDatabase
+	db: Database
 	listRepositories(
 		installation: GithubInstallation,
 	): Promise<ConnectableRepository[]>

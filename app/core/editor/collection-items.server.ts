@@ -1,15 +1,9 @@
 import type { Format } from "@/config/types"
 import { parseDocument } from "@/core/content/document.server"
+import type { SourceFile } from "./drafts/source-store"
 
 interface CollectionConfig {
 	schema: Record<string, { type: string }>
-}
-
-export interface RepositoryCollectionFile {
-	content: string
-	name: string
-	path: string
-	sha: string
 }
 
 export interface ResolvedCollectionItem {
@@ -60,7 +54,7 @@ export function getEffectiveSlug(
 
 export function findCollectionItemBySlug(
 	collection: CollectionConfig,
-	files: RepositoryCollectionFile[],
+	files: SourceFile[],
 	slug: string,
 ): ResolvedCollectionItem | null {
 	const matches = files.flatMap((file) => {

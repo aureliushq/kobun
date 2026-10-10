@@ -1,11 +1,13 @@
 import { eq } from "drizzle-orm"
-import type { DrizzleD1Database } from "drizzle-orm/d1"
 import { afterEach, beforeEach, expect, test } from "vitest"
-import type * as schema from "@/db/schema"
 import { userPreference } from "@/db/schema/app-schema"
 import { user } from "@/db/schema/auth-schema"
 import { createInMemoryDb, type InMemoryDb } from "@/db/testing"
-import { DEFAULT_USER_PREFERENCES, EditorWidth } from "@/db/types"
+import {
+	type Database,
+	DEFAULT_USER_PREFERENCES,
+	EditorWidth,
+} from "@/db/types"
 import { readUserPreferences, writeUserPreferences } from "@/db/user-preference"
 
 let close: InMemoryDb["close"]
@@ -29,7 +31,7 @@ function seedPreferences() {
 }
 
 function preferences() {
-	return db as unknown as DrizzleD1Database<typeof schema>
+	return db as unknown as Database
 }
 
 function readRow() {

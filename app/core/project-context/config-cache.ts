@@ -7,15 +7,19 @@ import {
 import type { ConfigError, NormalizedConfig } from "@/config/types"
 import { configFileFormat, validateConfig } from "@/config/validator"
 import { project } from "@/db/schema/app-schema"
-import { ConfigStatus, type Project, ProjectStatus } from "@/db/types"
+import {
+	ConfigStatus,
+	type Database,
+	type Project,
+	ProjectStatus,
+} from "@/db/types"
 import { CONFIG_PATHS } from "@/ui/lib/constants"
 import type {
 	ConfigSource,
 	ConfigSourceRead,
-	ConfigSourceRequest,
 	RepositoryAddress,
+	SourceRequest,
 } from "./config-source"
-import type { ProjectContextDatabase } from "./types"
 
 /**
  * How long a Config is trusted without asking the repository again. There is no
@@ -133,7 +137,7 @@ function parseConfig(path: string, content: string): ParsedConfig {
  */
 export function createConfigCache(deps: {
 	configSource: ConfigSource
-	db: ProjectContextDatabase
+	db: Database
 }) {
 	const { configSource, db } = deps
 
@@ -146,7 +150,7 @@ export function createConfigCache(deps: {
 	 */
 	async function read(
 		repository: RepositoryAddress,
-		request: ConfigSourceRequest,
+		request: SourceRequest,
 	): Promise<ConfigSourceRead | null> {
 		try {
 			return await configSource.read(repository, request)

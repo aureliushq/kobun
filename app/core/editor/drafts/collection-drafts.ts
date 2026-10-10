@@ -1,10 +1,10 @@
 import { and, desc, eq, isNull } from "drizzle-orm"
 import type { ContentDirectory } from "@/core/project-context"
 import { editorDraft } from "@/db/schema/app-schema"
+import type { Database } from "@/db/types"
 import { dirtyDraftWhere } from "./dirty-drafts"
 import { getDraftEditorPath, type ProjectLocation } from "./draft-paths"
 import { draftData, draftHeading } from "./draft-summary"
-import type { DraftsDatabase } from "./types"
 
 /**
  * Which Project's Drafts these are, and under whose name they are addressed —
@@ -45,7 +45,7 @@ export interface CollectionDraft {
  * through one belongs to whoever is asking.
  */
 export async function listCollectionDrafts(
-	db: DraftsDatabase,
+	db: Database,
 	project: DraftsProject,
 	{
 		collection,

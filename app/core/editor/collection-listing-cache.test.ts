@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm"
 import { afterEach, beforeEach, expect, test, vi } from "vitest"
-import type { RepositoryAddress } from "@/core/project-context"
+import type { RepositoryAddress, SourceRequest } from "@/core/project-context"
 import {
 	collectionListing,
 	githubInstallation,
@@ -8,7 +8,7 @@ import {
 } from "@/db/schema/app-schema"
 import { user } from "@/db/schema/auth-schema"
 import { createInMemoryDb } from "@/db/testing"
-import { ConfigStatus, ProjectStatus } from "@/db/types"
+import { ConfigStatus, type Database, ProjectStatus } from "@/db/types"
 import {
 	COLLECTION_LISTING_CACHE_TTL_MS,
 	createCollectionListingCache,
@@ -17,12 +17,10 @@ import {
 	withListingInvalidation,
 } from "./collection-listing-cache.server"
 import type {
-	CollectionListingDatabase,
 	CollectionListingRead,
-	CollectionListingRequest,
 	CollectionListingSource,
-	CollectionSourceFile,
 } from "./collection-listing-source"
+import type { SourceFile } from "./drafts/source-store"
 import { createFakeSourceStore } from "./drafts/test-harness"
 
 const NOW = new Date("2026-09-07T12:00:00.000Z")
@@ -40,7 +38,7 @@ function post(title: string) {
 
 /** Every call the module made, in order — and which half of the port cost it. */
 type SourceCall =
-	| ({ kind: "read" } & CollectionListingRequest)
+	| ({ kind: "read" } & SourceRequest)
 	| { kind: "files"; path: string }
 	| { kind: "file"; path: string }
 
@@ -109,7 +107,7 @@ function createFakeListingSource(
 		files: async (
 			_repository: RepositoryAddress,
 			path: string,
-		): Promise<CollectionSourceFile[]> => {
+		): Promise<SourceFile[]> => {
 			calls.push({ kind: "files", path })
 			if (filesFailure) {
 				const { error } = filesFailure
@@ -128,7 +126,7 @@ function createFakeListingSource(
 		file: async (
 			_repository: RepositoryAddress,
 			path: string,
-		): Promise<CollectionSourceFile> => {
+		): Promise<SourceFile> => {
 			calls.push({ kind: "file", path })
 			const slash = path.lastIndexOf("/")
 			const name = path.slice(slash + 1)
@@ -139,7 +137,7 @@ function createFakeListingSource(
 		put,
 		read: async (
 			_repository: RepositoryAddress,
-			request: CollectionListingRequest,
+			request: SourceRequest,
 		): Promise<CollectionListingRead> => {
 			calls.push({ ...request, kind: "read" })
 			if (failure) {
@@ -178,7 +176,7 @@ function createFakeListingSource(
 
 interface Harness {
 	close(): void
-	db: CollectionListingDatabase
+	db: Database
 	listings: ReturnType<typeof createCollectionListingCache>
 	readRow(
 		directoryPath?: string,
@@ -235,7 +233,7 @@ function createHarness(): Harness {
 	}
 	seedProject(PROJECT_ID)
 
-	const db = sqliteDb as unknown as CollectionListingDatabase
+	const db = sqliteDb as unknown as Database
 	const source = createFakeListingSource()
 
 	return {

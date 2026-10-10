@@ -1,9 +1,8 @@
-import type { DrizzleD1Database } from "drizzle-orm/d1"
 import { afterEach, beforeEach, expect, test } from "vitest"
-import type * as schema from "@/db/schema"
 import { session, user } from "@/db/schema/auth-schema"
 import { listActiveSessions } from "@/db/session"
 import { createInMemoryDb, type InMemoryDb } from "@/db/testing"
+import type { Database } from "@/db/types"
 
 let close: InMemoryDb["close"]
 let db: InMemoryDb["db"]
@@ -42,7 +41,7 @@ function seedSession(id: string, userId: string, expiresIn: number) {
 }
 
 function sessions() {
-	return db as unknown as DrizzleD1Database<typeof schema>
+	return db as unknown as Database
 }
 
 test("a writer's unexpired sessions are listed, however old", async () => {
