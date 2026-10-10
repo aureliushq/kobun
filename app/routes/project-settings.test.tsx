@@ -15,7 +15,7 @@ import ProjectSettings from "./project-settings"
  *
  * What a writer is shown and what they can reach — the view model's own rules
  * are pinned in `app/core/settings/project-config.test.ts`, and the refresh it
- * submits is `syncProjectConfig`'s, tested where that lives.
+ * submits is the Config cache's `refresh`, tested where that lives.
  */
 
 const REPOSITORY = {

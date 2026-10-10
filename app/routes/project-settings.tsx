@@ -1,9 +1,9 @@
 import { desc, eq } from "drizzle-orm"
 import { redirect } from "react-router"
-import { syncProjectConfig } from "@/config/github.server"
 import { chooseBackDestination } from "@/core/components/layouts/settings-back-destination"
 import { countDirtyDrafts } from "@/core/editor/drafts"
 import {
+	refreshProjectConfig,
 	requireApiAccess,
 	requireProjectPage,
 } from "@/core/project-context/project-context.server"
@@ -70,7 +70,12 @@ export async function action({ context, params, request }: Route.ActionArgs) {
 	const intent = formData.get("intent")
 
 	if (intent === SettingsActionIntents.REFRESH_CONFIGURATION) {
-		await syncProjectConfig(db, env, projectRow)
+		await refreshProjectConfig(
+			db,
+			env,
+			projectRow,
+			projectRow.githubInstallation.githubInstallationId,
+		)
 		return { ok: true }
 	}
 

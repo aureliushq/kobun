@@ -97,8 +97,9 @@ describe("a Config Kobun could not use", () => {
 	})
 
 	it("offers no file link when the repository holds no Config at all", () => {
-		// `syncProjectConfig` falls back to the first candidate path when it found
-		// nothing, so the column names a file that does not exist.
+		// A Project with no Config still names a candidate path — the one it was
+		// connected with, or where it was last found — so the column names a file
+		// that does not exist.
 		const view = describeProjectConfig(
 			row({ configStatus: ConfigStatus.MISSING }),
 			null,

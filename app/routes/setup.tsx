@@ -18,14 +18,15 @@ import {
 	useNavigation,
 } from "react-router"
 import { getAuth } from "@/auth/auth.server"
-import { syncProjectConfig } from "@/config/github.server"
 import { envContext } from "@/core/context"
 import { connectProject } from "@/core/project-context"
+import { refreshProjectConfig } from "@/core/project-context/project-context.server"
 import { dbContext } from "@/db/context"
 import { githubInstallation, project, userInstallation } from "@/db/schema"
 import {
 	getGithubAppInstallUrl,
 	getGithubInstallation,
+	hasStatus,
 	listGithubInstallationRepositories,
 } from "@/github/octokit.server"
 import { posthogContext } from "@/lib/posthog-middleware"
@@ -225,11 +226,7 @@ export async function loader({ context, request, url }: Route.LoaderArgs) {
 							installationId: li.githubInstallation.id,
 						}))
 					} catch (error) {
-						if (
-							error instanceof Error &&
-							"status" in error &&
-							error.status === 404
-						) {
+						if (hasStatus(error, 404)) {
 							await db
 								.update(githubInstallation)
 								.set({ deletedAt: new Date() })
@@ -272,8 +269,13 @@ export async function action({ context, request }: Route.ActionArgs) {
 						env,
 						installation.githubInstallationId,
 					),
-				syncConfig: (connectedProject) =>
-					syncProjectConfig(db, env, connectedProject),
+				refreshConfig: (connectedProject, installation) =>
+					refreshProjectConfig(
+						db,
+						env,
+						connectedProject,
+						installation.githubInstallationId,
+					),
 			},
 			{
 				installationId: formData.get("installation_id") as string,
@@ -293,7 +295,7 @@ export async function action({ context, request }: Route.ActionArgs) {
 			},
 		})
 
-		// The Project's dashboard, which now renders whatever the sync above
+		// The Project's dashboard, which now renders whatever the refresh above
 		// found — including a Config it could not read (ADR-0007).
 		return redirect(result.path)
 	}

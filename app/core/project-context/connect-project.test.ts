@@ -55,13 +55,13 @@ afterEach(() => {
 })
 
 /**
- * `syncProjectConfig` as connecting sees it: it goes and looks at the
+ * The Config refresh as connecting sees it: it goes and looks at the
  * repository and writes what it found onto the row it was handed. What it found
  * is the only thing these tests vary — and it is what decides whether the
  * dashboard the writer is sent to has a Config to render.
  */
-function fakeSync(db: ProjectContextDatabase, found: "missing" | "present") {
-	const synced: string[] = []
+function fakeRefresh(db: ProjectContextDatabase, found: "missing" | "present") {
+	const refreshed: string[] = []
 
 	const columns =
 		found === "present"
@@ -89,14 +89,14 @@ function fakeSync(db: ProjectContextDatabase, found: "missing" | "present") {
 				}
 
 	return {
-		syncConfig: async (connected: Project) => {
-			synced.push(connected.id)
+		refreshConfig: async (connected: Project) => {
+			refreshed.push(connected.id)
 			await db
 				.update(project)
 				.set({ ...columns, configCheckedAt: new Date() })
 				.where(eq(project.id, connected.id))
 		},
-		synced,
+		refreshed,
 	}
 }
 
@@ -108,20 +108,20 @@ function targetOf(path: string) {
 
 function connect(
 	db: ProjectContextDatabase,
-	syncConfig: (connected: Project) => Promise<unknown>,
+	refreshConfig: (connected: Project) => Promise<unknown>,
 	repoId: string,
 ): Promise<ConnectProjectResult> {
 	return connectProject(
-		{ db, listRepositories: async () => REPOS, syncConfig },
+		{ db, listRepositories: async () => REPOS, refreshConfig },
 		{ installationId: INSTALLATION, repoId, userId: TEST_USER_ID },
 	)
 }
 
 test("lands the writer on the dashboard of the repository they connected", async () => {
 	const { db, projectContext } = setup()
-	const { syncConfig, synced } = fakeSync(db, "present")
+	const { refreshConfig, refreshed } = fakeRefresh(db, "present")
 
-	const result = await connect(db, syncConfig, "2")
+	const result = await connect(db, refreshConfig, "2")
 
 	expect(result).toEqual({
 		ok: true,
@@ -129,7 +129,7 @@ test("lands the writer on the dashboard of the repository they connected", async
 		repoName: "docs",
 		repoOwnerLogin: TEST_OWNER,
 	})
-	expect(synced).toHaveLength(1)
+	expect(refreshed).toHaveLength(1)
 	invariant(result.ok, "connecting a granted repository succeeds")
 
 	// The other half of the redirect: the page that path names resolves, without
@@ -146,9 +146,9 @@ test("lands the writer on the dashboard of a repository that holds no Config", a
 	// back to setup, so a repository with no Config was connected and then
 	// unreachable (ADR-0007).
 	const { db, projectContext } = setup()
-	const { syncConfig } = fakeSync(db, "missing")
+	const { refreshConfig } = fakeRefresh(db, "missing")
 
-	const result = await connect(db, syncConfig, "2")
+	const result = await connect(db, refreshConfig, "2")
 
 	expect(result).toMatchObject({ ok: true, path: `/${TEST_OWNER}/docs` })
 	invariant(result.ok, "connecting a granted repository succeeds")
@@ -164,10 +164,10 @@ test("lands the writer on the dashboard of a repository that holds no Config", a
 
 test("connecting a repository twice lands on the same Project", async () => {
 	const { db, projectContext } = setup()
-	const { syncConfig } = fakeSync(db, "present")
+	const { refreshConfig } = fakeRefresh(db, "present")
 
-	const first = await connect(db, syncConfig, "1")
-	const again = await connect(db, syncConfig, "1")
+	const first = await connect(db, refreshConfig, "1")
+	const again = await connect(db, refreshConfig, "1")
 
 	expect(again).toEqual(first)
 
@@ -184,10 +184,10 @@ test("connecting a repository twice lands on the same Project", async () => {
 
 test("refuses an installation it does not hold", async () => {
 	const { db } = setup()
-	const { syncConfig, synced } = fakeSync(db, "present")
+	const { refreshConfig, refreshed } = fakeRefresh(db, "present")
 
 	const result = await connectProject(
-		{ db, listRepositories: async () => REPOS, syncConfig },
+		{ db, listRepositories: async () => REPOS, refreshConfig },
 		{ installationId: "installation-2", repoId: "2", userId: TEST_USER_ID },
 	)
 
@@ -195,18 +195,18 @@ test("refuses an installation it does not hold", async () => {
 		error: SetupActionErrors.INSTALLATION_NOT_FOUND,
 		ok: false,
 	})
-	expect(synced).toEqual([])
+	expect(refreshed).toEqual([])
 })
 
 test("refuses an installation that has been suspended", async () => {
 	const { db } = setup()
-	const { syncConfig } = fakeSync(db, "present")
+	const { refreshConfig } = fakeRefresh(db, "present")
 	await db
 		.update(githubInstallation)
 		.set({ suspendedAt: new Date() })
 		.where(eq(githubInstallation.id, INSTALLATION))
 
-	expect(await connect(db, syncConfig, "2")).toEqual({
+	expect(await connect(db, refreshConfig, "2")).toEqual({
 		error: SetupActionErrors.INSTALLATION_SUSPENDED,
 		ok: false,
 	})
@@ -214,9 +214,9 @@ test("refuses an installation that has been suspended", async () => {
 
 test("refuses a repository the installation does not grant", async () => {
 	const { db } = setup()
-	const { syncConfig } = fakeSync(db, "present")
+	const { refreshConfig } = fakeRefresh(db, "present")
 
-	expect(await connect(db, syncConfig, "99")).toEqual({
+	expect(await connect(db, refreshConfig, "99")).toEqual({
 		error: SetupActionErrors.REPO_NOT_FOUND,
 		ok: false,
 	})

@@ -2,11 +2,14 @@ import type { RouterContextProvider } from "react-router"
 import { getAuth } from "@/auth/auth.server"
 import { envContext } from "@/core/context"
 import { dbContext } from "@/db/context"
+import type { Project } from "@/db/types"
 import {
 	getGithubFileContentConditional,
 	hasStatus,
 } from "@/github/octokit.server"
+import type { InstallationID } from "@/types/github"
 import { toApiContext } from "./api-context"
+import { createConfigCache } from "./config-cache"
 import type {
 	ConfigSource,
 	ConfigSourceRead,
@@ -15,7 +18,12 @@ import type {
 } from "./config-source"
 import { createProjectContext } from "./create-project-context"
 import { toPageContext, toProjectPage } from "./page-context"
-import type { ApiAccessContext, PageContext, ProjectPageContext } from "./types"
+import type {
+	ApiAccessContext,
+	PageContext,
+	ProjectContextDatabase,
+	ProjectPageContext,
+} from "./types"
 
 /**
  * What every route already receives. Typed structurally rather than off a
@@ -69,6 +77,29 @@ function createGithubConfigSource(env: Env): ConfigSource {
 			}
 		},
 	}
+}
+
+/**
+ * Read a Project's Config again now, whatever the cache's window says: what
+ * connecting a repository and the settings page's Refresh both do. The
+ * installation is passed in because neither caller's row carries it the same
+ * way, and both already have it to hand.
+ */
+export function refreshProjectConfig(
+	db: ProjectContextDatabase,
+	env: Env,
+	row: Project,
+	installationId: InstallationID,
+) {
+	const configCache = createConfigCache({
+		configSource: createGithubConfigSource(env),
+		db,
+	})
+	return configCache.refresh(row, {
+		installationId,
+		name: row.repoName,
+		owner: row.repoOwnerLogin,
+	})
 }
 
 /** Named so the type below can be read off it rather than spelled out. */

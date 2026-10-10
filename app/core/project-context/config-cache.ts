@@ -7,11 +7,7 @@ import {
 import type { ConfigError, NormalizedConfig } from "@/config/types"
 import { configFileFormat, validateConfig } from "@/config/validator"
 import { project } from "@/db/schema/app-schema"
-import {
-	ConfigStatus,
-	type Project,
-	type ProjectWithGithubInstallation,
-} from "@/db/types"
+import { ConfigStatus, type Project, ProjectStatus } from "@/db/types"
 import { CONFIG_PATHS } from "@/ui/lib/constants"
 import type {
 	ConfigSource,
@@ -50,10 +46,10 @@ interface ConfigColumns {
 }
 
 /**
- * The stored Config, if the row actually holds one. `syncProjectConfig` writes
- * `JSON.stringify(null)` when parsing failed, and `JSON.parse("null")` yields
- * null rather than throwing — so a try/catch alone would hand back nothing and
- * call it a Config.
+ * The stored Config, if the row actually holds one. Setup's old sync wrote
+ * `JSON.stringify(null)` when parsing failed, rows it wrote still hold it, and
+ * `JSON.parse("null")` yields null rather than throwing — so a try/catch alone
+ * would hand back nothing and call it a Config.
  */
 function storedConfig(configData: string | null): NormalizedConfig | null {
 	if (!configData) return null
@@ -182,7 +178,7 @@ export function createConfigCache(deps: {
 	 * is news.
 	 */
 	async function recordCheck(
-		row: ProjectWithGithubInstallation,
+		row: Project,
 		now: number,
 		columns?: ConfigColumns,
 	) {
@@ -197,7 +193,7 @@ export function createConfigCache(deps: {
 	}
 
 	async function rememberConfig(
-		row: ProjectWithGithubInstallation,
+		row: Project,
 		now: number,
 		path: string,
 		read: Extract<ConfigSourceRead, { kind: "content" }>,
@@ -221,7 +217,7 @@ export function createConfigCache(deps: {
 	 * unconditional: an ETag means nothing at a path it did not come from.
 	 */
 	async function probe(
-		row: ProjectWithGithubInstallation,
+		row: Project,
 		repository: RepositoryAddress,
 		cached: ConfigResolution | null,
 		now: number,
@@ -253,7 +249,7 @@ export function createConfigCache(deps: {
 	}
 
 	async function revalidate(
-		row: ProjectWithGithubInstallation,
+		row: Project,
 		repository: RepositoryAddress,
 		cached: ConfigResolution | null,
 		now: number,
@@ -308,7 +304,7 @@ export function createConfigCache(deps: {
 	}
 
 	async function resolve(
-		row: ProjectWithGithubInstallation,
+		row: Project,
 		repository: RepositoryAddress,
 	): Promise<ConfigResolution> {
 		const now = Date.now()
@@ -324,7 +320,31 @@ export function createConfigCache(deps: {
 		return await revalidate(row, repository, cached, now)
 	}
 
-	return { resolve }
+	/**
+	 * A revalidation the window does not get a say in, for a writer who has
+	 * just connected the repository or pressed Refresh. Unlike one, it is a
+	 * change to the Project: it marks it active and bumps `updatedAt`, so
+	 * setup's recent-Projects list puts it first. Written after the
+	 * revalidation, whose own write carries the old `updatedAt` through.
+	 */
+	async function refresh(
+		row: Project,
+		repository: RepositoryAddress,
+	): Promise<ConfigResolution> {
+		const resolution = await revalidate(
+			row,
+			repository,
+			servable(row),
+			Date.now(),
+		)
+		await db
+			.update(project)
+			.set({ status: ProjectStatus.ACTIVE })
+			.where(eq(project.id, row.id))
+		return resolution
+	}
+
+	return { refresh, resolve }
 }
 
 /**
