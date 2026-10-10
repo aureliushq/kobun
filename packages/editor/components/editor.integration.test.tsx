@@ -42,6 +42,29 @@ describe("RichTextEditor interactions", () => {
 		expect(paragraph).toHaveAttribute("data-placeholder", "Start writing...")
 	})
 
+	it("shows the heading level in an empty heading", async () => {
+		const ref = createRef<EditorRefApi>()
+		const { container } = render(
+			<RichTextEditor ref={ref} dragHandle={false} />,
+		)
+		const editor = await waitFor(() => {
+			expect(ref.current?.getEditor()).not.toBeNull()
+			return ref.current?.getEditor()
+		})
+
+		act(() => {
+			editor?.commands.setContent({
+				type: "doc",
+				content: [{ type: "heading", attrs: { level: 2 } }],
+			})
+		})
+
+		expect(container.querySelector(".ProseMirror > h2")).toHaveAttribute(
+			"data-placeholder",
+			"Heading 2",
+		)
+	})
+
 	it("copies only the selection as plain text", async () => {
 		const ref = createRef<EditorRefApi>()
 		render(

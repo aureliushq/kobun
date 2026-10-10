@@ -57,7 +57,7 @@ export function DocumentEditor({ markdown }: { markdown: string }) {
 | Prop | Type | Default | Description |
 | --- | --- | --- | --- |
 | `initialContent` | `string` | `""` | Initial Markdown. Changes after mount are not applied; remount the component to replace content. |
-| `placeholder` | `string` | `"Press '/' for commands..."` | Empty-editor placeholder. |
+| `placeholder` | `string` | `"Press '/' for commands..."` | Placeholder for the empty block at the cursor. Empty headings show `Heading N` instead. |
 | `imageUpload` | `ImageUploadAdapter` | — | Validates, uploads, and optionally resolves image sources. |
 | `persistence` | `PersistenceAdapter` | — | Receives saves debounced by one second, and explicit commits and publishes. |
 | `onChange` | `(markdown: string) => void` | — | Runs after every document change. |

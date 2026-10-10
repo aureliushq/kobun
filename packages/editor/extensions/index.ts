@@ -98,7 +98,10 @@ export function getEditorExtensions(options: ExtensionOptions): Extensions {
 		CustomImageExtension.configure({ uploadAdapter: options.imageUpload }),
 		Placeholder.configure({
 			includeChildren: true,
-			placeholder: options.placeholder ?? "Press '/' for commands...",
+			placeholder: ({ node }) =>
+				node.type.name === "heading"
+					? `Heading ${node.attrs.level}`
+					: (options.placeholder ?? "Press '/' for commands..."),
 		}),
 		Typography,
 		Markdown.configure({
