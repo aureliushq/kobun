@@ -66,9 +66,15 @@ const PARTIAL = describeProjectConfig(
 	null,
 )
 
-function page(config: ProjectConfigView = WORKING, dirtyDraftCount = 0) {
+function page(
+	config: ProjectConfigView = WORKING,
+	dirtyDraftCount = 0,
+	refreshError?: string,
+) {
 	const action = vi.fn(async ({ request }: { request: Request }) => {
 		const formData = await request.formData()
+		if (refreshError && formData.get("intent") === "refresh-configuration")
+			return { error: refreshError }
 		return { submitted: Object.fromEntries(formData) }
 	})
 
@@ -167,6 +173,39 @@ describe("a Project whose Config does not read", () => {
 		expect((await call.value).submitted).toEqual({
 			intent: "refresh-configuration",
 		})
+	})
+})
+
+describe("refreshing the Config", () => {
+	async function refresh() {
+		await userEvent.click(
+			await screen.findByRole("button", { name: /Refresh configuration/ }),
+		)
+	}
+
+	it("says so when the repository could not be reached", async () => {
+		page(WORKING, 0, "Kobun could not reach GitHub.")
+		await refresh()
+
+		expect(
+			await screen.findByText("Kobun could not reach GitHub."),
+		).toBeInTheDocument()
+		// What was last read is still shown.
+		expect(screen.getByText("Posts")).toBeInTheDocument()
+	})
+
+	it("shows no error when the refresh worked", async () => {
+		const { action } = page()
+		await refresh()
+
+		await waitFor(() => expect(action).toHaveBeenCalled())
+		// Settled, so an alert that was coming would be here by now.
+		await waitFor(() =>
+			expect(
+				screen.getByRole("button", { name: /Refresh configuration/ }),
+			).toBeEnabled(),
+		)
+		expect(screen.queryByRole("alert")).not.toBeInTheDocument()
 	})
 })
 

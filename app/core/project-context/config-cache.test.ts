@@ -601,8 +601,8 @@ test("a refresh asks the repository even inside the window", async () => {
 	const { configSource } = setup(cached())
 
 	expect(await refresh()).toEqual({
-		config: TEST_CONFIG,
-		status: ConfigStatus.PRESENT,
+		reached: true,
+		resolution: { config: TEST_CONFIG, status: ConfigStatus.PRESENT },
 	})
 	// Conditional still: an unchanged Config costs a 304, not a re-parse.
 	expect(configSource.calls).toEqual([
@@ -617,8 +617,8 @@ test("a refresh picks up a Config fixed a moment ago", async () => {
 	configSource.put(TEST_CONFIG_PATH, TEST_CONFIG_JSON)
 
 	expect(await refresh()).toEqual({
-		config: TEST_CONFIG,
-		status: ConfigStatus.PRESENT,
+		reached: true,
+		resolution: { config: TEST_CONFIG, status: ConfigStatus.PRESENT },
 	})
 	expect(readProject().configError).toBe("")
 })
@@ -627,7 +627,10 @@ test("a refresh of a just-connected Project finds its Config", async () => {
 	// What connecting leaves behind: a row that has never been looked at.
 	const { readProject } = setup({ configStatus: ConfigStatus.UNKNOWN })
 
-	expect(await refresh()).toMatchObject({ status: ConfigStatus.PRESENT })
+	expect(await refresh()).toMatchObject({
+		reached: true,
+		resolution: { status: ConfigStatus.PRESENT },
+	})
 	const row = readProject()
 	expect(row.configPath).toBe(TEST_CONFIG_PATH)
 	expect(row.configParsedBy).toBe(KOBUN_VERSION)
@@ -641,8 +644,8 @@ test("a refresh of a repository with no Config records it missing", async () => 
 	configSource.remove(TEST_CONFIG_PATH)
 
 	expect(await refresh()).toEqual({
-		config: null,
-		status: ConfigStatus.MISSING,
+		reached: true,
+		resolution: { config: null, status: ConfigStatus.MISSING },
 	})
 	expect(configSource.calls).toHaveLength(CONFIG_PATHS.length)
 	const row = readProject()
@@ -655,8 +658,8 @@ test("a refresh reports a Config that does not validate", async () => {
 	configSource.put(TEST_CONFIG_PATH, "{ not a Config")
 
 	expect(await refresh()).toEqual({
-		config: null,
-		status: ConfigStatus.ERROR,
+		reached: true,
+		resolution: { config: null, status: ConfigStatus.ERROR },
 	})
 	const errors = JSON.parse(readProject().configError ?? "[]")
 	expect(errors.map((error: { path: string }) => error.path)).toEqual([
@@ -684,12 +687,40 @@ test("a refresh of an unreachable repository remembers nothing but the Project b
 	const before = readProject()
 	configSource.failNext(new Error("API rate limit exceeded"))
 
+	// The cached Config is still served, and the writer is still told the
+	// refresh they asked for did not happen.
 	expect(await refresh()).toEqual({
-		config: TEST_CONFIG,
-		status: ConfigStatus.PRESENT,
+		reached: false,
+		resolution: { config: TEST_CONFIG, status: ConfigStatus.PRESENT },
 	})
 	const { status, updatedAt, ...config } = readProject()
 	const { status: _, updatedAt: __, ...configBefore } = before
 	expect(status).toBe(ProjectStatus.ACTIVE)
 	expect(config).toEqual(configBefore)
+})
+
+test("a refresh of an unreachable repository with nothing cached reports it unreached", async () => {
+	const { configSource, readProject } = setup({
+		configStatus: ConfigStatus.UNKNOWN,
+	})
+	const before = readProject()
+	configSource.failNext(new Error("Resource not accessible by integration"))
+
+	expect(await refresh()).toEqual({
+		reached: false,
+		resolution: { config: null, status: ConfigStatus.UNKNOWN },
+	})
+	expect(readProject().configStatus).toBe(before.configStatus)
+	expect(readProject().configCheckedAt).toEqual(before.configCheckedAt)
+})
+
+test("a refresh that cannot reach the repository while probing reports it unreached", async () => {
+	// No Config path to revalidate against, so the first read is a probe.
+	const { configSource, readProject } = setup({ configPath: "elsewhere.txt" })
+	const before = readProject()
+	configSource.failNext(new Error("Server Error"))
+
+	expect(await refresh()).toMatchObject({ reached: false })
+	expect(readProject().configStatus).toBe(before.configStatus)
+	expect(readProject().configCheckedAt).toEqual(before.configCheckedAt)
 })

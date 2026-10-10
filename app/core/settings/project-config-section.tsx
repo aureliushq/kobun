@@ -1,8 +1,9 @@
-import { ExternalLinkIcon, RefreshCcwIcon } from "lucide-react"
+import { AlertCircleIcon, ExternalLinkIcon, RefreshCcwIcon } from "lucide-react"
 import { useFetcher } from "react-router"
 import { Timestamp } from "@/core/preferences/timestamp"
 import { ConfigAlerts } from "@/core/project-context/config-alerts"
 import { ConfigStatus } from "@/db/types"
+import { Alert, AlertDescription } from "@/ui/components/base/alert"
 import { Badge } from "@/ui/components/base/badge"
 import { Button } from "@/ui/components/base/button"
 import {
@@ -60,25 +61,40 @@ function StatusBadge({
  * changes nothing the file says: it re-reads the repository and stores what it
  * found. There is no webhook, so this is how a Config fixed on GitHub becomes
  * true here before the cache's own window closes (ADR-0003).
+ *
+ * A refresh that could not reach GitHub changes nothing on the page, so it has
+ * to say so here: the action reports it, and nothing about it is stored.
  */
 function RefreshButton() {
-	const fetcher = useFetcher({ key: "refresh-configuration" })
+	const fetcher = useFetcher<{ error: string } | { ok: true }>({
+		key: "refresh-configuration",
+	})
 
 	return (
-		<Button
-			disabled={fetcher.state !== "idle"}
-			onClick={() =>
-				fetcher.submit(
-					{ intent: SettingsActionIntents.REFRESH_CONFIGURATION },
-					{ method: "POST" },
-				)
-			}
-			size="sm"
-			variant="outline"
-		>
-			<RefreshCcwIcon />
-			Refresh configuration
-		</Button>
+		<div className="flex flex-col gap-4">
+			{fetcher.data && "error" in fetcher.data ? (
+				<Alert variant="destructive">
+					<AlertCircleIcon />
+					<AlertDescription>{fetcher.data.error}</AlertDescription>
+				</Alert>
+			) : null}
+			<div>
+				<Button
+					disabled={fetcher.state !== "idle"}
+					onClick={() =>
+						fetcher.submit(
+							{ intent: SettingsActionIntents.REFRESH_CONFIGURATION },
+							{ method: "POST" },
+						)
+					}
+					size="sm"
+					variant="outline"
+				>
+					<RefreshCcwIcon />
+					Refresh configuration
+				</Button>
+			</div>
+		</div>
 	)
 }
 
@@ -147,9 +163,7 @@ export function ProjectConfigSection({
 					</div>
 				</dl>
 				<ConfigAlerts errors={config.errors} />
-				<div>
-					<RefreshButton />
-				</div>
+				<RefreshButton />
 			</CardContent>
 		</Card>
 	)

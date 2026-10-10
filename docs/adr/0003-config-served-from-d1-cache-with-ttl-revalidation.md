@@ -109,7 +109,10 @@ cache's, so connecting a repository and the settings page's Refresh now call the
 - Refresh reads the stored path first, conditionally, and keeps that path when the Config is
   missing, rather than probing from `.kobun.json` and resetting to it.
 - An unreachable repository writes nothing, as on every other revalidation, rather than
-  storing the network error as a `parse_error`.
+  storing the network error as a `parse_error`. `refresh` reports that it did not reach the
+  repository beside the resolution it serves, and the settings page shows it as an error
+  (#248). Setup does not: a just-connected row is `UNKNOWN`, so the dashboard asks again and
+  shows `config-unreadable` if it still cannot reach the repository.
 - `refresh` marks the Project `ACTIVE` and lets `updatedAt` move, since connecting or pressing
   Refresh is a change to the Project. A plain revalidation still leaves both alone.
 

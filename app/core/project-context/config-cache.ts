@@ -214,20 +214,20 @@ export function createConfigCache(deps: {
 	/**
 	 * Where else a Config could be. Reached when the stored path 404s, which is
 	 * what renaming `.kobun.json` to `.kobun.yml` looks like from here. Reads are
-	 * unconditional: an ETag means nothing at a path it did not come from.
+	 * unconditional: an ETag means nothing at a path it did not come from. Null,
+	 * like `read`, when the repository could not be reached.
 	 */
 	async function probe(
 		row: Project,
 		repository: RepositoryAddress,
-		cached: ConfigResolution | null,
 		now: number,
-	): Promise<ConfigResolution> {
+	): Promise<ConfigResolution | null> {
 		for (const path of CONFIG_PATHS) {
 			// The stored path was just read, and was not there.
 			if (path === row.configPath) continue
 
 			const found = await read(repository, { etag: null, path })
-			if (!found) return unreachable(cached)
+			if (!found) return null
 			if (found.kind !== "content") continue
 			return await rememberConfig(row, now, path, found)
 		}
@@ -248,15 +248,15 @@ export function createConfigCache(deps: {
 		return { config: null, status: ConfigStatus.MISSING }
 	}
 
+	/** Null, like `read`, when the repository could not be reached. */
 	async function revalidate(
 		row: Project,
 		repository: RepositoryAddress,
 		cached: ConfigResolution | null,
 		now: number,
-	): Promise<ConfigResolution> {
+	): Promise<ConfigResolution | null> {
 		// Nowhere a Config lives, so there is nothing to revalidate against.
-		if (!isConfigPath(row.configPath))
-			return await probe(row, repository, cached, now)
+		if (!isConfigPath(row.configPath)) return await probe(row, repository, now)
 
 		// What the row remembers of a file at that path. A Project whose Config
 		// is missing remembers no file, so its ETag and its sha describe nothing
@@ -270,7 +270,7 @@ export function createConfigCache(deps: {
 			etag: remembered ? row.configEtag : null,
 			path: row.configPath,
 		})
-		if (!found) return unreachable(cached)
+		if (!found) return null
 
 		if (found.kind === "not-modified") {
 			// Nothing changed, so nothing is rewritten — but the window reopens,
@@ -279,8 +279,7 @@ export function createConfigCache(deps: {
 			return cached ?? { config: null, status: ConfigStatus.UNKNOWN }
 		}
 
-		if (found.kind === "not-found")
-			return await probe(row, repository, cached, now)
+		if (found.kind === "not-found") return await probe(row, repository, now)
 
 		// A rotated ETag over bytes that never changed. Shas are content
 		// addressed, so there is nothing to re-parse.
@@ -317,7 +316,9 @@ export function createConfigCache(deps: {
 		if (cached && age !== null && age >= 0 && age < CONFIG_CACHE_TTL_MS)
 			return cached
 
-		return await revalidate(row, repository, cached, now)
+		return (
+			(await revalidate(row, repository, cached, now)) ?? unreachable(cached)
+		)
 	}
 
 	/**
@@ -326,22 +327,25 @@ export function createConfigCache(deps: {
 	 * change to the Project: it marks it active and bumps `updatedAt`, so
 	 * setup's recent-Projects list puts it first. Written after the
 	 * revalidation, whose own write carries the old `updatedAt` through.
+	 *
+	 * The writer asked for this read, so whether it happened is reported apart
+	 * from the resolution: an unreachable repository still serves what is held,
+	 * and still writes none of it down, but the writer is told it was not reached.
 	 */
 	async function refresh(
 		row: Project,
 		repository: RepositoryAddress,
-	): Promise<ConfigResolution> {
-		const resolution = await revalidate(
-			row,
-			repository,
-			servable(row),
-			Date.now(),
-		)
+	): Promise<{ reached: boolean; resolution: ConfigResolution }> {
+		const cached = servable(row)
+		const revalidated = await revalidate(row, repository, cached, Date.now())
 		await db
 			.update(project)
 			.set({ status: ProjectStatus.ACTIVE })
 			.where(eq(project.id, row.id))
-		return resolution
+		return {
+			reached: revalidated !== null,
+			resolution: revalidated ?? unreachable(cached),
+		}
 	}
 
 	return { refresh, resolve }

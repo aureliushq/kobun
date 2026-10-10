@@ -83,7 +83,8 @@ function createGithubConfigSource(env: Env): ConfigSource {
  * Read a Project's Config again now, whatever the cache's window says: what
  * connecting a repository and the settings page's Refresh both do. The
  * installation is passed in because neither caller's row carries it the same
- * way, and both already have it to hand.
+ * way, and both already have it to hand. Whether the repository was reached
+ * comes back beside the resolution, since nothing about a failed read is stored.
  */
 export function refreshProjectConfig(
 	db: ProjectContextDatabase,
