@@ -1,5 +1,11 @@
 # kobun
 
+## 0.11.2
+
+### Patch Changes
+
+- 3a03872: Move self-hosting setup, environment variables and scripts to DEPLOYMENT.md; add a config-writing guide to the README.
+
 ## 0.11.1
 
 ### Patch Changes
