@@ -28,9 +28,29 @@ This guide covers everything needed to deploy Kobun, whether for production self
 - [Node.js](https://nodejs.org/) >= 24.13.0
 - [Bun](https://bun.sh/) >= 1.3.14
 
+> [!NOTE]
+> A `.tool-versions` file is included for use with [mise](https://mise.jdx.dev/) or [asdf](https://asdf-vm.com/). Run `mise install` or `asdf install` to install the correct versions.
+
 > **Development only** — this section is for contributors and is not required for production self-hosting.
 >
 > - [GitHub CLI](https://cli.github.com/) (`gh`) — needed for the release workflow
+
+---
+
+## Local Development
+
+```bash
+bun install
+cp .env.example .env
+cp .dev.vars.example .dev.vars
+bun run db:setup
+bun run dev
+```
+
+The local app runs at [http://localhost:5173](http://localhost:5173).
+
+> [!IMPORTANT]
+> Fill in `.env` and `.dev.vars` before using authentication or GitHub features. You need a [GitHub App](#github-app-setup) first. See [Environment Variables](#environment-variables) for what each value does.
 
 ---
 
@@ -194,33 +214,9 @@ Locally these come from `.env`. When deploying manually, set them in the environ
 VITE_KOBUN_APP_URL=https://app.kobun.io bun run deploy:production
 ```
 
-In CI they're passed to the Build step from GitHub Actions variables — see [Environment Variables](#environment-variables-1) below. Leave the PostHog pair unset to disable analytics entirely.
+In CI they're passed to the Build step from GitHub Actions variables — see [Repository Variables](#repository-variables) below. Leave the PostHog pair unset to disable analytics entirely.
 
-> **Development only** — for local development, runtime secrets go in `.dev.vars`:
->
-> ```
-> AUTOSEND_API_KEY=your-api-key
-> AUTOSEND_LIST_ID=your-list-id
-> BETTER_AUTH_URL=http://localhost:5173
-> BETTER_AUTH_SECRET=your-secret
-> GITHUB_CLIENT_ID=your-client-id
-> GITHUB_CLIENT_SECRET=your-client-secret
-> GITHUB_APP_ID=your-app-id
-> GITHUB_APP_PRIVATE_KEY=your-private-key-single-line
-> GITHUB_APP_WEBHOOK_SECRET=your-webhook-secret
-> GITHUB_APP_SLUG=your-app-slug
-> ```
-
-> **Development only** — build-time variables and CLI credentials go in `.env`:
->
-> ```
-> CLOUDFLARE_ACCOUNT_ID=your-account-id
-> CLOUDFLARE_API_TOKEN=your-api-token
-> VITE_KOBUN_HOME_URL=https://kobun.io
-> VITE_KOBUN_APP_URL=http://localhost:5173
-> VITE_POSTHOG_PROJECT_TOKEN=your-project-token
-> VITE_POSTHOG_HOST=https://us.i.posthog.com
-> ```
+> **Development only** — runtime secrets and vars go in `.dev.vars` (copy `.dev.vars.example`). Build-time variables and CLI credentials go in `.env` (copy `.env.example`). Both example files list every variable with comments.
 
 ---
 
@@ -265,6 +261,47 @@ This builds the app and deploys to Cloudflare Workers using the production envir
 > ```bash
 > bun run deploy:preview
 > ```
+
+---
+
+## Scripts
+
+### Development
+
+| Command | Description |
+| --- | --- |
+| `bun run dev` | Start the development server |
+| `bun run preview` | Build and preview the production build |
+| `bun run storybook` | Start Storybook |
+
+### Quality
+
+| Command | Description |
+| --- | --- |
+| `bun run check` | Lint and format check (Biome) |
+| `bun run check:fix` | Auto-fix lint and format issues |
+| `bun run check:types` | TypeScript type check |
+| `bun run test` | Run unit tests (Vitest) |
+| `bun run test:e2e` | Run end-to-end tests (Playwright) |
+| `bun run doctor` | Run all checks + tests + build |
+
+### Database
+
+| Command | Description |
+| --- | --- |
+| `bun run db:setup` | Reset and reinitialise local database |
+| `bun run db:generate` | Generate Drizzle migrations after schema changes |
+| `bun run db:migrate` | Apply migrations locally |
+| `bun run db:migrate:preview` | Apply migrations to the preview database |
+| `bun run db:migrate:production` | Apply migrations to the production database |
+| `bun run db:studio` | Open Drizzle Studio |
+
+### Deployment
+
+| Command | Description |
+| --- | --- |
+| `bun run deploy:preview` | Deploy to preview environment |
+| `bun run deploy:production` | Deploy to production |
 
 ---
 

@@ -12,17 +12,7 @@
 2. **Install** the Kobun GitHub App on your user or organization account.
 3. Kobun **lists** the repositories you've granted access to.
 4. **Select a repository** to create a project.
-5. Kobun looks for a **config file** (`.kobun.json` or `.kobun.yml`) in the repository root.
-
-### Config paths
-
-`basePath` and `mediaPath` are relative to the repository root. `mediaUrl` is a path on your site.
-
-| Option | Default | What it is |
-| --- | --- | --- |
-| `basePath` | `src/content` | Where Collections (`<basePath>/collections/<collection>/`) and Singletons (`<basePath>/singletons/`) live. |
-| `mediaPath` | `src/assets/images` | Where images added in the editor are written on Save to GitHub or Publish, for example `src/assets/images/<id>.png`. |
-| `mediaUrl` | `mediaPath` | What the Markdown links each image by. Set it when your site serves the media directory at another path: `mediaPath: "public/images"` with `mediaUrl: "/images"` links `/images/<id>.png`. |
+5. Kobun looks for a **config file** (`.kobun.json`, `.kobun.yml` or `.kobun.yaml`) in the repository root.
 
 ## Tech Stack
 
@@ -34,102 +24,96 @@
 - **UI** — Tailwind CSS v4 + shadcn/ui + Base UI
 - **Tooling** — Bun + Biome + Vitest + Playwright
 
-## Prerequisites
+## Writing a Config
 
-- Node.js >= 24.13.0
-- Bun >= 1.3.14
+The config declares your content: **Collections** (many items, such as blog posts) and **Singletons** (one item, such as site settings). Each one has a `label`, a `format` (`md`, `mdx`, `json` or `yaml`) and a `schema` of fields.
 
-> [!NOTE]
-> A `.tool-versions` file is included for use with [mise](https://mise.jdx.dev/) or [asdf](https://asdf-vm.com/). Run `mise install` or `asdf install` to install the correct versions.
-
-## Quick Start
-
-```bash
-bun install
-cp .env.example .env
-cp .dev.vars.example .dev.vars
-bun run db:setup
-bun run dev
+```json
+{
+  "$schema": "https://app.kobun.io/schemas/v1.json",
+  "version": 1,
+  "collections": {
+    "posts": {
+      "label": "Posts",
+      "format": "md",
+      "features": { "publish": true, "timestamps": { "updatedAt": true } },
+      "schema": {
+        "title": { "label": "Title", "type": "text", "required": true },
+        "slug": { "label": "Slug", "type": "slug", "from": "title" },
+        "cover": { "label": "Cover image", "type": "image" },
+        "tags": {
+          "label": "Tags",
+          "type": "multi_select",
+          "options": [
+            { "label": "News", "value": "news" },
+            { "label": "Guides", "value": "guides" }
+          ]
+        },
+        "body": { "label": "Body", "type": "document" }
+      }
+    }
+  },
+  "singletons": {
+    "site": {
+      "label": "Site settings",
+      "format": "json",
+      "schema": {
+        "title": { "label": "Site title", "type": "text" },
+        "description": { "label": "Description", "type": "text", "multiline": true }
+      }
+    }
+  }
+}
 ```
 
-> [!IMPORTANT]
-> Fill in the values in `.env` and `.dev.vars` before using authentication or GitHub features. See the [Environment Variables](#environment-variables) section below.
+The `$schema` line gives you autocomplete and validation in editors that support JSON Schema.
 
-The local app runs at [http://localhost:5173](http://localhost:5173).
+### Top-level keys
 
-## Environment Variables
+| Key | Required | What it is |
+| --- | --- | --- |
+| `version` | Yes | Config version. Use `1`. |
+| `collections` | Yes | Map of Collection name → Collection. |
+| `singletons` | No | Map of Singleton name → Singleton. |
+| `basePath`, `mediaPath`, `mediaUrl` | No | Where content and images live. See [Config paths](#config-paths). |
 
-### `.env` — Local scripts and remote DB migrations
+### Field types
 
-| Variable | Description |
+`text`, `slug`, `document`, `image`, `date`, `datetime`, `boolean`, `select`, `multi_select`, `url`, `object`, `array`.
+
+Every field takes a `label`, and optionally `required` and `description`.
+
+Rules:
+
+- A Collection needs exactly one `slug` field. Its `from` names a `text` field in the same schema.
+- A schema can have at most one `document` field (the body). It must be at the top level, and the format must be `md` or `mdx`.
+- A Collection can declare `subcollections`, one level deep. Singletons cannot.
+
+### Features
+
+| Feature | What it adds |
 | --- | --- |
-| `BETTER_AUTH_URL` | Base URL of the app (default: `http://localhost:5173`) |
-| `BETTER_AUTH_SECRET` | Auth secret. Generate with `openssl rand -base64 32` |
-| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare account ID (needed for remote DB operations) |
-| `CLOUDFLARE_API_TOKEN` | Cloudflare API token (needed for remote DB operations) |
+| `publish: true` | `status` (Draft / Published) and `publishedAt` fields. |
+| `timestamps.createdAt: true` | A `createdAt` field. |
+| `timestamps.updatedAt: true` | An `updatedAt` field. |
 
-### `.dev.vars` — Runtime secrets for the local Wrangler dev server
+### Config paths
 
-| Variable | Description |
-| --- | --- |
-| `BETTER_AUTH_URL` | Base URL (`http://localhost:5173`) |
-| `BETTER_AUTH_SECRET` | Auth secret (same as `.env`) |
-| `GITHUB_CLIENT_ID` | GitHub App client ID |
-| `GITHUB_CLIENT_SECRET` | GitHub App client secret |
-| `GITHUB_APP_ID` | GitHub App ID |
-| `GITHUB_APP_PRIVATE_KEY` | GitHub App private key (single-line PEM) |
-| `GITHUB_APP_WEBHOOK_SECRET` | GitHub App webhook secret |
-| `GITHUB_APP_SLUG` | GitHub App slug (URL-friendly name) |
+`basePath` and `mediaPath` are relative to the repository root. `mediaUrl` is a path on your site.
 
-> [!TIP]
-> GitHub App private keys are multi-line PEM files. Convert to a single-line string for `.dev.vars`:
->
-> ```bash
-> awk 'NR==1{printf "%s",$0; next}{printf "\\n%s",$0}' ~/path-to/your-app.private-key.pem | pbcopy
-> ```
-
-## Scripts
-
-### Development
-
-| Command | Description |
-| --- | --- |
-| `bun run dev` | Start the development server |
-| `bun run preview` | Build and preview the production build |
-| `bun run storybook` | Start Storybook |
-
-### Quality
-
-| Command | Description |
-| --- | --- |
-| `bun run check` | Lint and format check (Biome) |
-| `bun run check:fix` | Auto-fix lint and format issues |
-| `bun run check:types` | TypeScript type check |
-| `bun run doctor` | Run all checks + tests |
-
-### Database
-
-| Command | Description |
-| --- | --- |
-| `bun run db:setup` | Reset and reinitialize local database |
-| `bun run db:generate` | Generate Drizzle migrations after schema changes |
-| `bun run db:migrate` | Apply migrations locally |
-| `bun run db:studio` | Open Drizzle Studio |
-
-### Deployment
-
-| Command | Description |
-| --- | --- |
-| `bun run deploy:preview` | Deploy to preview environment |
-| `bun run deploy:production` | Deploy to production |
+| Option | Default | What it is |
+| --- | --- | --- |
+| `basePath` | `src/content` | Where Collections (`<basePath>/collections/<collection>/`) and Singletons (`<basePath>/singletons/`) live. |
+| `mediaPath` | `src/assets/images` | Where images added in the editor are written on Save to GitHub or Publish, for example `src/assets/images/<id>.png`. |
+| `mediaUrl` | `mediaPath` | What the Markdown links each image by. Set it when your site serves the media directory at another path: `mediaPath: "public/images"` with `mediaUrl: "/images"` links `/images/<id>.png`. |
 
 ## Self-Hosting
 
-Kobun is designed to run on Cloudflare Workers with D1. Self-hosting requires a Cloudflare account, a GitHub App, and some configuration. See [DEPLOYMENT.md](./DEPLOYMENT.md) for the full guide.
+Kobun runs on Cloudflare Workers with D1. Self-hosting needs a Cloudflare account and a GitHub App. See [DEPLOYMENT.md](./DEPLOYMENT.md) for setup, environment variables, scripts and deployment.
 
 ## Bug Reports and Feature Requests
 
-Use [GitHub Issues](https://github.com/aureliushq/kobun/issues) for bug reports and feature requests. Outside pull requests are not accepted at this time.
+Use [GitHub Issues](https://github.com/aureliushq/kobun/issues) for bug reports and feature requests. Outside pull requests are not accepted at this time. See [CONTRIBUTING.md](./CONTRIBUTING.md) for what to include.
 
 ## License
 
