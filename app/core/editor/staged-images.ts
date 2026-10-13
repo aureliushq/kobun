@@ -13,6 +13,11 @@ export const STAGED_IMAGE_TYPES = new Map([
 
 export const STAGED_IMAGE_MAX_BYTES = 5 * 1024 * 1024
 
+export const STAGED_IMAGE_TOO_LARGE = {
+	error: `Images can be at most ${STAGED_IMAGE_MAX_BYTES / 1024 / 1024} MB.`,
+	status: 413,
+}
+
 /**
  * Why a file cannot be staged, with the status the upload route answers it
  * with, or null when it can. The editor shows the same words before sending.
@@ -21,9 +26,30 @@ export function checkStagedImage(file: Pick<File, "size" | "type">) {
 	if (!STAGED_IMAGE_TYPES.has(file.type)) {
 		return { error: "Use a PNG, JPEG, GIF, WebP or AVIF image.", status: 415 }
 	}
-	if (file.size > STAGED_IMAGE_MAX_BYTES) {
-		const megabytes = STAGED_IMAGE_MAX_BYTES / 1024 / 1024
-		return { error: `Images can be at most ${megabytes} MB.`, status: 413 }
+	if (file.size > STAGED_IMAGE_MAX_BYTES) return STAGED_IMAGE_TOO_LARGE
+	return null
+}
+
+/**
+ * The type a file's first bytes show it to be, or null when they match none
+ * the editor may stage. The declared type is the browser's guess from the name.
+ */
+export function stagedImageType(bytes: Uint8Array) {
+	const ascii = (start: number, end: number) =>
+		String.fromCharCode(...bytes.subarray(start, end))
+	const startsWith = (signature: number[]) =>
+		signature.every((byte, index) => bytes[index] === byte)
+
+	if (startsWith([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])) {
+		return "image/png"
+	}
+	if (startsWith([0xff, 0xd8, 0xff])) return "image/jpeg"
+	if (ascii(0, 4) === "GIF8") return "image/gif"
+	if (ascii(0, 4) === "RIFF" && ascii(8, 12) === "WEBP") return "image/webp"
+	// Only the major brand is read. An AVIF led by another brand (such as mif1)
+	// is refused; scan the compatible brands if that shows up.
+	if (ascii(4, 8) === "ftyp" && ["avif", "avis"].includes(ascii(8, 12))) {
+		return "image/avif"
 	}
 	return null
 }

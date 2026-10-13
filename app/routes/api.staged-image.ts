@@ -1,8 +1,11 @@
 import {
 	checkStagedImage,
+	STAGED_IMAGE_MAX_BYTES,
+	STAGED_IMAGE_TOO_LARGE,
 	STAGED_IMAGE_TYPES,
 	stagedImageBaseUrl,
 	stagedImageKey,
+	stagedImageType,
 } from "@/core/editor/staged-images"
 import { requireApiAccess } from "@/core/project-context/project-context.server"
 import type { Route } from "./+types/api.staged-image"
@@ -23,22 +26,29 @@ export async function action({ context, params, request }: Route.ActionArgs) {
 		request,
 	})
 
+	// Refuse a declared length over the limit before reading the body. The
+	// allowance covers the multipart envelope around the file. A request with
+	// no length is read in full and its file checked below.
+	const length = Number(request.headers.get("Content-Length"))
+	if (length > STAGED_IMAGE_MAX_BYTES + 16 * 1024) {
+		return refuse(STAGED_IMAGE_TOO_LARGE.status, STAGED_IMAGE_TOO_LARGE.error)
+	}
+
 	const file = (await request.formData()).get("file")
 	if (!(file instanceof File)) return refuse(400, "No image was sent.")
 
-	// The editor checks this first, but a request need not come from it.
-	const refusal = checkStagedImage(file)
+	// R2 refuses a stream whose length it cannot know, and the size is capped.
+	const bytes = await file.arrayBuffer()
+	// The editor checks the declared type first, but a request need not come
+	// from it, and a renamed file declares the wrong one.
+	const type = stagedImageType(new Uint8Array(bytes)) ?? ""
+	const refusal = checkStagedImage({ size: file.size, type })
 	if (refusal) return refuse(refusal.status, refusal.error)
 
-	const imageId = `${crypto.randomUUID()}.${STAGED_IMAGE_TYPES.get(file.type)}`
-	// R2 refuses a stream whose length it cannot know, and the size is capped.
-	await env.IMAGES.put(
-		stagedImageKey(projectRow.id, imageId),
-		await file.arrayBuffer(),
-		{
-			httpMetadata: { contentType: file.type },
-		},
-	)
+	const imageId = `${crypto.randomUUID()}.${STAGED_IMAGE_TYPES.get(type)}`
+	await env.IMAGES.put(stagedImageKey(projectRow.id, imageId), bytes, {
+		httpMetadata: { contentType: type },
+	})
 
 	return Response.json({ src: `${stagedImageBaseUrl(owner, name)}/${imageId}` })
 }
