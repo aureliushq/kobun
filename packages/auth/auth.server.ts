@@ -1,12 +1,18 @@
-import { betterAuth } from "better-auth"
+import { type BetterAuthOptions, betterAuth } from "better-auth"
 import { drizzleAdapter } from "better-auth/adapters/drizzle"
 import { drizzle } from "drizzle-orm/d1"
 import * as schema from "../db/schema"
 import { getAutosend } from "../marketing/autosend.server"
 
-function createAuth(env: Env) {
-	const db = drizzle(env.DB, { schema, casing: "snake_case" })
-	return betterAuth({
+/**
+ * The app's Better Auth options, on any Drizzle database. Exported so an
+ * instance built elsewhere keeps the app's session and cookie settings.
+ */
+export function authOptions(
+	env: Env,
+	db: Parameters<typeof drizzleAdapter>[0],
+) {
+	return {
 		appName: "Kobun",
 
 		baseURL: env.BETTER_AUTH_URL,
@@ -54,7 +60,12 @@ function createAuth(env: Env) {
 				},
 			},
 		},
-	})
+	} satisfies BetterAuthOptions
+}
+
+function createAuth(env: Env) {
+	const db = drizzle(env.DB, { schema, casing: "snake_case" })
+	return betterAuth(authOptions(env, db))
 }
 
 /**

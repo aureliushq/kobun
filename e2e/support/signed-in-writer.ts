@@ -1,10 +1,10 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs"
 import { parseEnv } from "node:util"
 import { betterAuth } from "better-auth"
-import { drizzleAdapter } from "better-auth/adapters/drizzle"
 import { testUtils } from "better-auth/plugins"
 import Database from "better-sqlite3"
 import { drizzle } from "drizzle-orm/better-sqlite3"
+import { authOptions } from "@/auth/auth.server"
 import { validateConfig } from "@/config/validator"
 import * as schema from "@/db/schema"
 import { githubInstallation, project } from "@/db/schema/app-schema"
@@ -106,11 +106,13 @@ export async function signInWriter(baseURL: string) {
 			.onConflictDoUpdate({ set: cached, target: project.id })
 			.run()
 
+		const env = {
+			BETTER_AUTH_SECRET: serverSecret(),
+			BETTER_AUTH_URL: baseURL,
+		} as Env
 		const auth = betterAuth({
-			baseURL,
-			database: drizzleAdapter(db, { provider: "sqlite", schema }),
+			...authOptions(env, db),
 			plugins: [testUtils()],
-			secret: serverSecret(),
 		})
 		const { cookies } = await (await auth.$context).test.login({
 			userId: USER_ID,
