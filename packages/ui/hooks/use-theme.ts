@@ -77,9 +77,11 @@ export function useTheme() {
 	const resolvedTheme: "light" | "dark" =
 		theme === "system" ? (prefersDark ? "dark" : "light") : theme
 
+	// `context.theme` too: when it revalidates, the root `<html>` re-renders its
+	// server class, which can drop `dark` while `theme` itself is unchanged.
 	useEffect(() => {
 		applyThemeToDOM(theme)
-	}, [theme, resolvedTheme])
+	}, [theme, resolvedTheme, context.theme])
 
 	const setTheme = useCallback(
 		(newTheme: Theme) => {

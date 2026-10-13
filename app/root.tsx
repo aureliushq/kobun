@@ -75,7 +75,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 		<html
 			lang="en"
 			data-theme={theme}
-			className="dark"
+			className={theme === "dark" ? "dark" : undefined}
 			suppressHydrationWarning
 		>
 			<head>
