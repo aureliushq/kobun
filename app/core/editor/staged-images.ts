@@ -13,6 +13,11 @@ export const STAGED_IMAGE_TYPES = new Map([
 
 export const STAGED_IMAGE_MAX_BYTES = 5 * 1024 * 1024
 
+export const STAGED_IMAGE_UNSUPPORTED = {
+	error: "Use a PNG, JPEG, GIF, WebP or AVIF image.",
+	status: 415,
+}
+
 export const STAGED_IMAGE_TOO_LARGE = {
 	error: `Images can be at most ${STAGED_IMAGE_MAX_BYTES / 1024 / 1024} MB.`,
 	status: 413,
@@ -23,9 +28,7 @@ export const STAGED_IMAGE_TOO_LARGE = {
  * with, or null when it can. The editor shows the same words before sending.
  */
 export function checkStagedImage(file: Pick<File, "size" | "type">) {
-	if (!STAGED_IMAGE_TYPES.has(file.type)) {
-		return { error: "Use a PNG, JPEG, GIF, WebP or AVIF image.", status: 415 }
-	}
+	if (!STAGED_IMAGE_TYPES.has(file.type)) return STAGED_IMAGE_UNSUPPORTED
 	if (file.size > STAGED_IMAGE_MAX_BYTES) return STAGED_IMAGE_TOO_LARGE
 	return null
 }
@@ -46,10 +49,18 @@ export function stagedImageType(bytes: Uint8Array) {
 	if (startsWith([0xff, 0xd8, 0xff])) return "image/jpeg"
 	if (ascii(0, 4) === "GIF8") return "image/gif"
 	if (ascii(0, 4) === "RIFF" && ascii(8, 12) === "WEBP") return "image/webp"
-	// Only the major brand is read. An AVIF led by another brand (such as mif1)
-	// is refused; scan the compatible brands if that shows up.
-	if (ascii(4, 8) === "ftyp" && ["avif", "avis"].includes(ascii(8, 12))) {
-		return "image/avif"
+	if (ascii(4, 8) === "ftyp") {
+		// The ftyp box names a major brand, then after a minor version the
+		// compatible ones. An AVIF may lead with another brand, such as mif1.
+		const end = Math.min(
+			new DataView(bytes.buffer, bytes.byteOffset).getUint32(0),
+			bytes.length,
+		)
+		const brands = [ascii(8, 12)]
+		for (let at = 16; at + 4 <= end; at += 4) brands.push(ascii(at, at + 4))
+		if (brands.some((brand) => brand === "avif" || brand === "avis")) {
+			return "image/avif"
+		}
 	}
 	return null
 }

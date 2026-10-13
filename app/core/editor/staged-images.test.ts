@@ -110,6 +110,13 @@ test.each([
 	[bytes("GIF87a"), "image/gif"],
 	[bytes("RIFF", [0, 0, 0, 0], "WEBPVP8 "), "image/webp"],
 	[bytes([0, 0, 0, 0x1c], "ftypavif"), "image/avif"],
+	[
+		bytes([0, 0, 0, 0x1c], "ftypmif1", [0, 0, 0, 0], "mif1miafavif"),
+		"image/avif",
+	],
+	[bytes([0, 0, 0, 0x18], "ftypmif1", [0, 0, 0, 0], "heic"), null],
+	// A brand past the end of the ftyp box belongs to the next box.
+	[bytes([0, 0, 0, 0x14], "ftypmif1", [0, 0, 0, 0], "miafavif"), null],
 	[bytes("<svg/>"), null],
 	[bytes(), null],
 ])("reads the image type from the first bytes (%#)", (file, type) => {
