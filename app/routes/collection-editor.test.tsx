@@ -46,6 +46,7 @@ vi.mock("@/editor", async () => {
 	const { useEffect } = await import("react")
 	return {
 		EditorWordCount: () => null,
+		useImageUploads: () => ({ failed: [], uploading: 0 }),
 		RichTextEditor: (props: {
 			persistence: NonNullable<typeof mocks.persistence>
 			ref?: (api: unknown) => void

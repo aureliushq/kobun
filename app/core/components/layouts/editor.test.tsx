@@ -185,6 +185,72 @@ describe("what the primary button will act on", () => {
 	})
 })
 
+// An image still uploading, or failed, is left out of the Markdown, so a
+// commit sent meanwhile would drop it without a word (#213).
+describe("an image the Body is still waiting on", () => {
+	const WAITING = "Waiting for 1 image to upload"
+	const publishButton = () => screen.getByRole("button", { name: "Publish" })
+
+	it("holds Save to GitHub and Publish, and says why", async () => {
+		header({
+			primaryAction: "commit",
+			registered: controls({ commitHoldReason: WAITING }),
+		})
+
+		await screen.findByTestId("editor-body")
+		expect(primary()).toBeDisabled()
+		expect(publishButton()).toBeDisabled()
+		expect(publishButton()).toHaveAttribute("title", WAITING)
+		expect(status()).toHaveTextContent(WAITING)
+	})
+
+	it("names a failed image in the status line", async () => {
+		const failed = '"cat.png" failed to upload. Remove it or add it again.'
+		header({
+			primaryAction: "commit",
+			registered: controls({ commitHoldReason: failed }),
+		})
+
+		await screen.findByTestId("editor-body")
+		expect(primary()).toBeDisabled()
+		expect(status()).toHaveTextContent(failed)
+	})
+
+	// Autosave already leaves the image out of the Draft and saves it once it
+	// lands, so Save has nothing to wait for.
+	it("leaves Save free", async () => {
+		header({
+			registered: controls({
+				autosaveState: { isDirty: true, isSaving: false, lastSavedAt: null },
+				commitHoldReason: WAITING,
+			}),
+		})
+
+		await screen.findByTestId("editor-body")
+		expect(primary()).not.toBeDisabled()
+	})
+
+	it("lets both go once every upload is done", async () => {
+		let finishUploads: () => void = () => undefined
+		header({
+			primaryAction: "commit",
+			useRegistered: () => {
+				const [reason, setReason] = useState<string | undefined>(WAITING)
+				finishUploads = () => setReason(undefined)
+				return useMemo(() => controls({ commitHoldReason: reason }), [reason])
+			},
+		})
+		await screen.findByTestId("editor-body")
+		expect(primary()).toBeDisabled()
+
+		act(() => finishUploads())
+
+		expect(primary()).not.toBeDisabled()
+		expect(publishButton()).not.toBeDisabled()
+		expect(status()).not.toHaveTextContent(WAITING)
+	})
+})
+
 describe("the status line", () => {
 	it("says nothing before anything has been saved", async () => {
 		header()

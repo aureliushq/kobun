@@ -60,7 +60,10 @@ export function EditorSaveControl({
 	onTargetChange: (target: PrimaryEditorAction) => void
 	/** The writer pressed this button and its request is in flight. */
 	pending: boolean
-	/** This particular target has nothing to do — a Save with nothing dirty. */
+	/**
+	 * This particular target cannot run — a Save with nothing dirty, or a Save
+	 * to GitHub held for an image still uploading.
+	 */
 	runDisabled: boolean
 	target: PrimaryEditorAction
 }) {

@@ -30,7 +30,9 @@ import {
 	type EditorRefApi,
 	EditorWordCount,
 	type ImageUploadAdapter,
+	type ImageUploads,
 	RichTextEditor,
+	useImageUploads,
 } from "@/editor"
 import { Separator } from "@/ui/components/base/separator"
 import {
@@ -64,6 +66,21 @@ const initialAutosaveState: AutosaveState = {
 	isDirty: false,
 	isSaving: false,
 	lastSavedAt: null,
+}
+
+/**
+ * Why Save to GitHub and Publish must wait, if they must: the Markdown leaves
+ * out an image until its upload lands, and a failed one for good (#213). A
+ * failure comes first, since waiting will not bring it back.
+ */
+function imageHoldReason({ failed, uploading }: ImageUploads) {
+	if (failed.length === 1)
+		return `"${failed[0]}" failed to upload. Remove it or add it again.`
+	if (failed.length > 1)
+		return `${failed.length} images failed to upload: ${failed.join(", ")}. Remove them or add them again.`
+	if (uploading === 1) return "Waiting for 1 image to upload"
+	if (uploading > 1) return `Waiting for ${uploading} images to upload`
+	return undefined
 }
 
 /**
@@ -534,6 +551,7 @@ export function CollectionItemEditor({
 	// A commit holds the editor while it runs; a Revision Conflict holds it for
 	// good, since nothing typed after one can be kept.
 	const isHeld = isCommitting || isConflicted
+	const commitHoldReason = imageHoldReason(useImageUploads(editorInstance))
 	// `!pending` is what `isEditorReady` already implies — no editor is mounted
 	// over a placeholder — but neither Save nor Publish may act on a half-loaded
 	// Draft, and that is a property this route states rather than inherits.
@@ -544,6 +562,7 @@ export function CollectionItemEditor({
 			canPublish: canPublish && !pending && isEditorReady && !isHeld,
 			canSave: !pending && isEditorReady && !isHeld,
 			commit,
+			commitHoldReason,
 			// Errs toward warning: a Draft the Source lacks, or keystrokes autosave
 			// has not persisted yet. A false warning costs a dialogue; a missed one
 			// costs the writer their bearings about what GitHub actually holds.
@@ -563,6 +582,7 @@ export function CollectionItemEditor({
 			combinedAutosaveState,
 			canPublish,
 			commit,
+			commitHoldReason,
 			hasBody,
 			hasUncommittedWork,
 			isEditorReady,

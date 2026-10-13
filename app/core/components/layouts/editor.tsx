@@ -146,6 +146,9 @@ function saveStatusFor(
 	if (pendingAction === "commit") return "Saving to GitHub…"
 	if (pendingAction === "save" || controls?.autosaveState.isSaving)
 		return "Saving draft…"
+	// Above the Draft's own state: it is why Save to GitHub and Publish are
+	// greyed out, and Save, which it does not hold, is already said above.
+	if (controls?.commitHoldReason) return controls.commitHoldReason
 	if (controls?.autosaveState.isDirty) return "Draft not saved yet"
 	if (controls?.hasUncommittedWork) return "Draft saved, not on GitHub"
 	// Both halves are needed. The state says the repository holds everything,
@@ -318,8 +321,11 @@ const EditorLayout = ({ loaderData }: Route.ComponentProps) => {
 	// Save keeps the gate it has always had — there is nothing to keep when
 	// nothing changed. Save to GitHub never had one: committing a Draft that
 	// happens to match its Source is a no-op the drafts module already decides.
-	const nothingToRun =
-		primaryAction === "save" && controls?.autosaveState.isDirty === false
+	// An image the Body is still waiting on holds Save to GitHub, not Save:
+	// autosave already leaves it out of the Draft (#213).
+	const targetCannotRun =
+		(primaryAction === "save" && controls?.autosaveState.isDirty === false) ||
+		(primaryAction === "commit" && controls?.commitHoldReason !== undefined)
 
 	return (
 		<EditorLayoutContext.Provider value={contextValue}>
@@ -395,7 +401,7 @@ const EditorLayout = ({ loaderData }: Route.ComponentProps) => {
 							onRun={(target) => void runAction(target)}
 							onTargetChange={setPrimaryAction}
 							pending={pendingAction === primaryAction}
-							runDisabled={nothingToRun}
+							runDisabled={targetCannotRun}
 							target={primaryAction}
 						/>
 						{/* Absent, not disabled, where the Collection has no `publish`
@@ -406,10 +412,13 @@ const EditorLayout = ({ loaderData }: Route.ComponentProps) => {
 								type="button"
 								disabled={
 									!controls.canPublish ||
+									controls.commitHoldReason !== undefined ||
 									controls.autosaveState.isSaving ||
 									pendingAction !== null
 								}
-								title={controls.publishDisabledReason}
+								title={
+									controls.commitHoldReason ?? controls.publishDisabledReason
+								}
 								onClick={() => void runAction("publish")}
 							>
 								{pendingAction === "publish" && (
