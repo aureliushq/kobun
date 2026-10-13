@@ -39,8 +39,10 @@ export function authOptions(
 				create: {
 					// Fires once, only when a brand-new user is created (returning
 					// logins just open a session). Add the new signup to our AutoSend
-					// contact list so they're enrolled in email automations.
+					// contact list so they're enrolled in email automations. No key
+					// (self-hosted, tests) means no AutoSend.
 					after: async (user) => {
+						if (!env.AUTOSEND_API_KEY) return
 						try {
 							const [firstName, ...rest] = (user.name ?? "").trim().split(/\s+/)
 							await getAutosend(env).contacts.upsert({
