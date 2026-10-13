@@ -7,8 +7,10 @@
 export interface StagedImageStore {
 	/** What a Staged Image's link starts with in the Body. */
 	baseUrl: string
-	/** Remove images a Commit has written to the repository. */
+	/** Remove images nothing can use any more. */
 	delete(ids: string[]): Promise<void>
+	/** Every image staged under the Project, with when it was uploaded. */
+	list(): Promise<{ id: string; uploaded: Date }[]>
 	/** Where a Commit writes them, as a repository path. */
 	mediaPath: string
 	/** What the committed Body links them by. */

@@ -79,6 +79,30 @@ export function stagedImageBaseUrl(owner: string, name: string) {
 }
 
 /**
+ * How long an image no Draft links to is kept before a Commit forgets it: an
+ * upload the editor has not saved into its Draft yet links from nowhere, and
+ * neither does an image the writer deleted and may still undo back.
+ */
+export const STAGED_IMAGE_GRACE_MS = 24 * 60 * 60 * 1000
+
+/** A link to one of a Project's Staged Images, capturing its id. */
+function stagedImageLink(baseUrl: string) {
+	const extensions = [...new Set(STAGED_IMAGE_TYPES.values())].join("|")
+	return new RegExp(
+		// A link copied out of the browser carries the origin it was served from.
+		`(?:https?://[^/\\s"'()]+)?${baseUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}/([0-9a-f-]{36}\\.(?:${extensions}))`,
+		"g",
+	)
+}
+
+/** The ids of the Staged Images a Body links to. */
+export function stagedImageIds(markdown: string, baseUrl: string): string[] {
+	return [...markdown.matchAll(stagedImageLink(baseUrl))].map(
+		(match) => match[1],
+	)
+}
+
+/**
  * A Staged Image a Commit writes, the repository path it is written to, and the
  * URL the Body links it by.
  */
@@ -101,17 +125,14 @@ export function commitStagedImages(
 	mediaPath: string,
 	mediaUrl: string,
 ): { images: CommittedImage[]; markdown: string } {
-	const extensions = [...new Set(STAGED_IMAGE_TYPES.values())].join("|")
-	const pattern = new RegExp(
-		// A link copied out of the browser carries the origin it was served from.
-		`(?:https?://[^/\\s"'()]+)?${baseUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}/([0-9a-f-]{36}\\.(?:${extensions}))`,
-		"g",
-	)
 	const images = new Map<string, CommittedImage>()
-	const committed = markdown.replace(pattern, (src, id: string) => {
-		const url = `${mediaUrl}/${id}`
-		images.set(id, { id, path: `${mediaPath}/${id}`, src, url })
-		return url
-	})
+	const committed = markdown.replace(
+		stagedImageLink(baseUrl),
+		(src, id: string) => {
+			const url = `${mediaUrl}/${id}`
+			images.set(id, { id, path: `${mediaPath}/${id}`, src, url })
+			return url
+		},
+	)
 	return { images: [...images.values()], markdown: committed }
 }

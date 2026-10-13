@@ -18,13 +18,13 @@ Glossary of domain terms. Keep implementation details out — this is vocabulary
 - **Synced** — a Draft whose content matches its Source after a Commit. A Synced Draft is deleted; the Source alone remains.
 - **Revision Conflict** — a save or commit carrying a stale expected Revision: another session changed the Draft first. A normal outcome, not an error.
 - **Stale Source** — a Draft whose Source changed on GitHub after the Draft went Dirty. Committing is refused until the writer copies or discards their Draft.
-- **Staged Image** — an image the writer added to a Body, held by Kobun until a Commit writes it to the repository. A Draft refers to it only by the URL it is served from, in its Markdown; like a Draft, it never reaches the repository by itself.
+- **Staged Image** — an image the writer added to a Body, held by Kobun until a Commit writes it to the repository. A Draft refers to it only by the URL it is served from, in its Markdown; like a Draft, it never reaches the repository by itself. Kobun forgets it once no Draft links to it.
 
 ## Access
 
 - **Project** — a user's connection of one GitHub repository to Kobun, through a GitHub App installation. All content access happens through a Project; a repo the user doesn't have a Project for is invisible to them.
 - **Config** — a Project's parsed and validated Kobun configuration, declaring its Collections (and their Subcollections) and Singletons. Lives as a file in the repository; a Project whose Config is missing or invalid has no browsable content.
-- **Disconnect** — removing a Project. Kobun forgets the repository and deletes the **Drafts** it held; the **Sources** are untouched and the GitHub App installation remains, so the same repository can be connected again. The only act that destroys a Dirty Draft in bulk.
+- **Disconnect** — removing a Project. Kobun forgets the repository and deletes the **Drafts** it held, and their **Staged Images**; the **Sources** are untouched and the GitHub App installation remains, so the same repository can be connected again. The only act that destroys a Dirty Draft in bulk.
 - **Preference** — an account-scoped choice about how Kobun looks and behaves for one person. A Preference follows the writer across every Project, is held by Kobun rather than by any repository, and never changes what a **Commit** writes — anything that would is the **Config**'s.
 
 ## Content structure

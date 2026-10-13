@@ -110,7 +110,7 @@ export async function action({ context, request }: Route.ActionArgs) {
 		}
 
 		context.get(posthogContext)?.capture({ event: "account_deleted" })
-		await deleteAccount(db, session.user.id)
+		await deleteAccount(db, context.get(envContext).IMAGES, session.user.id)
 
 		// The rows the session cookie points at are gone; this is what tells the
 		// browser to stop sending it.

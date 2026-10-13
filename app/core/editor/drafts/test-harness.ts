@@ -8,7 +8,7 @@ import {
 	collectionFileFormat,
 	isMarkdownCollectionFile,
 } from "@/core/editor/collection-items.server"
-import { stagedImageBaseUrl } from "@/core/editor/staged-images"
+import { stagedImageKey } from "@/core/editor/staged-images"
 import type { ContentDirectory } from "@/core/project-context"
 import {
 	editorDraft,
@@ -19,6 +19,7 @@ import { user } from "@/db/schema/auth-schema"
 import { createInMemoryDb } from "@/db/testing"
 import type { Database } from "@/db/types"
 import { createDrafts, createSingletonDrafts } from "./create-drafts.server"
+import { createR2StagedImageStore } from "./r2-staged-image-store.server"
 import type {
 	SourceFile,
 	SourceStore,
@@ -109,30 +110,73 @@ export function createFakeSourceStore(
 	}
 }
 
+/** R2, as far as Staged Images use it, a page of two objects at a time so paging is exercised. */
+export function createFakeBucket() {
+	const objects = new Map<string, { bytes: Uint8Array; uploaded: Date }>()
+	const bucket = {
+		delete: async (keys: string | string[]) => {
+			for (const key of [keys].flat()) objects.delete(key)
+		},
+		get: async (key: string) => {
+			const object = objects.get(key)
+			return object
+				? { arrayBuffer: async () => object.bytes.slice().buffer }
+				: null
+		},
+		list: async ({ cursor, prefix = "" }: R2ListOptions = {}) => {
+			// The cursor is the last key listed: R2's resumes after a key too.
+			const keys = [...objects.keys()]
+				.filter((key) => key.startsWith(prefix) && (!cursor || key > cursor))
+				.sort()
+			const page = keys.slice(0, 2)
+			const truncated = keys.length > 2
+			return {
+				cursor: truncated ? page[1] : undefined,
+				objects: page.map((key) => ({
+					key,
+					uploaded: objects.get(key)?.uploaded,
+				})),
+				truncated,
+			}
+		},
+	}
+	return {
+		bucket: bucket as unknown as R2Bucket,
+		has: (key: string) => objects.has(key),
+		keys: () => [...objects.keys()],
+		put: (key: string, bytes: Uint8Array, uploaded = new Date()) => {
+			objects.set(key, { bytes, uploaded })
+		},
+	}
+}
+
 export interface FakeStagedImageStore extends StagedImageStore {
 	/** Whether an image is still staged under `id`. */
 	has(id: string): boolean
 	/** Stage an image, answering the link the editor would put in the Body. */
-	put(id: string, bytes: Uint8Array): string
+	put(id: string, bytes: Uint8Array, uploaded?: Date): string
 }
 
-/** A Map standing in for R2, under the URL the editor serves the test Project's images from. */
-export function createFakeStagedImageStore(): FakeStagedImageStore {
-	const images = new Map<string, Uint8Array>()
-	const baseUrl = stagedImageBaseUrl("acme", "blog")
-	return {
-		baseUrl,
-		delete: async (ids) => {
-			for (const id of ids) images.delete(id)
-		},
-		has: (id) => images.has(id),
+/** The R2 adapter over a fake bucket, under the URL the editor serves the test Project's images from. */
+export function createFakeStagedImageStore(
+	projectId = "project-1",
+): FakeStagedImageStore {
+	const fake = createFakeBucket()
+	const store = createR2StagedImageStore({
+		bucket: fake.bucket,
 		mediaPath: TEST_MEDIA_PATH,
 		mediaUrl: TEST_MEDIA_PATH,
-		put: (id, bytes) => {
-			images.set(id, bytes)
-			return `${baseUrl}/${id}`
+		name: "blog",
+		owner: "acme",
+		projectId,
+	})
+	return {
+		...store,
+		has: (id) => fake.has(stagedImageKey(projectId, id)),
+		put: (id, bytes, uploaded) => {
+			fake.put(stagedImageKey(projectId, id), bytes, uploaded)
+			return `${store.baseUrl}/${id}`
 		},
-		read: async (id) => images.get(id) ?? null,
 	}
 }
 
@@ -307,7 +351,7 @@ function createHarnessBase(options: {
 	// differs from production, so the module keeps its exact D1 type.
 	const db = sqliteDb as unknown as Database
 	const sourceStore = createFakeSourceStore(options.files)
-	const stagedImages = createFakeStagedImageStore()
+	const stagedImages = createFakeStagedImageStore(projectId)
 	let drafts = 0
 
 	return {

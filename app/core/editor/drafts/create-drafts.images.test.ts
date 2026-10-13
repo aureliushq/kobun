@@ -1,5 +1,7 @@
-import { afterEach, expect, test } from "vitest"
+import { eq } from "drizzle-orm"
+import { afterEach, expect, test, vi } from "vitest"
 import { parseDocument } from "@/core/content/document.server"
+import { editorDraft } from "@/db/schema/app-schema"
 import { stringifyFrontmatter } from "@/lib/frontmatter"
 import {
 	createDraftsTestHarness,
@@ -164,4 +166,67 @@ test("a declared media URL is what the Body links, and what the editor follows",
 	expect(result).toMatchObject({ images: { [cat]: `/images/${CAT}` } })
 	expect(sourceStore.getImage(`${TEST_MEDIA_PATH}/${CAT}`)).toEqual(CAT_BYTES)
 	expect(committedBody()).toBe(`![A cat](/images/${CAT})\n`)
+})
+
+const BIRD = "1c2d3e4f-5a6b-4c7d-8e9f-0a1b2c3d4e5f.webp"
+const DAY = 24 * 60 * 60 * 1000
+
+/** Another Draft of the Project, linking to `markdown`'s images. */
+function seedOtherDraft(markdown: string) {
+	harness.seedDraft({ markdown, sourcePath: `${TEST_DIRECTORY_PATH}/other.md` })
+}
+
+test("a committed image another Draft still links to stays staged", async () => {
+	const { drafts, stagedImages } = setup()
+	const cat = stagedImages.put(CAT, CAT_BYTES)
+	seedOtherDraft(`![A cat](${cat})\n`)
+
+	const result = await drafts.commit(commitItem(`![A cat](${cat})\n`))
+
+	expect(result).toMatchObject({ ok: true, outcome: "committed" })
+	expect(stagedImages.has(CAT)).toBe(true)
+})
+
+test("a commit forgets images no Draft links to once they are a day old", async () => {
+	const { drafts, stagedImages } = setup()
+	stagedImages.put(DOG, DOG_BYTES, new Date(Date.now() - DAY - 1000))
+	stagedImages.put(BIRD, CAT_BYTES, new Date(Date.now() - DAY - 1000))
+	stagedImages.put(CAT, CAT_BYTES, new Date(Date.now() - 60_000))
+
+	await drafts.commit(commitItem("No images\n"))
+
+	expect(stagedImages.has(DOG)).toBe(false)
+	expect(stagedImages.has(BIRD)).toBe(false)
+	// Just uploaded, and maybe not saved into its Draft yet.
+	expect(stagedImages.has(CAT)).toBe(true)
+})
+
+test("a commit keeps an old image another Draft still links to", async () => {
+	const { drafts, stagedImages } = setup()
+	const dog = stagedImages.put(DOG, DOG_BYTES, new Date(Date.now() - 2 * DAY))
+	seedOtherDraft(`![A dog](${dog})\n`)
+
+	await drafts.commit(commitItem("No images\n"))
+
+	expect(stagedImages.has(DOG)).toBe(true)
+})
+
+test("a committed image stays staged while the Draft that committed it survives, still linking it", async () => {
+	const { db, drafts, sourceStore, stagedImages } = setup()
+	const cat = stagedImages.put(CAT, CAT_BYTES)
+	// Another session saves over the Draft while the commit is in flight, so
+	// the Draft outlives the commit with the staged link still in its Body.
+	const write = sourceStore.write
+	vi.spyOn(sourceStore, "write").mockImplementationOnce(async (input) => {
+		await db
+			.update(editorDraft)
+			.set({ revision: 9 })
+			.where(eq(editorDraft.projectId, harness.projectId))
+		return write(input)
+	})
+
+	const result = await drafts.commit(commitItem(`![A cat](${cat})\n`))
+
+	expect(result).toMatchObject({ ok: true, outcome: "committed-unsynced" })
+	expect(stagedImages.has(CAT)).toBe(true)
 })

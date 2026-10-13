@@ -1,5 +1,6 @@
 import { eq } from "drizzle-orm"
 import { afterEach, beforeEach, expect, test } from "vitest"
+import { createFakeBucket } from "@/core/editor/drafts/test-harness"
 import {
 	collectionListing,
 	editorDraft,
@@ -23,6 +24,7 @@ import { disconnectProject } from "./disconnect-project.server"
 
 let close: InMemoryDb["close"]
 let sqliteDb: InMemoryDb["db"]
+let images: ReturnType<typeof createFakeBucket>
 
 // Only the driver differs from production, so the module keeps its D1 type.
 function db() {
@@ -80,6 +82,12 @@ function seedWriter(userId: string) {
 }
 
 beforeEach(() => {
+	images = createFakeBucket()
+	images.put("project-1/image-0.png", new Uint8Array())
+	images.put("project-1/image-1.png", new Uint8Array())
+	images.put("project-1/image-2.png", new Uint8Array())
+	images.put("project-2/image-3.png", new Uint8Array())
+	images.put("project-3/image-4.png", new Uint8Array())
 	const inMemory = createInMemoryDb()
 	close = inMemory.close
 	sqliteDb = inMemory.db
@@ -129,7 +137,7 @@ function rowsFor(projectId: string) {
 }
 
 test("disconnecting takes the Project's Drafts and cached listings with it", async () => {
-	await disconnectProject(db(), "project-1")
+	await disconnectProject(db(), images.bucket, "project-1")
 
 	expect(rowsFor("project-1")).toEqual({
 		drafts: [],
@@ -139,7 +147,7 @@ test("disconnecting takes the Project's Drafts and cached listings with it", asy
 })
 
 test("the writer's other Projects are untouched", async () => {
-	await disconnectProject(db(), "project-1")
+	await disconnectProject(db(), images.bucket, "project-1")
 
 	const other = rowsFor("project-2")
 	expect(other.projects).toHaveLength(1)
@@ -148,13 +156,13 @@ test("the writer's other Projects are untouched", async () => {
 })
 
 test("another writer's Project is untouched", async () => {
-	await disconnectProject(db(), "project-1")
+	await disconnectProject(db(), images.bucket, "project-1")
 
 	expect(rowsFor("project-3").projects).toHaveLength(1)
 })
 
 test("the writer, their Preferences and their installation link all survive", async () => {
-	await disconnectProject(db(), "project-1")
+	await disconnectProject(db(), images.bucket, "project-1")
 
 	expect(
 		sqliteDb.select().from(user).where(eq(user.id, "user-1")).all(),
@@ -178,7 +186,7 @@ test("the writer, their Preferences and their installation link all survive", as
 test("the GitHub App installation outlives the Project that used it", async () => {
 	// Kobun cannot uninstall an App on the writer's behalf, and the row is
 	// shared with everyone else who connected the same installation.
-	await disconnectProject(db(), "project-1")
+	await disconnectProject(db(), images.bucket, "project-1")
 
 	expect(
 		sqliteDb
@@ -187,4 +195,13 @@ test("the GitHub App installation outlives the Project that used it", async () =
 			.where(eq(githubInstallation.id, "installation-1"))
 			.all(),
 	).toHaveLength(1)
+})
+
+test("disconnecting forgets every Staged Image the Project held, and only those", async () => {
+	await disconnectProject(db(), images.bucket, "project-1")
+
+	expect(images.keys().sort()).toEqual([
+		"project-2/image-3.png",
+		"project-3/image-4.png",
+	])
 })

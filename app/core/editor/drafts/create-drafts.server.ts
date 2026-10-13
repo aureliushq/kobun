@@ -23,11 +23,13 @@ import {
 import {
 	type CommittedImage,
 	commitStagedImages,
+	STAGED_IMAGE_GRACE_MS,
 } from "@/core/editor/staged-images"
 import type { ContentDirectory } from "@/core/project-context"
 import { editorDraft } from "@/db/schema/app-schema"
 import type { Database } from "@/db/types"
 import { isDraftDirty } from "./draft-state"
+import { forgetStagedImages } from "./forget-staged-images.server"
 import {
 	stampAtCreation,
 	stampTimestamps,
@@ -500,15 +502,6 @@ function createDraftLifecycle<ItemSlug extends string | null>(context: {
 			path,
 		})
 		if (!committed.ok) return { code: "stale-source", ok: false }
-		// The repository holds the images now, so the staged copies go, the way
-		// the Draft does once Synced. Failing to forget one leaves an object
-		// nothing links to, which costs storage and nothing else: the commit
-		// has landed and must still be reported as landed.
-		if (images.length) {
-			await stagedImages
-				.delete(images.map((image) => image.id))
-				.catch(() => undefined)
-		}
 		// Which link became which URL, so an editor still holding the staged
 		// links can follow the Body to the repository.
 		const committedImages = Object.fromEntries(
@@ -670,7 +663,39 @@ function createDraftLifecycle<ItemSlug extends string | null>(context: {
 		})
 		if (!restamped.ok) return restamped
 
-		return commitToSource(stamped, restamped.draft, address, action, images)
+		const result = await commitToSource(
+			stamped,
+			restamped.draft,
+			address,
+			action,
+			images,
+		)
+		if (result.ok) await forgetUnlinkedImages(images)
+		return result
+	}
+
+	/**
+	 * After a commit lands: the repository holds its images now, so the staged
+	 * copies go, the way the Draft does once Synced, and so does anything a day
+	 * old that no Draft links to any more. A Draft that outlived the commit
+	 * still links its images, so they wait for a later commit. Listing the whole
+	 * Project on every commit is fine while Projects hold few images; a
+	 * scheduled sweep can take over if they come to hold thousands. Failing to
+	 * forget one costs storage and nothing else: the commit has landed and must
+	 * still be reported as landed.
+	 */
+	async function forgetUnlinkedImages(images: ImageToCommit[]) {
+		try {
+			const cutoff = Date.now() - STAGED_IMAGE_GRACE_MS
+			const stale = (await stagedImages.list())
+				.filter((image) => image.uploaded.getTime() < cutoff)
+				.map((image) => image.id)
+			const committed = images.map((image) => image.id)
+			await forgetStagedImages(db, project.id, stagedImages, [
+				...committed,
+				...stale,
+			])
+		} catch {}
 	}
 
 	/**

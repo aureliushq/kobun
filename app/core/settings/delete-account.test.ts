@@ -1,5 +1,6 @@
 import { eq } from "drizzle-orm"
 import { afterEach, beforeEach, expect, test } from "vitest"
+import { createFakeBucket } from "@/core/editor/drafts/test-harness"
 import {
 	collectionListing,
 	editorDraft,
@@ -15,6 +16,7 @@ import { deleteAccount } from "./delete-account.server"
 
 let close: InMemoryDb["close"]
 let sqliteDb: InMemoryDb["db"]
+let images: ReturnType<typeof createFakeBucket>
 
 // The schema is real and the cascades are the subject under test; only the
 // driver differs from production, so the module keeps its exact D1 type.
@@ -92,6 +94,11 @@ function seedWriter(userId: string, repoId: string) {
 }
 
 beforeEach(() => {
+	images = createFakeBucket()
+	images.put("project-user-1/image-0.png", new Uint8Array())
+	images.put("project-user-1/image-1.png", new Uint8Array())
+	images.put("project-user-1/image-2.png", new Uint8Array())
+	images.put("project-user-2/image-3.png", new Uint8Array())
 	const inMemory = createInMemoryDb()
 	close = inMemory.close
 	sqliteDb = inMemory.db
@@ -159,7 +166,7 @@ function rowsFor(userId: string) {
 }
 
 test("deleting an account takes everything Kobun was holding for the writer", async () => {
-	await deleteAccount(db(), "user-1")
+	await deleteAccount(db(), images.bucket, "user-1")
 
 	expect(rowsFor("user-1")).toEqual({
 		account: [],
@@ -176,7 +183,7 @@ test("deleting an account takes everything Kobun was holding for the writer", as
 test("the GitHub App installation outlives the writer who connected it", async () => {
 	// Kobun cannot uninstall an App on the writer's behalf, and the row is
 	// shared with everyone else who connected the same installation.
-	await deleteAccount(db(), "user-1")
+	await deleteAccount(db(), images.bucket, "user-1")
 
 	expect(
 		sqliteDb
@@ -188,7 +195,7 @@ test("the GitHub App installation outlives the writer who connected it", async (
 })
 
 test("another writer sharing that installation is untouched", async () => {
-	await deleteAccount(db(), "user-1")
+	await deleteAccount(db(), images.bucket, "user-1")
 
 	const other = rowsFor("user-2")
 	expect(other.user).toHaveLength(1)
@@ -206,9 +213,15 @@ test("a writer who never connected anything can still delete their account", asy
 		.values({ email: "new@example.com", id: "user-3", name: "New" })
 		.run()
 
-	await deleteAccount(db(), "user-3")
+	await deleteAccount(db(), images.bucket, "user-3")
 
 	expect(
 		sqliteDb.select().from(user).where(eq(user.id, "user-3")).all(),
 	).toEqual([])
+})
+
+test("deleting an account forgets the Staged Images of every Project, and only theirs", async () => {
+	await deleteAccount(db(), images.bucket, "user-1")
+
+	expect(images.keys()).toEqual(["project-user-2/image-3.png"])
 })
