@@ -698,6 +698,23 @@ test("a folder's index file is the item, named after the folder", async () => {
 	])
 })
 
+// A row cached before ADR-0014 holds no items, under a fingerprint and ETag
+// that still match the directory.
+test("a row read under the file layout is read again for folder items", async () => {
+	harness.source.put(PROJECTS, "README.md", post("Not an item"))
+	harness.source.put(`${PROJECTS}/kobun`, "index.md", post("Kobun"))
+	await harness.listings.resolve({ id: PROJECT_ID }, REPOSITORY, PROJECTS)
+	harness.source.calls.length = 0
+
+	const items = await resolveFolders()
+
+	expect(items.map((item) => item.name)).toEqual(["kobun"])
+	expect(harness.source.calls).toEqual([
+		{ etag: null, kind: "read", path: PROJECTS },
+		{ folderItems: true, kind: "files", path: PROJECTS },
+	])
+})
+
 // An edit anywhere in a folder, a Subcollection item's included, changes the
 // folder's tree sha, so the Collection is read again in full.
 test("a changed folder Collection is read again in full", async () => {

@@ -162,6 +162,9 @@ function changedSince(
 	return changed.length > INCREMENTAL_READ_LIMIT ? null : { changed, kept }
 }
 
+/** What a row's fingerprint is prefixed with, so it says which layout it read. */
+const layoutTag = (folderItems: boolean) => (folderItems ? "folders:" : "")
+
 /** The kept and freshly parsed items, in the order the directory lists them. */
 function inEntryOrder(
 	entries: CollectionListingEntry[],
@@ -316,7 +319,7 @@ export function createCollectionListingCache(deps: {
 		if (read.value.kind === "not-found") return []
 
 		const { entries, etag } = read.value
-		const hash = await fingerprint(entries)
+		const hash = layoutTag(folderItems) + (await fingerprint(entries))
 		// A rotated validator over a directory that never changed. Shas are
 		// content addressed, so there is nothing to re-read and nothing to
 		// re-parse — only the ETag worth sending next time.
@@ -350,9 +353,15 @@ export function createCollectionListingCache(deps: {
 		return items
 	}
 
+	/**
+	 * The stored listing, unless it was read under the other layout: a folder
+	 * Collection's row from before ADR-0014 holds no items, and its ETag and
+	 * fingerprint would otherwise keep it served for good.
+	 */
 	async function readCached(
 		projectId: string,
 		directoryPath: string,
+		folderItems: boolean,
 	): Promise<Cached | null> {
 		const row = await db.query.collectionListing.findFirst({
 			where: and(
@@ -361,7 +370,9 @@ export function createCollectionListingCache(deps: {
 			),
 		})
 		const items = row ? storedListing(row.items) : null
-		return row && items ? { items, row } : null
+		const sameLayout =
+			row?.entriesHash.startsWith(layoutTag(true)) === folderItems
+		return row && items && sameLayout ? { items, row } : null
 	}
 
 	async function resolve(
@@ -371,7 +382,7 @@ export function createCollectionListingCache(deps: {
 		{ folderItems = false } = {},
 	): Promise<CollectionItem[]> {
 		const now = Date.now()
-		const cached = await readCached(project.id, directoryPath)
+		const cached = await readCached(project.id, directoryPath, folderItems)
 
 		if (cached) {
 			const age = now - cached.row.checkedAt.getTime()
@@ -403,7 +414,7 @@ export function createCollectionListingCache(deps: {
 		directoryPath: string,
 		{ folderItems = false } = {},
 	): Promise<CollectionItem[]> {
-		const cached = await readCached(project.id, directoryPath)
+		const cached = await readCached(project.id, directoryPath, folderItems)
 		return await revalidate(
 			project.id,
 			repository,
