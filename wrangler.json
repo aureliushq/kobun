@@ -36,14 +36,6 @@
 		{
 			"binding": "IMAGES",
 			"bucket_name": "kobun-staged-images-development"
-		},
-		{
-			"bucket_name": "kobun-staged-images-preview",
-			"binding": "kobun_staged_images_preview"
-		},
-		{
-			"bucket_name": "kobun-staged-images-production",
-			"binding": "kobun_staged_images_production"
 		}
 	],
 	"vars": {
