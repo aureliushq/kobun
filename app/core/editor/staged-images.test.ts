@@ -1,5 +1,9 @@
 import { expect, test } from "vitest"
-import { commitStagedImages, stagedImageBaseUrl } from "./staged-images"
+import {
+	commitStagedImages,
+	stagedImageBaseUrl,
+	stagedImageType,
+} from "./staged-images"
 
 const BASE_URL = stagedImageBaseUrl("acme", "site")
 const PNG = "0b6f1c8e-4b1a-4d8e-9f2a-3c5d7e9f1a2b.png"
@@ -91,4 +95,30 @@ test("links each image by the media URL, and writes it to the media directory", 
 		],
 		markdown: `![A cat](/images/${PNG})`,
 	})
+})
+
+const bytes = (...parts: (string | number[])[]) =>
+	new Uint8Array(
+		parts.flatMap((part) =>
+			typeof part === "string" ? [...part].map((c) => c.charCodeAt(0)) : part,
+		),
+	)
+
+test.each([
+	[bytes([0x89], "PNG\r\n\x1a\n"), "image/png"],
+	[bytes([0xff, 0xd8, 0xff, 0xe0]), "image/jpeg"],
+	[bytes("GIF87a"), "image/gif"],
+	[bytes("RIFF", [0, 0, 0, 0], "WEBPVP8 "), "image/webp"],
+	[bytes([0, 0, 0, 0x1c], "ftypavif"), "image/avif"],
+	[
+		bytes([0, 0, 0, 0x1c], "ftypmif1", [0, 0, 0, 0], "mif1miafavif"),
+		"image/avif",
+	],
+	[bytes([0, 0, 0, 0x18], "ftypmif1", [0, 0, 0, 0], "heic"), null],
+	// A brand past the end of the ftyp box belongs to the next box.
+	[bytes([0, 0, 0, 0x14], "ftypmif1", [0, 0, 0, 0], "miafavif"), null],
+	[bytes("<svg/>"), null],
+	[bytes(), null],
+])("reads the image type from the first bytes (%#)", (file, type) => {
+	expect(stagedImageType(file)).toBe(type)
 })

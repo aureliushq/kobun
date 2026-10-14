@@ -104,7 +104,7 @@ export async function action({ context, params, request }: Route.ActionArgs) {
 		}
 
 		context.get(posthogContext)?.capture({ event: "project_disconnected" })
-		await disconnectProject(db, projectRow.id)
+		await disconnectProject(db, env.IMAGES, projectRow.id)
 
 		// The page the writer is standing on no longer exists, so somewhere that
 		// still does has to be chosen for them. `chooseBackDestination` already

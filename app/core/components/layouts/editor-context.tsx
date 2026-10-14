@@ -10,6 +10,12 @@ export interface EditorLayoutControls {
 	canSave: boolean
 	commit: () => Promise<void>
 	/**
+	 * Why Save to GitHub and Publish must wait — an image in the Body still
+	 * uploading, or failed. Save is not held: autosave already leaves such an
+	 * image out of the Draft and saves it once it lands.
+	 */
+	commitHoldReason?: string
+	/**
 	 * Whether the repository is behind what the writer has: a Draft holding
 	 * bytes the Source lacks, or keystrokes autosave has not persisted yet. The
 	 * header warns on it when Save to GitHub is the primary (ADR-0008).

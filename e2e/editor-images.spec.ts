@@ -131,7 +131,8 @@ test("refuses an oversized image on the server, whatever the editor allowed", as
 		{
 			multipart: {
 				file: {
-					buffer: Buffer.alloc(huge.size),
+					// A real PNG, padded, so the route sniffs it as one and refuses its size.
+					buffer: Buffer.concat([PNG, Buffer.alloc(huge.size - PNG.length)]),
 					mimeType: huge.type,
 					name: "huge.png",
 				},

@@ -20,7 +20,7 @@ import {
 	EditorWidth,
 	type UserPreferenceValues,
 } from "@/db/types"
-import type { ImageUploadAdapter } from "@/editor"
+import type { ImageUploadAdapter, ImageUploads } from "@/editor"
 
 import {
 	CollectionItemEditor,
@@ -41,6 +41,7 @@ import {
 
 const mocks = vi.hoisted(() => ({
 	imageUpload: undefined as ImageUploadAdapter | undefined,
+	imageUploads: { failed: [], uploading: 0 } as ImageUploads,
 	persistence: undefined as
 		| {
 				onAutoSave?: (markdown: string) => Promise<void>
@@ -79,6 +80,7 @@ vi.mock("@/editor", () => ({
 		})
 		return <div data-testid="rich-text-editor">{props.initialContent}</div>
 	},
+	useImageUploads: () => mocks.imageUploads,
 }))
 
 /** Schema literals are authored, not parsed, so the enum discriminants are cast. */
@@ -157,6 +159,7 @@ const title = () => screen.getByLabelText("Title") as HTMLTextAreaElement
 beforeEach(() => {
 	mocks.richTextEditor.mockClear()
 	mocks.imageUpload = undefined
+	mocks.imageUploads = { failed: [], uploading: 0 }
 	mocks.persistence = undefined
 	vi.stubGlobal("fetch", vi.fn())
 })
@@ -323,6 +326,47 @@ describe("an image the writer adds to the Body", () => {
 		await expect(mocks.persistence?.onCommit?.("![](x)")).resolves.toEqual({
 			imageSources: images,
 		})
+	})
+})
+
+// The Markdown leaves out an image until its upload lands, and a failed one for
+// good, so a commit sent meanwhile would drop it without a word (#213).
+describe("an image in the Body that is not uploaded yet", () => {
+	const holdReason = (uploads: ImageUploads) => {
+		mocks.imageUploads = uploads
+		const { setControls } = editor(opened())
+		return lastControls(setControls)?.commitHoldReason
+	}
+
+	it("holds the commit while an image uploads", () => {
+		expect(holdReason({ failed: [], uploading: 1 })).toBe(
+			"Waiting for 1 image to upload",
+		)
+		expect(holdReason({ failed: [], uploading: 2 })).toBe(
+			"Waiting for 2 images to upload",
+		)
+	})
+
+	it("names an image that failed, since waiting will not bring it back", () => {
+		expect(holdReason({ failed: ["cat.png"], uploading: 1 })).toBe(
+			'"cat.png" failed to upload. Remove it or add it again.',
+		)
+		expect(holdReason({ failed: ["cat.png", "dog.png"], uploading: 0 })).toBe(
+			"2 images failed to upload: cat.png, dog.png. Remove them or add them again.",
+		)
+	})
+
+	it("holds nothing once every upload is done", () => {
+		expect(holdReason({ failed: [], uploading: 0 })).toBeUndefined()
+	})
+
+	// Autosave already leaves the image out of the Draft and saves it once it
+	// lands, so Save has nothing to wait for.
+	it("leaves Save free", () => {
+		mocks.imageUploads = { failed: ["cat.png"], uploading: 1 }
+		const { setControls } = editor(opened())
+
+		expect(lastControls(setControls)?.canSave).toBe(true)
 	})
 })
 

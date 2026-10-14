@@ -1,4 +1,5 @@
 import { eq } from "drizzle-orm"
+import { removeProjectStagedImages } from "@/core/editor/drafts/r2-staged-image-store.server"
 import { project, userInstallation } from "@/db/schema/app-schema"
 import { user } from "@/db/schema/auth-schema"
 import type { Database } from "@/db/types"
@@ -12,7 +13,8 @@ import type { Database } from "@/db/types"
  * user's rows outlive them — which means a bare `DELETE FROM user` does not
  * quietly leave them behind, it fails the foreign key. They go first, and
  * deleting a Project takes its Drafts and its cached Collection listings with
- * it by the cascades ADR-0011 relies on.
+ * it by the cascades ADR-0011 relies on. Their Staged Images live in R2, so
+ * they go last, by each Project's key prefix, as Disconnect removes them.
  *
  * What survives, and must: `githubInstallation`. It has no user column because
  * it is not a fact about a user — it is the App's presence on a GitHub account,
@@ -29,9 +31,17 @@ import type { Database } from "@/db/types"
  */
 export async function deleteAccount(
 	db: Database,
+	bucket: R2Bucket,
 	userId: string,
 ): Promise<void> {
-	await db.delete(project).where(eq(project.userId, userId))
+	const projects = await db
+		.delete(project)
+		.where(eq(project.userId, userId))
+		.returning({ id: project.id })
 	await db.delete(userInstallation).where(eq(userInstallation.userId, userId))
 	await db.delete(user).where(eq(user.id, userId))
+	// The account is gone either way; an image left behind costs storage only.
+	for (const { id } of projects) {
+		await removeProjectStagedImages(bucket, id).catch(() => undefined)
+	}
 }

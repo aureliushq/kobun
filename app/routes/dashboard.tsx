@@ -19,6 +19,12 @@ import {
 	isDraftDirty,
 	loadDashboardDrafts,
 } from "@/core/editor/drafts"
+import { forgetStagedImages } from "@/core/editor/drafts/forget-staged-images.server"
+import {
+	stagedImageBaseUrl,
+	stagedImageIds,
+	stagedImageKey,
+} from "@/core/editor/staged-images"
 import { Timestamp } from "@/core/preferences/timestamp"
 import { ConfigAlerts } from "@/core/project-context/config-alerts"
 import { configErrors } from "@/core/project-context/config-errors"
@@ -90,6 +96,21 @@ export async function action({ context, request }: Route.ActionArgs) {
 		throw new Response("Not Found", { status: 404 })
 	}
 	await db.delete(editorDraft).where(eq(editorDraft.id, draft.id))
+	// Its Staged Images go too, unless another Draft links them. Failing to
+	// forget one costs storage, not the writer's discard.
+	const { id: projectId, repoName, repoOwnerLogin } = draft.project
+	const bucket = context.get(envContext).IMAGES
+	const baseUrl = stagedImageBaseUrl(repoOwnerLogin, repoName)
+	await forgetStagedImages(
+		db,
+		projectId,
+		{
+			baseUrl,
+			delete: (ids) =>
+				bucket.delete(ids.map((id) => stagedImageKey(projectId, id))),
+		},
+		stagedImageIds(draft.markdown, baseUrl),
+	).catch(() => undefined)
 
 	const posthog = context.get(posthogContext)
 	posthog?.capture({

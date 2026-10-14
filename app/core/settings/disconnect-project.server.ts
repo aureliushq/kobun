@@ -1,4 +1,5 @@
 import { eq } from "drizzle-orm"
+import { removeProjectStagedImages } from "@/core/editor/drafts/r2-staged-image-store.server"
 import { project } from "@/db/schema/app-schema"
 import type { Database } from "@/db/types"
 
@@ -9,7 +10,8 @@ import type { Database } from "@/db/types"
  * `collectionListing` are `ON DELETE cascade` from `project`, so the Drafts it
  * held and the Collection listings it cached go with the row — and the Drafts
  * are the whole reason the page asks twice before calling this. Nothing else in
- * the product destroys writing in bulk.
+ * the product destroys writing in bulk. The Staged Images those Drafts linked
+ * are in R2, not the schema, so they go by their key prefix once the row has.
  *
  * What stays, and must. `githubInstallation` is the App's presence on a GitHub
  * account, shared with everyone else who connected the same one; Kobun could
@@ -25,7 +27,10 @@ import type { Database } from "@/db/types"
  */
 export async function disconnectProject(
 	db: Database,
+	bucket: R2Bucket,
 	projectId: string,
 ): Promise<void> {
 	await db.delete(project).where(eq(project.id, projectId))
+	// The Project is gone either way; an image left behind costs storage only.
+	await removeProjectStagedImages(bucket, projectId).catch(() => undefined)
 }

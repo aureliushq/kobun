@@ -114,6 +114,7 @@ Kobun's to manage in that Collection. `deriveStatus` reading an absent `status` 
 | duplicate Slug | refuse | refuse |
 | moved Source | refuse | refuse |
 | Staged Image no longer staged | refuse | refuse |
+| image still uploading, or failed (editor only) | hold | hold |
 | metadata validation | allow | refuse |
 | required document empty | allow | refuse |
 
@@ -122,7 +123,10 @@ where the bytes land: an invalid Slug has no filename, a duplicate Slug commits 
 different item and destroys it, a moved Source drops whatever replaced it. Those are Kobun's to
 refuse because Kobun would be the one doing the damage. A Body linking a Staged Image that is no
 longer staged is the same kind of damage, added with #178: the commit would land a link to an
-image that is nowhere, so it is refused as `missing-image` on both paths. "Required" is a claim
+image that is nowhere, so it is refused as `missing-image` on both paths. An image still
+uploading, or one that failed, is held in the editor rather than refused: the Markdown leaves
+it out, so the commit would drop it without a word (#213). Save is not held, since autosave
+already leaves it out of the Draft and saves it once it lands. "Required" is a claim
 about a *finished* item, and Publish is the action that makes that claim — holding it against a
 backup makes the backup useless for the half-written post it exists for.
 

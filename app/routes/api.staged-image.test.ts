@@ -65,8 +65,12 @@ function load(imageId: string) {
 	} as unknown as Parameters<typeof loader>[0]) as Promise<Response>
 }
 
-function png(size = 4) {
-	return new File([new Uint8Array(size)], "photo.png", { type: "image/png" })
+const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]
+
+function png(size = 8) {
+	const bytes = new Uint8Array(size)
+	bytes.set(PNG_SIGNATURE)
+	return new File([bytes], "photo.png", { type: "image/png" })
 }
 
 test("stages an image under the project and answers the URL it is served from", async () => {
@@ -88,7 +92,7 @@ test("serves a staged image back with its content type", async () => {
 	expect(response.status).toBe(200)
 	expect(response.headers.get("Content-Type")).toBe("image/png")
 	expect(response.headers.get("X-Content-Type-Options")).toBe("nosniff")
-	expect((await response.arrayBuffer()).byteLength).toBe(4)
+	expect((await response.arrayBuffer()).byteLength).toBe(8)
 })
 
 test("answers 404 for an image the project does not hold", async () => {
@@ -123,4 +127,40 @@ test("refuses an image over the size limit", async () => {
 	expect(response.status).toBe(413)
 	expect(await response.json()).toEqual({ error: expect.any(String) })
 	expect(bucket.objects.size).toBe(0)
+})
+
+test("refuses a file whose bytes are not an allowed image, whatever type it declares", async () => {
+	const renamed = new File(["not an image"], "photo.png", { type: "image/png" })
+
+	const response = await upload(renamed)
+
+	expect(response.status).toBe(415)
+	expect(await response.json()).toEqual({ error: expect.any(String) })
+	expect(bucket.objects.size).toBe(0)
+})
+
+test("stores the type the bytes show, not the type declared", async () => {
+	const gif = new File(["GIF89a"], "photo.png", { type: "image/png" })
+
+	const { src } = (await (await upload(gif)).json()) as { src: string }
+
+	expect(src).toMatch(/\.gif$/)
+	expect([...bucket.objects.values()][0]?.contentType).toBe("image/gif")
+})
+
+test("refuses a request declared over the size limit without reading it", async () => {
+	const request = new Request("http://localhost/api/staged-image/acme/site", {
+		body: "x",
+		headers: { "Content-Length": String(STAGED_IMAGE_MAX_BYTES * 2) },
+		method: "POST",
+	})
+
+	const response = (await action({
+		params: { name: "site", owner: "acme" },
+		request,
+	} as unknown as Parameters<typeof action>[0])) as Response
+
+	expect(response.status).toBe(413)
+	expect(await response.json()).toEqual({ error: expect.any(String) })
+	expect(request.bodyUsed).toBe(false)
 })

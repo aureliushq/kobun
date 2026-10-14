@@ -13,17 +13,54 @@ export const STAGED_IMAGE_TYPES = new Map([
 
 export const STAGED_IMAGE_MAX_BYTES = 5 * 1024 * 1024
 
+export const STAGED_IMAGE_UNSUPPORTED = {
+	error: "Use a PNG, JPEG, GIF, WebP or AVIF image.",
+	status: 415,
+}
+
+export const STAGED_IMAGE_TOO_LARGE = {
+	error: `Images can be at most ${STAGED_IMAGE_MAX_BYTES / 1024 / 1024} MB.`,
+	status: 413,
+}
+
 /**
  * Why a file cannot be staged, with the status the upload route answers it
  * with, or null when it can. The editor shows the same words before sending.
  */
 export function checkStagedImage(file: Pick<File, "size" | "type">) {
-	if (!STAGED_IMAGE_TYPES.has(file.type)) {
-		return { error: "Use a PNG, JPEG, GIF, WebP or AVIF image.", status: 415 }
+	if (!STAGED_IMAGE_TYPES.has(file.type)) return STAGED_IMAGE_UNSUPPORTED
+	if (file.size > STAGED_IMAGE_MAX_BYTES) return STAGED_IMAGE_TOO_LARGE
+	return null
+}
+
+/**
+ * The type a file's first bytes show it to be, or null when they match none
+ * the editor may stage. The declared type is the browser's guess from the name.
+ */
+export function stagedImageType(bytes: Uint8Array) {
+	const ascii = (start: number, end: number) =>
+		String.fromCharCode(...bytes.subarray(start, end))
+	const startsWith = (signature: number[]) =>
+		signature.every((byte, index) => bytes[index] === byte)
+
+	if (startsWith([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])) {
+		return "image/png"
 	}
-	if (file.size > STAGED_IMAGE_MAX_BYTES) {
-		const megabytes = STAGED_IMAGE_MAX_BYTES / 1024 / 1024
-		return { error: `Images can be at most ${megabytes} MB.`, status: 413 }
+	if (startsWith([0xff, 0xd8, 0xff])) return "image/jpeg"
+	if (ascii(0, 4) === "GIF8") return "image/gif"
+	if (ascii(0, 4) === "RIFF" && ascii(8, 12) === "WEBP") return "image/webp"
+	if (ascii(4, 8) === "ftyp") {
+		// The ftyp box names a major brand, then after a minor version the
+		// compatible ones. An AVIF may lead with another brand, such as mif1.
+		const end = Math.min(
+			new DataView(bytes.buffer, bytes.byteOffset).getUint32(0),
+			bytes.length,
+		)
+		const brands = [ascii(8, 12)]
+		for (let at = 16; at + 4 <= end; at += 4) brands.push(ascii(at, at + 4))
+		if (brands.some((brand) => brand === "avif" || brand === "avis")) {
+			return "image/avif"
+		}
 	}
 	return null
 }
@@ -39,6 +76,30 @@ export function stagedImageKey(projectId: string, imageId: string) {
 /** Where a Project's Staged Images are uploaded to and served from. */
 export function stagedImageBaseUrl(owner: string, name: string) {
 	return `/api/staged-image/${encodeURIComponent(owner)}/${encodeURIComponent(name)}`
+}
+
+/**
+ * How long an image no Draft links to is kept before a Commit forgets it: an
+ * upload the editor has not saved into its Draft yet links from nowhere, and
+ * neither does an image the writer deleted and may still undo back.
+ */
+export const STAGED_IMAGE_GRACE_MS = 24 * 60 * 60 * 1000
+
+/** A link to one of a Project's Staged Images, capturing its id. */
+function stagedImageLink(baseUrl: string) {
+	const extensions = [...new Set(STAGED_IMAGE_TYPES.values())].join("|")
+	return new RegExp(
+		// A link copied out of the browser carries the origin it was served from.
+		`(?:https?://[^/\\s"'()]+)?${baseUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}/([0-9a-f-]{36}\\.(?:${extensions}))`,
+		"g",
+	)
+}
+
+/** The ids of the Staged Images a Body links to. */
+export function stagedImageIds(markdown: string, baseUrl: string): string[] {
+	return [...markdown.matchAll(stagedImageLink(baseUrl))].map(
+		(match) => match[1],
+	)
 }
 
 /**
@@ -64,17 +125,14 @@ export function commitStagedImages(
 	mediaPath: string,
 	mediaUrl: string,
 ): { images: CommittedImage[]; markdown: string } {
-	const extensions = [...new Set(STAGED_IMAGE_TYPES.values())].join("|")
-	const pattern = new RegExp(
-		// A link copied out of the browser carries the origin it was served from.
-		`(?:https?://[^/\\s"'()]+)?${baseUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}/([0-9a-f-]{36}\\.(?:${extensions}))`,
-		"g",
-	)
 	const images = new Map<string, CommittedImage>()
-	const committed = markdown.replace(pattern, (src, id: string) => {
-		const url = `${mediaUrl}/${id}`
-		images.set(id, { id, path: `${mediaPath}/${id}`, src, url })
-		return url
-	})
+	const committed = markdown.replace(
+		stagedImageLink(baseUrl),
+		(src, id: string) => {
+			const url = `${mediaUrl}/${id}`
+			images.set(id, { id, path: `${mediaPath}/${id}`, src, url })
+			return url
+		},
+	)
 	return { images: [...images.values()], markdown: committed }
 }
