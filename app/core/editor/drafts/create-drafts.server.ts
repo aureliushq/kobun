@@ -10,7 +10,6 @@ import {
 } from "@/core/content/document.server"
 import {
 	findCollectionItemBySlug,
-	folderItemFile,
 	getEffectiveSlug,
 	hasFolderItems,
 	isMarkdownCollectionFile,
@@ -820,7 +819,7 @@ function slugPath(
 	slug: string,
 ) {
 	return hasFolderItems(collection)
-		? `${directoryPath}/${slug}/${folderItemFile(collection.format)}`
+		? `${directoryPath}/${slug}/index.${collection.format}`
 		: `${directoryPath}/${slug}.${collection.format}`
 }
 

@@ -314,7 +314,7 @@ export async function listGithubDirectoryEntriesConditional(
 	path: string,
 	etag?: string | null,
 ): Promise<{
-	entries: Array<{ name: string; sha: string; type: string }>
+	entries: Array<{ name: string; sha: string }>
 	etag: string | null
 }> {
 	const octokit = getGithubInstallationOctokit(env, installationId)
@@ -337,11 +337,7 @@ export async function listGithubDirectoryEntriesConditional(
 	// `sha` is the blob's (or a subdirectory's tree's) object id, the same value
 	// the Tree query calls `oid`.
 	return {
-		entries: data.map((entry) => ({
-			name: entry.name,
-			sha: entry.sha,
-			type: entry.type,
-		})),
+		entries: data.map((entry) => ({ name: entry.name, sha: entry.sha })),
 		etag: responseEtag,
 	}
 }

@@ -202,12 +202,8 @@ function createFakeListingSource(
 					...[...dir.files.entries()].map(([name, file]) => ({
 						name,
 						sha: file.sha,
-						type: "file",
 					})),
-					...subdirectories(request.path).map((entry) => ({
-						...entry,
-						type: "dir",
-					})),
+					...subdirectories(request.path),
 				],
 				etag: dir.etag,
 				kind: "entries",
@@ -702,11 +698,13 @@ test("a folder's index file is the item, named after the folder", async () => {
 	])
 })
 
-test("a changed folder reads only that folder", async () => {
+// An edit anywhere in a folder, a Subcollection item's included, changes the
+// folder's tree sha, so the Collection is read again in full.
+test("a changed folder Collection is read again in full", async () => {
 	harness.source.put(PROJECTS, "README.md", post("Not an item"))
 	harness.source.put(`${PROJECTS}/kobun`, "index.md", post("Kobun"))
-	harness.source.put(`${PROJECTS}/ink`, "index.md", post("Ink"))
 	await resolveFolders()
+	harness.source.put(`${PROJECTS}/kobun/updates`, "launch.md", post("Launch"))
 	harness.source.put(`${PROJECTS}/kobun`, "index.md", post("Kobun, edited"))
 	harness.source.calls.length = 0
 
@@ -714,28 +712,9 @@ test("a changed folder reads only that folder", async () => {
 
 	expect(harness.source.calls).toEqual([
 		expect.objectContaining({ kind: "read", path: PROJECTS }),
-		{ kind: "files", path: `${PROJECTS}/kobun` },
+		{ folderItems: true, kind: "files", path: PROJECTS },
 	])
-	expect(items.map((item) => item.data.title)).toEqual(["Kobun, edited", "Ink"])
-})
-
-// An update committed under a folder changes the folder's tree sha, so its
-// index is read again — one folder, never the Collection.
-test("a Subcollection write re-reads only its Parent Item's folder", async () => {
-	harness.source.put(PROJECTS, "README.md", post("Not an item"))
-	harness.source.put(`${PROJECTS}/kobun`, "index.md", post("Kobun"))
-	harness.source.put(`${PROJECTS}/ink`, "index.md", post("Ink"))
-	await resolveFolders()
-	harness.source.put(`${PROJECTS}/kobun/updates`, "launch.md", post("Launch"))
-	harness.source.calls.length = 0
-
-	const items = await resolveFolders(true)
-
-	expect(harness.source.calls).toEqual([
-		expect.objectContaining({ kind: "read", path: PROJECTS }),
-		{ kind: "files", path: `${PROJECTS}/kobun` },
-	])
-	expect(items.map((item) => item.name)).toEqual(["kobun", "ink"])
+	expect(items.map((item) => item.data.title)).toEqual(["Kobun, edited"])
 })
 
 test("invalidating expires the row, so the next resolve reads only what changed", async () => {

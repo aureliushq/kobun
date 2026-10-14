@@ -75,16 +75,11 @@ async function requireContentDirectory(
 		parent_item,
 	)
 	const repository = { installationId, name, owner }
-	const parentItems = await (committing
-		? listings.resolveCurrent
-		: listings.resolve)(
-		projectRow,
-		repository,
-		directory.parent.directoryPath,
-		{
-			folderItems: true,
-		},
-	)
+	const resolve = committing ? listings.resolveCurrent : listings.resolve
+	const { directoryPath } = directory.parent
+	const parentItems = await resolve(projectRow, repository, directoryPath, {
+		folderItems: true,
+	})
 	requireParentItem(parentItems, parent_item)
 	return directory
 }

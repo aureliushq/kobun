@@ -15,7 +15,7 @@ So a Collection that declares Subcollections keeps each item in a folder of its 
 
 ## Consequences
 
-- The listing cache keys a folder item by the folder's tree sha, which is what the directory's entry list says about it. A write anywhere in the folder changes that sha, including a Subcollection item's commit. So the next revalidation of the parent Collection reads that one folder again. It costs one request, never the whole Collection.
+- A folder item carries its folder's tree sha. A write anywhere in the folder changes that sha, including a Subcollection item's commit. A changed folder Collection is read again in full, with one query. Reading only the changed folders is left until such Collections grow large.
 - A full read asks GitHub's Tree query for one more level, so it returns every text file directly inside each item's folder, not only its index.
 - A repository laid out per ADR-0012 (`acme.md` beside `acme/`) no longer lists its Parent Items. Reading both layouts was considered and deferred until someone needs it.
 

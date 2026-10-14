@@ -138,14 +138,13 @@ function toItems(files: SourceFile[], folderItems: boolean): CollectionItem[] {
 /**
  * What a fresh entry list changed against the row: the cached items it still
  * names at the same sha, by name — their parse is still the file's — and the
- * md/mdx entries, or folders for folder items (ADR-0014), that need reading
- * (ADR 0012). Null when the whole directory is cheaper to read in one query:
- * nothing is cached, or more changed than is worth a request each.
+ * md/mdx entries that need reading (ADR 0012). Null when the whole directory is
+ * cheaper to read in one query: nothing is cached, or more changed than is
+ * worth a request each.
  */
 function changedSince(
 	entries: CollectionListingEntry[],
 	cached: Cached | null,
-	folderItems: boolean,
 ): {
 	changed: CollectionListingEntry[]
 	kept: Map<string, CollectionItem>
@@ -158,9 +157,7 @@ function changedSince(
 			.map((item) => [item.name, item]),
 	)
 	const changed = entries.filter(
-		(entry) =>
-			(folderItems ? entry.type === "dir" : isMarkdownCollectionFile(entry)) &&
-			!kept.has(entry.name),
+		(entry) => isMarkdownCollectionFile(entry) && !kept.has(entry.name),
 	)
 	return changed.length > INCREMENTAL_READ_LIMIT ? null : { changed, kept }
 }
@@ -278,26 +275,6 @@ export function createCollectionListingCache(deps: {
 			})
 	}
 
-	/**
-	 * One folder item, by reading its folder: the index file, under the folder's
-	 * name and sha so the next revalidation can tell it unchanged. A folder with
-	 * no index file is not an item.
-	 */
-	async function readFolderItem(
-		repository: RepositoryAddress,
-		directoryPath: string,
-		folder: CollectionListingEntry,
-	): Promise<SourceFile[]> {
-		const files = await listingSource.files(
-			repository,
-			`${directoryPath}/${folder.name}`,
-		)
-		const index = files.find(
-			({ name }) => name === "index.md" || name === "index.mdx",
-		)
-		return index ? [{ ...index, name: folder.name, sha: folder.sha }] : []
-	}
-
 	async function revalidate(
 		projectId: string,
 		repository: RepositoryAddress,
@@ -351,19 +328,16 @@ export function createCollectionListingCache(deps: {
 		// A file that changes between the entry list and its own read is stored
 		// at the newer sha under the older hash. The next revalidation sees the
 		// sha differ and reads it again, so this costs a read, never a wrong row.
-		const delta = changedSince(entries, cached, folderItems)
+		// ponytail: a changed folder Collection (ADR-0014) is read in full, one
+		// query; read only the changed folders if such Collections grow large.
+		const delta = folderItems ? null : changedSince(entries, cached)
 		const files = await guard(() =>
 			delta
 				? Promise.all(
 						delta.changed.map((entry) =>
-							folderItems
-								? readFolderItem(repository, directoryPath, entry)
-								: listingSource.file(
-										repository,
-										`${directoryPath}/${entry.name}`,
-									),
+							listingSource.file(repository, `${directoryPath}/${entry.name}`),
 						),
-					).then((read) => read.flat())
+					)
 				: listingSource.files(repository, directoryPath, { folderItems }),
 		)
 		if (!files.ok) return unreachable(fallback, files.error)

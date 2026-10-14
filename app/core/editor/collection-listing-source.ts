@@ -8,8 +8,6 @@ import type { SourceFile } from "./drafts/source-store"
 export interface CollectionListingEntry {
 	name: string
 	sha: string
-	/** `dir` for a subdirectory, which is a folder item's whole entry (ADR-0014). */
-	type: string
 }
 
 /**

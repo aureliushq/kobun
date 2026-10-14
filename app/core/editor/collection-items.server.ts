@@ -18,19 +18,15 @@ export function hasFolderItems(collection: {
 	return Object.keys(collection.subcollections ?? {}).length > 0
 }
 
-/** The file a folder item's Source is, for one Format. */
-export const folderItemFile = (format: string) => `index.${format}`
-
-const FOLDER_ITEM_FILE = /\/index\.mdx?$/
-
 /**
  * An item's name without its extension: the file's stem, or for a folder item
  * (ADR-0014) the folder's name, since every such Source is called `index`.
  */
-export function itemStem(path: string) {
-	const itemPath = path.replace(FOLDER_ITEM_FILE, "")
-	return itemPath.slice(itemPath.lastIndexOf("/") + 1).replace(/\.mdx?$/, "")
-}
+export const itemStem = (path: string) =>
+	path
+		.replace(/(\/index)?\.mdx?$/, "")
+		.split("/")
+		.pop() ?? path
 
 export interface ResolvedCollectionItem {
 	body: string
