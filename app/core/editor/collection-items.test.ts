@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest"
 import {
 	collectionFileFormat,
 	findCollectionItemBySlug,
+	hasFolderItems,
 	isMarkdownCollectionFile,
+	itemStem,
 } from "./collection-items.server"
 
 const collection = {
@@ -20,8 +22,42 @@ describe("collection item resolution", () => {
 	})
 
 	it("reads each file's Format from its extension", () => {
-		expect(collectionFileFormat({ name: "post.md" })).toBe("md")
-		expect(collectionFileFormat({ name: "post.mdx" })).toBe("mdx")
+		expect(collectionFileFormat({ path: "posts/post.md" })).toBe("md")
+		expect(collectionFileFormat({ path: "posts/post.mdx" })).toBe("mdx")
+		expect(collectionFileFormat({ path: "projects/kobun/index.mdx" })).toBe(
+			"mdx",
+		)
+	})
+
+	it("names a folder item after its folder", () => {
+		expect(itemStem("posts/hello.md")).toBe("hello")
+		expect(itemStem("projects/kobun/index.md")).toBe("kobun")
+		expect(itemStem("projects/kobun/index.mdx")).toBe("kobun")
+		// A listed folder item carries the folder's name and the index's path.
+		expect(itemStem("kobun")).toBe("kobun")
+	})
+
+	it("keeps folder items to Collections with Subcollections", () => {
+		expect(hasFolderItems({})).toBe(false)
+		expect(hasFolderItems({ subcollections: {} })).toBe(false)
+		expect(hasFolderItems({ subcollections: { updates: {} } })).toBe(true)
+	})
+
+	it("falls back to the folder's name for a folder item with no slug", () => {
+		const item = findCollectionItemBySlug(
+			collection,
+			[
+				{
+					name: "index.md",
+					path: "content/projects/kobun/index.md",
+					sha: "sha-3",
+					content: "---\ntitle: Kobun\n---\nBody\n",
+				},
+			],
+			"kobun",
+		)
+
+		expect(item?.itemSlug).toBe("kobun")
 	})
 
 	it("matches the configured frontmatter slug and returns the markdown body", () => {

@@ -39,7 +39,7 @@ function post(title: string) {
 /** Every call the module made, in order — and which half of the port cost it. */
 type SourceCall =
 	| ({ kind: "read" } & SourceRequest)
-	| { kind: "files"; path: string }
+	| { folderItems?: true; kind: "files"; path: string }
 	| { kind: "file"; path: string }
 
 interface FakeListingSource extends CollectionListingSource {
@@ -72,6 +72,11 @@ function createFakeListingSource(
 		string,
 		{ etag: string; files: Map<string, { content: string; sha: string }> }
 	>()
+	/**
+	 * Every directory's tree sha, ancestors included: a write anywhere below a
+	 * directory changes its sha in its parent's entry list, as git's does.
+	 */
+	const trees = new Map<string, string>()
 	let revisions = 0
 	let failure: { error: unknown } | null = null
 	let filesFailure: { error: unknown } | null = null
@@ -89,6 +94,25 @@ function createFakeListingSource(
 		const dir = directory(path)
 		dir.files.set(name, { content, sha: `sha-${revision}` })
 		dir.etag = `"etag-${revision}"`
+		const segments = path.split("/")
+		for (let i = 1; i <= segments.length; i++) {
+			const ancestor = segments.slice(0, i).join("/")
+			trees.set(ancestor, `tree-${revision}`)
+			const listed = directories.get(ancestor)
+			if (listed && ancestor !== path) listed.etag = `"etag-${revision}"`
+		}
+	}
+
+	/** The directories directly below `path`, by name, with their tree shas. */
+	function subdirectories(path: string) {
+		return [...trees.keys()]
+			.filter((tree) => tree.startsWith(`${path}/`))
+			.map((tree) => tree.slice(path.length + 1).split("/")[0] as string)
+			.filter((name, i, names) => names.indexOf(name) === i)
+			.map((name) => ({
+				name,
+				sha: trees.get(`${path}/${name}`) as string,
+			}))
 	}
 
 	for (const [path, files] of Object.entries(initial)) {
@@ -107,8 +131,13 @@ function createFakeListingSource(
 		files: async (
 			_repository: RepositoryAddress,
 			path: string,
+			options?: { folderItems?: boolean },
 		): Promise<SourceFile[]> => {
-			calls.push({ kind: "files", path })
+			calls.push({
+				kind: "files",
+				path,
+				...(options?.folderItems ? { folderItems: true as const } : {}),
+			})
 			if (filesFailure) {
 				const { error } = filesFailure
 				filesFailure = null
@@ -116,6 +145,25 @@ function createFakeListingSource(
 			}
 			const dir = directories.get(path)
 			if (!dir) throw new Error(`no directory at ${path}`)
+			if (options?.folderItems) {
+				return subdirectories(path).flatMap(({ name, sha }) => {
+					const folder = directories.get(`${path}/${name}`)?.files
+					const index = ["index.md", "index.mdx"].find((file) =>
+						folder?.has(file),
+					)
+					const file = index && folder?.get(index)
+					return index && file
+						? [
+								{
+									content: file.content,
+									name,
+									path: `${path}/${name}/${index}`,
+									sha,
+								},
+							]
+						: []
+				})
+			}
 			return [...dir.files.entries()].map(([name, file]) => ({
 				content: file.content,
 				name,
@@ -150,10 +198,17 @@ function createFakeListingSource(
 			if (request.etag && request.etag === dir.etag)
 				return { kind: "not-modified" }
 			return {
-				entries: [...dir.files.entries()].map(([name, file]) => ({
-					name,
-					sha: file.sha,
-				})),
+				entries: [
+					...[...dir.files.entries()].map(([name, file]) => ({
+						name,
+						sha: file.sha,
+						type: "file",
+					})),
+					...subdirectories(request.path).map((entry) => ({
+						...entry,
+						type: "dir",
+					})),
+				],
 				etag: dir.etag,
 				kind: "entries",
 			}
@@ -603,15 +658,84 @@ test("only md and mdx entries become items", async () => {
 	])
 })
 
-// A Parent Item's Subcollections live in a directory beside its file
-// (ADR-0012). The parent Collection's listing stays flat: the directory is not
-// an item.
-test("a Parent Item's Subcollection directory does not become an item", async () => {
-	harness.source.put(DIRECTORY, "first", "")
+// A Collection without Subcollections lists files only: a directory in it is
+// not an item.
+test("a directory in a Collection of files does not become an item", async () => {
+	harness.source.put(`${DIRECTORY}/drafts`, "third.md", post("Third"))
 
 	const items = await resolve()
 
 	expect(items.map((item) => item.name)).toEqual(["first.md", "second.md"])
+})
+
+const PROJECTS = "content/projects"
+
+function resolveFolders(current = false) {
+	return (current ? harness.listings.resolveCurrent : harness.listings.resolve)(
+		{ id: PROJECT_ID },
+		REPOSITORY,
+		PROJECTS,
+		{ folderItems: true },
+	)
+}
+
+// A Collection with Subcollections keeps each item in a folder, as
+// `<name>/index.md`, beside the folders of its Subcollections (ADR-0014).
+test("a folder's index file is the item, named after the folder", async () => {
+	harness.source.put(PROJECTS, "README.md", post("Not an item"))
+	harness.source.put(`${PROJECTS}/kobun`, "index.md", post("Kobun"))
+	harness.source.put(`${PROJECTS}/kobun/updates`, "launch.md", post("Launch"))
+	harness.source.put(`${PROJECTS}/ink`, "index.mdx", post("Ink"))
+	harness.source.put(`${PROJECTS}/assets`, "notes.txt", "plain text")
+
+	const items = await resolveFolders()
+
+	expect(items.map(({ data, name, path }) => [name, path, data.title])).toEqual(
+		[
+			["kobun", `${PROJECTS}/kobun/index.md`, "Kobun"],
+			["ink", `${PROJECTS}/ink/index.mdx`, "Ink"],
+		],
+	)
+	expect(harness.source.calls).toEqual([
+		{ etag: null, kind: "read", path: PROJECTS },
+		{ folderItems: true, kind: "files", path: PROJECTS },
+	])
+})
+
+test("a changed folder reads only that folder", async () => {
+	harness.source.put(PROJECTS, "README.md", post("Not an item"))
+	harness.source.put(`${PROJECTS}/kobun`, "index.md", post("Kobun"))
+	harness.source.put(`${PROJECTS}/ink`, "index.md", post("Ink"))
+	await resolveFolders()
+	harness.source.put(`${PROJECTS}/kobun`, "index.md", post("Kobun, edited"))
+	harness.source.calls.length = 0
+
+	const items = await resolveFolders(true)
+
+	expect(harness.source.calls).toEqual([
+		expect.objectContaining({ kind: "read", path: PROJECTS }),
+		{ kind: "files", path: `${PROJECTS}/kobun` },
+	])
+	expect(items.map((item) => item.data.title)).toEqual(["Kobun, edited", "Ink"])
+})
+
+// An update committed under a folder changes the folder's tree sha, so its
+// index is read again — one folder, never the Collection.
+test("a Subcollection write re-reads only its Parent Item's folder", async () => {
+	harness.source.put(PROJECTS, "README.md", post("Not an item"))
+	harness.source.put(`${PROJECTS}/kobun`, "index.md", post("Kobun"))
+	harness.source.put(`${PROJECTS}/ink`, "index.md", post("Ink"))
+	await resolveFolders()
+	harness.source.put(`${PROJECTS}/kobun/updates`, "launch.md", post("Launch"))
+	harness.source.calls.length = 0
+
+	const items = await resolveFolders(true)
+
+	expect(harness.source.calls).toEqual([
+		expect.objectContaining({ kind: "read", path: PROJECTS }),
+		{ kind: "files", path: `${PROJECTS}/kobun` },
+	])
+	expect(items.map((item) => item.name)).toEqual(["kobun", "ink"])
 })
 
 test("invalidating expires the row, so the next resolve reads only what changed", async () => {

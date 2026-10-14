@@ -1,5 +1,6 @@
 import { Suspense } from "react"
 import { Await } from "react-router"
+import { hasFolderItems } from "@/core/editor/collection-items.server"
 import { createCollectionListingCache } from "@/core/editor/collection-listing-cache.server"
 import {
 	type CollectionItem,
@@ -44,6 +45,7 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
 			projectRow,
 			{ installationId, name, owner },
 			directory.directoryPath,
+			{ folderItems: hasFolderItems(directory.collection) },
 		),
 	}
 }

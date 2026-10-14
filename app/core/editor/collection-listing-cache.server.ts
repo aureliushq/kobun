@@ -124,8 +124,10 @@ async function fingerprint(entries: CollectionListingEntry[]): Promise<string> {
  * error state. It runs before anything is written, so a broken file is never
  * remembered as an absence.
  */
-function toItems(files: SourceFile[]): CollectionItem[] {
-	return files.filter(isMarkdownCollectionFile).map((file) => ({
+function toItems(files: SourceFile[], folderItems: boolean): CollectionItem[] {
+	// A folder item's file is its index, which the read already chose.
+	const items = folderItems ? files : files.filter(isMarkdownCollectionFile)
+	return items.map((file) => ({
 		data: parseDocument(file.content, collectionFileFormat(file)).data,
 		name: file.name,
 		path: file.path,
@@ -136,13 +138,14 @@ function toItems(files: SourceFile[]): CollectionItem[] {
 /**
  * What a fresh entry list changed against the row: the cached items it still
  * names at the same sha, by name — their parse is still the file's — and the
- * md/mdx entries that need reading (ADR 0012). Null when the whole directory is
- * cheaper to read in one query: nothing is cached, or more changed than is
- * worth a request each.
+ * md/mdx entries, or folders for folder items (ADR-0014), that need reading
+ * (ADR 0012). Null when the whole directory is cheaper to read in one query:
+ * nothing is cached, or more changed than is worth a request each.
  */
 function changedSince(
 	entries: CollectionListingEntry[],
 	cached: Cached | null,
+	folderItems: boolean,
 ): {
 	changed: CollectionListingEntry[]
 	kept: Map<string, CollectionItem>
@@ -155,7 +158,9 @@ function changedSince(
 			.map((item) => [item.name, item]),
 	)
 	const changed = entries.filter(
-		(entry) => isMarkdownCollectionFile(entry) && !kept.has(entry.name),
+		(entry) =>
+			(folderItems ? entry.type === "dir" : isMarkdownCollectionFile(entry)) &&
+			!kept.has(entry.name),
 	)
 	return changed.length > INCREMENTAL_READ_LIMIT ? null : { changed, kept }
 }
@@ -273,12 +278,33 @@ export function createCollectionListingCache(deps: {
 			})
 	}
 
+	/**
+	 * One folder item, by reading its folder: the index file, under the folder's
+	 * name and sha so the next revalidation can tell it unchanged. A folder with
+	 * no index file is not an item.
+	 */
+	async function readFolderItem(
+		repository: RepositoryAddress,
+		directoryPath: string,
+		folder: CollectionListingEntry,
+	): Promise<SourceFile[]> {
+		const files = await listingSource.files(
+			repository,
+			`${directoryPath}/${folder.name}`,
+		)
+		const index = files.find(
+			({ name }) => name === "index.md" || name === "index.mdx",
+		)
+		return index ? [{ ...index, name: folder.name, sha: folder.sha }] : []
+	}
+
 	async function revalidate(
 		projectId: string,
 		repository: RepositoryAddress,
 		directoryPath: string,
 		cached: Cached | null,
 		now: number,
+		folderItems: boolean,
 		failClosed = false,
 	): Promise<CollectionItem[]> {
 		// What an unreachable repository is answered with. A read that gates a
@@ -325,21 +351,26 @@ export function createCollectionListingCache(deps: {
 		// A file that changes between the entry list and its own read is stored
 		// at the newer sha under the older hash. The next revalidation sees the
 		// sha differ and reads it again, so this costs a read, never a wrong row.
-		const delta = changedSince(entries, cached)
+		const delta = changedSince(entries, cached, folderItems)
 		const files = await guard(() =>
 			delta
 				? Promise.all(
 						delta.changed.map((entry) =>
-							listingSource.file(repository, `${directoryPath}/${entry.name}`),
+							folderItems
+								? readFolderItem(repository, directoryPath, entry)
+								: listingSource.file(
+										repository,
+										`${directoryPath}/${entry.name}`,
+									),
 						),
-					)
-				: listingSource.files(repository, directoryPath),
+					).then((read) => read.flat())
+				: listingSource.files(repository, directoryPath, { folderItems }),
 		)
 		if (!files.ok) return unreachable(fallback, files.error)
 
 		// Parsed before anything is written, so a file kobun cannot read rejects
 		// rather than being remembered as an absence.
-		const parsed = toItems(files.value)
+		const parsed = toItems(files.value, folderItems)
 		const items = delta ? inEntryOrder(entries, delta.kept, parsed) : parsed
 		await remember(projectId, directoryPath, now, items, hash, etag)
 		return items
@@ -363,6 +394,7 @@ export function createCollectionListingCache(deps: {
 		project: { id: string },
 		repository: RepositoryAddress,
 		directoryPath: string,
+		{ folderItems = false } = {},
 	): Promise<CollectionItem[]> {
 		const now = Date.now()
 		const cached = await readCached(project.id, directoryPath)
@@ -374,7 +406,14 @@ export function createCollectionListingCache(deps: {
 			if (age >= 0 && age < COLLECTION_LISTING_CACHE_TTL_MS) return cached.items
 		}
 
-		return await revalidate(project.id, repository, directoryPath, cached, now)
+		return await revalidate(
+			project.id,
+			repository,
+			directoryPath,
+			cached,
+			now,
+			folderItems,
+		)
 	}
 
 	/**
@@ -388,6 +427,7 @@ export function createCollectionListingCache(deps: {
 		project: { id: string },
 		repository: RepositoryAddress,
 		directoryPath: string,
+		{ folderItems = false } = {},
 	): Promise<CollectionItem[]> {
 		const cached = await readCached(project.id, directoryPath)
 		return await revalidate(
@@ -396,6 +436,7 @@ export function createCollectionListingCache(deps: {
 			directoryPath,
 			cached,
 			Date.now(),
+			folderItems,
 			true,
 		)
 	}

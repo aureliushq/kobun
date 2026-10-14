@@ -10,7 +10,9 @@ import {
 } from "@/core/content/document.server"
 import {
 	findCollectionItemBySlug,
+	folderItemFile,
 	getEffectiveSlug,
+	hasFolderItems,
 	isMarkdownCollectionFile,
 } from "@/core/editor/collection-items.server"
 import {
@@ -809,6 +811,19 @@ function createDraftLifecycle<ItemSlug extends string | null>(context: {
 	}
 }
 
+/** The file an item answering to `slug` is named by, folder or not (ADR-0014). */
+function slugPath(
+	{
+		collection,
+		directoryPath,
+	}: Pick<ContentDirectory, "collection" | "directoryPath">,
+	slug: string,
+) {
+	return hasFolderItems(collection)
+		? `${directoryPath}/${slug}/${folderItemFile(collection.format)}`
+		: `${directoryPath}/${slug}.${collection.format}`
+}
+
 /**
  * A Collection Item as the lifecycle sees it: addressed by a Slug, which is
  * what names its file, has rules to break, and can collide with another item in
@@ -866,7 +881,7 @@ function collectionEntity({
 				errors: validateSlug(slug),
 				itemSlug: slug,
 				// A new item has no Source yet, so its Slug decides where it lands.
-				path: source?.path ?? `${directoryPath}/${slug}.${collection.format}`,
+				path: source?.path ?? slugPath({ collection, directoryPath }, slug),
 			}
 		},
 		async collision(address, source) {
@@ -892,16 +907,8 @@ function collectionEntity({
  * them (ADR-0001).
  */
 export function createDrafts(context: DraftsContext) {
-	const {
-		collection,
-		db,
-		directoryPath,
-		listItems,
-		now,
-		project,
-		sourceStore,
-		stagedImages,
-	} = context
+	const { collection, db, listItems, now, project, sourceStore, stagedImages } =
+		context
 	const lifecycle = createDraftLifecycle({
 		db,
 		entity: collectionEntity(context),
@@ -926,7 +933,7 @@ export function createDrafts(context: DraftsContext) {
 	 * collision check still refuses it.
 	 */
 	async function resolveSource(slug: string): Promise<ResolvedSource | null> {
-		const namedPath = `${directoryPath}/${slug}.${collection.format}`
+		const namedPath = slugPath(context, slug)
 		const named = await sourceStore.read(namedPath)
 		// The path check keeps a Slug carrying `/` or `..` from reading a file
 		// outside the directory: GitHub answers with the path it normalised.

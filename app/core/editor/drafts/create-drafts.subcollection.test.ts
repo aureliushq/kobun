@@ -225,3 +225,39 @@ test("refuses a save carrying a stale expected Revision", async () => {
 
 	expect(result).toEqual({ code: "revision-conflict", ok: false })
 })
+
+/** The Parent Items' own Collection, whose items are folders (ADR-0014). */
+const PROJECTS: ContentDirectory = {
+	collection: {
+		...TEST_COLLECTION_WITH_FEATURES,
+		subcollections: { updates: TEST_COLLECTION_WITH_FEATURES },
+	},
+	collectionSlug: "projects",
+	directoryPath: "content/projects",
+}
+
+test("a Collection with Subcollections commits a new item as its folder's index", async () => {
+	setup()
+
+	const result = await draftsOver(PROJECTS).publish({
+		...newItem(),
+		fields: { slug: "acme", title: "Acme" },
+	})
+
+	expect(result).toMatchObject({ itemSlug: "acme", ok: true })
+	expect(
+		harness.sourceStore.get("content/projects/acme/index.md"),
+	).toBeDefined()
+})
+
+test("a Collection with Subcollections opens an item by its folder", async () => {
+	setup()
+	putUpdate("content/projects/acme/index.md", { slug: "acme", title: "Acme" })
+
+	const opened = await draftsOver(PROJECTS).open({ mode: "item", slug: "acme" })
+
+	expect(opened).toMatchObject({
+		ok: true,
+		source: { path: "content/projects/acme/index.md" },
+	})
+})
