@@ -59,7 +59,7 @@ import {
 	type SignedInUser,
 	UserAvatar,
 } from "@/ui/components/blocks/user-avatar"
-import { Logo, LogoDark } from "@/ui/components/logo"
+import { Logo } from "@/ui/components/logo"
 import { useTheme } from "@/ui/hooks/use-theme"
 import { PATHS } from "@/ui/lib/constants"
 import { DashboardActionIntents } from "@/ui/lib/types"
@@ -93,7 +93,7 @@ const DashboardSidebar = ({
 
 	const location = useLocation()
 
-	const { resolvedTheme, setTheme, theme } = useTheme()
+	const { setTheme, theme } = useTheme()
 	const posthog = usePostHog()
 	const submit = useSubmit()
 
@@ -122,7 +122,7 @@ const DashboardSidebar = ({
 							prefetch="intent"
 							to={pathname}
 						>
-							{resolvedTheme === "light" ? <Logo /> : <LogoDark />}
+							<Logo />
 						</Link>
 						<Badge className="font-mono text-[0.6rem] uppercase">Alpha</Badge>
 					</div>
