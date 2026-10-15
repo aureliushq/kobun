@@ -12,7 +12,7 @@ import {
 	CardTitle,
 } from "@/ui/components/base/card"
 import { Field, FieldDescription, FieldGroup } from "@/ui/components/base/field"
-import { Logo, LogoDark } from "@/ui/components/logo"
+import { Logo } from "@/ui/components/logo"
 import { useTheme } from "@/ui/hooks/use-theme"
 import { PATHS } from "@/ui/lib/constants"
 import type { Route } from "./+types/login"
@@ -41,7 +41,8 @@ export async function action({ context, request }: Route.ActionArgs) {
 }
 
 export default function LoginPage() {
-	const { resolvedTheme } = useTheme()
+	// Keeps the `dark` class in step with the theme on this page.
+	useTheme()
 	const posthog = usePostHog()
 
 	const handleLoginSubmit = () => {
@@ -56,7 +57,7 @@ export default function LoginPage() {
 				rel="noopener noreferrer"
 				target="_blank"
 			>
-				{resolvedTheme === "light" ? <Logo /> : <LogoDark />}
+				<Logo />
 			</a>
 			<div className="flex flex-col gap-6">
 				<Card>

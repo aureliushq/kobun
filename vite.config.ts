@@ -68,21 +68,11 @@ export default defineConfig({
 		// Clears mocks history
 		clearMocks: true,
 
-		// Pass if there are no tests (without which CI fails)
-		// TODO: add unit tests
-		passWithNoTests: true,
-
 		coverage: {
 			include: ["{app,packages}/**/*.{ts,tsx}"],
 			exclude: ["**/*.stories.tsx"],
 			reporter: ["text", "text-summary"],
 			reportsDirectory: "./.reports/tests-coverage",
-			thresholds: {
-				statements: 0,
-				branches: 0,
-				functions: 0,
-				lines: 0,
-			},
 		},
 
 		projects: [
