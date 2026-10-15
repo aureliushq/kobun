@@ -42,7 +42,15 @@ export interface CollectionListingSource {
 	 * the cache reads those rather than the whole directory again.
 	 */
 	file(repository: RepositoryAddress, path: string): Promise<SourceFile>
-	files(repository: RepositoryAddress, path: string): Promise<SourceFile[]>
+	/**
+	 * Every file in a directory with its bytes. With `folderItems`, each
+	 * subdirectory's index file instead, under the subdirectory's name and sha.
+	 */
+	files(
+		repository: RepositoryAddress,
+		path: string,
+		options?: { folderItems?: boolean },
+	): Promise<SourceFile[]>
 	read(
 		repository: RepositoryAddress,
 		request: SourceRequest,

@@ -1,8 +1,10 @@
 ---
-status: accepted
+status: superseded
 ---
 
 # A Subcollection's items nest under their Parent Item's filename
+
+> **Superseded** by [ADR-0014](./0014-a-collection-with-subcollections-keeps-each-item-in-a-folder.md). A Parent Item is now a folder, `projects/acme/index.md`, and its Subcollections nest inside that folder. The anchor chosen here, a name Kobun never changes, still stands: it is now the folder's name.
 
 A Collection can declare **Subcollections** (`subcollections` on a Collection in the Config, `packages/config/schema.ts`): every project in `projects` owns its own `updates`. Each **Parent Item** owns its own set of the Subcollection's items, so the items need a home that says which Parent they belong to. We store them in a directory beside the Parent Item, named after the Parent Item's **filename** without its extension: `projects/acme.md` owns `projects/acme/updates/<slug>.md`.
 

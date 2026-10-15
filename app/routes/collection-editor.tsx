@@ -11,6 +11,7 @@ import {
 	type OpenedContent,
 	usePropertiesPanel,
 } from "@/core/editor/collection-item-editor"
+import { hasFolderItems } from "@/core/editor/collection-items.server"
 import {
 	createCollectionListingCache,
 	invalidateCollectionListing,
@@ -74,9 +75,11 @@ async function requireContentDirectory(
 		parent_item,
 	)
 	const repository = { installationId, name, owner }
-	const parentItems = await (committing
-		? listings.resolveCurrent
-		: listings.resolve)(projectRow, repository, directory.parent.directoryPath)
+	const resolve = committing ? listings.resolveCurrent : listings.resolve
+	const { directoryPath } = directory.parent
+	const parentItems = await resolve(projectRow, repository, directoryPath, {
+		folderItems: true,
+	})
 	requireParentItem(parentItems, parent_item)
 	return directory
 }
@@ -120,6 +123,7 @@ async function resolveCollectionEditorContext(
 				projectRow,
 				{ installationId, name, owner },
 				directory.directoryPath,
+				{ folderItems: hasFolderItems(directory.collection) },
 			),
 		// Where committed images are, for the editor's previews.
 		media: { path: ctx.config.mediaPath, url: ctx.config.mediaUrl },

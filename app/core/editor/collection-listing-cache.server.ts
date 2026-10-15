@@ -124,8 +124,10 @@ async function fingerprint(entries: CollectionListingEntry[]): Promise<string> {
  * error state. It runs before anything is written, so a broken file is never
  * remembered as an absence.
  */
-function toItems(files: SourceFile[]): CollectionItem[] {
-	return files.filter(isMarkdownCollectionFile).map((file) => ({
+function toItems(files: SourceFile[], folderItems: boolean): CollectionItem[] {
+	// A folder item's file is its index, which the read already chose.
+	const items = folderItems ? files : files.filter(isMarkdownCollectionFile)
+	return items.map((file) => ({
 		data: parseDocument(file.content, collectionFileFormat(file)).data,
 		name: file.name,
 		path: file.path,
@@ -159,6 +161,9 @@ function changedSince(
 	)
 	return changed.length > INCREMENTAL_READ_LIMIT ? null : { changed, kept }
 }
+
+/** What a row's fingerprint is prefixed with, so it says which layout it read. */
+const layoutTag = (folderItems: boolean) => (folderItems ? "folders:" : "")
 
 /** The kept and freshly parsed items, in the order the directory lists them. */
 function inEntryOrder(
@@ -279,6 +284,7 @@ export function createCollectionListingCache(deps: {
 		directoryPath: string,
 		cached: Cached | null,
 		now: number,
+		folderItems: boolean,
 		failClosed = false,
 	): Promise<CollectionItem[]> {
 		// What an unreachable repository is answered with. A read that gates a
@@ -313,7 +319,7 @@ export function createCollectionListingCache(deps: {
 		if (read.value.kind === "not-found") return []
 
 		const { entries, etag } = read.value
-		const hash = await fingerprint(entries)
+		const hash = layoutTag(folderItems) + (await fingerprint(entries))
 		// A rotated validator over a directory that never changed. Shas are
 		// content addressed, so there is nothing to re-read and nothing to
 		// re-parse — only the ETag worth sending next time.
@@ -325,7 +331,9 @@ export function createCollectionListingCache(deps: {
 		// A file that changes between the entry list and its own read is stored
 		// at the newer sha under the older hash. The next revalidation sees the
 		// sha differ and reads it again, so this costs a read, never a wrong row.
-		const delta = changedSince(entries, cached)
+		// ponytail: a changed folder Collection (ADR-0014) is read in full, one
+		// query; read only the changed folders if such Collections grow large.
+		const delta = folderItems ? null : changedSince(entries, cached)
 		const files = await guard(() =>
 			delta
 				? Promise.all(
@@ -333,21 +341,27 @@ export function createCollectionListingCache(deps: {
 							listingSource.file(repository, `${directoryPath}/${entry.name}`),
 						),
 					)
-				: listingSource.files(repository, directoryPath),
+				: listingSource.files(repository, directoryPath, { folderItems }),
 		)
 		if (!files.ok) return unreachable(fallback, files.error)
 
 		// Parsed before anything is written, so a file kobun cannot read rejects
 		// rather than being remembered as an absence.
-		const parsed = toItems(files.value)
+		const parsed = toItems(files.value, folderItems)
 		const items = delta ? inEntryOrder(entries, delta.kept, parsed) : parsed
 		await remember(projectId, directoryPath, now, items, hash, etag)
 		return items
 	}
 
+	/**
+	 * The stored listing, unless it was read under the other layout: a folder
+	 * Collection's row from before ADR-0014 holds no items, and its ETag and
+	 * fingerprint would otherwise keep it served for good.
+	 */
 	async function readCached(
 		projectId: string,
 		directoryPath: string,
+		folderItems: boolean,
 	): Promise<Cached | null> {
 		const row = await db.query.collectionListing.findFirst({
 			where: and(
@@ -356,16 +370,19 @@ export function createCollectionListingCache(deps: {
 			),
 		})
 		const items = row ? storedListing(row.items) : null
-		return row && items ? { items, row } : null
+		const sameLayout =
+			row?.entriesHash.startsWith(layoutTag(true)) === folderItems
+		return row && items && sameLayout ? { items, row } : null
 	}
 
 	async function resolve(
 		project: { id: string },
 		repository: RepositoryAddress,
 		directoryPath: string,
+		{ folderItems = false } = {},
 	): Promise<CollectionItem[]> {
 		const now = Date.now()
-		const cached = await readCached(project.id, directoryPath)
+		const cached = await readCached(project.id, directoryPath, folderItems)
 
 		if (cached) {
 			const age = now - cached.row.checkedAt.getTime()
@@ -374,7 +391,14 @@ export function createCollectionListingCache(deps: {
 			if (age >= 0 && age < COLLECTION_LISTING_CACHE_TTL_MS) return cached.items
 		}
 
-		return await revalidate(project.id, repository, directoryPath, cached, now)
+		return await revalidate(
+			project.id,
+			repository,
+			directoryPath,
+			cached,
+			now,
+			folderItems,
+		)
 	}
 
 	/**
@@ -388,14 +412,16 @@ export function createCollectionListingCache(deps: {
 		project: { id: string },
 		repository: RepositoryAddress,
 		directoryPath: string,
+		{ folderItems = false } = {},
 	): Promise<CollectionItem[]> {
-		const cached = await readCached(project.id, directoryPath)
+		const cached = await readCached(project.id, directoryPath, folderItems)
 		return await revalidate(
 			project.id,
 			repository,
 			directoryPath,
 			cached,
 			Date.now(),
+			folderItems,
 			true,
 		)
 	}

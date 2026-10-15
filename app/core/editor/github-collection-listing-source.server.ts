@@ -40,8 +40,8 @@ export function createGithubCollectionListingSource(
 		// installation's auth exchange failing rather than an empty Collection,
 		// and it must reach the section's error state instead of being flattened
 		// into one.
-		files: ({ installationId, name, owner }, path) =>
-			listGithubDirectoryFiles(env, installationId, owner, name, path),
+		files: ({ installationId, name, owner }, path, options) =>
+			listGithubDirectoryFiles(env, installationId, owner, name, path, options),
 
 		read: async ({ installationId, name, owner }, { etag, path }) => {
 			try {
