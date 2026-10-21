@@ -6,6 +6,7 @@ import {
 	getGithubFileContent,
 	getGithubInstallationOctokit,
 	hasStatus,
+	listGithubDirectoryFiles,
 } from "./octokit.server"
 
 const env = {
@@ -273,4 +274,82 @@ test("builds the commit again on a head that moved while it was being written", 
 	expect(git.createCommit).toHaveBeenLastCalledWith(
 		expect.objectContaining({ parents: ["head-2"] }),
 	)
+})
+
+// A folder item (ADR-0014) is its folder's index file, under the folder's name
+// and tree sha — the values the directory's own entry list names it by.
+test("reads each folder's index file as one item", async () => {
+	const blob = (text: string) => ({
+		__typename: "Blob",
+		byteSize: text.length,
+		isBinary: false,
+		isTruncated: false,
+		text,
+	})
+	const graphql = vi.spyOn(client(), "graphql").mockResolvedValue({
+		repository: {
+			object: {
+				entries: [
+					{
+						name: "README.md",
+						object: blob("readme"),
+						oid: "readme-sha",
+						path: "projects/README.md",
+						type: "blob",
+					},
+					{
+						name: "kobun",
+						object: {
+							__typename: "Tree",
+							entries: [
+								{
+									name: "index.mdx",
+									object: blob("kobun"),
+									oid: "index-sha",
+									path: "projects/kobun/index.mdx",
+									type: "blob",
+								},
+								{
+									name: "updates",
+									object: { __typename: "Tree" },
+									oid: "updates-sha",
+									path: "projects/kobun/updates",
+									type: "tree",
+								},
+							],
+						},
+						oid: "kobun-tree",
+						path: "projects/kobun",
+						type: "tree",
+					},
+					{
+						name: "assets",
+						object: { __typename: "Tree", entries: [] },
+						oid: "assets-tree",
+						path: "projects/assets",
+						type: "tree",
+					},
+				],
+			},
+		},
+	})
+
+	const files = await listGithubDirectoryFiles(
+		env,
+		7,
+		"acme",
+		"site",
+		"projects",
+		{ folderItems: true },
+	)
+
+	expect(files).toEqual([
+		{
+			content: "kobun",
+			name: "kobun",
+			path: "projects/kobun/index.mdx",
+			sha: "kobun-tree",
+		},
+	])
+	expect(graphql.mock.calls[0]?.[0]).toContain("... on Tree { entries")
 })

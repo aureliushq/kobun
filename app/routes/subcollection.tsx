@@ -46,7 +46,9 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
 	// (ADR-0011). It also runs before the Subcollection's directory is named to
 	// GitHub, so a stem that is no file's never becomes a path.
 	const parentItem = requireParentItem(
-		await listings.resolve(projectRow, repository, parent.directoryPath),
+		await listings.resolve(projectRow, repository, parent.directoryPath, {
+			folderItems: true,
+		}),
 		parent_item,
 	)
 

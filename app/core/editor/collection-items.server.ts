@@ -6,6 +6,28 @@ interface CollectionConfig {
 	schema: Record<string, { type: string }>
 }
 
+/**
+ * Whether a Collection keeps each item in a folder of its own, as
+ * `<name>/index.<format>`, rather than as `<name>.<format>` (ADR-0014). A
+ * Collection with Subcollections does: each item's folder also holds its
+ * Subcollections' items, so the item and everything it owns live in one place.
+ */
+export function hasFolderItems(collection: {
+	subcollections?: Record<string, unknown>
+}) {
+	return Object.keys(collection.subcollections ?? {}).length > 0
+}
+
+/**
+ * An item's name without its extension: the file's stem, or for a folder item
+ * (ADR-0014) the folder's name, since every such Source is called `index`.
+ */
+export const itemStem = (path: string) =>
+	path
+		.replace(/(\/index)?\.mdx?$/, "")
+		.split("/")
+		.pop() ?? path
+
 export interface ResolvedCollectionItem {
 	body: string
 	frontmatter: Record<string, unknown>
@@ -28,24 +50,24 @@ export function isMarkdownCollectionFile(file: { name: string }) {
  * holds whatever the directory holds, so a Collection configured as json or
  * yaml would otherwise hand the parser a Format its md/mdx files are not in.
  */
-export function collectionFileFormat(file: { name: string }): Format {
-	return file.name.endsWith(".mdx") ? "mdx" : "md"
+export function collectionFileFormat(file: { path: string }): Format {
+	return file.path.endsWith(".mdx") ? "mdx" : "md"
 }
 
 /**
- * The Slug an item answers to: its slug field, or its filename when that is
- * empty. Asks only for a name, so a listing that already holds the parsed Data
- * can answer without the file's bytes.
+ * The Slug an item answers to: its slug field, or its stem when that is empty.
+ * Asks only for a path, so a listing that already holds the parsed Data can
+ * answer without the file's bytes.
  */
 export function getEffectiveSlug(
 	collection: CollectionConfig,
-	file: { name: string },
+	file: { path: string },
 	frontmatter: Record<string, unknown>,
 ) {
 	const slugField = Object.entries(collection.schema).find(
 		([, field]) => field.type === "slug",
 	)?.[0]
-	const filenameSlug = file.name.replace(/\.mdx?$/, "")
+	const filenameSlug = itemStem(file.path)
 	const configuredSlug = slugField ? frontmatter[slugField] : undefined
 	return configuredSlug == null || configuredSlug === ""
 		? filenameSlug

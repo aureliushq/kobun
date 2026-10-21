@@ -30,11 +30,11 @@ Glossary of domain terms. Keep implementation details out — this is vocabulary
 ## Content structure
 
 - **Collection** — a directory of content items sharing a schema, addressed by slug. A Collection may declare Subcollections.
-- **Subcollection** — a Collection declared on a Collection, one level deep. Declared like a Collection — its own label, Format, Features, and schema — and inherits nothing from its Collection. Each Parent Item owns its own set of the Subcollection's items, stored in a directory named after the Parent Item's file. Singletons have no Subcollections.
-- **Parent Item** — the Collection Item that owns a set of Subcollection items. Its items live beside it, under a directory named after its filename, not its Slug.
-- **Collection Item** — one Source file within a Collection, addressed by its slug.
+- **Subcollection** — a Collection declared on a Collection, one level deep. Declared like a Collection — its own label, Format, Features, and schema — and inherits nothing from its Collection. Each Parent Item owns its own set of the Subcollection's items, stored inside the Parent Item's folder. Singletons have no Subcollections.
+- **Parent Item** — the Collection Item that owns a set of Subcollection items. It is a folder, `<name>/index.<format>`, and its items live in that folder, under a directory named after the Subcollection. The folder's name, not the Slug, anchors them.
+- **Collection Item** — one Source file within a Collection, addressed by its slug. In a Collection with Subcollections, that file is the `index` of the item's own folder.
 - **Singleton** — a single fixed Source file with its own schema; no slug, no directory.
-- **Slug** — the identifier of a Collection Item within its Collection, and the name of its file; must be unique across the Collection's directory, and drawn from one restricted alphabet whether it was derived from its source Field or typed over by the writer. A title that alphabet cannot spell derives no Slug, and the writer names the item instead.
+- **Slug** — the identifier of a Collection Item within its Collection, and the name of its file (or, for a folder item, of its folder); must be unique across the Collection's directory, and drawn from one restricted alphabet whether it was derived from its source Field or typed over by the writer. A title that alphabet cannot spell derives no Slug, and the writer names the item instead.
 - **Field** — one named entry in a Collection or Singleton schema: a label plus either a Field Type or a Role.
 - **Field Type** — the kind of value a Field holds, determining how it is defaulted, validated, shown, and edited: `text · url · date · datetime · boolean · image · select · multi_select · array · object`. Every Field Type carries an ordinary value.
 - **Container** — a Field Type whose value holds other Fields' values: `array` (rows of items) and `object` (named sub-fields). Container behavior is defined in terms of its children's behavior.

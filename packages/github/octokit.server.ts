@@ -170,6 +170,9 @@ export async function listGithubInstallationRepositories(
  * directories with many files.
  *
  * Returns text-blob entries only. Subdirectories and binary blobs are skipped.
+ * With `folderItems`, it reads one level deeper instead: each subdirectory's
+ * `index.md` or `index.mdx`, named after the subdirectory and carrying its tree
+ * sha, which is what the directory's own entry list says about it.
  */
 export async function listGithubDirectoryFiles(
 	env: Env,
@@ -177,33 +180,31 @@ export async function listGithubDirectoryFiles(
 	owner: string,
 	repo: string,
 	path: string,
-	ref = "HEAD",
+	{ folderItems = false, ref = "HEAD" } = {},
 ) {
 	const octokit = getGithubInstallationOctokit(env, installationId)
 
 	const expression = `${ref}:${path}`
 
+	type Entry = {
+		name: string
+		path: string
+		oid: string
+		type: string
+		object:
+			| {
+					__typename: "Blob"
+					byteSize: number
+					isBinary: boolean | null
+					isTruncated: boolean
+					text: string | null
+			  }
+			| { __typename: "Tree"; entries: Entry[] }
+			| { __typename: string }
+			| null
+	}
 	type GraphqlResponse = {
-		repository: {
-			object: {
-				entries: Array<{
-					name: string
-					path: string
-					oid: string
-					type: string
-					object:
-						| {
-								__typename: "Blob"
-								byteSize: number
-								isBinary: boolean | null
-								isTruncated: boolean
-								text: string | null
-						  }
-						| { __typename: string }
-						| null
-				}>
-			} | null
-		} | null
+		repository: { object: { entries: Entry[] } | null } | null
 	}
 
 	const data = await octokit.graphql<GraphqlResponse>(
@@ -212,28 +213,49 @@ export async function listGithubDirectoryFiles(
 				object(expression: $expression) {
 					... on Tree {
 						entries {
-							name
-							path
-							oid
-							type
-							object {
-								__typename
-								... on Blob {
-									byteSize
-									text
-									isBinary
-									isTruncated
-								}
+							...entry
+							${
+								folderItems
+									? "object { ... on Tree { entries { ...entry } } }"
+									: ""
 							}
 						}
 					}
+				}
+			}
+		}
+		fragment entry on TreeEntry {
+			name
+			path
+			oid
+			type
+			object {
+				__typename
+				... on Blob {
+					byteSize
+					text
+					isBinary
+					isTruncated
 				}
 			}
 		}`,
 		{ owner, repo, expression },
 	)
 
-	const entries = data.repository?.object?.entries ?? []
+	const listed = data.repository?.object?.entries ?? []
+	// A folder stands in for its index file, under the folder's name and sha.
+	const entries = folderItems
+		? listed.flatMap((folder) => {
+				const children =
+					folder.type === "tree" && folder.object && "entries" in folder.object
+						? folder.object.entries
+						: []
+				const index = children.find(
+					(child) => child.name === "index.md" || child.name === "index.mdx",
+				)
+				return index ? [{ ...index, name: folder.name, oid: folder.oid }] : []
+			})
+		: listed
 
 	return entries
 		.filter(
@@ -312,7 +334,8 @@ export async function listGithubDirectoryEntriesConditional(
 	if (!Array.isArray(data)) return { entries: [], etag: responseEtag }
 
 	// Directory entries carry no content — the whole reason this call is cheap.
-	// `sha` is the blob's object id, the same value the Tree query calls `oid`.
+	// `sha` is the blob's (or a subdirectory's tree's) object id, the same value
+	// the Tree query calls `oid`.
 	return {
 		entries: data.map((entry) => ({ name: entry.name, sha: entry.sha })),
 		etag: responseEtag,

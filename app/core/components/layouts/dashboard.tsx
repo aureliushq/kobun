@@ -67,7 +67,7 @@ export async function loader({
 			if (!config || !subcollectionKey) return []
 			const { directoryPath } = requireCollection({ config }, key)
 			const items = listings
-				.resolve(projectRow, repository, directoryPath)
+				.resolve(projectRow, repository, directoryPath, { folderItems: true })
 				.then((listed) =>
 					listed.map((item) => ({
 						href: getSubcollectionPath(

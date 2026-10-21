@@ -51,8 +51,8 @@ export function requireCollection(
 
 /**
  * The Subcollection a URL names, as the content directory one Parent Item's
- * items of it live in: beside the Parent Item's file, named after its filename
- * stem (ADR-0012). Its Drafts are owned by the Collection, the Parent Item and
+ * items of it live in: inside the Parent Item's folder, which is named by its
+ * stem (ADR-0014). Its Drafts are owned by the Collection, the Parent Item and
  * the Subcollection together. Whether that Parent Item has a Source is the
  * caller's to check with `requireParentItem` — it takes a listing, and this
  * stays as pure as its siblings.
@@ -81,7 +81,10 @@ export function requireSubcollection(
 	}
 }
 
-/** A Parent Item's filename without its extension: how URLs name it (ADR-0012). */
+/**
+ * A Parent Item's listed name without an extension: how URLs name it. A
+ * Parent Item is a folder, listed under the folder's name (ADR-0014).
+ */
 export const parentItemStem = (name: string) => name.replace(/\.mdx?$/, "")
 
 /** What a Parent Item is labelled by: its title Field, else its filename stem. */
