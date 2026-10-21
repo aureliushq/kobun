@@ -146,13 +146,7 @@ export const validateConfig = (
 	const version = parsedRaw.version
 	const versionResult = versionSchema.safeParse(version)
 	if (!versionResult.success) {
-		versionResult.error.issues.forEach((issue) => {
-			errors.push({
-				code: issue.code,
-				message: issue.message,
-				path: issue.path.join("."),
-			})
-		})
+		errors.push(...zodIssuesToConfigError(versionResult.error.issues, ""))
 	}
 
 	const hasAnything =

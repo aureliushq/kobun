@@ -1,38 +1,24 @@
 import type z from "zod"
 import type {
 	arrayFieldSchema,
-	booleanFieldSchema,
 	collectionSchema,
-	dateFieldSchema,
-	datetimeFieldSchema,
 	documentFieldSchema,
 	featureSchema,
 	fieldSchema,
-	imageFieldSchema,
 	multiSelectFieldSchema,
-	objectFieldSchema,
 	selectFieldSchema,
 	selectOptionSchema,
 	singletonSchema,
 	slugFieldSchema,
-	textFieldSchema,
-	urlFieldSchema,
 } from "./schema"
 
 ////////////////////// FIELD TYPES //////////////////////
 export type ArrayField = z.infer<typeof arrayFieldSchema>
-export type BooleanField = z.infer<typeof booleanFieldSchema>
-export type DateField = z.infer<typeof dateFieldSchema>
-export type DatetimeField = z.infer<typeof datetimeFieldSchema>
 export type DocumentField = z.infer<typeof documentFieldSchema>
-export type ImageField = z.infer<typeof imageFieldSchema>
 export type MultiSelectField = z.infer<typeof multiSelectFieldSchema>
-export type ObjectField = z.infer<typeof objectFieldSchema>
 export type SelectField = z.infer<typeof selectFieldSchema>
 export type SelectOption = z.infer<typeof selectOptionSchema>
 export type SlugField = z.infer<typeof slugFieldSchema>
-export type TextField = z.infer<typeof textFieldSchema>
-export type UrlField = z.infer<typeof urlFieldSchema>
 export type Field = z.infer<typeof fieldSchema>
 
 /**
@@ -96,14 +82,9 @@ export type Singleton = Omit<AuthoredSingleton, "schema" | "subcollections"> & {
 
 /**
  * How a Source's bytes encode its Content Document: `md`, `mdx`, `json`, or
- * `yaml`. This is the type consumers outside the package use; `schema.ts` keeps
- * a private `Format` enum of the same four values for building the schema.
- *
- * Derived from that schema so it can never drift, but widened through a
- * template literal: the enum is private, so without the widening a caller
- * outside this package could not write `"md"`.
+ * `yaml`.
  */
-export type Format = `${Collection["format"]}`
+export type Format = Collection["format"]
 
 ////////////////////// CONFIGURATION TYPES //////////////////////
 export type NormalizedConfig = {

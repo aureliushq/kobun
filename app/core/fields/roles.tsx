@@ -65,10 +65,7 @@ export const slugRole = {
 		value,
 	}: {
 		disabled?: boolean
-		// The Field union's slug variant, not `SlugField`: the parsed schema drops
-		// the placeholder the authored one may declare, and the control has to
-		// honour whichever it is handed.
-		field: Extract<Field, { type: "slug" }>
+		field: SlugField
 		onChange(value: unknown): void
 		value: unknown
 	}): ReactNode => (
