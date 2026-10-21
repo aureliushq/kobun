@@ -10,7 +10,7 @@ describe("useEditor", () => {
 		await waitFor(() => expect(result.current).not.toBeNull())
 
 		expect(result.current?.getHTML()).toContain("<h1>Heading</h1>")
-		expect(result.current?.getHTML()).toContain("<ul ")
+		expect(result.current?.getHTML()).toContain("<ul>")
 		expect(result.current?.getHTML()).toContain('href="https://example.com"')
 		expect(result.current?.getMarkdown()).toBe(markdown)
 	})

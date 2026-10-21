@@ -79,14 +79,6 @@ export const RichTextEditor = forwardRef<EditorRefApi, RichTextEditorProps>(
 		useImperativeHandle(
 			ref,
 			() => ({
-				getMarkdown: () => {
-					if (!editor) return ""
-					return editor.getMarkdown()
-				},
-				getHTML: () => {
-					if (!editor) return ""
-					return editor.getHTML()
-				},
 				focus: (position?: "start" | "end" | "all") => {
 					if (!editor) return
 					editor.commands.focus(position)

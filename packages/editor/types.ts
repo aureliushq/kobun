@@ -29,8 +29,6 @@ export interface EditorRefApi {
 	commit: () => Promise<void>
 	focus: (position?: "start" | "end" | "all") => void
 	getEditor: () => Editor | null
-	getHTML: () => string
-	getMarkdown: () => string
 	hasUnsavedChanges: () => boolean
 	publish: () => Promise<void>
 	save: () => Promise<void>

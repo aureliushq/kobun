@@ -7,14 +7,9 @@ import { Input } from "@/ui/components/base/input"
 interface LinkSelectorProps {
 	editor: Editor
 	onSetLink: (url: string) => void
-	onClose: () => void
 }
 
-export function LinkSelector({
-	editor,
-	onSetLink,
-	onClose: _onClose,
-}: LinkSelectorProps) {
+export function LinkSelector({ editor, onSetLink }: LinkSelectorProps) {
 	const existingHref = editor.getAttributes("link").href ?? ""
 	const [url, setUrl] = useState(existingHref)
 
