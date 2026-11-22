@@ -85,6 +85,13 @@
       "when": 1791334217426,
       "tag": "0011_draft_subcollection_owner",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1795375846300,
+      "tag": "0012_drop_redundant_indexes",
+      "breakpoints": true
     }
   ]
 }

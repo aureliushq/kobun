@@ -20,7 +20,6 @@ const STATUS_LABELS: Record<ConfigStatus, string> = {
 	[ConfigStatus.ERROR]: "Invalid",
 	[ConfigStatus.MISSING]: "Missing",
 	[ConfigStatus.PRESENT]: "Valid",
-	[ConfigStatus.TOO_LARGE]: "Too large",
 	[ConfigStatus.UNKNOWN]: "Not checked yet",
 }
 

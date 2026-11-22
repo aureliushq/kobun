@@ -155,7 +155,7 @@ describe("the sidebar footer", () => {
 			await screen.findByRole("menuitem", { name: /Logout/ }),
 		)
 
-		await waitFor(() => expect(loggedOut?.get("intent")).toBe("logout"))
+		await waitFor(() => expect(loggedOut).not.toBeNull())
 	})
 })
 

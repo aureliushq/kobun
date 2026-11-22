@@ -129,7 +129,6 @@ test("asks unconditionally when the stored Config is the literal null", async ()
 
 test.each([
 	ConfigStatus.UNKNOWN,
-	ConfigStatus.TOO_LARGE,
 	"valid",
 ])("revalidates a Project whose stored status is %o", async (configStatus) => {
 	const { configSource, projectContext } = setup(cached({ configStatus }))

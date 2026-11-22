@@ -62,7 +62,6 @@ import {
 import { Logo } from "@/ui/components/logo"
 import { useTheme } from "@/ui/hooks/use-theme"
 import { PATHS } from "@/ui/lib/constants"
-import { DashboardActionIntents } from "@/ui/lib/types"
 
 const DashboardSidebar = ({
 	activeProject,
@@ -103,10 +102,7 @@ const DashboardSidebar = ({
 	const handleLogout = () => {
 		posthog?.capture("logout_initiated")
 		posthog?.reset()
-		submit(
-			{ intent: DashboardActionIntents.LOGOUT },
-			{ action: "/api/dashboard-actions", method: "POST" },
-		)
+		submit(null, { action: "/api/dashboard-actions", method: "POST" })
 	}
 
 	const repoSlug = `${activeProject.repoOwnerLogin}/${activeProject.repoName}`
