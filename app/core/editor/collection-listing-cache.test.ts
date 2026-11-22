@@ -497,6 +497,26 @@ test("spends no text read when a rotated ETag turns out to be the same directory
 	expect(after?.items).toBe(before?.items)
 })
 
+// The fingerprint an earlier release stored for this directory, so a hash
+// change would silently re-read every Collection already cached.
+test("a row fingerprinted by an earlier release still matches its directory", async () => {
+	harness.seedRow({
+		checkedAt: new Date(0),
+		entriesHash:
+			"9c43b91cb815e3f4f1a04be00cd9e19e78fbdca3b0ce6b49cc8e3feca410ef1d",
+		etag: `"etag-old"`,
+		items: JSON.stringify([
+			{ data: { title: "First" }, name: "first.md", path: "p", sha: "sha-1" },
+		]),
+	})
+
+	await resolve()
+
+	expect(harness.source.calls).toEqual([
+		{ etag: `"etag-old"`, kind: "read", path: DIRECTORY },
+	])
+})
+
 test("re-parses and rewrites the row when the directory changed", async () => {
 	await resolve()
 	const before = harness.readRow()
