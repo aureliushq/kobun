@@ -24,7 +24,6 @@
 export {
 	defaultForField,
 	renderFieldControl,
-	renderFieldInline,
 	renderFieldValue,
 	validateField,
 } from "./dispatch"

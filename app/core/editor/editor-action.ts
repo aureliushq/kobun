@@ -21,15 +21,6 @@ const STALE_SOURCE_MESSAGE =
 /** Why the drafts module refused a request, as the editor is told it. */
 export type EditorRefusalCode = DraftRefusal["code"]
 
-const REFUSAL_CODES: Record<EditorRefusalCode, true> = {
-	"duplicate-slug": true,
-	"missing-image": true,
-	"not-found": true,
-	"revision-conflict": true,
-	"stale-source": true,
-	validation: true,
-}
-
 function refusalMessage(refusal: DraftRefusal) {
 	switch (refusal.code) {
 		case "duplicate-slug":
@@ -72,7 +63,7 @@ export function draftRefusalResponse(refusal: DraftRefusal) {
 
 /** The refusal code a response named, if it named one this editor knows. */
 export function readRefusalCode(value: unknown): EditorRefusalCode | null {
-	return typeof value === "string" && Object.hasOwn(REFUSAL_CODES, value)
+	return typeof value === "string" && Object.hasOwn(REFUSAL_STATUS, value)
 		? (value as EditorRefusalCode)
 		: null
 }

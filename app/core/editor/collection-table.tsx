@@ -28,7 +28,7 @@ import {
 	type Status,
 	statusOptions,
 } from "@/core/editor/collection-list"
-import { getSlugField } from "@/core/editor/collection-metadata"
+import { getEffectiveSlug } from "@/core/editor/collection-metadata"
 import {
 	type CollectionDraft,
 	DRAFT_MARKER_LABELS,
@@ -40,6 +40,7 @@ import {
 } from "@/core/editor/drafts"
 import { resolveTitleKey } from "@/core/fields"
 import { Timestamp } from "@/core/preferences/timestamp"
+import { parentItemStem } from "@/core/project-context"
 import { Badge } from "@/ui/components/base/badge"
 import { Button } from "@/ui/components/base/button"
 import { Input } from "@/ui/components/base/input"
@@ -215,7 +216,6 @@ export function CollectionTable({
 	const unavailable = listing === "unavailable"
 	const items = Array.isArray(listing) ? listing : null
 
-	const slugFieldKey = getSlugField(collection.schema)
 	const titleFieldKey = resolveTitleKey(collection.schema)
 
 	const rows = useMemo<Row[]>(() => {
@@ -231,13 +231,11 @@ export function CollectionTable({
 			),
 		)
 		const itemRows = (items ?? []).map((item) => {
-			const filenameSlug = item.name.replace(/\.mdx?$/, "")
+			const filenameSlug = parentItemStem(item.name)
 			const title = titleFieldKey
 				? String(item.data[titleFieldKey] ?? filenameSlug)
 				: filenameSlug
-			const slug = slugFieldKey
-				? String(item.data[slugFieldKey] ?? filenameSlug)
-				: filenameSlug
+			const slug = getEffectiveSlug(collection.schema, item)
 			const draft = bySourcePath.get(item.path)
 			return {
 				// The Draft's Data first, for the same reason its title wins: it is
@@ -296,7 +294,6 @@ export function CollectionTable({
 		pending,
 		project,
 		titleFieldKey,
-		slugFieldKey,
 	])
 
 	const publicationOptions = useMemo(

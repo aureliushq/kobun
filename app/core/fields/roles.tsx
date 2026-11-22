@@ -96,16 +96,17 @@ export const slugRole = {
 export function findSlugField(
 	schema: Record<string, Field>,
 ): { key: string; field: SlugField } | null {
-	return findSlugFields(Object.entries(schema))[0] ?? null
+	return findSlugEntry(Object.entries(schema))
 }
 
-/** Every Field carrying the Slug Role, in declared order. */
-function findSlugFields(entries: [string, Field][]) {
-	const found: { key: string; field: SlugField }[] = []
-	for (const [key, field] of entries) {
-		if (field.type === "slug") found.push({ key, field })
-	}
-	return found
+/** The Field carrying the Slug Role among these, with its key. */
+function findSlugEntry(
+	entries: [string, Field][],
+): { key: string; field: SlugField } | null {
+	const entry = entries.find(
+		(entry): entry is [string, SlugField] => entry[1].type === "slug",
+	)
+	return entry ? { key: entry[0], field: entry[1] } : null
 }
 
 /** The Field a container is headed by, and the key it answers to. */
@@ -132,11 +133,9 @@ export function resolveTitleKey(schema: Record<string, Field>): string | null {
 
 /** The Field the Slug Role derives from, when it is one of these Fields. */
 function slugSource(entries: [string, Field][]): TitleEntry | null {
-	for (const { field } of findSlugFields(entries)) {
-		const source = entries.find(([key]) => key === field.from)
-		if (source) return { key: source[0], field: source[1] }
-	}
-	return null
+	const slug = findSlugEntry(entries)
+	const source = slug && entries.find(([key]) => key === slug.field.from)
+	return source ? { key: source[0], field: source[1] } : null
 }
 
 const TITLE_TARGETS = ["title", "name"] as const

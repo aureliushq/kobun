@@ -191,6 +191,15 @@ describe("a Collection whose listing has arrived", () => {
 			within(rows[0] as HTMLElement).getByText("Newer"),
 		).toBeInTheDocument()
 	})
+
+	it("links an item with an empty slug to its filename, as the server does", () => {
+		list([item({ data: { slug: "", title: "Untitled slug" } })])
+
+		expect(screen.getByRole("link", { name: "Untitled slug" })).toHaveAttribute(
+			"href",
+			`${EDITOR_BASE}/item/hello-world`,
+		)
+	})
 })
 
 describe("a Collection whose listing never arrives", () => {
