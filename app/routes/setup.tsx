@@ -18,10 +18,12 @@ import {
 	useActionData,
 	useNavigation,
 } from "react-router"
-import { getAuth } from "@/auth/auth.server"
 import { envContext } from "@/core/context"
 import { connectProject } from "@/core/project-context"
-import { refreshProjectConfig } from "@/core/project-context/project-context.server"
+import {
+	refreshProjectConfig,
+	requireUser,
+} from "@/core/project-context/project-context.server"
 import { dbContext } from "@/db/context"
 import { githubInstallation, project, userInstallation } from "@/db/schema"
 import {
@@ -87,10 +89,7 @@ const installStateCookie = createCookie("github_install_state", {
 export async function loader({ context, request, url }: Route.LoaderArgs) {
 	const db = context.get(dbContext)
 	const env = context.get(envContext)
-
-	const auth = getAuth(env)
-	const session = await auth.api.getSession({ headers: request.headers })
-	if (!session?.user) throw redirect(PATHS.LOGIN)
+	const session = await requireUser({ context, request })
 
 	// `url` is React Router's normalized URL arg (no `.data`/index params).
 	const githubInstallationId = url.searchParams.get("installation_id")
@@ -128,39 +127,30 @@ export async function loader({ context, request, url }: Route.LoaderArgs) {
 
 		// upsert to githubInstallation table
 		const id = existingInstallation?.id ?? String(crypto.randomUUID())
+		const fields = {
+			targetId: String(installation?.account?.id),
+			// @ts-expect-error: type is wrong, login is available
+			targetLogin: installation?.account?.login,
+			targetAvatarUrl: installation?.account?.avatar_url,
+			targetHtmlUrl: installation?.account?.html_url,
+			repositorySelection: installation.repository_selection,
+			suspendedAt: installation.suspended_at
+				? new Date(installation.suspended_at)
+				: null,
+			deletedAt: null,
+			lastSyncedAt: new Date(),
+		}
 		await db
 			.insert(githubInstallation)
 			.values({
 				// @ts-expect-error: type is wrong, id is available
 				id,
 				githubInstallationId: String(installation.id),
-				targetId: String(installation?.account?.id),
-				// @ts-expect-error: type is wrong, login is available
-				targetLogin: installation?.account?.login,
-				targetAvatarUrl: installation?.account?.avatar_url,
-				targetHtmlUrl: installation?.account?.html_url,
-				repositorySelection: installation.repository_selection,
-				suspendedAt: installation.suspended_at
-					? new Date(installation.suspended_at)
-					: null,
-				deletedAt: null,
-				lastSyncedAt: new Date(),
+				...fields,
 			})
 			.onConflictDoUpdate({
 				target: githubInstallation.githubInstallationId,
-				set: {
-					targetId: String(installation?.account?.id),
-					// @ts-expect-error: type is wrong, login is available
-					targetLogin: installation?.account?.login,
-					targetAvatarUrl: installation?.account?.avatar_url,
-					targetHtmlUrl: installation?.account?.html_url,
-					repositorySelection: installation.repository_selection,
-					suspendedAt: installation.suspended_at
-						? new Date(installation.suspended_at)
-						: null,
-					deletedAt: null,
-					lastSyncedAt: new Date(),
-				},
+				set: fields,
 			})
 
 		// link user to installation (no-op if already linked)
@@ -189,26 +179,14 @@ export async function loader({ context, request, url }: Route.LoaderArgs) {
 		with: { githubInstallation: true },
 	})
 
-	const accounts: {
-		id: string
-		githubInstallationId: string
-		login: string
-		avatarUrl: string
-	}[] = linkedInstallations.map((li) => ({
+	const accounts = linkedInstallations.map((li) => ({
 		id: li.githubInstallation.id,
 		githubInstallationId: li.githubInstallation.githubInstallationId,
 		login: li.githubInstallation.targetLogin,
 		avatarUrl: li.githubInstallation.targetAvatarUrl,
 	}))
 
-	const repos: {
-		id: number
-		name: string
-		fullName: string
-		htmlUrl: string
-		ownerLogin: string
-		installationId: string
-	}[] = (
+	const repos = (
 		await Promise.all(
 			linkedInstallations
 				.filter((li) => !li.githubInstallation.deletedAt)
@@ -253,10 +231,7 @@ export async function loader({ context, request, url }: Route.LoaderArgs) {
 export async function action({ context, request }: Route.ActionArgs) {
 	const db = context.get(dbContext)
 	const env = context.get(envContext)
-
-	const auth = getAuth(env)
-	const session = await auth.api.getSession({ headers: request.headers })
-	if (!session?.user) throw redirect(PATHS.LOGIN)
+	const session = await requireUser({ context, request })
 
 	const formData = await request.formData()
 	const intent = formData.get("intent") as SetupActionIntents
@@ -370,6 +345,11 @@ export default function Setup({ loaderData }: Route.ComponentProps) {
 
 	const activeAccount = accounts.find((a) => a.id === activeInstallationId)
 	const projectRepoIdSet = new Set(projectRepoIds)
+	const submittingRepoId =
+		navigation.state === "submitting" &&
+		navigation.formData?.get("intent") === SetupActionIntents.CREATE_PROJECT
+			? navigation.formData.get("repo_id")
+			: null
 
 	if (accounts.length > 0) {
 		return (
@@ -540,24 +520,14 @@ export default function Setup({ loaderData }: Route.ComponentProps) {
 													value={repo.installationId}
 												/>
 												<Button
-													disabled={
-														navigation.state === "submitting" &&
-														navigation.formData?.get("intent") ===
-															SetupActionIntents.CREATE_PROJECT &&
-														navigation.formData?.get("repo_id") ===
-															String(repo.id)
-													}
+													disabled={submittingRepoId === String(repo.id)}
 													name="intent"
 													size="sm"
 													type="submit"
 													value={SetupActionIntents.CREATE_PROJECT}
 													variant="secondary"
 												>
-													{navigation.state === "submitting" &&
-													navigation.formData?.get("intent") ===
-														SetupActionIntents.CREATE_PROJECT &&
-													navigation.formData?.get("repo_id") ===
-														String(repo.id) ? (
+													{submittingRepoId === String(repo.id) ? (
 														<LoaderIcon className="animate-spin" />
 													) : null}
 													Create Project

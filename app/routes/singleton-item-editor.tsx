@@ -58,13 +58,9 @@ export async function loader(args: Route.LoaderArgs) {
 	const { media, name, owner, row } = await resolveRowEditorContext(args)
 
 	return {
-		canPublish: false,
-		// A row has no Body: a Source has one, and it belongs to the Singleton.
-		hasBody: false,
 		media,
 		name,
 		owner,
-		publishDisabledReason: null,
 		schema: row.schema,
 		// The Source read is slow and decides nothing about whether this page may
 		// be seen, so the shell does not wait on it (ADR-0006).
@@ -100,15 +96,15 @@ export default function SingletonItemEditor({
 }: Route.ComponentProps) {
 	const params = useParams()
 	const panel = usePropertiesPanel()
+	const { opened, ...data } = loaderData
 	const chrome = {
-		canPublish: loaderData.canPublish,
-		hasBody: loaderData.hasBody,
-		media: loaderData.media,
-		name: loaderData.name,
-		owner: loaderData.owner,
+		...data,
+		// A row is never published on its own (ADR-0008), and has no Body: a
+		// Source has one, and it belongs to the Singleton.
+		canPublish: false,
+		hasBody: false,
 		panel,
-		publishDisabledReason: loaderData.publishDisabledReason,
-		schema: loaderData.schema,
+		publishDisabledReason: null,
 	}
 
 	return (
@@ -120,7 +116,7 @@ export default function SingletonItemEditor({
 		>
 			{/* No `errorElement`: a row that is not there rethrows its 404 to the
 			    route's boundary rather than leaving an empty editor behind. */}
-			<Await resolve={loaderData.opened}>
+			<Await resolve={opened}>
 				{(opened: OpenedContent) => (
 					<CollectionItemEditor {...chrome} mode="item" opened={opened} />
 				)}

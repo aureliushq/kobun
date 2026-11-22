@@ -1,12 +1,10 @@
 import { desc, eq } from "drizzle-orm"
 import { ChevronLeft } from "lucide-react"
-import { Link, Outlet, redirect } from "react-router"
-import { getAuth } from "@/auth/auth.server"
-import { envContext } from "@/core/context"
+import { Link, Outlet } from "react-router"
+import { requireUser } from "@/core/project-context/project-context.server"
 import { dbContext } from "@/db/context"
 import { project } from "@/db/schema/app-schema"
 import { Button } from "@/ui/components/base/button"
-import { PATHS } from "@/ui/lib/constants"
 import type { Route } from "./+types/settings"
 import { chooseBackDestination } from "./settings-back-destination"
 
@@ -17,14 +15,12 @@ import { chooseBackDestination } from "./settings-back-destination"
  * `/settings` is about the account rather than a Project and so has no
  * `owner`/`name` to resolve one from (ADR-0010). That also puts it outside
  * every `require*` wrapper in `project-context.server.ts`, each of which
- * demands those params, so the session is checked here the way the other
- * Project-less routes check it — `routes/index.tsx` and `routes/setup.tsx` do
- * the same.
+ * demands those params, so the session is checked here with `requireUser`,
+ * as the other Project-less routes — `routes/index.tsx` and `routes/setup.tsx` —
+ * check it.
  */
 export async function loader({ context, request, url }: Route.LoaderArgs) {
-	const auth = getAuth(context.get(envContext))
-	const session = await auth.api.getSession({ headers: request.headers })
-	if (!session?.user) throw redirect(PATHS.LOGIN)
+	const session = await requireUser({ context, request })
 
 	// Most recently updated first, the same ordering `routes/setup.tsx` calls
 	// its recent Projects. `updatedAt` is bumped by any write to the row - a
