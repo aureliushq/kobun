@@ -1,8 +1,8 @@
+import { Autosend } from "autosendjs"
 import { type BetterAuthOptions, betterAuth } from "better-auth"
 import { drizzleAdapter } from "better-auth/adapters/drizzle"
 import { drizzle } from "drizzle-orm/d1"
 import * as schema from "../db/schema"
-import { getAutosend } from "../marketing/autosend.server"
 
 /**
  * The app's Better Auth options, on any Drizzle database. Exported so an
@@ -45,7 +45,7 @@ export function authOptions(
 						if (!env.AUTOSEND_API_KEY) return
 						try {
 							const [firstName, ...rest] = (user.name ?? "").trim().split(/\s+/)
-							await getAutosend(env).contacts.upsert({
+							await new Autosend(env.AUTOSEND_API_KEY).contacts.upsert({
 								email: user.email,
 								userId: user.id,
 								firstName: firstName || undefined,

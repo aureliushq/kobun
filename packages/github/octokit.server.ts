@@ -137,31 +137,17 @@ export async function getGithubInstallation(
 }
 
 /**
- * List all repositories accessible to an installation.
- * Handles pagination automatically (100 per page).
+ * List all repositories accessible to an installation, every page of them.
  */
-export async function listGithubInstallationRepositories(
+export function listGithubInstallationRepositories(
 	env: Env,
 	installationId: InstallationID,
 ) {
 	const octokit = getGithubInstallationOctokit(env, installationId)
-	const repositories = []
-	let page = 1
-
-	while (true) {
-		const { data } = await octokit.request("GET /installation/repositories", {
-			per_page: 100,
-			page,
-			headers: GITHUB_HEADERS,
-		})
-
-		repositories.push(...data.repositories)
-
-		if (data.repositories.length < 100) break
-		page += 1
-	}
-
-	return repositories
+	return octokit.paginate(octokit.rest.apps.listReposAccessibleToInstallation, {
+		per_page: 100,
+		headers: GITHUB_HEADERS,
+	})
 }
 
 /**
@@ -180,25 +166,26 @@ export async function listGithubDirectoryFiles(
 	owner: string,
 	repo: string,
 	path: string,
-	{ folderItems = false, ref = "HEAD" } = {},
+	{ folderItems = false } = {},
 ) {
 	const octokit = getGithubInstallationOctokit(env, installationId)
 
-	const expression = `${ref}:${path}`
+	const expression = `HEAD:${path}`
 
+	type Blob = {
+		__typename: "Blob"
+		byteSize: number
+		isBinary: boolean | null
+		isTruncated: boolean
+		text: string | null
+	}
 	type Entry = {
 		name: string
 		path: string
 		oid: string
 		type: string
 		object:
-			| {
-					__typename: "Blob"
-					byteSize: number
-					isBinary: boolean | null
-					isTruncated: boolean
-					text: string | null
-			  }
+			| Blob
 			| { __typename: "Tree"; entries: Entry[] }
 			| { __typename: string }
 			| null
@@ -259,21 +246,10 @@ export async function listGithubDirectoryFiles(
 
 	return entries
 		.filter(
-			(
-				e,
-			): e is typeof e & {
-				object: {
-					__typename: "Blob"
-					byteSize: number
-					isBinary: boolean | null
-					isTruncated: boolean
-					text: string | null
-				}
-			} =>
+			(e): e is typeof e & { object: Blob } =>
 				e.type === "blob" &&
-				!!e.object &&
-				e.object.__typename === "Blob" &&
-				!(e.object as { isBinary: boolean | null }).isBinary,
+				e.object?.__typename === "Blob" &&
+				!(e.object as Blob).isBinary,
 		)
 		.map((e) => {
 			if (e.object.isTruncated || e.object.text === null) {
@@ -358,7 +334,6 @@ export async function getGithubFileSha(
 	owner: string,
 	repo: string,
 	path: string,
-	ref = "HEAD",
 ): Promise<string | null> {
 	const octokit = getGithubInstallationOctokit(env, installationId)
 
@@ -373,7 +348,7 @@ export async function getGithubFileSha(
 				}
 			}
 		}`,
-		{ owner, repo, expression: `${ref}:${path}` },
+		{ owner, repo, expression: `HEAD:${path}` },
 	)
 
 	const object = data.repository?.object
