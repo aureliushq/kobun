@@ -218,6 +218,20 @@ describe("deleting an account", () => {
 		expect(confirm).toBeEnabled()
 	})
 
+	it("forgets what was typed when the dialog closes", async () => {
+		page()
+		await userEvent.type(await openDialog(), "ada@example.com")
+		await userEvent.click(screen.getByRole("button", { name: "Cancel" }))
+		await waitFor(() =>
+			expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument(),
+		)
+
+		expect(await openDialog()).toHaveValue("")
+		expect(
+			screen.getAllByRole("button", { name: "Delete my account" }).at(-1),
+		).toBeDisabled()
+	})
+
 	it("sends the typed confirmation for the server to check again", async () => {
 		const { action } = page()
 		const confirmation = await openDialog()
