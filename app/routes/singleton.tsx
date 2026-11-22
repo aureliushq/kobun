@@ -174,7 +174,7 @@ export default function Singleton({ loaderData }: Route.ComponentProps) {
 		)
 	}
 
-	const blocks = buildFieldBlocks(ordered)
+	const blocks = buildFieldBlocks(ordered, ([, field]) => field)
 
 	const hasDocumentField = ordered.some(([, f]) => f.type === "document")
 	const showFallbackBody =
@@ -204,15 +204,16 @@ export default function Singleton({ loaderData }: Route.ComponentProps) {
 
 			{blocks.map((block) => {
 				if (block.kind === "array") {
+					const [key, field] = block.entry
 					// Anything that is not rows is no rows, not a missing value: the
 					// section still has to offer its "Add" link.
-					const rows = data[block.key]
+					const rows = data[key]
 					return (
-						<Fragment key={`array:${block.key}`}>
-							{renderFieldValue(block.field, Array.isArray(rows) ? rows : [], {
+						<Fragment key={`array:${key}`}>
+							{renderFieldValue(field, Array.isArray(rows) ? rows : [], {
 								...rootCtx,
 								editorPath,
-								fieldKey: block.key,
+								fieldKey: key,
 								// These rows are the Source's, but a row's editor opens the
 								// Draft's row at that position, and a Dirty Draft may have
 								// moved them (#161).
