@@ -39,7 +39,6 @@ function createTestEditor(initialMarkdown = "") {
 				return true
 			},
 		},
-		getHTML: () => `<p>${markdown}</p>`,
 		getMarkdown: () => markdown,
 		on: (_event: string, handler: UpdateHandler) => {
 			updateHandlers.add(handler)
@@ -125,7 +124,7 @@ describe("RichTextEditor autosave", () => {
 		await act(async () => ref.current?.commit())
 		await act(async () => vi.advanceTimersByTimeAsync(1000))
 
-		expect(ref.current?.getMarkdown()).toBe("![A cat](media/cat.png)")
+		expect(testEditor.editor.getMarkdown()).toBe("![A cat](media/cat.png)")
 		expect(ref.current?.hasUnsavedChanges()).toBe(false)
 		expect(onAutoSave).not.toHaveBeenCalled()
 	})

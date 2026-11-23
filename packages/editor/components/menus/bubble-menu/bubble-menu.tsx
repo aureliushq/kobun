@@ -163,11 +163,7 @@ export function EditorBubbleMenu({ editor }: EditorBubbleMenuProps) {
 					</Tooltip>
 
 					{showLinkSelector && (
-						<LinkSelector
-							editor={editor}
-							onSetLink={handleSetLink}
-							onClose={() => setShowLinkSelector(false)}
-						/>
+						<LinkSelector editor={editor} onSetLink={handleSetLink} />
 					)}
 				</div>
 			</TooltipProvider>

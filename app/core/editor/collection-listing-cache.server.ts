@@ -1,4 +1,7 @@
+import { createHash } from "node:crypto"
 import { and, eq } from "drizzle-orm"
+import invariant from "tiny-invariant"
+import z from "zod"
 import { parseDocument } from "@/core/content/document.server"
 import type { RepositoryAddress } from "@/core/project-context"
 import { collectionListing } from "@/db/schema/app-schema"
@@ -44,20 +47,14 @@ interface Cached {
 	row: ListingRow
 }
 
-/**
- * The repository answered "unchanged" to a question this module did not ask.
- * Unreachable by construction — an ETag is only ever sent alongside a listing
- * to fall back on — and a throw rather than an empty listing because the reader
- * being told their Collection is empty is the one wrong answer here.
- */
-class UnvalidatedListingError extends Error {
-	constructor(directoryPath: string) {
-		super(
-			`${directoryPath} was reported unchanged with nothing cached to serve`,
-		)
-		this.name = "UnvalidatedListingError"
-	}
-}
+const storedListingSchema = z.array(
+	z.object({
+		data: z.record(z.string(), z.unknown()),
+		name: z.string(),
+		path: z.string(),
+		sha: z.string(),
+	}),
+)
 
 /**
  * The stored listing, if the row actually holds one.
@@ -68,25 +65,11 @@ class UnvalidatedListingError extends Error {
  * reads as nothing: unservable, and so never trusted as a validator either.
  */
 function storedListing(items: string): CollectionItem[] | null {
-	let parsed: unknown
 	try {
-		parsed = JSON.parse(items)
+		return storedListingSchema.parse(JSON.parse(items))
 	} catch {
 		return null
 	}
-
-	if (!Array.isArray(parsed)) return null
-	const ok = parsed.every(
-		(item) =>
-			typeof item === "object" &&
-			item !== null &&
-			typeof item.name === "string" &&
-			typeof item.path === "string" &&
-			typeof item.sha === "string" &&
-			typeof item.data === "object" &&
-			item.data !== null,
-	)
-	return ok ? (parsed as CollectionItem[]) : null
 }
 
 /**
@@ -100,18 +83,12 @@ function storedListing(items: string): CollectionItem[] | null {
  * job `project.config_sha` does in ADR-0003, for the same reason: it is what
  * makes a rotated validator cost nothing.
  */
-async function fingerprint(entries: CollectionListingEntry[]): Promise<string> {
+function fingerprint(entries: CollectionListingEntry[]): string {
 	const canonical = entries
 		.map(({ name, sha }) => `${name}:${sha}`)
 		.sort()
 		.join("\n")
-	const digest = await crypto.subtle.digest(
-		"SHA-256",
-		new TextEncoder().encode(canonical),
-	)
-	return [...new Uint8Array(digest)]
-		.map((byte) => byte.toString(16).padStart(2, "0"))
-		.join("")
+	return createHash("sha256").update(canonical).digest("hex")
 }
 
 /**
@@ -307,7 +284,12 @@ export function createCollectionListingCache(deps: {
 		if (read.value.kind === "not-modified") {
 			// Nothing changed, so nothing is rewritten — but the window reopens, or
 			// an unchanged directory would be revalidated on every hover.
-			if (!cached) throw new UnvalidatedListingError(directoryPath)
+			// Unreachable by construction: an ETag is only sent with a listing to
+			// fall back on. A throw, because an empty listing is the one wrong answer.
+			invariant(
+				cached,
+				`${directoryPath} was reported unchanged with nothing cached to serve`,
+			)
 			await recordCheck(cached.row, now)
 			return cached.items
 		}
@@ -319,7 +301,7 @@ export function createCollectionListingCache(deps: {
 		if (read.value.kind === "not-found") return []
 
 		const { entries, etag } = read.value
-		const hash = layoutTag(folderItems) + (await fingerprint(entries))
+		const hash = layoutTag(folderItems) + fingerprint(entries)
 		// A rotated validator over a directory that never changed. Shas are
 		// content addressed, so there is nothing to re-read and nothing to
 		// re-parse — only the ETag worth sending next time.

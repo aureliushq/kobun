@@ -2,6 +2,7 @@ import { render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { createRoutesStub } from "react-router"
 import { describe, expect, it, vi } from "vitest"
+import { PreferencesContext } from "@/core/preferences/context"
 import type { SettingsSession } from "@/core/settings/sessions"
 import { DEFAULT_USER_PREFERENCES } from "@/db/types"
 import Settings from "./settings"
@@ -60,7 +61,8 @@ function page({
 		{
 			action,
 			Component: Settings,
-			loader: () => ({ preferences, sessions, user: USER }),
+			// Preferences arrive the way they do in the app: from root's context.
+			loader: () => ({ sessions, user: USER }),
 			path: "/settings",
 		},
 		{ action: preferenceAction, path: "/api/set-preference" },
@@ -69,7 +71,11 @@ function page({
 	return {
 		action,
 		preferenceAction,
-		...render(<Stub initialEntries={["/settings"]} />),
+		...render(
+			<PreferencesContext.Provider value={preferences}>
+				<Stub initialEntries={["/settings"]} />
+			</PreferencesContext.Provider>,
+		),
 	}
 }
 
@@ -216,6 +222,20 @@ describe("deleting an account", () => {
 
 		await userEvent.type(confirmation, "m")
 		expect(confirm).toBeEnabled()
+	})
+
+	it("forgets what was typed when the dialog closes", async () => {
+		page()
+		await userEvent.type(await openDialog(), "ada@example.com")
+		await userEvent.click(screen.getByRole("button", { name: "Cancel" }))
+		await waitFor(() =>
+			expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument(),
+		)
+
+		expect(await openDialog()).toHaveValue("")
+		expect(
+			screen.getAllByRole("button", { name: "Delete my account" }).at(-1),
+		).toBeDisabled()
 	})
 
 	it("sends the typed confirmation for the server to check again", async () => {

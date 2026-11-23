@@ -16,37 +16,31 @@ The application stylesheet already imports `packages/editor/styles/editor.css`. 
 
 ```tsx
 import { useRef } from "react"
-import {
-  type EditorRefApi,
-  type PersistenceAdapter,
-  RichTextEditor,
-} from "@/editor"
+import { type EditorRefApi, RichTextEditor } from "@/editor"
 
 export function DocumentEditor({ markdown }: { markdown: string }) {
   const editorRef = useRef<EditorRefApi>(null)
-
-  const persistence: PersistenceAdapter = {
-    onAutoSave: async (nextMarkdown) => {
-      await fetch("/api/drafts", {
-        method: "PUT",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ markdown: nextMarkdown }),
-      })
-    },
-    onPublish: async (nextMarkdown) => {
-      await fetch("/api/documents/publish", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ markdown: nextMarkdown }),
-      })
-    },
-  }
 
   return (
     <RichTextEditor
       ref={editorRef}
       initialContent={markdown}
-      persistence={persistence}
+      persistence={{
+        onAutoSave: async (nextMarkdown) => {
+          await fetch("/api/drafts", {
+            method: "PUT",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ markdown: nextMarkdown }),
+          })
+        },
+        onPublish: async (nextMarkdown) => {
+          await fetch("/api/documents/publish", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ markdown: nextMarkdown }),
+          })
+        },
+      }}
     />
   )
 }
@@ -125,8 +119,6 @@ editorRef.current?.focus("end")
 
 | Method | Result | Description |
 | --- | --- | --- |
-| `getMarkdown()` | `string` | Returns canonical Markdown. |
-| `getHTML()` | `string` | Returns rendered HTML. |
 | `focus(position?)` | `void` | Focuses `"start"`, `"end"`, `"all"`, or the current selection. |
 | `hasUnsavedChanges()` | `boolean` | Reports whether content differs from the saved baseline. |
 | `save()` | `Promise<void>` | Immediately invokes `onAutoSave` and marks that snapshot saved. |

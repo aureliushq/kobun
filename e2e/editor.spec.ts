@@ -29,6 +29,9 @@ test("runs a filtered slash command", async ({ page }) => {
 	const editor = page.locator(".ProseMirror")
 	await editor.pressSequentially("/head")
 	await page.getByText("Heading 1", { exact: true }).click()
+	// The click takes focus off the editor; Tiptap's `focus()` returns it, with
+	// the caret in the new heading, a frame later. Typing sooner lands at the end.
+	await expect(editor).toBeFocused()
 	await editor.pressSequentially("Section")
 
 	await expect(editor.locator("h1")).toHaveText("Section")

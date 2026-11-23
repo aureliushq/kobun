@@ -86,12 +86,7 @@ export async function loader({
 	const currentVersion = KOBUN_VERSION
 	const appUrl = import.meta.env.VITE_KOBUN_APP_URL
 	// Unset or malformed at build time - treat as self-hosted rather than 500ing
-	let isHosted = false
-	try {
-		isHosted = !!appUrl && url.hostname === new URL(appUrl).hostname
-	} catch {
-		isHosted = false
-	}
+	const isHosted = !!appUrl && url.hostname === URL.parse(appUrl)?.hostname
 
 	return {
 		activeProject: projectRow,

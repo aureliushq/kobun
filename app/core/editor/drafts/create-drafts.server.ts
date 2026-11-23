@@ -3,20 +3,17 @@ import type { SQLiteColumn } from "drizzle-orm/sqlite-core"
 import invariant from "tiny-invariant"
 import type { Singleton } from "@/config/types"
 import { canonicalMetadata } from "@/core/content"
-import {
-	isDataOnly,
-	parseDocument,
-	serializeDocument,
-} from "@/core/content/document.server"
+import { isDataOnly, serializeDocument } from "@/core/content/document.server"
 import {
 	findCollectionItemBySlug,
-	getEffectiveSlug,
 	hasFolderItems,
 	isMarkdownCollectionFile,
+	toResolvedSource,
 } from "@/core/editor/collection-items.server"
 import {
 	applyMetadataDefaults,
 	type FieldRecord,
+	getEffectiveSlug,
 	getSlugField,
 	validateMetadata,
 	validateSlug,
@@ -416,8 +413,12 @@ function createDraftLifecycle<ItemSlug extends string | null>(context: {
 			)
 	}
 
-	/** Drop a Draft at the Revision we believe it is at, and say whether it went. */
-	async function deleteDraft(draft: DraftRow) {
+	/**
+	 * Drop a Draft at the Revision we believe it is at, and say whether it went.
+	 * With `synced`, only once the Source has caught up with that Revision, so
+	 * the Source alone remains.
+	 */
+	async function deleteDraft(draft: DraftRow, { synced = false } = {}) {
 		const [deleted] = await db
 			.delete(editorDraft)
 			.where(
@@ -425,22 +426,9 @@ function createDraftLifecycle<ItemSlug extends string | null>(context: {
 					eq(editorDraft.id, draft.id),
 					eq(editorDraft.projectId, project.id),
 					eq(editorDraft.revision, draft.revision),
-				),
-			)
-			.returning({ id: editorDraft.id })
-		return deleted !== undefined
-	}
-
-	/** Drop a Draft the Source has caught up with; the Source alone remains. */
-	async function deleteSyncedDraft(draft: DraftRow) {
-		const [deleted] = await db
-			.delete(editorDraft)
-			.where(
-				and(
-					eq(editorDraft.id, draft.id),
-					eq(editorDraft.projectId, project.id),
-					eq(editorDraft.revision, draft.revision),
-					eq(editorDraft.committedRevision, draft.revision),
+					synced
+						? eq(editorDraft.committedRevision, draft.revision)
+						: undefined,
 				),
 			)
 			.returning({ id: editorDraft.id })
@@ -514,8 +502,8 @@ function createDraftLifecycle<ItemSlug extends string | null>(context: {
 			path,
 			sha: committed.contentSha,
 		}
-		const synced = await syncDraft(draft, committedSource)
-		if (!synced) {
+		const syncedDraft = await syncDraft(draft, committedSource)
+		if (!syncedDraft) {
 			await repointDraft(draft, source?.sha ?? null, committedSource)
 			return {
 				commitSha: committed.commitSha,
@@ -527,7 +515,7 @@ function createDraftLifecycle<ItemSlug extends string | null>(context: {
 				outcome: "committed-unsynced",
 			}
 		}
-		const draftDeleted = await deleteSyncedDraft(synced)
+		const draftDeleted = await deleteDraft(syncedDraft, { synced: true })
 		return {
 			commitSha: committed.commitSha,
 			draftDeleted,
@@ -800,7 +788,7 @@ function createDraftLifecycle<ItemSlug extends string | null>(context: {
 
 	return {
 		commitResolved,
-		deleteSyncedDraft,
+		deleteDraft,
 		findDraftBySourcePath,
 		findNewItemDraft,
 		openBlank,
@@ -863,7 +851,7 @@ function collectionEntity({
 		return items.some(
 			(item) =>
 				item.path !== source?.path &&
-				getEffectiveSlug(collection, item, item.data) === slug,
+				getEffectiveSlug(collection.schema, item) === slug,
 		)
 	}
 
@@ -937,18 +925,18 @@ export function createDrafts(context: DraftsContext) {
 		// The path check keeps a Slug carrying `/` or `..` from reading a file
 		// outside the directory: GitHub answers with the path it normalised.
 		if (named?.path === namedPath && isMarkdownCollectionFile(named)) {
-			const found = findCollectionItemBySlug(collection, [named], slug)
+			const found = findCollectionItemBySlug(collection, named, slug)
 			if (found) return found
 		}
 
 		const matches = (await listItems()).filter(
-			(item) => getEffectiveSlug(collection, item, item.data) === slug,
+			(item) => getEffectiveSlug(collection.schema, item) === slug,
 		)
 		if (matches.length > 1) {
 			throw new Error(`Multiple collection items use slug "${slug}"`)
 		}
 		const listed = matches[0] ? await sourceStore.read(matches[0].path) : null
-		return listed ? findCollectionItemBySlug(collection, [listed], slug) : null
+		return listed ? findCollectionItemBySlug(collection, listed, slug) : null
 	}
 
 	async function openNewItem(draftId: string | null): Promise<OpenResult> {
@@ -1087,16 +1075,7 @@ export function createSingletonDrafts(context: SingletonDraftsContext) {
 	/** The Singleton's Source, or null while nobody has created it. */
 	async function resolveSource(): Promise<ResolvedSource | null> {
 		const file = await sourceStore.read(filePath)
-		if (!file) return null
-		const document = parseDocument(file.content, singleton.format)
-		return {
-			body: document.body ?? "",
-			frontmatter: document.data,
-			itemSlug: null,
-			path: file.path,
-			raw: file.content,
-			sha: file.sha,
-		}
+		return file ? toResolvedSource(file, singleton.format) : null
 	}
 
 	/**
@@ -1113,7 +1092,7 @@ export function createSingletonDrafts(context: SingletonDraftsContext) {
 		// writer typed and has nothing left to be Clean against. Left in place, it
 		// would turn their next save into a Revision Conflict with a Draft they
 		// were never shown.
-		if (draft) await lifecycle.deleteSyncedDraft(draft)
+		if (draft) await lifecycle.deleteDraft(draft, { synced: true })
 		return lifecycle.openBlank()
 	}
 

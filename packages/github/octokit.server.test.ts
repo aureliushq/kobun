@@ -7,6 +7,7 @@ import {
 	getGithubInstallationOctokit,
 	hasStatus,
 	listGithubDirectoryFiles,
+	listGithubInstallationRepositories,
 } from "./octokit.server"
 
 const env = {
@@ -352,4 +353,33 @@ test("reads each folder's index file as one item", async () => {
 		},
 	])
 	expect(graphql.mock.calls[0]?.[0]).toContain("... on Tree { entries")
+})
+
+test("lists every repository of an installation past the first 100", async () => {
+	const repo = (id: number) => ({ id, name: `repo-${id}` })
+	const request = vi
+		.spyOn(client().rest.apps, "listReposAccessibleToInstallation")
+		.mockResolvedValueOnce({
+			data: {
+				repositories: Array.from({ length: 100 }, (_, i) => repo(i)),
+				total_count: 101,
+			},
+			headers: {
+				link: '<https://api.github.com/installation/repositories?per_page=100&page=2>; rel="next"',
+			},
+			status: 200,
+			url: "https://api.github.com/installation/repositories?per_page=100",
+		} as never)
+		.mockResolvedValueOnce({
+			data: { repositories: [repo(100)], total_count: 101 },
+			headers: {},
+			status: 200,
+			url: "https://api.github.com/installation/repositories?per_page=100&page=2",
+		} as never)
+
+	const repositories = await listGithubInstallationRepositories(env, 7)
+
+	expect(repositories).toHaveLength(101)
+	expect(repositories.at(-1)).toEqual(repo(100))
+	expect(request).toHaveBeenCalledTimes(2)
 })

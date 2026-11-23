@@ -1,10 +1,11 @@
-import type { RouterContextProvider } from "react-router"
+import { type RouterContextProvider, redirect } from "react-router"
 import { getAuth } from "@/auth/auth.server"
 import { envContext } from "@/core/context"
 import { dbContext } from "@/db/context"
 import type { Database, Project } from "@/db/types"
 import { getGithubFileContent, hasStatus } from "@/github/octokit.server"
 import type { InstallationID } from "@/types/github"
+import { PATHS } from "@/ui/lib/constants"
 import { toApiContext } from "./api-context"
 import { createConfigCache } from "./config-cache"
 import type {
@@ -106,6 +107,19 @@ function readSession(env: Env, request: Request) {
  * a loader that also wants a display name has it without asking twice.
  */
 type AuthSession = NonNullable<Awaited<ReturnType<typeof readSession>>>
+
+/**
+ * The signed-in writer, or the redirect to sign in. For the routes with no
+ * Project in their URL, which none of the wrappers below can serve (ADR-0010).
+ */
+export async function requireUser({
+	context,
+	request,
+}: Pick<ProjectContextArgs, "context" | "request">): Promise<AuthSession> {
+	const session = await readSession(context.get(envContext), request)
+	if (!session?.user) throw redirect(PATHS.LOGIN)
+	return session
+}
 
 /**
  * The module, wired to a request: the database off the router context, the

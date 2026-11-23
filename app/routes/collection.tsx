@@ -53,6 +53,16 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
 export default function Collection({ loaderData }: Route.ComponentProps) {
 	const { collection, collectionSlug, drafts, items, project } = loaderData
 
+	const table = (listing: CollectionItem[] | "pending" | "unavailable") => (
+		<CollectionTable
+			collection={collection}
+			collectionSlug={collectionSlug}
+			drafts={drafts}
+			project={project}
+			listing={listing}
+		/>
+	)
+
 	return (
 		// Keyed by the slug, and on the `Suspense` rather than the `Await`.
 		// Navigating between two Collections suspends inside a transition over a
@@ -60,39 +70,9 @@ export default function Collection({ loaderData }: Route.ComponentProps) {
 		// delaying the whole commit — heading, controls and rows all stay on the
 		// Collection the writer just left. A new key at the boundary's position
 		// mounts a boundary with nothing revealed, which falls back at once.
-		<Suspense
-			key={collectionSlug}
-			fallback={
-				<CollectionTable
-					collection={collection}
-					collectionSlug={collectionSlug}
-					drafts={drafts}
-					project={project}
-					listing="pending"
-				/>
-			}
-		>
-			<Await
-				errorElement={
-					<CollectionTable
-						collection={collection}
-						collectionSlug={collectionSlug}
-						drafts={drafts}
-						project={project}
-						listing="unavailable"
-					/>
-				}
-				resolve={items}
-			>
-				{(resolved: CollectionItem[]) => (
-					<CollectionTable
-						collection={collection}
-						collectionSlug={collectionSlug}
-						drafts={drafts}
-						project={project}
-						listing={resolved}
-					/>
-				)}
+		<Suspense key={collectionSlug} fallback={table("pending")}>
+			<Await errorElement={table("unavailable")} resolve={items}>
+				{(resolved: CollectionItem[]) => table(resolved)}
 			</Await>
 		</Suspense>
 	)

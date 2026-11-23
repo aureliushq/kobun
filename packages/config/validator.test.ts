@@ -323,6 +323,24 @@ it("ignores a managed marker a Config writes itself", () => {
 	expect(config?.collections.posts.schema.title).not.toHaveProperty("managed")
 })
 
+it("keeps a slug's placeholder", () => {
+	const { config } = parse({
+		collections: {
+			posts: {
+				...POSTS,
+				schema: {
+					...POSTS.schema,
+					slug: { ...POSTS.schema.slug, placeholder: "my-post" },
+				},
+			},
+		},
+	})
+
+	expect(config?.collections.posts.schema.slug).toMatchObject({
+		placeholder: "my-post",
+	})
+})
+
 // A Config that declares nothing parses to `null`, and `null` is all the caller
 // gets — so every way of reaching it has to leave a reason behind, or the
 // dashboard is left inventing one (ADR-0003 amendment).

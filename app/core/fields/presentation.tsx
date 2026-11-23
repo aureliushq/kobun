@@ -131,20 +131,22 @@ export function InlineText({
 	)
 }
 
-export type FieldBlock =
-	| { kind: "fields"; entries: [string, Field][] }
-	| { kind: "array"; key: string; field: Field }
+export type FieldBlock<E> =
+	| { kind: "fields"; entries: E[] }
+	| { kind: "array"; entry: E }
 
 /**
  * Consecutive Fields share one bordered list; an array breaks the run, because
  * an array brings a card or a section of its own and cannot sit in a row.
  */
-export function buildFieldBlocks(entries: [string, Field][]): FieldBlock[] {
-	const blocks: FieldBlock[] = []
+export function buildFieldBlocks<E>(
+	entries: E[],
+	fieldOf: (entry: E) => Field,
+): FieldBlock<E>[] {
+	const blocks: FieldBlock<E>[] = []
 	for (const entry of entries) {
-		const [key, field] = entry
-		if (field.type === "array") {
-			blocks.push({ kind: "array", key, field })
+		if (fieldOf(entry).type === "array") {
+			blocks.push({ kind: "array", entry })
 		} else {
 			const last = blocks[blocks.length - 1]
 			if (last && last.kind === "fields") {
@@ -181,11 +183,12 @@ export function FieldsPanel({
 
 	return (
 		<div className="flex flex-col gap-4">
-			{buildFieldBlocks(entries).map((block) => {
+			{buildFieldBlocks(entries, ([, field]) => field).map((block) => {
 				if (block.kind === "array") {
+					const [key, field] = block.entry
 					return (
-						<Fragment key={`array:${block.key}`}>
-							{renderChild(block.field, record[block.key])}
+						<Fragment key={`array:${key}`}>
+							{renderChild(field, record[key])}
 						</Fragment>
 					)
 				}

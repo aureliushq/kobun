@@ -17,10 +17,6 @@ export const SetupActionErrorMessages: Record<SetupActionErrors, string> = {
 	[SetupActionErrors.REPO_NOT_FOUND]: "Could not find the selected repository.",
 }
 
-export enum DashboardActionIntents {
-	LOGOUT = "logout",
-}
-
 export enum SettingsActionIntents {
 	DELETE_ACCOUNT = "delete-account",
 	DISCONNECT_PROJECT = "disconnect-project",

@@ -2,6 +2,8 @@ import { AlertCircleIcon } from "lucide-react"
 import { data, redirect } from "react-router"
 import { getAuth } from "@/auth/auth.server"
 import { envContext } from "@/core/context"
+import { usePreferences } from "@/core/preferences/context"
+import { requireUser } from "@/core/project-context/project-context.server"
 import { deleteAccount } from "@/core/settings/delete-account.server"
 import { DeleteAccountSection } from "@/core/settings/delete-account-section"
 import { PreferencesSection } from "@/core/settings/preferences-section"
@@ -10,7 +12,6 @@ import { describeSessions } from "@/core/settings/sessions"
 import { SessionsSection } from "@/core/settings/sessions-section"
 import { dbContext } from "@/db/context"
 import { listActiveSessions } from "@/db/session"
-import { readUserPreferences } from "@/db/user-preference"
 import { posthogContext } from "@/lib/posthog-middleware"
 import { Alert, AlertDescription } from "@/ui/components/base/alert"
 import { PATHS } from "@/ui/lib/constants"
@@ -21,32 +22,25 @@ import type { Route } from "./+types/settings"
  * The account settings page: profile, Preferences, sessions and deletion.
  *
  * The session is read here rather than taken from the layout, which publishes
- * only its back link — the same three lines `routes/index.tsx` and
- * `routes/setup.tsx` use, and for the same reason: `/settings` has no Project in
- * its URL, so none of `project-context.server.ts`'s wrappers can resolve one
+ * only its back link — through `requireUser`, as `routes/index.tsx` and
+ * `routes/setup.tsx` do, because `/settings` has no Project in its URL
  * (ADR-0010).
  *
  * Everything is awaited. `listActiveSessions` is a read of the writer's own
  * rows, about the weight of the Projects query the layout already waits for, so
  * ADR-0006's case for streaming does not apply.
  *
- * Every Preference stored here is read back where it applies — the sidebar, the
- * editor, the Collection list and every date Field — from the single read in
- * `app/root.tsx`, so a change lands on the next page load rather than here.
+ * Preferences come from the single read in `app/root.tsx`, through context,
+ * as everywhere else they apply.
  */
 export async function loader({ context, request }: Route.LoaderArgs) {
-	const db = context.get(dbContext)
-	const auth = getAuth(context.get(envContext))
-	const session = await auth.api.getSession({ headers: request.headers })
-	if (!session?.user) throw redirect(PATHS.LOGIN)
-
-	const [preferences, sessions] = await Promise.all([
-		readUserPreferences(db, session.user.id),
-		listActiveSessions(db, session.user.id),
-	])
+	const session = await requireUser({ context, request })
+	const sessions = await listActiveSessions(
+		context.get(dbContext),
+		session.user.id,
+	)
 
 	return {
-		preferences,
 		sessions: describeSessions(sessions, session.session.id),
 		user: {
 			email: session.user.email,
@@ -57,10 +51,9 @@ export async function loader({ context, request }: Route.LoaderArgs) {
 }
 
 export async function action({ context, request }: Route.ActionArgs) {
+	const session = await requireUser({ context, request })
 	const db = context.get(dbContext)
 	const auth = getAuth(context.get(envContext))
-	const session = await auth.api.getSession({ headers: request.headers })
-	if (!session?.user) throw redirect(PATHS.LOGIN)
 
 	const formData = await request.formData()
 	const intent = formData.get("intent")
@@ -125,7 +118,8 @@ export async function action({ context, request }: Route.ActionArgs) {
 }
 
 const Settings = ({ actionData, loaderData }: Route.ComponentProps) => {
-	const { preferences, sessions, user } = loaderData
+	const { sessions, user } = loaderData
+	const preferences = usePreferences()
 
 	return (
 		<>

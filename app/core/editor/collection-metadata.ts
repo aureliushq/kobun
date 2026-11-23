@@ -6,6 +6,7 @@ import {
 	resolveTitleKey,
 	validateField,
 } from "@/core/fields"
+import { parentItemStem } from "@/core/project-context"
 
 export type FieldRecord = Record<string, unknown>
 
@@ -162,6 +163,22 @@ export function validateMetadata(
 
 export function getSlugField(schema: Record<string, Field>) {
 	return findSlugField(schema)?.key ?? null
+}
+
+/**
+ * The Slug a listed item answers to: its slug Field, or its name's stem when
+ * that is empty. The Collection table links by it and the server looks items up
+ * by it, so the two cannot disagree about where an item is edited.
+ */
+export function getEffectiveSlug(
+	schema: Record<string, Field>,
+	item: { data: FieldRecord; name: string },
+) {
+	const slugField = getSlugField(schema)
+	const value = slugField ? item.data[slugField] : undefined
+	return value == null || value === ""
+		? parentItemStem(item.name)
+		: String(value)
 }
 
 /**

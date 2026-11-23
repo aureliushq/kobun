@@ -19,7 +19,7 @@ import {
 	ChevronsRight,
 	ChevronsUpDown,
 } from "lucide-react"
-import { type ReactNode, useMemo, useState } from "react"
+import { useMemo, useState } from "react"
 import { Link } from "react-router"
 import type { Collection } from "@/config/types"
 import {
@@ -28,7 +28,7 @@ import {
 	type Status,
 	statusOptions,
 } from "@/core/editor/collection-list"
-import { getSlugField } from "@/core/editor/collection-metadata"
+import { getEffectiveSlug } from "@/core/editor/collection-metadata"
 import {
 	type CollectionDraft,
 	DRAFT_MARKER_LABELS,
@@ -40,6 +40,7 @@ import {
 } from "@/core/editor/drafts"
 import { resolveTitleKey } from "@/core/fields"
 import { Timestamp } from "@/core/preferences/timestamp"
+import { parentItemStem } from "@/core/project-context"
 import { Badge } from "@/ui/components/base/badge"
 import { Button } from "@/ui/components/base/button"
 import { Input } from "@/ui/components/base/input"
@@ -131,57 +132,6 @@ const SORT_LABELS: Record<string, string> = {
 	"title:desc": "Sort by: Title (Z→A)",
 }
 
-function singularize(s: string): string {
-	return s.endsWith("s") ? s.slice(0, -1) : s
-}
-
-/**
- * The one control on this page that needs nothing from the listing, so the one
- * that is never disabled and never absent — not while the rows stream in, and
- * not when they fail to.
- */
-function NewItemButton({
-	collection,
-	collectionSlug,
-	project,
-}: {
-	collection: Collection
-	collectionSlug: string
-	project: ProjectLocation
-}) {
-	return (
-		<Link to={getNewItemEditorPath(project, collectionSlug)}>
-			<Button>New {singularize(collection.label)}</Button>
-		</Link>
-	)
-}
-
-/**
- * Everything on a Collection's page that comes from the Config: the label, and
- * whatever actions sit beside it. The route awaits all of it, so this is what
- * paints on the first navigation — and it is shared rather than copied so that
- * the frame a failed listing keeps is the same frame, not a lookalike.
- */
-function CollectionFrame({
-	actions,
-	children,
-	collection,
-}: {
-	actions: ReactNode
-	children: ReactNode
-	collection: Collection
-}) {
-	return (
-		<div className="flex flex-col gap-6">
-			<div className="flex items-center justify-between gap-4">
-				<H2>{collection.label}</H2>
-				{actions}
-			</div>
-			{children}
-		</div>
-	)
-}
-
 /**
  * A Collection's list: the Collection Items the repository holds, and the
  * Drafts the writer has not published to it yet.
@@ -215,7 +165,6 @@ export function CollectionTable({
 	const unavailable = listing === "unavailable"
 	const items = Array.isArray(listing) ? listing : null
 
-	const slugFieldKey = getSlugField(collection.schema)
 	const titleFieldKey = resolveTitleKey(collection.schema)
 
 	const rows = useMemo<Row[]>(() => {
@@ -231,13 +180,11 @@ export function CollectionTable({
 			),
 		)
 		const itemRows = (items ?? []).map((item) => {
-			const filenameSlug = item.name.replace(/\.mdx?$/, "")
+			const filenameSlug = parentItemStem(item.name)
 			const title = titleFieldKey
 				? String(item.data[titleFieldKey] ?? filenameSlug)
 				: filenameSlug
-			const slug = slugFieldKey
-				? String(item.data[slugFieldKey] ?? filenameSlug)
-				: filenameSlug
+			const slug = getEffectiveSlug(collection.schema, item)
 			const draft = bySourcePath.get(item.path)
 			return {
 				// The Draft's Data first, for the same reason its title wins: it is
@@ -296,7 +243,6 @@ export function CollectionTable({
 		pending,
 		project,
 		titleFieldKey,
-		slugFieldKey,
 	])
 
 	const publicationOptions = useMemo(
@@ -332,7 +278,6 @@ export function CollectionTable({
 		{ id: "createdAt", desc: true },
 	])
 	const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
-	const [search, setSearch] = useState("")
 	const [pagination, setPagination] = useState({
 		pageIndex: 0,
 		pageSize: 50,
@@ -366,11 +311,7 @@ export function CollectionTable({
 						)}
 					</div>
 				),
-				filterFn: (row, _columnId, filterValue) => {
-					const v = String(filterValue ?? "").toLowerCase()
-					if (!v) return true
-					return row.original.title.toLowerCase().includes(v)
-				},
+				filterFn: "includesString",
 			},
 			{
 				id: "status",
@@ -448,8 +389,9 @@ export function CollectionTable({
 	const pageEnd = Math.min((pageIndex + 1) * pageSize, totalRows)
 
 	return (
-		<CollectionFrame
-			actions={
+		<div className="flex flex-col gap-6">
+			<div className="flex items-center justify-between gap-4">
+				<H2>{collection.label}</H2>
 				<div className="flex items-center gap-2">
 					{/* Disabled rather than absent while the listing streams: a control
 					    that looks ready and answers to nothing is worse than one that
@@ -457,11 +399,14 @@ export function CollectionTable({
 					<Input
 						placeholder="Search by title…"
 						disabled={pending}
-						value={search}
-						onChange={(e) => {
-							setSearch(e.target.value)
+						value={
+							(table.getColumn("title")?.getFilterValue() as
+								| string
+								| undefined) ?? ""
+						}
+						onChange={(e) =>
 							table.getColumn("title")?.setFilterValue(e.target.value)
-						}}
+						}
 						className="max-w-xs"
 					/>
 					<Select
@@ -522,16 +467,14 @@ export function CollectionTable({
 							))}
 						</SelectContent>
 					</Select>
-					<NewItemButton
-						collection={collection}
-						collectionSlug={collectionSlug}
-						project={project}
-					/>
+					{/* Needs nothing from the listing, so never disabled and never
+					    absent — not while rows stream in, and not when they fail to. */}
+					<Link to={getNewItemEditorPath(project, collectionSlug)}>
+						<Button>New {collection.label.replace(/s$/, "")}</Button>
+					</Link>
 				</div>
-			}
-			collection={collection}
-		>
-			{/* Inside the frame rather than in place of it: a writer whose
+			</div>
+			{/* Below the header rather than in place of the page: a writer whose
 			    Collection kobun cannot read can still reach their Drafts and still
 			    start a new item. */}
 			{unavailable && <AsyncErrorAlert title="Couldn't load this collection" />}
@@ -647,7 +590,7 @@ export function CollectionTable({
 					</Button>
 				</div>
 			</div>
-		</CollectionFrame>
+		</div>
 	)
 }
 

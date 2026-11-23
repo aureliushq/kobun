@@ -74,14 +74,12 @@ export function useTheme() {
 		getServerPrefersDark,
 	)
 
-	const resolvedTheme: "light" | "dark" =
-		theme === "system" ? (prefersDark ? "dark" : "light") : theme
-
+	// `prefersDark` so "system" follows an OS switch live.
 	// `context.theme` too: when it revalidates, the root `<html>` re-renders its
 	// server class, which can drop `dark` while `theme` itself is unchanged.
 	useEffect(() => {
 		applyThemeToDOM(theme)
-	}, [theme, resolvedTheme, context.theme])
+	}, [theme, prefersDark, context.theme])
 
 	const setTheme = useCallback(
 		(newTheme: Theme) => {
@@ -94,5 +92,5 @@ export function useTheme() {
 		[fetcher],
 	)
 
-	return { theme, resolvedTheme, setTheme }
+	return { theme, setTheme }
 }

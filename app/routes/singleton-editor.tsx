@@ -111,17 +111,8 @@ export default function SingletonEditor({ loaderData }: Route.ComponentProps) {
 	// Above the boundary, so the panel keeps whatever the writer set while the
 	// content was still on its way.
 	const panel = usePropertiesPanel()
-	const chrome = {
-		canPublish: loaderData.canPublish,
-		editorPath: loaderData.editorPath,
-		hasBody: loaderData.hasBody,
-		media: loaderData.media,
-		name: loaderData.name,
-		owner: loaderData.owner,
-		panel,
-		publishDisabledReason: loaderData.publishDisabledReason,
-		schema: loaderData.schema,
-	}
+	const { opened, ...data } = loaderData
+	const chrome = { ...data, panel }
 
 	return (
 		// Keyed on the `Suspense`, as the collection editor's is: moving between
@@ -134,7 +125,7 @@ export default function SingletonEditor({ loaderData }: Route.ComponentProps) {
 			    an editor with nothing to edit, so a failed Source read rethrows to
 			    the route's boundary rather than leaving an empty editor behind
 			    (ADR-0006). */}
-			<Await resolve={loaderData.opened}>
+			<Await resolve={opened}>
 				{(opened: OpenedContent) => (
 					<CollectionItemEditor {...chrome} mode="item" opened={opened} />
 				)}

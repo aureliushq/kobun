@@ -1,8 +1,7 @@
 import { eq } from "drizzle-orm"
 import { FileTextIcon } from "lucide-react"
 import { Suspense } from "react"
-import { Await, Link, redirect, useRouteLoaderData } from "react-router"
-import { getAuth } from "@/auth/auth.server"
+import { Await, Link, useRouteLoaderData } from "react-router"
 import type { loader as dashboardLayoutLoader } from "@/core/components/layouts/dashboard"
 import { envContext } from "@/core/context"
 import {
@@ -28,6 +27,7 @@ import {
 import { Timestamp } from "@/core/preferences/timestamp"
 import { ConfigAlerts } from "@/core/project-context/config-alerts"
 import { configErrors } from "@/core/project-context/config-errors"
+import { requireUser } from "@/core/project-context/project-context.server"
 import { dbContext } from "@/db/context"
 import { editorDraft } from "@/db/schema/app-schema"
 import { posthogContext } from "@/lib/posthog-middleware"
@@ -51,7 +51,6 @@ import {
 import { H2 } from "@/ui/components/base/typography"
 import { AsyncErrorAlert } from "@/ui/components/blocks/async-error-alert"
 import { CardListSkeleton } from "@/ui/components/blocks/skeletons"
-import { PATHS } from "@/ui/lib/constants"
 import type { Route } from "./+types/dashboard"
 
 /** How the writer asks for the Drafts the bounded list left out. */
@@ -59,9 +58,7 @@ const ALL_DRAFTS_PARAM = "drafts"
 
 export async function loader({ context, request, url }: Route.LoaderArgs) {
 	const db = context.get(dbContext)
-	const auth = getAuth(context.get(envContext))
-	const session = await auth.api.getSession({ headers: request.headers })
-	if (!session?.user) throw redirect(PATHS.LOGIN)
+	const session = await requireUser({ context, request })
 
 	// The list is bounded unless the writer says otherwise, and the promise is
 	// created below the guard so a request that redirects leaves no query behind
@@ -75,9 +72,7 @@ export async function loader({ context, request, url }: Route.LoaderArgs) {
 
 export async function action({ context, request }: Route.ActionArgs) {
 	const db = context.get(dbContext)
-	const auth = getAuth(context.get(envContext))
-	const session = await auth.api.getSession({ headers: request.headers })
-	if (!session?.user) throw redirect(PATHS.LOGIN)
+	const session = await requireUser({ context, request })
 
 	const formData = await request.formData()
 	if (formData.get("intent") !== DISCARD_DRAFT_INTENT) {

@@ -15,10 +15,9 @@ import type { Route } from "./+types/api.set-preference"
  * the route it is rendered in unless it is told otherwise. One handler for the
  * write, so a Preference cannot be validated one way here and another way there.
  *
- * The session is read here rather than taken from a Project Context — the same
- * three lines `routes/settings.tsx` uses, and for the same reason:
- * this path names no Project. A status rather than a redirect, because the
- * caller is a fetcher and not a navigation.
+ * The session is read here rather than taken from a Project Context, because
+ * this path names no Project. Not `requireUser`, which redirects: the caller
+ * is a fetcher and not a navigation, so it gets a status.
  */
 export async function action({ context, request }: Route.ActionArgs) {
 	const auth = getAuth(context.get(envContext))

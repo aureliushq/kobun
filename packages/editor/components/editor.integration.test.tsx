@@ -162,6 +162,65 @@ describe("RichTextEditor interactions", () => {
 	})
 })
 
+describe("block shortcuts", () => {
+	function createEditor(markdown = "") {
+		return new Editor({
+			content: markdown,
+			contentType: "markdown",
+			extensions: getEditorExtensions({}),
+		})
+	}
+
+	function typeText(editor: Editor, text: string) {
+		for (const char of text) {
+			const { from, to } = editor.state.selection
+			const handled = editor.view.someProp("handleTextInput", (handler) =>
+				handler(editor.view, from, to, char, () =>
+					editor.state.tr.insertText(char, from, to),
+				),
+			)
+			if (!handled) editor.view.dispatch(editor.state.tr.insertText(char))
+		}
+	}
+
+	function pressEnter(editor: Editor) {
+		const event = new KeyboardEvent("keydown", { key: "Enter" })
+		editor.view.someProp("handleKeyDown", (handle) =>
+			handle(editor.view, event),
+		)
+	}
+
+	it.each(["---", "___ ", "*** "])("makes a rule from %j", (shortcut) => {
+		const editor = createEditor()
+		typeText(editor, shortcut)
+
+		expect(editor.state.doc.firstChild?.type.name).toBe("horizontalRule")
+		editor.destroy()
+	})
+
+	it("leaves a quote on Enter in an empty line", () => {
+		const editor = createEditor("> quoted")
+		editor.commands.focus("end")
+		pressEnter(editor)
+		pressEnter(editor)
+		typeText(editor, "after")
+
+		expect(editor.getMarkdown().trim()).toBe("> quoted\n\nafter")
+		editor.destroy()
+	})
+
+	it("ends a list inside a quote on Enter in an empty item", () => {
+		const editor = createEditor("> - item")
+		editor.commands.focus("end")
+		pressEnter(editor)
+		pressEnter(editor)
+		typeText(editor, "after")
+
+		expect(editor.getMarkdown().trim()).toBe("> - item\n>\n> after")
+		editor.destroy()
+	})
+})
+
 describe("Markdown round-trip", () => {
 	function roundTrip(markdown: string) {
 		const editor = new Editor({

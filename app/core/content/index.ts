@@ -11,4 +11,3 @@
  * editor's dirty check wants.
  */
 export { canonicalMetadata } from "./normalize"
-export { type ContentDocument, ContentParseError } from "./types"

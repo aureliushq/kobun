@@ -6,7 +6,6 @@ import {
 	BreadcrumbLink,
 	BreadcrumbList,
 } from "@/ui/components/base/breadcrumb"
-import { SIDEBAR_WIDTH } from "@/ui/components/base/sidebar"
 
 /**
  * The bar above the page: where the writer is, and nothing else.
@@ -19,9 +18,7 @@ const DashboardHeader = () => {
 	const params = useParams()
 
 	return (
-		<header
-			className={`sticky w-[calc(100vw-${SIDEBAR_WIDTH})] z-20 flex h-16 shrink-0 items-center px-4`}
-		>
+		<header className="sticky z-20 flex h-16 shrink-0 items-center px-4">
 			<Breadcrumb>
 				<BreadcrumbList>
 					<BreadcrumbItem>

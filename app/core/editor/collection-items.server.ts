@@ -1,10 +1,8 @@
-import type { Format } from "@/config/types"
+import type { Field, Format } from "@/config/types"
 import { parseDocument } from "@/core/content/document.server"
+import { getEffectiveSlug } from "./collection-metadata"
 import type { SourceFile } from "./drafts/source-store"
-
-interface CollectionConfig {
-	schema: Record<string, { type: string }>
-}
+import type { ResolvedSource } from "./drafts/types"
 
 /**
  * Whether a Collection keeps each item in a folder of its own, as
@@ -28,17 +26,6 @@ export const itemStem = (path: string) =>
 		.split("/")
 		.pop() ?? path
 
-export interface ResolvedCollectionItem {
-	body: string
-	frontmatter: Record<string, unknown>
-	itemSlug: string
-	name: string
-	path: string
-	/** The Source's bytes as committed, for whoever serializes over them. */
-	raw: string
-	sha: string
-}
-
 export function isMarkdownCollectionFile(file: { name: string }) {
 	return file.name.endsWith(".md") || file.name.endsWith(".mdx")
 }
@@ -54,54 +41,37 @@ export function collectionFileFormat(file: { path: string }): Format {
 	return file.path.endsWith(".mdx") ? "mdx" : "md"
 }
 
-/**
- * The Slug an item answers to: its slug field, or its stem when that is empty.
- * Asks only for a path, so a listing that already holds the parsed Data can
- * answer without the file's bytes.
- */
-export function getEffectiveSlug(
-	collection: CollectionConfig,
-	file: { path: string },
-	frontmatter: Record<string, unknown>,
-) {
-	const slugField = Object.entries(collection.schema).find(
-		([, field]) => field.type === "slug",
-	)?.[0]
-	const filenameSlug = itemStem(file.path)
-	const configuredSlug = slugField ? frontmatter[slugField] : undefined
-	return configuredSlug == null || configuredSlug === ""
-		? filenameSlug
-		: String(configuredSlug)
+/** A Source file, parsed into the shape the Draft lifecycle opens. */
+export function toResolvedSource(
+	file: SourceFile,
+	format: Format,
+): ResolvedSource {
+	const document = parseDocument(file.content, format)
+	return {
+		// A document Format always parses to a string Body: the coalesce narrows
+		// the type rather than covering for a case that can arise.
+		body: document.body ?? "",
+		frontmatter: document.data,
+		itemSlug: null,
+		path: file.path,
+		raw: file.content,
+		sha: file.sha,
+	}
 }
 
+/**
+ * The file as a Collection Item, when it answers to `slug`. A read file of a
+ * folder item is named `index`, so its stem comes from its path.
+ */
 export function findCollectionItemBySlug(
-	collection: CollectionConfig,
-	files: SourceFile[],
+	collection: { schema: Record<string, Field> },
+	file: SourceFile,
 	slug: string,
-): ResolvedCollectionItem | null {
-	const matches = files.flatMap((file) => {
-		const document = parseDocument(file.content, collectionFileFormat(file))
-		const itemSlug = getEffectiveSlug(collection, file, document.data)
-		return itemSlug === slug
-			? [
-					{
-						// The Format above is always a document one, so this Body is a
-						// string: the coalesce narrows the type rather than covering for
-						// a case that can arise.
-						body: document.body ?? "",
-						frontmatter: document.data,
-						itemSlug,
-						name: file.name,
-						path: file.path,
-						raw: file.content,
-						sha: file.sha,
-					},
-				]
-			: []
+): ResolvedSource | null {
+	const source = toResolvedSource(file, collectionFileFormat(file))
+	const itemSlug = getEffectiveSlug(collection.schema, {
+		data: source.frontmatter,
+		name: itemStem(file.path),
 	})
-
-	if (matches.length > 1) {
-		throw new Error(`Multiple collection items use slug "${slug}"`)
-	}
-	return matches[0] ?? null
+	return itemSlug === slug ? { ...source, itemSlug } : null
 }

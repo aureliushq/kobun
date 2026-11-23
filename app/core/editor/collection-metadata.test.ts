@@ -6,6 +6,7 @@ import {
 	applyMetadataDefaults,
 	defaultFieldValue,
 	getCollectionEditorFields,
+	getEffectiveSlug,
 	SLUG_MAX_LENGTH,
 	slugify,
 	updateMetadataField,
@@ -544,6 +545,18 @@ const SLUG_REQUIRED =
 const SLUG_MALFORMED =
 	"Slug must be lowercase letters and numbers separated by single hyphens"
 const SLUG_TOO_LONG = `Slug must be ${SLUG_MAX_LENGTH} characters or fewer`
+
+describe("the effective Slug", () => {
+	it("is the slug Field, or the name's stem when that is empty", () => {
+		const named = (data: Record<string, unknown>, name = "hello.md") =>
+			getEffectiveSlug(schema, { data, name })
+		expect(named({ slug: "custom" })).toBe("custom")
+		expect(named({ slug: "" })).toBe("hello")
+		expect(named({})).toBe("hello")
+		// A listed folder item carries the folder's name.
+		expect(named({}, "kobun")).toBe("kobun")
+	})
+})
 
 describe("the Slug rule", () => {
 	it("derives only what the rule accepts", () => {

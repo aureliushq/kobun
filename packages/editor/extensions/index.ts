@@ -6,12 +6,9 @@ import { Markdown } from "@tiptap/markdown"
 import StarterKit from "@tiptap/starter-kit"
 import { Tokenizer } from "marked"
 import type { ImageUploadAdapter } from "../types"
-import { CustomBlockquoteExtension } from "./blockquote"
 import { createCustomCalloutExtension } from "./callout/extension"
 import { CustomCodeBlockExtension } from "./code-block/extension"
-import { DragHandleExtension } from "./drag-handle"
 import { CustomEmojiExtension } from "./emoji/extension"
-import { CustomHorizontalRuleExtension } from "./horizontal-rule"
 import { CustomImageExtension } from "./image/extension"
 import { MarkdownClipboardExtension } from "./markdown-clipboard"
 import { MarkdownPasteExtension } from "./markdown-paste"
@@ -56,15 +53,7 @@ export function getEditorExtensions(options: ExtensionOptions): Extensions {
 
 	extensions.push(
 		StarterKit.configure({
-			blockquote: false,
-			bulletList: {
-				HTMLAttributes: { class: "list-disc pl-8" },
-			},
 			codeBlock: false,
-			heading: {
-				levels: [1, 2, 3, 4, 5, 6],
-			},
-			horizontalRule: false,
 			link: {
 				autolink: true,
 				HTMLAttributes: {
@@ -79,22 +68,15 @@ export function getEditorExtensions(options: ExtensionOptions): Extensions {
 			listItem: {
 				HTMLAttributes: { class: "leading-normal" },
 			},
-			orderedList: {
-				HTMLAttributes: { class: "list-decimal pl-8" },
-			},
 			paragraph: {
 				HTMLAttributes: { class: "leading-relaxed" },
 			},
 			underline: false,
-			undoRedo: {},
 		}),
 		CharacterCount,
-		CustomBlockquoteExtension,
 		calloutExtension,
 		CustomCodeBlockExtension,
-		DragHandleExtension,
 		CustomEmojiExtension,
-		CustomHorizontalRuleExtension,
 		CustomImageExtension.configure({ uploadAdapter: options.imageUpload }),
 		Placeholder.configure({
 			includeChildren: true,

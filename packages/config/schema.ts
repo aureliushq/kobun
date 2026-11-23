@@ -1,92 +1,11 @@
 import z from "zod"
+import type { Field } from "./types"
 
 ////////////////////// FIELDS //////////////////////
-enum BooleanComponentType {
-	CHECKBOX = "checkbox",
-	SWITCH = "switch",
-}
-
-enum FieldType {
-	ARRAY = "array",
-	BOOLEAN = "boolean",
-	DATE = "date",
-	DATETIME = "datetime",
-	DOCUMENT = "document",
-	IMAGE = "image",
-	MULTI_SELECT = "multi_select",
-	OBJECT = "object",
-	SELECT = "select",
-	SLUG = "slug",
-	TEXT = "text",
-	URL = "url",
-}
-
 export const selectOptionSchema = z.object({
 	label: z.string(),
 	value: z.string(),
 })
-type SelectOption = z.infer<typeof selectOptionSchema>
-
-type BaseField = {
-	description?: string
-	label: string
-	required?: boolean
-}
-
-type IField =
-	| (BaseField & {
-			itemLabel?: string
-			items: IField[]
-			type: FieldType.ARRAY
-	  })
-	| (BaseField & {
-			componentType?: BooleanComponentType
-			defaultValue?: boolean
-			type: FieldType.BOOLEAN
-	  })
-	| (BaseField & {
-			type: FieldType.DATE
-	  })
-	| (BaseField & {
-			type: FieldType.DATETIME
-	  })
-	| (BaseField & {
-			type: FieldType.DOCUMENT
-	  })
-	| (BaseField & {
-			type: FieldType.IMAGE
-	  })
-	| (BaseField & {
-			defaultSelected?: SelectOption[]
-			options: SelectOption[]
-			placeholder?: string
-			type: FieldType.MULTI_SELECT
-	  })
-	| (BaseField & {
-			fields: Record<string, IField>
-			type: FieldType.OBJECT
-	  })
-	| (BaseField & {
-			defaultSelected?: SelectOption
-			options: SelectOption[]
-			placeholder?: string
-			type: FieldType.SELECT
-	  })
-	| (BaseField & {
-			from: string
-			placeholder?: string
-			type: FieldType.SLUG
-	  })
-	| (BaseField & {
-			defaultValue?: string
-			multiline?: boolean
-			placeholder?: string
-			type: FieldType.TEXT
-	  })
-	| (BaseField & {
-			placeholder?: string
-			type: FieldType.URL
-	  })
 
 const baseFieldSchema = z.object({
 	description: z.string().optional(),
@@ -94,88 +13,89 @@ const baseFieldSchema = z.object({
 	required: z.boolean().optional(),
 })
 
-export const booleanFieldSchema = baseFieldSchema.extend({
-	componentType: z
-		.enum([BooleanComponentType.CHECKBOX, BooleanComponentType.SWITCH])
-		.optional(),
+export const arrayFieldSchema = baseFieldSchema.extend({
+	itemLabel: z.string().optional(),
+	get items() {
+		return z.array(fieldSchema)
+	},
+	type: z.literal("array"),
+})
+
+const booleanFieldSchema = baseFieldSchema.extend({
+	componentType: z.enum(["checkbox", "switch"]).optional(),
 	defaultValue: z.boolean().optional(),
-	type: z.literal(FieldType.BOOLEAN),
+	type: z.literal("boolean"),
 })
 
-export const dateFieldSchema = baseFieldSchema.extend({
-	type: z.literal(FieldType.DATE),
+const dateFieldSchema = baseFieldSchema.extend({
+	type: z.literal("date"),
 })
 
-export const datetimeFieldSchema = baseFieldSchema.extend({
-	type: z.literal(FieldType.DATETIME),
+const datetimeFieldSchema = baseFieldSchema.extend({
+	type: z.literal("datetime"),
 })
 
 export const documentFieldSchema = baseFieldSchema.extend({
-	type: z.literal(FieldType.DOCUMENT),
+	type: z.literal("document"),
 })
 
-export const imageFieldSchema = baseFieldSchema.extend({
-	type: z.literal(FieldType.IMAGE),
+const imageFieldSchema = baseFieldSchema.extend({
+	type: z.literal("image"),
 })
 
 export const multiSelectFieldSchema = baseFieldSchema.extend({
 	defaultSelected: z.array(selectOptionSchema).optional(),
 	options: z.array(selectOptionSchema),
 	placeholder: z.string().optional(),
-	type: z.literal(FieldType.MULTI_SELECT),
+	type: z.literal("multi_select"),
+})
+
+const objectFieldSchema = baseFieldSchema.extend({
+	get fields() {
+		return z.record(z.string(), fieldSchema)
+	},
+	type: z.literal("object"),
 })
 
 export const selectFieldSchema = baseFieldSchema.extend({
 	defaultSelected: selectOptionSchema.optional(),
 	options: z.array(selectOptionSchema),
 	placeholder: z.string().optional(),
-	type: z.literal(FieldType.SELECT),
+	type: z.literal("select"),
 })
 
 export const slugFieldSchema = baseFieldSchema.extend({
 	from: z.string(),
-	type: z.literal(FieldType.SLUG),
+	placeholder: z.string().optional(),
+	type: z.literal("slug"),
 })
 
-export const textFieldSchema = baseFieldSchema.extend({
+const textFieldSchema = baseFieldSchema.extend({
 	defaultValue: z.string().optional(),
 	multiline: z.boolean().optional(),
 	placeholder: z.string().optional(),
-	type: z.literal(FieldType.TEXT),
+	type: z.literal("text"),
 })
 
-export const urlFieldSchema = baseFieldSchema.extend({
+const urlFieldSchema = baseFieldSchema.extend({
 	placeholder: z.string().optional(),
-	type: z.literal(FieldType.URL),
+	type: z.literal("url"),
 })
 
-export const fieldSchema: z.ZodType<IField> = z.lazy(() =>
-	z.discriminatedUnion("type", [
-		arrayFieldSchema,
-		booleanFieldSchema,
-		dateFieldSchema,
-		datetimeFieldSchema,
-		documentFieldSchema,
-		imageFieldSchema,
-		multiSelectFieldSchema,
-		objectFieldSchema,
-		selectFieldSchema,
-		slugFieldSchema,
-		textFieldSchema,
-		urlFieldSchema,
-	]),
-)
-
-export const arrayFieldSchema = baseFieldSchema.extend({
-	itemLabel: z.string().optional(),
-	items: z.array(fieldSchema),
-	type: z.literal(FieldType.ARRAY),
-})
-
-export const objectFieldSchema = baseFieldSchema.extend({
-	fields: z.record(z.string(), fieldSchema),
-	type: z.literal(FieldType.OBJECT),
-})
+export const fieldSchema = z.discriminatedUnion("type", [
+	arrayFieldSchema,
+	booleanFieldSchema,
+	dateFieldSchema,
+	datetimeFieldSchema,
+	documentFieldSchema,
+	imageFieldSchema,
+	multiSelectFieldSchema,
+	objectFieldSchema,
+	selectFieldSchema,
+	slugFieldSchema,
+	textFieldSchema,
+	urlFieldSchema,
+])
 
 ////////////////////// FEATURES //////////////////////
 export const featureSchema = z.object({
@@ -190,23 +110,16 @@ export const featureSchema = z.object({
 })
 
 ////////////////////// COLLECTIONS & SINGLETONS //////////////////////
-enum Format {
-	JSON = "json",
-	MD = "md",
-	MDX = "mdx",
-	YAML = "yaml",
-}
-
 // A Slug derives from a text Field in its own schema, whether that is the
 // item's or a nested object's.
 function validateSlugSources(
-	fields: Record<string, IField>,
+	fields: Record<string, Field>,
 	path: (string | number)[],
 	ctx: z.RefinementCtx,
 ) {
 	const fieldMap = new Map(Object.entries(fields))
 	for (const [name, field] of fieldMap) {
-		if (field.type !== FieldType.SLUG) continue
+		if (field.type !== "slug") continue
 		const source = fieldMap.get(field.from)
 		if (!source) {
 			ctx.addIssue({
@@ -214,7 +127,7 @@ function validateSlugSources(
 				message: `slug.from "${field.from}" does not reference a field in the schema`,
 				path: [...path, name, "from"],
 			})
-		} else if (source.type !== FieldType.TEXT) {
+		} else if (source.type !== "text") {
 			ctx.addIssue({
 				code: "custom",
 				message: `slug.from "${field.from}" must reference a "text" field, found "${source.type}"`,
@@ -228,18 +141,18 @@ function validateSlugSources(
 // place one (#154). A nested Slug is checked against the object it sits in; an
 // array item has no Field beside it to derive from.
 function validateNestedFields(
-	field: IField,
+	field: Field,
 	path: (string | number)[],
 	ctx: z.RefinementCtx,
 ) {
-	if (field.type === FieldType.OBJECT) {
+	if (field.type === "object") {
 		validateSlugSources(field.fields, [...path, "fields"], ctx)
 		for (const [key, child] of Object.entries(field.fields)) {
 			validateNestedChild(child, [...path, "fields", key], ctx)
 		}
-	} else if (field.type === FieldType.ARRAY) {
+	} else if (field.type === "array") {
 		field.items.forEach((child, i) => {
-			if (child.type === FieldType.SLUG) {
+			if (child.type === "slug") {
 				ctx.addIssue({
 					code: "custom",
 					message: `A "slug" field cannot be an array item: it has no "text" field beside it to derive from`,
@@ -252,11 +165,11 @@ function validateNestedFields(
 }
 
 function validateNestedChild(
-	child: IField,
+	child: Field,
 	path: (string | number)[],
 	ctx: z.RefinementCtx,
 ) {
-	if (child.type === FieldType.DOCUMENT) {
+	if (child.type === "document") {
 		ctx.addIssue({
 			code: "custom",
 			message: `A "document" field must be at the top level of the schema`,
@@ -267,17 +180,14 @@ function validateNestedChild(
 }
 
 function validateContentSchema(
-	data: { format: string; schema: Record<string, IField> },
+	data: { format: string; schema: Record<string, Field> },
 	ctx: z.RefinementCtx,
 	requireSlug: boolean,
 ) {
 	const fields = Object.entries(data.schema)
 
-	const hasDocument = fields.some(([, f]) => f.type === FieldType.DOCUMENT)
-	const documentCount = fields.filter(
-		([, f]) => f.type === FieldType.DOCUMENT,
-	).length
-	if (hasDocument && data.format !== Format.MD && data.format !== Format.MDX) {
+	const documentCount = fields.filter(([, f]) => f.type === "document").length
+	if (documentCount > 0 && data.format !== "md" && data.format !== "mdx") {
 		ctx.addIssue({
 			code: "custom",
 			message: `Format must be "md" or "mdx" when a "document" field is present`,
@@ -292,7 +202,7 @@ function validateContentSchema(
 		})
 	}
 
-	const slugFields = fields.filter(([, f]) => f.type === FieldType.SLUG)
+	const slugFields = fields.filter(([, f]) => f.type === "slug")
 	if (requireSlug) {
 		if (slugFields.length === 0) {
 			ctx.addIssue({
@@ -313,11 +223,7 @@ function validateContentSchema(
 
 	for (const [name, field] of fields) {
 		validateNestedFields(field, ["schema", name], ctx)
-		if (
-			field.type === FieldType.SELECT &&
-			field.defaultSelected &&
-			field.options
-		) {
+		if (field.type === "select" && field.defaultSelected) {
 			const optionValues = field.options.map((o) => o.value)
 			if (!optionValues.includes(field.defaultSelected.value)) {
 				ctx.addIssue({
@@ -327,11 +233,7 @@ function validateContentSchema(
 				})
 			}
 		}
-		if (
-			field.type === FieldType.MULTI_SELECT &&
-			field.defaultSelected &&
-			field.options
-		) {
+		if (field.type === "multi_select" && field.defaultSelected) {
 			const optionValues = field.options.map((o) => o.value)
 			for (let i = 0; i < field.defaultSelected.length; i++) {
 				if (!optionValues.includes(field.defaultSelected[i].value)) {
@@ -348,7 +250,7 @@ function validateContentSchema(
 
 const contentShape = {
 	features: featureSchema.optional(),
-	format: z.enum([Format.JSON, Format.MD, Format.MDX, Format.YAML]),
+	format: z.enum(["json", "md", "mdx", "yaml"]),
 	label: z.string(),
 	schema: z.record(z.string(), fieldSchema),
 }

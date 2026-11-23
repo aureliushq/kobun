@@ -23,7 +23,13 @@ import {
 	type RowEntry,
 	setCompositeValue,
 } from "./composite"
-import { FieldRow, FieldsPanel, InlineText, JsonFallback } from "./presentation"
+import {
+	buildFieldBlocks,
+	FieldRow,
+	FieldsPanel,
+	InlineText,
+	JsonFallback,
+} from "./presentation"
 import { resolveTitle } from "./roles"
 import type {
 	DefaultForField,
@@ -430,22 +436,7 @@ function ArrayItemPanel({
 
 	// A composite row is laid out like an object's fields, but its values are
 	// addressed by position as well as by label, so it cannot borrow the panel.
-	type CompositeBlock =
-		| { kind: "fields"; entries: RowEntry[] }
-		| { kind: "array"; entry: RowEntry }
-	const blocks: CompositeBlock[] = []
-	for (const entry of rowView.entries) {
-		if (entry.field.type === "array") {
-			blocks.push({ kind: "array", entry })
-		} else {
-			const last = blocks[blocks.length - 1]
-			if (last && last.kind === "fields") {
-				last.entries.push(entry)
-			} else {
-				blocks.push({ kind: "fields", entries: [entry] })
-			}
-		}
-	}
+	const blocks = buildFieldBlocks(rowView.entries, (entry) => entry.field)
 
 	return (
 		<div className="flex flex-col gap-4 pt-2">

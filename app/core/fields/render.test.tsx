@@ -429,6 +429,34 @@ describe("the rich panel over an array of several items", () => {
 		expect(screen.getByRole("button")).toHaveTextContent("Users")
 	})
 
+	it("lists a row's plain fields together and sets a nested array apart", () => {
+		rich(
+			{
+				type: "array",
+				label: "Stats",
+				items: [
+					{ type: "text", label: "name" },
+					{ type: "text", label: "Value" },
+					{
+						type: "array",
+						label: "Tags",
+						items: [{ type: "text", label: "Tag" }],
+					},
+				],
+			},
+			[{ name: "Users", Value: "12", Tags: ["growth"] }],
+		)
+		fireEvent.click(screen.getAllByRole("button")[0])
+		const panel = document.querySelector(
+			"[data-slot='accordion-content']",
+		) as HTMLElement
+		const list = panel.querySelector("dl") as HTMLElement
+		expect(list).toHaveTextContent("Users")
+		expect(list).toHaveTextContent("12")
+		const tags = within(panel).getByRole("heading", { name: "Tags" })
+		expect(tags.closest("dl")).toBeNull()
+	})
+
 	it("dumps an array whose schema declares no items", () => {
 		const { container } = rich({ type: "array", label: "Empty", items: [] }, [
 			"a",

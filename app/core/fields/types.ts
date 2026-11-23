@@ -9,15 +9,8 @@ import type { DocumentField, Field, SlugField } from "@/config/types"
  */
 export type ValueField = Exclude<Field, DocumentField | SlugField>
 
-/**
- * Every Field Type name — the registry's key set.
- *
- * Derived from the union so it can never drift, but widened through a template
- * literal: `FieldType` is private to the config package, so without the
- * widening nothing here could write `"text"`. Same reason `Format` is widened
- * in `@/config/types`.
- */
-export type ValueFieldType = `${ValueField["type"]}`
+/** Every Field Type name — the registry's key set. */
+export type ValueFieldType = ValueField["type"]
 
 /** The union variant a given Field Type name describes. */
 export type FieldOfType<K extends ValueFieldType> = Extract<Field, { type: K }>
